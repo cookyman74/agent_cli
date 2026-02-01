@@ -21,7 +21,8 @@ export type LlmContent =
   | LlmTextContent
   | LlmImageContent
   | LlmToolCallContent
-  | LlmToolResultContent;
+  | LlmToolResultContent
+  | LlmThoughtContent;  // Gemini 사고 과정 데이터 지원
 
 export interface LlmTextContent {
   type: 'text';
@@ -50,6 +51,22 @@ export interface LlmToolResultContent {
   name?: string; // Gemini 등 일부 프로바이더를 위해 필요
   content: string;
   isError?: boolean;
+}
+
+/**
+ * Gemini Thought (사고 과정) 데이터 지원
+ * Gemini의 추론/계획 단계 출력을 저장하기 위한 타입
+ * 다른 프로바이더에서도 유사 기능 지원 시 활용 가능
+ */
+export interface LlmThoughtContent {
+  type: 'thought';
+  thought: string;
+  metadata?: {
+    step?: number;        // 사고 단계 번호
+    phase?: string;       // 'planning' | 'reasoning' | 'reflection'
+    provider?: string;    // 프로바이더별 확장 가능
+    [key: string]: unknown;
+  };
 }
 ```
 
@@ -131,8 +148,6 @@ export interface LlmToolProperty {
 }
 ```
 
-### 3.1.4 스트리밍 타입
-
 ```typescript
 // packages/core/src/providers/types.ts
 
@@ -144,10 +159,18 @@ export interface LlmStreamEvent {
   };
   usage?: LlmTokenUsage;
   error?: LlmError;
+
+  // Provider-specific metadata (optional)
+  metadata?: Record<string, unknown>;
+  
+  // Didim integration: conversation tracking
+  threadId?: string;  // 대화 스레드 ID (multi-turn)
+  qaId?: string;      // 개별 Q&A 세션 ID
 }
 
 export type LlmStream = AsyncGenerator<LlmStreamEvent, void, unknown>;
 ```
+
 
 ## 3.2 ContentGenerator 인터페이스 재정의
 

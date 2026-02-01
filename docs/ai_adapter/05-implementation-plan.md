@@ -1,6 +1,6 @@
-# 04. 구현 계획
+# 05. 구현 계획
 
-## 4.1 마일스톤 개요
+## 5.1 마일스톤 개요
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -27,7 +27,7 @@
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 4.2 Phase 1: 기반 작업 및 마이그레이션 전략
+## 5.2 Phase 1: 기반 작업 및 마이그레이션 전략
 
 ### M1.0: 코드 인벤토리 및 영향도 분석 (2일)
 
@@ -112,11 +112,45 @@ packages/core/src/providers/
 - [ ] Code Assist(OAuth) 경로를 Adapter로 변환하거나 별도 유지 결정
 - [ ] 환경 변수(`LLM_PROVIDER`) 및 설정 파일 통합 경로 정의
 
+**인증/프로바이더 우선순위 규칙** (리뷰 피드백 B 반영):
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                     프로바이더 선택 우선순위                               │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. LLM_PROVIDER 환경변수가 설정된 경우:                                   │
+│     → LLM_PROVIDER가 명시적 프로바이더 선택을 우선                         │
+│     → authType은 해당 프로바이더의 인증 방식으로 사용                       │
+│                                                                          │
+│  2. LLM_PROVIDER 미설정 + 기존 authType 설정된 경우:                       │
+│     → 기존 Google 인증 경로 유지 (ADC, OAuth, API Key)                    │
+│     → Gemini/Vertex AI를 기본 프로바이더로 사용                            │
+│                                                                          │
+│  3. 둘 다 미설정:                                                          │
+│     → GEMINI_API_KEY 확인 → Gemini API Key 모드                          │
+│     → 실패 시 오류 및 설정 안내                                            │
+│                                                                          │
+│  우선순위: LLM_PROVIDER > authType > GEMINI_API_KEY                       │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**예시 시나리오**:
+| 설정 | 결과 |
+|------|------|
+| `LLM_PROVIDER=claude` + `ANTHROPIC_API_KEY=xxx` | Claude 사용 |
+| `LLM_PROVIDER=didim` + `DIDIM_API_KEY=xxx` | DidimAIStudio 사용 |
+| `LLM_PROVIDER` 없음 + `authType=USE_GEMINI` | 기존 Gemini API Key 모드 |
+| `LLM_PROVIDER` 없음 + `authType=LOGIN_WITH_GOOGLE` | 기존 OAuth 모드 |
+| 모두 없음 + `GEMINI_API_KEY=xxx` | Gemini API Key 모드 (자동 감지) |
+
 **검증 기준**:
 - 기존 인증 흐름(ADC/OAuth/Vertex) 유지
 - 신규 provider 선택 경로가 명확히 문서화됨
+- 우선순위 충돌 시 동작이 예측 가능함
 
-## 4.3 Phase 2: 코어 리팩토링 및 Gemini 분리
+## 5.3 Phase 2: 코어 리팩토링 및 Gemini 분리
 
 ### M2.1: ContentGenerator/StreamEvent/Retry/Hook 타입 전환 (5-7일)
 
@@ -164,7 +198,7 @@ packages/core/src/providers/
 - 기존 Gemini 기능 100% 동작
 - 기능 플래그로 신규 경로 전환 가능
 
-## 4.4 Phase 3: 프로바이더 확장 및 통합
+## 5.4 Phase 3: 프로바이더 확장 및 통합
 
 ### M3.1: Claude 어댑터/변환기 구현 (4-5일)
 
@@ -202,7 +236,7 @@ packages/core/src/providers/
 - [ ] 성능 회귀 테스트 및 지표 수집
 - [ ] 사용자/개발자 문서 업데이트
 
-## 4.5 테스트 및 검증
+## 5.5 테스트 및 검증
 
 **테스트 시나리오**:
 
@@ -221,7 +255,7 @@ packages/core/src/providers/
 - 신규 프로바이더 전환 시 기능 회귀 없음
 - 성능 저하 < 50ms 목표 유지
 
-## 4.6 리스크 관리
+## 5.6 리스크 관리
 
 ### 식별된 리스크
 
@@ -244,7 +278,7 @@ packages/core/src/providers/
 - `authType` 기반 경로는 유지, provider 선택은 별도 플래그로 격리
 - 문서/CLI 도움말에 우선순위 규칙 명시
 
-## 4.7 의존성 및 번들 크기 관리
+## 5.7 의존성 및 번들 크기 관리
 
 ```json
 {
@@ -259,7 +293,7 @@ packages/core/src/providers/
 - CLI 특성상 번들 크기 증가 가능 → Dynamic Import 적용
 - OpenAI-Compatible 어댑터는 `openai` SDK 재사용 (추가 의존성 없음)
 
-## 4.8 출시 계획
+## 5.8 출시 계획
 
 | 버전 | 포함 내용 | 출시 시점 |
 |------|-----------|-----------|

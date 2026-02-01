@@ -6,13 +6,13 @@
 
 ## 📊 의존성 분석 요약
 
-### @google/genai 의존 파일 현황 (총 100개)
+### @google/genai 의존 파일 현황 (총 101개)
 
 | 카테고리 | 파일 수 | 핵심 파일 |
 |----------|--------|----------|
 | **core/** | 21 | `turn.ts`, `contentGenerator.ts`, `geminiChat.ts`, `client.ts`, `baseLlmClient.ts`, `loggingContentGenerator.ts` |
 | **utils/** | 20 | `partUtils.ts`, `tokenCalculation.ts`, `apiConversionUtils.ts`, `retry.ts` |
-| **tools/** | 11 | `tool-registry.ts`, `mcp-client.ts`, `read-file.ts`, `web-search.ts` |
+| **tools/** | 12 | `tool-registry.ts`, `mcp-client.ts`, `read-file.ts`, `web-search.ts` 등 |
 | **services/** | 8 | `modelConfigService.ts`, `chatCompressionService.ts`, `loopDetectionService.ts` |
 | **hooks/** | 7 | `hookTranslator.ts`, `hookEventHandler.ts`, `hookSystem.ts`, `types.ts` |
 | **code_assist/** | 6 | `converter.ts`, `server.ts`, `telemetry.ts` |
@@ -22,7 +22,7 @@
 | **policy/** | 3 | `policy-engine.ts` |
 | **safety/** | 3 | `checker-runner.ts`, `protocol.ts` |
 | **기타** | 6 | config/, availability/, scheduler/, commands/, confirmation-bus/ |
-| **합계** | **100** | - |
+| **합계** | **101** | - |
 
 ---
 

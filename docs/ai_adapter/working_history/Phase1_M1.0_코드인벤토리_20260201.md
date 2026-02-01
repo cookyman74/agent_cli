@@ -26,27 +26,27 @@
 
 ## 📊 분석 결과
 
-### @google/genai 의존 파일 현황 (총 100개)
+### @google/genai 의존 파일 현황 (총 101개)
 
-| 카테고리 | 파일 수 | 핵심 파일 |
+| 카테고리 | 파일 수 | 핵심 파일 (예시) |
 |----------|--------|----------|
-| core/ | 21 | `turn.ts`, `contentGenerator.ts`, `geminiChat.ts`, `baseLlmClient.ts`, `client.ts`, `loggingContentGenerator.ts`, `recordingContentGenerator.ts`, `fakeContentGenerator.ts` |
-| utils/ | 20 | `partUtils.ts`, `tokenCalculation.ts`, `apiConversionUtils.ts`, `generateContentResponseUtilities.ts` |
-| tools/ | 11 | `tool-registry.ts`, `mcp-client.ts`, `mcp-tool.ts`, `read-file.ts`, `web-search.ts` |
-| services/ | 8 | `modelConfigService.ts`, `chatCompressionService.ts`, `loopDetectionService.ts`, `sessionSummaryService.ts` |
-| hooks/ | 7 | `hookTranslator.ts`, `hookSystem.ts`, `hookEventHandler.ts`, `hookAggregator.ts`, `types.ts` |
-| code_assist/ | 6 | `converter.ts`, `server.ts`, `telemetry.ts` |
-| telemetry/ | 5 | `semantic.ts`, `types.ts`, `loggers.ts` |
-| routing/ | 5 | `routingStrategy.ts`, `classifierStrategy.ts`, `numericalClassifierStrategy.ts`, `modelRouterService.ts` |
-| agents/ | 5 | `local-executor.ts`, `codebase-investigator.ts`, `types.ts` |
-| policy/ | 3 | `policy-engine.ts` |
-| safety/ | 3 | `checker-runner.ts`, `protocol.ts` |
+| core/ | 21 | `turn.ts`, `contentGenerator.ts`, `geminiChat.ts`, `baseLlmClient.ts`, `client.ts` 등 |
+| utils/ | 20 | `partUtils.ts`, `tokenCalculation.ts`, `apiConversionUtils.ts` 등 |
+| tools/ | 12 | `tool-registry.ts`, `mcp-client.ts`, `mcp-tool.ts`, `read-file.ts`, `web-search.ts` 등 |
+| services/ | 8 | `modelConfigService.ts`, `chatCompressionService.ts`, `loopDetectionService.ts` 등 |
+| hooks/ | 7 | `hookTranslator.ts`, `hookSystem.ts`, `hookEventHandler.ts`, `types.ts` 등 |
+| code_assist/ | 6 | `converter.ts`, `server.ts`, `telemetry.ts` 등 |
+| telemetry/ | 5 | `semantic.ts`, `types.ts` 등 |
+| routing/ | 5 | `routingStrategy.ts`, `classifierStrategy.ts`, `numericalClassifierStrategy.ts` 등 |
+| agents/ | 5 | `local-executor.ts`, `codebase-investigator.ts`, `types.ts` 등 |
+| policy/ | 3 | `policy-engine.ts` 등 |
+| safety/ | 3 | `checker-runner.ts`, `protocol.ts` 등 |
 | config/ | 2 | `config.ts`, `defaultModelConfigs.ts` |
 | availability/ | 1 | `policyHelpers.ts` |
 | scheduler/ | 1 | `types.ts` |
 | commands/ | 1 | `types.ts` |
 | confirmation-bus/ | 1 | `types.ts` |
-| **합계** | **100** | - |
+| **합계** | **101** | - |
 
 ### GeminiEventType 분석 (18개)
 
@@ -139,15 +139,15 @@
 | 순서 | 커밋 ID | 타입 | 설명 | 테스트 |
 |------|---------|------|------|--------|
 | 1 | `396546ffb` | DOCS | M1.0 분석 문서 작성 | N/A |
-| 2 | `pending` | DOCS | 리뷰 반영 수정 | N/A |
+| 2 | `158ea5a66` | DOCS | 리뷰 반영 수정 | N/A |
 
-**총 커밋 수**: 2개 (1개 대기)
+**총 커밋 수**: 2개
 
 ---
 
 ## ✅ 완료 기준 체크
 
-- [x] @google/genai 의존 파일 전체 스캔 (**100개**)
+- [x] @google/genai 의존 파일 전체 스캔 (**101개**)
 - [x] GeminiEventType 18개 이벤트 분석 (전체 사용처 포함)
 - [x] ContentGenerator 의존 분석
 - [x] ModelConfigService 종속성 분석
@@ -163,7 +163,7 @@
 | I-1 | routingStrategy.ts @google/genai 직접 참조 | Critical | M2.6 |
 | I-2 | 테스트 파일 mock 객체 마이그레이션 규모 | High | M3.5 |
 | I-3 | ChatCompressed, Citation은 Gemini 특화 이벤트 | Medium | M1.2 |
-| I-4 | 의존 파일 100개로 예상보다 37% 증가 | High | Phase 2/3 |
+| I-4 | 의존 파일 101개로 예상보다 **60.3% 증가** (63→101) | High | Phase 2/3 |
 
 ---
 

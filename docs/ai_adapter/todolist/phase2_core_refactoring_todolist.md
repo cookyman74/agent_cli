@@ -61,6 +61,33 @@ packages/core/src/
 
 ---
 
+# 3-STAGE WORK PROCESS (사전작업/본작업/사후작업)
+
+각 Milestone 작업은 다음 3단계로 진행:
+
+## 1️⃣ 사전작업 (Pre-work)
+- [ ] 작업 개요 파악: 현재 Milestone 목표 및 세부 작업 확인
+- [ ] 이전 작업 리뷰: Phase 1 완료 확인 및 작업 결과서 확인 (`working_history/` 디렉토리)
+- [ ] 이슈 파악: 이전 작업에서 전달된 이슈 및 Open Questions 확인
+- [ ] 설계서 참조: 관련 설계 문서 검토 (03-technical-design.md 등)
+
+## 2️⃣ 본작업 (Main work) - TDD 사이클
+- [ ] **Red**: 실패하는 테스트 작성
+- [ ] **Green**: 최소한의 코드로 테스트 통과
+- [ ] **Refactor**: 코드 개선 (테스트 통과 유지)
+- [ ] 체크리스트 업데이트: 작업 완료 시 ✅ 표시
+
+## 3️⃣ 사후작업 (Post-work)
+- [ ] 체크리스트 최종 확인: 해당 Milestone 모든 항목 완료 확인
+- [ ] 작업 결과서 작성: `working_history/Phase2_{Milestone}_{작업일자}.md`
+- [ ] 커밋: 변경사항 커밋 및 커밋 ID 기록
+- [ ] 이슈 전달: 다음 작업에 전달할 이슈 문서화
+
+### 작업 결과서 템플릿
+- 경로: `docs/ai_adapter/template/03_work_result_report_template.md`
+
+---
+
 # M2.0: 🆕 디렉토리 재구성 (Tidy First) (2-3일)
 
 > 📚 **설계서 참조**: [02-architecture.md §2.2.3 새 디렉토리 구조](../02-architecture.md#223-새-디렉토리-구조)

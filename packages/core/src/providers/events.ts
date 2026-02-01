@@ -23,7 +23,7 @@ import type { LlmTokenUsage } from './types.js';
 /**
  * Unified stream event types for all LLM providers.
  *
- * Mapping from GeminiEventType (18 events):
+ * Mapping from GeminiEventType (18 events) + MessageEnd = 19 total:
  *
  * | GeminiEventType              | LlmEventType              | Notes           |
  * |------------------------------|---------------------------|-----------------|
@@ -160,7 +160,7 @@ export interface LlmToolCallResponseEvent extends LlmBaseEvent {
   type: LlmEventType.ToolCallResponse;
   callId: string;
   name: string;
-  result: string;
+  result: string | Record<string, unknown>; // Extended for Part[] compatibility
   isError?: boolean;
 }
 

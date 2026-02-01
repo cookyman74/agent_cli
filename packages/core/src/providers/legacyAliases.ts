@@ -42,6 +42,9 @@ import type { LlmError, LlmErrorType } from './errors.js';
 /**
  * @deprecated Use LlmMessage instead.
  * Alias for backward compatibility with @google/genai Content type.
+ *
+ * WARNING: This is a structural alias only. LlmMessage has a different structure
+ * than @google/genai Content. Use contentToLlmMessage() for conversion.
  */
 export type Content = LlmMessage;
 
@@ -54,6 +57,9 @@ export type Part = LlmContent;
 /**
  * @deprecated Use LlmContent[] instead.
  * Alias for backward compatibility with @google/genai PartListUnion type.
+ *
+ * WARNING: This is a structural alias only. The actual @google/genai PartListUnion
+ * may have different Part structures. Use partToLlmContent() for conversion.
  */
 export type PartListUnion = LlmContent | LlmContent[];
 

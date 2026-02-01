@@ -51,18 +51,24 @@ describe('LlmMessage types', () => {
         },
       };
       expect(imageContent.source.type).toBe('base64');
+      if (imageContent.source.type === 'base64') {
+        expect(imageContent.source.data).toBe('base64encodeddata...');
+      }
     });
 
-    it('should support URL images', () => {
+    it('should support URL images with url field', () => {
       const imageContent: LlmImageContent = {
         type: 'image',
         source: {
           type: 'url',
           mediaType: 'image/png',
-          data: 'https://example.com/image.png',
+          url: 'https://example.com/image.png',
         },
       };
       expect(imageContent.source.type).toBe('url');
+      if (imageContent.source.type === 'url') {
+        expect(imageContent.source.url).toBe('https://example.com/image.png');
+      }
     });
   });
 
@@ -134,9 +140,14 @@ describe('LlmMessage types', () => {
         },
         { type: 'tool_call', id: '1', name: 'test', arguments: {} },
         { type: 'tool_result', toolCallId: '1', content: 'result' },
+        {
+          type: 'tool_result',
+          toolCallId: '2',
+          content: { structured: 'data' },
+        }, // Extended type
         { type: 'thought', thought: 'thinking...' },
       ];
-      expect(contents).toHaveLength(5);
+      expect(contents).toHaveLength(6);
     });
   });
 
@@ -206,6 +217,17 @@ describe('LlmGenerateResponse types', () => {
       },
     };
     expect(response.stopReason).toBe('end_turn');
+  });
+
+  it('should allow optional usage for streaming scenarios', () => {
+    const response: LlmGenerateResponse = {
+      id: 'resp-123',
+      content: [{ type: 'text', text: 'Response' }],
+      model: 'gemini-2.0-flash',
+      stopReason: 'end_turn',
+      // usage is optional now
+    };
+    expect(response.usage).toBeUndefined();
   });
 });
 

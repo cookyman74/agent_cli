@@ -32,15 +32,19 @@ export interface LlmTextContent {
 
 /**
  * Image content block with support for base64 and URL sources.
+ * Note: For URL type, use the 'url' field. For base64 type, use the 'data' field.
  */
 export interface LlmImageContent {
   type: 'image';
-  source: {
-    type: 'base64' | 'url';
-    mediaType: string;
-    data: string;
-  };
+  source: LlmImageSource;
 }
+
+/**
+ * Image source - either base64 encoded data or a URL.
+ */
+export type LlmImageSource =
+  | { type: 'base64'; mediaType: string; data: string }
+  | { type: 'url'; mediaType: string; url: string };
 
 /**
  * Tool call content block - represents a function call request.
@@ -54,12 +58,13 @@ export interface LlmToolCallContent {
 
 /**
  * Tool result content block - represents a function call response.
+ * content can be a string or structured data (for compatibility with Part[] based results).
  */
 export interface LlmToolResultContent {
   type: 'tool_result';
   toolCallId: string;
   name?: string; // Required by some providers (e.g., Gemini)
-  content: string;
+  content: string | Record<string, unknown>; // Extended from string-only for Part[] compatibility
   isError?: boolean;
 }
 
@@ -191,8 +196,8 @@ export interface LlmGenerateResponse {
   /** Reason for stopping */
   stopReason: LlmStopReason;
 
-  /** Token usage statistics */
-  usage: LlmTokenUsage;
+  /** Token usage statistics (optional - may not be available during streaming) */
+  usage?: LlmTokenUsage;
 
   /** Raw provider response (for debugging) */
   rawResponse?: unknown;
@@ -242,18 +247,35 @@ export interface LlmToolDefinition {
 }
 
 // ============================================================================
-// Stream Event Types
+// Stream Types (use events.ts for detailed event types)
+// NOTE: For detailed stream events (LlmEventType, LlmEvent, etc.), import from './events.js'
+// This section provides simplified stream types for basic streaming scenarios.
 // ============================================================================
 
 /**
- * Stream event types.
+ * Async generator type for streaming responses.
+ * Use LlmEventStream from events.ts for full server event streaming.
  */
-export type LlmStreamEventType =
-  | 'content_delta' // Text chunk
-  | 'tool_call_delta' // Tool call chunk
-  | 'thought_delta' // Thought/reasoning chunk
-  | 'message_end' // Message complete
-  | 'error'; // Error occurred
+export type LlmStream = AsyncGenerator<LlmStreamEvent, void, unknown>;
+
+/**
+ * Simplified stream event for basic content streaming.
+ * For full event types (ToolCallRequest, Finished, etc.), use LlmEvent from events.ts
+ */
+export interface LlmStreamEvent {
+  type:
+    | 'content_delta'
+    | 'tool_call_delta'
+    | 'thought_delta'
+    | 'message_end'
+    | 'error';
+  delta?: LlmStreamDelta;
+  usage?: LlmTokenUsage;
+  error?: Error;
+  metadata?: Record<string, unknown>;
+  threadId?: string;
+  qaId?: string;
+}
 
 /**
  * Stream event delta content.
@@ -263,28 +285,6 @@ export interface LlmStreamDelta {
   toolCall?: Partial<LlmToolCallContent>;
   thought?: string;
 }
-
-/**
- * Streaming event from content generation.
- */
-export interface LlmStreamEvent {
-  type: LlmStreamEventType;
-  delta?: LlmStreamDelta;
-  usage?: LlmTokenUsage;
-  error?: Error;
-
-  /** Provider-specific metadata */
-  metadata?: Record<string, unknown>;
-
-  /** Didim integration: conversation tracking */
-  threadId?: string;
-  qaId?: string;
-}
-
-/**
- * Async generator type for streaming responses.
- */
-export type LlmStream = AsyncGenerator<LlmStreamEvent, void, unknown>;
 
 // ============================================================================
 // Provider Capabilities

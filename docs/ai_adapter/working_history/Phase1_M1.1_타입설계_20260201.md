@@ -129,3 +129,29 @@ packages/core/src/providers/
 
 **작성**: AI Assistant  
 **완료**: 2026-02-01 23:15 KST
+
+---
+
+## 📝 리뷰 피드백 반영 (2026-02-01 23:25)
+
+### 수정된 이슈
+
+| 심각도       | 이슈                       | 수정 내용                                                                                                  |
+| ------------ | -------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Critical** | 스트림 이벤트 2중 정의     | `types.ts`에서 `LlmStreamEventType` 제거, 간소화된 `LlmStreamEvent` 유지. 상세 이벤트는 `events.ts`로 통합 |
+| **High**     | 이벤트 개수 불일치 (18→19) | `events.ts` 문서 주석 수정: "18 events + MessageEnd = 19 total"                                            |
+| **High**     | 이미지 URL 필드 구조       | `LlmImageSource` 유니온 타입 도입: base64는 `data`, url은 `url` 필드 사용                                  |
+| **Medium**   | `usage` 필수               | `LlmGenerateResponse.usage`를 선택적(`?`)으로 변경                                                         |
+| **Medium**   | 툴 결과 타입 제한          | `content: string \| Record<string, unknown>`으로 확장                                                      |
+| **Medium**   | Legacy alias 구조 경고     | `Content`, `PartListUnion`에 WARNING 주석 추가                                                             |
+
+### 추후 과제
+
+| 심각도  | 이슈                      | 상태               |
+| ------- | ------------------------- | ------------------ |
+| **Low** | events/errors 테스트 부재 | M1.2에서 추가 예정 |
+
+### 검증 결과
+
+- **빌드**: ✅ 성공
+- **테스트**: ✅ 20/20 통과 (1개 추가됨)

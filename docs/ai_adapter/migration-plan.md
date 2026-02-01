@@ -6,18 +6,23 @@
 
 ## 📊 의존성 분석 요약
 
-### @google/genai 의존 파일 현황
+### @google/genai 의존 파일 현황 (총 100개)
 
 | 카테고리 | 파일 수 | 핵심 파일 |
 |----------|--------|----------|
-| **core/** | 11 | `turn.ts`, `contentGenerator.ts`, `geminiChat.ts`, `client.ts`, `baseLlmClient.ts` |
-| **services/** | 6 | `modelConfigService.ts`, `chatCompressionService.ts`, `loopDetectionService.ts` |
-| **routing/** | 4 | `routingStrategy.ts`, `classifierStrategy.ts`, `numericalClassifierStrategy.ts` |
-| **hooks/** | 6 | `hookTranslator.ts`, `hookEventHandler.ts`, `hookSystem.ts`, `types.ts` |
-| **utils/** | 14 | `partUtils.ts`, `tokenCalculation.ts`, `apiConversionUtils.ts`, `retry.ts` |
-| **tools/** | 8 | `tool-registry.ts`, `mcp-client.ts`, `read-file.ts` |
-| **기타** | 14 | agents/, code_assist/, telemetry/, safety/, scheduler/ |
-| **합계** | **63** | - |
+| **core/** | 21 | `turn.ts`, `contentGenerator.ts`, `geminiChat.ts`, `client.ts`, `baseLlmClient.ts`, `loggingContentGenerator.ts` |
+| **utils/** | 20 | `partUtils.ts`, `tokenCalculation.ts`, `apiConversionUtils.ts`, `retry.ts` |
+| **tools/** | 11 | `tool-registry.ts`, `mcp-client.ts`, `read-file.ts`, `web-search.ts` |
+| **services/** | 8 | `modelConfigService.ts`, `chatCompressionService.ts`, `loopDetectionService.ts` |
+| **hooks/** | 7 | `hookTranslator.ts`, `hookEventHandler.ts`, `hookSystem.ts`, `types.ts` |
+| **code_assist/** | 6 | `converter.ts`, `server.ts`, `telemetry.ts` |
+| **telemetry/** | 5 | `semantic.ts`, `types.ts`, `loggers.ts` |
+| **routing/** | 5 | `routingStrategy.ts`, `classifierStrategy.ts`, `numericalClassifierStrategy.ts` |
+| **agents/** | 5 | `local-executor.ts`, `codebase-investigator.ts`, `types.ts` |
+| **policy/** | 3 | `policy-engine.ts` |
+| **safety/** | 3 | `checker-runner.ts`, `protocol.ts` |
+| **기타** | 6 | config/, availability/, scheduler/, commands/, confirmation-bus/ |
+| **합계** | **100** | - |
 
 ---
 
@@ -47,13 +52,30 @@ packages/core/src/routing/
 └── strategies/*.ts            # RoutingContext 사용
 ```
 
-### Tier 3: 유틸리티/도구
+### Tier 3: 유틸리티/도구/확장 영향
 
 ```
 packages/core/src/utils/
 ├── partUtils.ts               # Part, PartListUnion, GenerateContentResponse
 ├── tokenCalculation.ts        # Part 타입
 └── generateContentResponseUtilities.ts
+
+packages/core/src/agents/
+├── local-executor.ts          # StreamEventType, GeminiChat
+└── codebase-investigator.ts   # Part 타입
+
+packages/core/src/telemetry/
+├── semantic.ts                # usageMetadata
+└── types.ts                   # GenerateContentConfig
+
+packages/core/src/tools/
+├── tool-registry.ts           # FunctionDeclaration
+└── mcp-client.ts              # Part 타입
+
+packages/core/src/
+├── policy/policy-engine.ts    # Part 타입
+├── safety/checker-runner.ts   # Part, Content
+└── scheduler/types.ts         # FunctionCall
 ```
 
 ---

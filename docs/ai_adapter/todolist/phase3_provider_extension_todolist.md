@@ -11,6 +11,14 @@ Always follow TDD principles. For each provider adapter: write failing tests for
 
 # PHASE OVERVIEW
 
+## 설계서 참조 (Design Document References)
+
+| 설계서 | 관련 섹션 | 참조 목적 |
+|--------|----------|-----------|
+| [03-technical-design.md](../03-technical-design.md) | §3.3.4-3.3.6 Claude 어댑터/변환기, §3.3.7-3.3.8 OpenAI 어댑터/변환기, §3.4 vLLM 확장 | 각 프로바이더별 어댑터 구현 상세 |
+| [04-integration-design.md](../04-integration-design.md) | §4.2 연동 아키텍처, §4.3 공통 타입 시스템 | DidimAIStudio 연동 시 프로바이더 통합 |
+| [05-implementation-plan.md](../05-implementation-plan.md) | §5.4 Phase 3 상세, §5.5 테스트 및 검증 | 마일스톤별 상세 계획, 검증 기준 |
+
 ## 목표
 - Claude 어댑터/변환기 구현
 - OpenAI 어댑터/변환기 구현
@@ -44,6 +52,8 @@ packages/core/src/providers/
 ---
 
 # M3.1: Claude 어댑터/변환기 구현 (4-5일)
+
+> 📚 **설계서 참조**: [03-technical-design.md §3.3.4 Claude 어댑터](../03-technical-design.md#334-claude-어댑터), [§3.3.5 Claude 타입 변환기](../03-technical-design.md#335-claude-타입-변환기-추가), [§3.3.6 Claude 어댑터 구현](../03-technical-design.md#336-claude-어댑터-추가), [05-implementation-plan.md §M3.1](../05-implementation-plan.md#m31-claude-어댑터변환기-구현-4-5일)
 
 ## 목표
 Claude 메시지/툴/스트림 변환기 구현
@@ -216,6 +226,8 @@ describe('Claude Stream Converter', () => {
 
 # M3.2: OpenAI 어댑터/변환기 구현 (3-4일)
 
+> 📚 **설계서 참조**: [03-technical-design.md §3.3.7 OpenAI 어댑터](../03-technical-design.md#337-openai-어댑터-구조-예시), [§3.3.8 OpenAI 타입 변환기](../03-technical-design.md#338-openai-타입-변환기-추가), [05-implementation-plan.md §M3.2](../05-implementation-plan.md#m32-openai-어댑터변환기-구현-3-4일)
+
 ## 목표
 OpenAI 메시지/툴/스트림 변환기 구현
 
@@ -340,6 +352,8 @@ describe('OpenAI Message Converter', () => {
 
 # M3.3: OpenAI-Compatible(vLLM/sLM) 어댑터 템플릿 (3일)
 
+> 📚 **설계서 참조**: [03-technical-design.md §3.4 vLLM 및 OpenAI 호환 프로바이더 확장](../03-technical-design.md#34-vllm-및-기타-openai-호환-프로바이더-확장), [05-implementation-plan.md §M3.3](../05-implementation-plan.md#m33-openai-compatiblevllmslm-어댑터-템플릿-3일)
+
 ## 목표
 vLLM, TGI, LM Studio 등 OpenAI 호환 API 지원
 
@@ -426,6 +440,8 @@ describe('OpenAICompatibleAdapter', () => {
 
 # M3.4: 통합 테스트/문서/안정화 (5-7일)
 
+> 📚 **설계서 참조**: [04-integration-design.md §4.2 연동 아키텍처](../04-integration-design.md#42-연동-아키텍처) (통합 테스트 시나리오), [05-implementation-plan.md §5.5 테스트 및 검증](../05-implementation-plan.md#55-테스트-및-검증), [§M3.4](../05-implementation-plan.md#m34-통합-테스트문서안정화-5-7일)
+
 ## 목표
 멀티 프로바이더 통합 검증 및 문서화
 
@@ -496,6 +512,8 @@ describe('OpenAICompatibleAdapter', () => {
 ---
 
 # M3.5: 테스트 마이그레이션 (3-4일) [v0.2 신규]
+
+> 📚 **설계서 참조**: [05-implementation-plan.md §5.5 테스트 및 검증](../05-implementation-plan.md#55-테스트-및-검증) (테스트 전략), [03-technical-design.md §3.1 타입 시스템](../03-technical-design.md#31-프로바이더-독립적-타입-시스템) (Mock 타입 전환 참조)
 
 ## 목표
 Gemini 특화 테스트를 프로바이더 중립적 테스트로 전환

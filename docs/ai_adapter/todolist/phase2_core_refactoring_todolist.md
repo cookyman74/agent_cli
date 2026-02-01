@@ -11,6 +11,15 @@ Always follow TDD principles. For each task: write a failing test first, impleme
 
 # PHASE OVERVIEW
 
+## 설계서 참조 (Design Document References)
+
+| 설계서 | 관련 섹션 | 참조 목적 |
+|--------|----------|-----------|
+| [02-architecture.md](../02-architecture.md) | §2.2.3 새 디렉토리 구조, §2.4 프로바이더 선택 흐름 | 목표 아키텍처, 디렉토리 구조 |
+| [03-technical-design.md](../03-technical-design.md) | §3.2 ContentGenerator 재정의, §3.3.2-3.3.3 Gemini 어댑터/변환기 | ContentGenerator 인터페이스, Gemini 어댑터 구현 상세 |
+| [04-integration-design.md](../04-integration-design.md) | §4.3 공통 타입 시스템 | DidimAIStudio 연동 시 타입 호환성 |
+| [05-implementation-plan.md](../05-implementation-plan.md) | §5.3 Phase 2 상세 | 마일스톤별 상세 계획 |
+
 ## 목표
 - 🆕 디렉토리 재구성 (Tidy First 원칙)
 - 핵심 경로에서 `@google/genai` 타입 분리
@@ -54,6 +63,8 @@ packages/core/src/
 
 # M2.0: 🆕 디렉토리 재구성 (Tidy First) (2-3일)
 
+> 📚 **설계서 참조**: [02-architecture.md §2.2.3 새 디렉토리 구조](../02-architecture.md#223-새-디렉토리-구조)
+
 ## 목표
 Tidy First 원칙에 따라 구조적 변경 먼저 수행
 
@@ -88,6 +99,8 @@ Tidy First 원칙에 따라 구조적 변경 먼저 수행
 ---
 
 # M2.1: ContentGenerator/StreamEvent/Retry/Hook 타입 전환 (5-7일) - 확대
+
+> 📚 **설계서 참조**: [03-technical-design.md §3.2 ContentGenerator 인터페이스 재정의](../03-technical-design.md#32-contentgenerator-인터페이스-재정의), [§3.1.2 요청/응답 타입](../03-technical-design.md#312-요청응답-타입), [05-implementation-plan.md §M2.1](../05-implementation-plan.md#m21-contentgeneratorstreameventretryhook-타입-전환-5-7일)
 
 ## 목표
 핵심 경로에서 `@google/genai` 타입 분리
@@ -199,6 +212,8 @@ contentGenerator.ts (기반)
 ---
 
 # M2.2: GeminiChat 스트리밍 분해 및 합성기 적용 (5-7일) - 이벤트 매핑
+
+> 📚 **설계서 참조**: [03-technical-design.md §3.3.3 Gemini 타입 변환기](../03-technical-design.md#333-gemini-타입-변환기), [05-implementation-plan.md §M2.2](../05-implementation-plan.md#m22-geminichat-스트리밍-분해-및-합성기-적용-5-7일)
 
 ## 목표
 스트리밍 로직의 Gemini 결합 해소 (18개 이벤트 매핑)
@@ -382,6 +397,8 @@ geminiChat.ts
 
 # M2.3: GeminiAdapter 구현 및 동등성 검증 (4-5일) - 확대
 
+> 📚 **설계서 참조**: [03-technical-design.md §3.3.2 Gemini 어댑터](../03-technical-design.md#332-gemini-어댑터), [§3.3.3 Gemini 타입 변환기](../03-technical-design.md#333-gemini-타입-변환기), [05-implementation-plan.md §M2.3](../05-implementation-plan.md#m23-geminiadapter-구현-및-동등성-검증-3-5일)
+
 ## 목표
 기존 Gemini 경로를 어댑터로 캡슐화
 
@@ -438,6 +455,8 @@ geminiChat.ts
 ---
 
 # M2.4: 🆕 ModelConfigService 호환 레이어 (2-3일)
+
+> 📚 **설계서 참조**: [02-architecture.md §2.5 설정 구조](../02-architecture.md#25-설정-구조), [03-technical-design.md §3.1.2 요청/응답 타입](../03-technical-design.md#312-요청응답-타입) (LlmGenerateConfig 참조)
 
 ## 목표
 ModelConfigService의 GenerateContentConfig 의존성 해결
@@ -497,6 +516,8 @@ describe('ModelConfigService Compatibility', () => {
 
 # M2.5: 🆕 유틸리티 레이어 리팩토링 (2-3일)
 
+> 📚 **설계서 참조**: [03-technical-design.md §3.1.1 핵심 타입 정의](../03-technical-design.md#311-핵심-타입-정의) (LlmContent, LlmPart 참조), [01-overview.md §1.3.4 의존성 현황](../01-overview.md#134-의존성-현황)
+
 ## 목표
 유틸리티 함수들의 프로바이더 독립화
 
@@ -551,6 +572,8 @@ describe('tokenCalculation', () => {
 ---
 
 # M2.6: 🆕 라우팅 레이어 타입 독립화 (2-3일) [Critical - 리뷰 반영]
+
+> 📚 **설계서 참조**: [02-architecture.md §2.4 프로바이더 선택 흐름](../02-architecture.md#24-프로바이더-선택-흐름), [03-technical-design.md §3.1.1 핵심 타입 정의](../03-technical-design.md#311-핵심-타입-정의) (LlmMessage, LlmContent 참조)
 
 ## 목표
 `packages/core/src/routing/routingStrategy.ts`의 `@google/genai` 의존성 제거

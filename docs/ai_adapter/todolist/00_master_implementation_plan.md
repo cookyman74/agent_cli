@@ -19,6 +19,27 @@ Gemini CLI를 어댑터 패턴으로 리팩토링하여 다중 LLM 프로바이�
 - **Tidy First**: 구조적 변경과 동작 변경 분리
 - **점진적 마이그레이션**: alias → 병행 → 제거 전략
 
+## 📚 설계서 참조 (Design Document Index)
+
+| 문서 | 주요 내용 | 링크 |
+|------|----------|------|
+| **01-overview.md** | 프로젝트 개요, 현재 상태 분석, 문제점 식별 | [바로가기](../01-overview.md) |
+| **02-architecture.md** | 현재/목표 아키텍처, 설계 원칙, 프로바이더 선택 흐름 | [바로가기](../02-architecture.md) |
+| **03-technical-design.md** | 타입 시스템, 어댑터 구현 상세, 에러 처리 | [바로가기](../03-technical-design.md) |
+| **04-integration-design.md** | DidimAIStudio 연동, 공통 타입 시스템, DTO 구조 | [바로가기](../04-integration-design.md) |
+| **05-implementation-plan.md** | 마일스톤별 구현 계획, 테스트 전략, 리스크 관리 | [바로가기](../05-implementation-plan.md) |
+
+### 작업별 설계서 Quick Reference
+
+| 작업 유형 | 참조 설계서 섹션 |
+|----------|----------------|
+| 타입 정의/변환 | 03-technical-design.md §3.1, §3.3 |
+| 어댑터 구현 | 03-technical-design.md §3.3.1 (Base), §3.3.2-3.3.8 (Provider별) |
+| 설정/인증 | 02-architecture.md §2.4, §2.5 |
+| 스트리밍/이벤트 | 03-technical-design.md §3.3.3 (변환기) |
+| DidimAIStudio 연동 | 04-integration-design.md §4.2, §4.3 |
+| 테스트 전략 | 05-implementation-plan.md §5.5 |
+
 ## 전체 일정: 8-10주 (리스크 반영 조정)
 
 ```
@@ -80,6 +101,10 @@ InvalidStream, ModelInfo, AgentExecutionStopped, AgentExecutionBlocked
 ### 6. 테스트 마이그레이션 규모
 - `geminiChat.test.ts`, `config.test.ts` 등 Gemini 전용 테스트
 
+### 7. 🆕 Agent/Telemetry 레이어 결합 (Watch Items)
+- `LocalAgentExecutor`가 `GeminiChat`에 직접 결합 (StreamEventType 소비)
+- `telemetry/types.ts`가 `GenerateContentResponseUsageMetadata`에 직접 결합
+
 ---
 
 # ARCHITECTURE DECISIONS
@@ -137,11 +162,12 @@ packages/core/src/core/turn.ts → providers/gemini/turn.ts (Gemini 특화 부�
 |-----------|------|------|------|-----------|
 | **M2.0** | **디렉토리 재구성 (Tidy First)** | **2-3일** | ⬜ | 🆕 신규 |
 | M2.1 | ContentGenerator/StreamEvent 타입 전환 | 5-7일 | ⬜ | ✅ 확대 + 래퍼 |
-| M2.2 | GeminiChat 스트리밍 분해/합성기 적용 | 5-7일 | ⬜ | ✅ 이벤트 매핑 + StreamEventType |
+| M2.2 | GeminiChat 스트리밍 분해/합성기 적용 | 5-7일 | ⬜ | ✅ 이벤트 매핑 + StreamEventType + Agent 연동 |
 | M2.3 | GeminiAdapter 구현/동등성 검증 | 4-5일 | ⬜ | ✅ 확대 |
 | **M2.4** | **ModelConfigService 호환 레이어** | **2-3일** | ⬜ | 🆕 신규 |
 | **M2.5** | **유틸리티 레이어 리팩토링** | **2-3일** | ⬜ | 🆕 신규 |
 | **M2.6** | **라우팅 레이어 타입 독립화** | **2-3일** | ⬜ | 🆕 Critical |
+| **M2.7** | **Agent/Telemetry 결합 해소** | **2-3일** | ⬜ | 🆕 Watch Items |
 
 ## Phase 3: 프로바이더 확장 (3-4주)
 | Milestone | 작업 | 기간 | 상태 | 리뷰 반영 |
@@ -217,6 +243,8 @@ feat(providers): implement stream assembler [BEHAVIORAL]
 | **R8** | **유틸리티 레이어 회귀** | **중간** | **중간** | **유틸 전용 테스트 강화** | 🆕 |
 | **R9** | **테스트 마이그레이션 규모** | **높음** | **중간** | **전용 마일스톤 할당** | 🆕 |
 | **R10** | **라우팅 레이어 @google/genai 결합** | **높음** | **높음** | **M2.6 전용 마일스톤** | 🆕 Critical |
+| **R11** | **LocalAgentExecutor ↔ GeminiChat 강한 결합** | **중간** | **높음** | **M2.2/M2.7에서 Agent 인터페이스 전환** | 🆕 |
+| **R12** | **Telemetry usageMetadata 타입 결합** | **중간** | **중간** | **M2.1/M2.7에서 LlmUsage 전환** | 🆕 |
 
 ---
 
@@ -284,6 +312,8 @@ packages/core/src/
 | Q2 | ModelConfigService의 GenerateContentConfig 의존 유지? | ✅ 결정됨 | 호환 레이어로 전환 |
 | Q3 | GeminiClient/ContentGenerator 이름 변경 필요? | ⏳ 논의 필요 | - |
 | Q4 | 기존 API 안정성 요구사항? | ⏳ 확인 필요 | - |
+| Q5 | LocalAgentExecutor의 신규 인터페이스 형태? | ⏳ 논의 필요 | AgentChat vs ContentGenerator |
+| Q6 | Telemetry usage 표준 스키마 정의? | ⏳ 논의 필요 | LlmUsage/LlmTokenUsage |
 
 ---
 
@@ -308,3 +338,4 @@ packages/core/src/
 | 2026-02-01 | 0.1 | 초안 작성 |
 | 2026-02-01 | 0.2 | 소스코드 기반 리뷰 반영: 일정 조정(8-10주), 신규 마일스톤 추가(M1.4, M2.0, M2.4, M2.5, M3.5), 리스크 R6-R9 추가, 아키텍처 결정 문서화, 디렉토리 구조 상세화 |
 | 2026-02-01 | 0.3 | 2차 리뷰 반영: M2.6 라우팅 레이어 신규 [Critical], M2.1 래퍼 클래스 추가, M2.2 StreamEventType 매핑 추가, 리스크 R10 추가, 디렉토리 구조 일관성 확보 (types.ts, eventMapper.ts), 테스트 파일 참조 정정 |
+| 2026-02-01 | 0.4 | 최종 리뷰 반영: Agent/Telemetry Watch Items 추가(M2.7), LocalAgentExecutor 결합 해소 명시, Telemetry usage 타입 전환 명시, 리스크 R11-R12 추가, Open Questions 보강 |

@@ -11,6 +11,15 @@ Always follow TDD principles. For each task: write a failing test first, impleme
 
 # PHASE OVERVIEW
 
+## 설계서 참조 (Design Document References)
+
+| 설계서 | 관련 섹션 | 참조 목적 |
+|--------|----------|-----------|
+| [01-overview.md](../01-overview.md) | §1.3 현재 상태 분석, §1.4 ContentGenerator 구현체, §1.5 식별된 문제점 | 현재 구조 이해, 문제점 파악 |
+| [02-architecture.md](../02-architecture.md) | §2.1 현재 아키텍처, §2.2 목표 아키텍처, §2.4 프로바이더 선택 흐름 | 아키텍처 방향성, 설계 원칙 |
+| [03-technical-design.md](../03-technical-design.md) | §3.1 타입 시스템, §3.3.1 기본 어댑터, §3.6 통합 팩토리, §3.7 에러 처리 | 타입 정의, 어댑터 구조 |
+| [05-implementation-plan.md](../05-implementation-plan.md) | §5.2 Phase 1 상세 | 마일스톤별 상세 계획 |
+
 ## 목표
 - 소스코드 기반 의존성/변경 범위 확정 (100+ 파일 분석)
 - 프로바이더 독립 타입 시스템 구축 (이벤트 매핑 포함)
@@ -42,6 +51,8 @@ docs/ai_adapter/
 ---
 
 # M1.0: 코드 인벤토리 및 영향도 분석 (3일) - 확대
+
+> 📚 **설계서 참조**: [01-overview.md §1.3-1.5](../01-overview.md#13-현재-상태-분석), [02-architecture.md §2.1](../02-architecture.md#21-현재-아키텍처), [05-implementation-plan.md §M1.0](../05-implementation-plan.md#m10-코드-인벤토리-및-영향도-분석-2일)
 
 ## 목표
 소스코드 기반 의존성/변경 범위 확정
@@ -128,6 +139,8 @@ InvalidStream, ModelInfo, AgentExecutionStopped, AgentExecutionBlocked
 ---
 
 # M1.1: 타입/에러/호환 레이어 설계 (3-4일) - 이벤트 매핑 포함
+
+> 📚 **설계서 참조**: [03-technical-design.md §3.1 타입 시스템](../03-technical-design.md#31-프로바이더-독립적-타입-시스템), [§3.7 에러 처리](../03-technical-design.md#37-에러-처리), [05-implementation-plan.md §M1.1](../05-implementation-plan.md#m11-타입에러호환-레이어-설계-3일)
 
 ## 목표
 프로바이더 독립 타입과 호환 레이어 정의 (이벤트 타입 포함)
@@ -253,6 +266,8 @@ describe('LlmStreamEvent', () => {
 
 # M1.2: Adapter 인프라 구축 (4-5일) - ModelSpec 연동
 
+> 📚 **설계서 참조**: [02-architecture.md §2.2 목표 아키텍처](../02-architecture.md#22-목표-아키텍처), [03-technical-design.md §3.3.1 기본 어댑터](../03-technical-design.md#331-기본-어댑터-추상-클래스), [§3.6 통합 팩토리](../03-technical-design.md#36-통합-팩토리-createcontentgenerator-확장), [05-implementation-plan.md §M1.2](../05-implementation-plan.md#m12-adapter-인프라-구축-3-4일)
+
 ## 목표
 어댑터 확장성을 위한 공통 인프라 구성 (ModelConfigService 호환 포함)
 
@@ -376,6 +391,8 @@ describe('ConfigAdapter', () => {
 
 # M1.3: Provider 선택 경로/Config 설계 (2-3일) - AuthType 확장
 
+> 📚 **설계서 참조**: [02-architecture.md §2.4 프로바이더 선택 흐름](../02-architecture.md#24-프로바이더-선택-흐름), [§2.5 설정 구조](../02-architecture.md#25-설정-구조), [05-implementation-plan.md §M1.3](../05-implementation-plan.md#m13-provider-선택-경로config-설계-2일)
+
 ## 목표
 기존 `authType` 기반 흐름과 새 provider 선택 경로의 공존
 
@@ -487,6 +504,8 @@ describe('ProviderSelector', () => {
 ---
 
 # M1.4: 🆕 유틸리티/테스트 마이그레이션 계획 (2일)
+
+> 📚 **설계서 참조**: [01-overview.md §1.3.4 의존성 현황](../01-overview.md#134-의존성-현황), [03-technical-design.md §3.1 타입 시스템](../03-technical-design.md#31-프로바이더-독립적-타입-시스템) (유틸리티 타입 전환 참고)
 
 ## 목표
 유틸리티 레이어 및 테스트 마이그레이션 상세 계획 수립

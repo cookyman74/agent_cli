@@ -1,7 +1,7 @@
 # Phase 3: 프로바이더 확장 및 통합
 
 > 기간: 3-4주 | 상태: ⏳ 대기 | 의존성: Phase 2 완료
-> **v0.2** - 소스코드 기반 리뷰 반영
+> **v0.3** - 2차 리뷰 반영 (디렉토리 구조, 테스트 파일 정정)
 
 ## System Prompt
 
@@ -28,15 +28,17 @@ packages/core/src/providers/
 ├── claude/
 │   ├── adapter.ts
 │   ├── converter.ts
+│   ├── eventMapper.ts   # 🆕 일관성 확보
 │   └── types.ts
 ├── openai/
 │   ├── adapter.ts
 │   ├── converter.ts
+│   ├── eventMapper.ts   # 🆕 일관성 확보
 │   └── types.ts
 └── openai-compatible/
     ├── adapter.ts
     ├── converter.ts
-    └── types.ts
+    └── types.ts         # eventMapper 선택적 (OpenAI 호환)
 ```
 
 ---
@@ -511,19 +513,28 @@ Phase 2에서 리팩토링된 코드에 대응하여 기존 테스트도 함께 
 | 3.5.1.3 | Mock 객체 Gemini 특화 여부 분석 | ⬜ | Mock 분석 문서 |
 | 3.5.1.4 | 테스트 수정 범위 산정 | ⬜ | 수정 범위 문서 |
 
-**분석 대상 테스트 파일**:
+**분석 대상 테스트 파일** (실제 존재 확인됨):
 ```
 packages/core/src/
 ├── core/
 │   ├── contentGenerator.test.ts    # GenerateContentParameters 의존
 │   ├── turn.test.ts                # GeminiEventType 의존
-│   └── session.test.ts             # Gemini 응답 구조 의존
+│   ├── geminiChat.test.ts          # Gemini 응답/스트리밍 의존 🆕
+│   ├── baseLlmClient.test.ts       # 🆕 baseLlmClient 의존
+│   ├── loggingContentGenerator.test.ts   # 래퍼 클래스
+│   ├── recordingContentGenerator.test.ts # 래퍼 클래스
+│   └── fakeContentGenerator.test.ts      # Mock 구현
 ├── services/
 │   └── modelConfigService.test.ts  # GenerateContentConfig 의존
+├── routing/
+│   ├── modelRouterService.test.ts  # 🆕 라우팅 레이어
+│   └── strategies/*.test.ts        # 🆕 라우팅 전략
 └── utils/
     ├── tokenCalculation.test.ts    # Part, Content 타입 의존
     └── partUtils.test.ts           # Part 타입 의존
 ```
+
+⚠️ **주의**: `session.test.ts`는 존재하지 않음 (원본 계획서 오류 수정됨)
 
 ### 3.5.2 테스트 마이그레이션 전략
 | ID | 작업 | 상태 | 테스트 파일 |
@@ -565,10 +576,12 @@ describe('MockFactory', () => {
 |----|------|------|---------|
 | 3.5.3.1 | `contentGenerator.test.ts` 마이그레이션 | ⬜ | 높음 |
 | 3.5.3.2 | `turn.test.ts` 마이그레이션 | ⬜ | 높음 |
-| 3.5.3.3 | `session.test.ts` 마이그레이션 | ⬜ | 중간 |
-| 3.5.3.4 | `modelConfigService.test.ts` 마이그레이션 | ⬜ | 중간 |
-| 3.5.3.5 | `tokenCalculation.test.ts` 마이그레이션 | ⬜ | 낮음 |
-| 3.5.3.6 | `partUtils.test.ts` 마이그레이션 | ⬜ | 낮음 |
+| 3.5.3.3 | `geminiChat.test.ts` 마이그레이션 | ⬜ | 높음 |
+| 3.5.3.4 | `baseLlmClient.test.ts` 마이그레이션 | ⬜ | 중간 |
+| 3.5.3.5 | `modelConfigService.test.ts` 마이그레이션 | ⬜ | 중간 |
+| 3.5.3.6 | `tokenCalculation.test.ts` 마이그레이션 | ⬜ | 낮음 |
+| 3.5.3.7 | `partUtils.test.ts` 마이그레이션 | ⬜ | 낮음 |
+| 3.5.3.8 | `routing/*.test.ts` 마이그레이션 (7개 파일) | ⬜ | 중간 |
 
 **마이그레이션 패턴**:
 ```typescript
@@ -749,6 +762,14 @@ const OpenAIAdapter = await import('./openai/adapter');
 ---
 
 # CHANGE LOG
+
+## v0.3 (2차 리뷰 반영)
+- **산출물 디렉토리 구조 수정**: `eventMapper.ts` 추가로 마스터 플랜과 일관성 확보
+- **테스트 파일 목록 정정**:
+  - `session.test.ts` 제거 (존재하지 않는 파일)
+  - `geminiChat.test.ts`, `baseLlmClient.test.ts` 추가 (실제 존재 파일)
+  - `routing/*.test.ts` 7개 파일 추가
+- **3.5.3 테스트 마이그레이션 작업 확대**: 6개 → 8개 항목
 
 ## v0.2 (소스코드 기반 리뷰 반영)
 - **M3.5 신규 추가**: 테스트 마이그레이션 마일스톤 (3-4일)

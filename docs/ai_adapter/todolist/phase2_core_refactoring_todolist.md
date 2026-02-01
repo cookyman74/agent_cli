@@ -1,7 +1,7 @@
 # Phase 2: 코어 리팩토링 및 Gemini 분리
 
 > 기간: 3-4주 | 상태: ⏳ 대기 | 의존성: Phase 1 완료
-> **v0.2** - 소스코드 기반 리뷰 반영
+> **v0.3** - 2차 리뷰 반영 (라우팅 레이어, 래퍼 클래스, 테스트 파일 정정)
 
 ## System Prompt
 
@@ -140,12 +140,12 @@ describe('LlmContentGenerator', () => {
 ### 2.1.3 BaseLlmClient 타입 전환
 | ID | 작업 | 상태 | 테스트 파일 |
 |----|------|------|------------|
-| 2.1.3.1 | 현재 `client.ts` 분석 | ⬜ | N/A (분석) |
-| 2.1.3.2 | 요청 타입 `LlmGenerateRequest`로 전환 | ⬜ | `client.test.ts` |
-| 2.1.3.3 | 응답 타입 `LlmGenerateResponse`로 전환 | ⬜ | `client.test.ts` |
-| 2.1.3.4 | 어댑터 의존성 주입 구조 적용 | ⬜ | `client.test.ts` |
-| 2.1.3.5 | 레거시 타입 변환 레이어 추가 | ⬜ | `client.test.ts` |
-| 2.1.3.6 | 🆕 `GenerateContentConfig` 호환 유지 | ⬜ | `client.test.ts` |
+| 2.1.3.1 | 현재 `baseLlmClient.ts` 분석 | ⬜ | N/A (분석) |
+| 2.1.3.2 | 요청 타입 `LlmGenerateRequest`로 전환 | ⬜ | `baseLlmClient.test.ts` |
+| 2.1.3.3 | 응답 타입 `LlmGenerateResponse`로 전환 | ⬜ | `baseLlmClient.test.ts` |
+| 2.1.3.4 | 어댑터 의존성 주입 구조 적용 | ⬜ | `baseLlmClient.test.ts` |
+| 2.1.3.5 | 레거시 타입 변환 레이어 추가 | ⬜ | `baseLlmClient.test.ts` |
+| 2.1.3.6 | 🆕 `GenerateContentConfig` 호환 유지 | ⬜ | `baseLlmClient.test.ts` |
 
 ### 2.1.4 Retry 로직 리팩토링
 | ID | 작업 | 상태 | 테스트 파일 |
@@ -160,12 +160,39 @@ describe('LlmContentGenerator', () => {
 | ID | 작업 | 상태 | 테스트 파일 |
 |----|------|------|------------|
 | 2.1.5.1 | 현재 `hooks/types.ts` 분석 | ⬜ | N/A (분석) |
-| 2.1.5.2 | Hook 이벤트 타입 `LlmStreamEvent` 전환 | ⬜ | `hooks.test.ts` |
-| 2.1.5.3 | Hook 컨텍스트 타입 전환 | ⬜ | `hooks.test.ts` |
-| 2.1.5.4 | 기존 Hook 호환성 테스트 | ⬜ | `hooks.test.ts` |
+| 2.1.5.2 | Hook 이벤트 타입 `LlmStreamEvent` 전환 | ⬜ | `hooks/hookSystem.test.ts` |
+| 2.1.5.3 | Hook 컨텍스트 타입 전환 | ⬜ | `hooks/hookEventHandler.test.ts` |
+| 2.1.5.4 | 기존 Hook 호환성 테스트 | ⬜ | `hooks/*.test.ts` (9개 파일) |
+
+**Hook 테스트 파일 목록** (실제 존재):
+- `hookAggregator.test.ts`, `hookEventHandler.test.ts`, `hookPlanner.test.ts`
+- `hookRegistry.test.ts`, `hookRunner.test.ts`, `hookSystem.test.ts`
+- `hookTranslator.test.ts`, `trustedHooks.test.ts`, `types.test.ts`
+
+### 2.1.6 🆕 ContentGenerator 래퍼/파생 클래스 마이그레이션
+| ID | 작업 | 상태 | 테스트 파일 |
+|----|------|------|------------|
+| 2.1.6.1 | `LoggingContentGenerator` 타입 전환 | ⬜ | `loggingContentGenerator.test.ts` |
+| 2.1.6.2 | `RecordingContentGenerator` 타입 전환 | ⬜ | `recordingContentGenerator.test.ts` |
+| 2.1.6.3 | `FakeContentGenerator` 타입 전환 | ⬜ | `fakeContentGenerator.test.ts` |
+| 2.1.6.4 | `code_assist/codeAssist.ts` ContentGenerator 사용 분석 | ⬜ | N/A (분석) |
+| 2.1.6.5 | `code_assist/server.ts` ContentGenerator 사용 분석 | ⬜ | N/A (분석) |
+| 2.1.6.6 | CodeAssist ContentGenerator 호환 레이어 | ⬜ | `codeAssist.test.ts` |
+
+**래퍼 클래스 의존성 분석**:
+```
+contentGenerator.ts (기반)
+├── loggingContentGenerator.ts   ← ContentGenerator 래핑
+├── recordingContentGenerator.ts ← ContentGenerator 래핑
+├── fakeContentGenerator.ts      ← ContentGenerator 구현
+└── code_assist/
+    ├── codeAssist.ts            ← ContentGenerator 사용
+    └── server.ts                ← ContentGenerator 사용
+```
 
 **검증 기준**:
 - [ ] `ContentGenerator` 호출 경로가 신규 타입으로 동작
+- [ ] 🆕 모든 래퍼/파생 클래스 타입 전환 완료
 - [ ] Retry/Hook이 프로바이더 독립 에러로 동작
 - [ ] 기존 테스트 100% 통과
 
@@ -281,6 +308,42 @@ describe('GeminiEventMapper', () => {
 | 2.2.2.3 | 핵심 경로 `LlmStreamEvent` 전환 | ⬜ | `streamEvent.test.ts` |
 | 2.2.2.4 | 비핵심 경로 점진적 전환 | ⬜ | `streamEvent.test.ts` |
 | 2.2.2.5 | 레거시 `StreamEvent` deprecate 표시 | ⬜ | N/A (문서) |
+
+### 2.2.2a 🆕 geminiChat.ts StreamEventType 매핑 (리뷰 반영)
+| ID | 작업 | 상태 | 테스트 파일 |
+|----|------|------|------------|
+| 2.2.2a.1 | `geminiChat.ts` 내부 `StreamEventType` enum 분석 | ⬜ | N/A (분석) |
+| 2.2.2a.2 | `StreamEventType.CHUNK` → `LlmStreamEvent` 매핑 | ⬜ | `geminiChat.test.ts` |
+| 2.2.2a.3 | `StreamEventType.RETRY` → `LlmStreamEvent` 매핑 | ⬜ | `geminiChat.test.ts` |
+| 2.2.2a.4 | `StreamEventType.AGENT_EXECUTION_STOPPED` 매핑 | ⬜ | `geminiChat.test.ts` |
+| 2.2.2a.5 | `StreamEventType.AGENT_EXECUTION_BLOCKED` 매핑 | ⬜ | `geminiChat.test.ts` |
+| 2.2.2a.6 | 두 체계(GeminiEventType + StreamEventType) 통합 전략 | ⬜ | `eventMapper.test.ts` |
+
+**geminiChat.ts 내부 StreamEventType (4개)**:
+```typescript
+// packages/core/src/core/geminiChat.ts:55-65
+export enum StreamEventType {
+  CHUNK = 'chunk',                        // GenerateContentResponse 청크
+  RETRY = 'retry',                        // 재시도 시그널
+  AGENT_EXECUTION_STOPPED = 'agent_stopped',   // 에이전트 중지
+  AGENT_EXECUTION_BLOCKED = 'agent_blocked',   // 에이전트 차단
+}
+```
+
+**이벤트 계층 관계**:
+```
+geminiChat.ts
+├── StreamEventType (4개) ← 내부 스트리밍 제어
+│   ├── CHUNK → GenerateContentResponse
+│   ├── RETRY → 재시도 신호
+│   ├── AGENT_EXECUTION_STOPPED
+│   └── AGENT_EXECUTION_BLOCKED
+│
+└── Turn.ts (소비)
+    └── GeminiEventType (18개) ← UI/비즈니스 이벤트
+
+⚠️ 두 체계가 분리되어 있어 통합 전략 필요
+```
 
 ### 2.2.3 StreamAssembler 적용
 | ID | 작업 | 상태 | 테스트 파일 |
@@ -487,6 +550,108 @@ describe('tokenCalculation', () => {
 
 ---
 
+# M2.6: 🆕 라우팅 레이어 타입 독립화 (2-3일) [Critical - 리뷰 반영]
+
+## 목표
+`packages/core/src/routing/routingStrategy.ts`의 `@google/genai` 의존성 제거
+
+## 배경 (Critical 이슈)
+`routingStrategy.ts`가 `Content`, `PartListUnion`을 직접 import하고 있어,
+이 경로를 다루지 않으면 타입 독립화가 완료되지 않음.
+
+## 현재 의존성 분석
+```typescript
+// packages/core/src/routing/routingStrategy.ts:7
+import type { Content, PartListUnion } from '@google/genai';
+
+export interface RoutingContext {
+  history: Content[];           // ← @google/genai 직접 의존
+  request: PartListUnion;       // ← @google/genai 직접 의존
+  signal: AbortSignal;
+  requestedModel?: string;
+}
+```
+
+## 작업 항목
+
+### 2.6.1 RoutingContext 타입 전환
+| ID | 작업 | 상태 | 테스트 파일 |
+|----|------|------|------------|
+| 2.6.1.1 | `RoutingContext` 인터페이스 분석 | ⬜ | N/A (분석) |
+| 2.6.1.2 | `LlmRoutingContext` 인터페이스 정의 | ⬜ | `routingStrategy.test.ts` |
+| 2.6.1.3 | `history: Content[]` → `history: LlmMessage[]` 전환 | ⬜ | `routingStrategy.test.ts` |
+| 2.6.1.4 | `request: PartListUnion` → `request: LlmContent[]` 전환 | ⬜ | `routingStrategy.test.ts` |
+| 2.6.1.5 | 레거시 RoutingContext 호환 레이어 | ⬜ | `routingStrategy.test.ts` |
+
+**TDD 시나리오**:
+```typescript
+describe('RoutingContext Type Independence', () => {
+  it('should accept LlmMessage array for history', () => {
+    const context: LlmRoutingContext = {
+      history: [
+        { role: LlmRole.User, content: [{ type: 'text', text: 'Hi' }] }
+      ],
+      request: [{ type: 'text', text: 'Hello' }],
+      signal: new AbortController().signal
+    };
+
+    expect(context.history[0].role).toBe(LlmRole.User);
+  });
+
+  it('should maintain backward compatibility with Content', () => {
+    const geminiContent: Content = { role: 'user', parts: [{ text: 'Hi' }] };
+    const legacyContext: RoutingContext = {
+      history: [geminiContent],
+      request: [{ text: 'Hello' }],
+      signal: new AbortController().signal
+    };
+
+    // 레거시 래퍼로 변환
+    const llmContext = toLlmRoutingContext(legacyContext);
+    expect(llmContext.history[0].role).toBe(LlmRole.User);
+  });
+});
+```
+
+### 2.6.2 라우팅 전략 구현체 마이그레이션
+| ID | 작업 | 상태 | 테스트 파일 |
+|----|------|------|------------|
+| 2.6.2.1 | `compositeStrategy.ts` 타입 전환 | ⬜ | `compositeStrategy.test.ts` |
+| 2.6.2.2 | `classifierStrategy.ts` 타입 전환 | ⬜ | `classifierStrategy.test.ts` |
+| 2.6.2.3 | `defaultStrategy.ts` 타입 전환 | ⬜ | `defaultStrategy.test.ts` |
+| 2.6.2.4 | `fallbackStrategy.ts` 타입 전환 | ⬜ | `fallbackStrategy.test.ts` |
+| 2.6.2.5 | `overrideStrategy.ts` 타입 전환 | ⬜ | `overrideStrategy.test.ts` |
+| 2.6.2.6 | `numericalClassifierStrategy.ts` 타입 전환 | ⬜ | `numericalClassifierStrategy.test.ts` |
+
+### 2.6.3 ModelRouterService 마이그레이션
+| ID | 작업 | 상태 | 테스트 파일 |
+|----|------|------|------------|
+| 2.6.3.1 | `modelRouterService.ts` 타입 전환 | ⬜ | `modelRouterService.test.ts` |
+| 2.6.3.2 | 라우팅 호출부 타입 전환 | ⬜ | `modelRouterService.test.ts` |
+| 2.6.3.3 | 기존 라우팅 동작 동등성 검증 | ⬜ | `routerParity.test.ts` |
+
+**영향 받는 파일 목록**:
+```
+packages/core/src/routing/
+├── routingStrategy.ts        ← Content, PartListUnion import
+├── modelRouterService.ts     ← RoutingContext 사용
+└── strategies/
+    ├── compositeStrategy.ts
+    ├── classifierStrategy.ts
+    ├── defaultStrategy.ts
+    ├── fallbackStrategy.ts
+    ├── overrideStrategy.ts
+    └── numericalClassifierStrategy.ts
+```
+
+**검증 기준**:
+- [ ] `routingStrategy.ts`에서 `@google/genai` import 제거
+- [ ] 모든 라우팅 전략 구현체 타입 전환 완료
+- [ ] 기존 라우팅 테스트 100% 통과
+- [ ] 라우팅 동등성 검증 완료
+
+---
+
 # PHASE 2 COMPLETION CHECKLIST
 
 ## Quality Gates
@@ -509,10 +674,15 @@ describe('tokenCalculation', () => {
 - [ ] `packages/core/src/providers/gemini/turn.ts` 이동 🆕
 - [ ] `packages/core/src/core/contentGenerator.ts` 수정
 - [ ] `packages/core/src/core/baseLlmClient.ts` 수정
+- [ ] `packages/core/src/core/loggingContentGenerator.ts` 수정 🆕
+- [ ] `packages/core/src/core/recordingContentGenerator.ts` 수정 🆕
+- [ ] `packages/core/src/core/fakeContentGenerator.ts` 수정 🆕
 - [ ] `packages/core/src/utils/retry.ts` 수정
 - [ ] `packages/core/src/utils/tokenCalculation.ts` 수정 🆕
 - [ ] `packages/core/src/utils/partUtils.ts` 수정 🆕
 - [ ] `packages/core/src/utils/llmUtils.ts` 생성 🆕
+- [ ] `packages/core/src/routing/routingStrategy.ts` 수정 🆕 [Critical]
+- [ ] `packages/core/src/routing/strategies/*.ts` 수정 🆕
 
 ## 다음 Phase 진행 조건
 - [ ] Phase 2 모든 Milestone 완료
@@ -544,6 +714,17 @@ describe('tokenCalculation', () => {
 - 스트리밍 로직 변경 시 충분한 테스트 필요
 - 기존 테스트 회귀 주의
 - 🆕 18개 이벤트 매핑 누락 방지
+- 🆕 라우팅 레이어 타입 전환 필수 (routingStrategy.ts) [Critical]
+
+## 리뷰 2 제언사항 반영 [v0.3]
+1. **Turn 클래스 rawResponse 설계**: 어댑터 도입 시 원본 응답 유지 방안 구현 단계에서 결정
+   - `Turn.debugResponses`에 원본 응답 저장 중
+   - `LlmGenerateResponse.rawResponse` 필드 활용 권장
+2. **단계적 적용 순서 권장**:
+   - 1단계: 타입 정의 (`Llm*`) 및 Alias 적용 (기존 코드 변경 없이)
+   - 2단계: Utility 리팩토링 (`tokenCalculation`, `partUtils`)
+   - 3단계: Adapter 구현 (실제 로직 분리)
+3. **테스트 Mock 교체 비용**: `geminiChat.test.ts` 등의 Mock 객체를 `ContentGenerator` 인터페이스 기반으로 교체 필요 → M3.5에서 처리
 
 ## TDD 원칙
 1. 각 변환 함수마다 테스트 먼저 작성
@@ -564,3 +745,4 @@ describe('tokenCalculation', () => {
 |------|------|----------|
 | 2026-02-01 | 0.1 | 초안 작성 |
 | 2026-02-01 | 0.2 | 리뷰 반영: M2.0 디렉토리 재구성 신규, M2.2 EventMapper 상세화(18개 이벤트), M2.4 ModelConfigService 호환 레이어 신규, M2.5 유틸리티 레이어 리팩토링 신규 |
+| 2026-02-01 | 0.3 | 2차 리뷰 반영: M2.6 라우팅 레이어 리팩토링 신규 [Critical], 2.1.3 baseLlmClient 파일명 수정, 2.1.5 hooks 테스트 파일 목록 정정, 2.1.6 ContentGenerator 래퍼 마이그레이션 신규, 2.2.2a StreamEventType 매핑 신규 |

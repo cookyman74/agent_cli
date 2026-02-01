@@ -1,7 +1,7 @@
 # Multi-LLM Provider Adapter - Master Implementation Plan
 
 > 총괄 작업계획서: Gemini CLI Multi-LLM Provider Adapter 구현
-> **v0.2** - 소스코드 기반 리뷰 반영
+> **v0.3** - 2차 리뷰 반영 (Critical 이슈 해결)
 
 ## System Prompt
 
@@ -136,11 +136,12 @@ packages/core/src/core/turn.ts → providers/gemini/turn.ts (Gemini 특화 부�
 | Milestone | 작업 | 기간 | 상태 | 리뷰 반영 |
 |-----------|------|------|------|-----------|
 | **M2.0** | **디렉토리 재구성 (Tidy First)** | **2-3일** | ⬜ | 🆕 신규 |
-| M2.1 | ContentGenerator/StreamEvent 타입 전환 | 5-7일 | ⬜ | ✅ 확대 |
-| M2.2 | GeminiChat 스트리밍 분해/합성기 적용 | 5-7일 | ⬜ | ✅ 이벤트 매핑 |
+| M2.1 | ContentGenerator/StreamEvent 타입 전환 | 5-7일 | ⬜ | ✅ 확대 + 래퍼 |
+| M2.2 | GeminiChat 스트리밍 분해/합성기 적용 | 5-7일 | ⬜ | ✅ 이벤트 매핑 + StreamEventType |
 | M2.3 | GeminiAdapter 구현/동등성 검증 | 4-5일 | ⬜ | ✅ 확대 |
 | **M2.4** | **ModelConfigService 호환 레이어** | **2-3일** | ⬜ | 🆕 신규 |
 | **M2.5** | **유틸리티 레이어 리팩토링** | **2-3일** | ⬜ | 🆕 신규 |
+| **M2.6** | **라우팅 레이어 타입 독립화** | **2-3일** | ⬜ | 🆕 Critical |
 
 ## Phase 3: 프로바이더 확장 (3-4주)
 | Milestone | 작업 | 기간 | 상태 | 리뷰 반영 |
@@ -215,6 +216,7 @@ feat(providers): implement stream assembler [BEHAVIORAL]
 | **R7** | **ModelConfigService 비호환** | **중간** | **높음** | **호환 레이어 + 점진적 전환** | 🆕 |
 | **R8** | **유틸리티 레이어 회귀** | **중간** | **중간** | **유틸 전용 테스트 강화** | 🆕 |
 | **R9** | **테스트 마이그레이션 규모** | **높음** | **중간** | **전용 마일스톤 할당** | 🆕 |
+| **R10** | **라우팅 레이어 @google/genai 결합** | **높음** | **높음** | **M2.6 전용 마일스톤** | 🆕 Critical |
 
 ---
 
@@ -245,6 +247,7 @@ packages/core/src/
 │   │   ├── adapter.ts
 │   │   ├── converter.ts
 │   │   ├── eventMapper.ts     # 🆕 GeminiEventType ↔ LlmStreamEvent
+│   │   ├── types.ts           # 🆕 GeminiEventType, 특화 타입 이동
 │   │   ├── chat.ts            # 🆕 geminiChat.ts 이동
 │   │   └── turn.ts            # 🆕 Gemini 특화 Turn 로직
 │   │
@@ -304,3 +307,4 @@ packages/core/src/
 |------|------|----------|
 | 2026-02-01 | 0.1 | 초안 작성 |
 | 2026-02-01 | 0.2 | 소스코드 기반 리뷰 반영: 일정 조정(8-10주), 신규 마일스톤 추가(M1.4, M2.0, M2.4, M2.5, M3.5), 리스크 R6-R9 추가, 아키텍처 결정 문서화, 디렉토리 구조 상세화 |
+| 2026-02-01 | 0.3 | 2차 리뷰 반영: M2.6 라우팅 레이어 신규 [Critical], M2.1 래퍼 클래스 추가, M2.2 StreamEventType 매핑 추가, 리스크 R10 추가, 디렉토리 구조 일관성 확보 (types.ts, eventMapper.ts), 테스트 파일 참조 정정 |

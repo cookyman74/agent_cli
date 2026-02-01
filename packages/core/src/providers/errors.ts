@@ -33,6 +33,9 @@ export enum LlmErrorType {
   /** Model not found or not available */
   MODEL_NOT_FOUND = 'model_not_found',
 
+  /** Model overloaded (Claude-specific, temporary capacity issue) */
+  MODEL_OVERLOADED = 'model_overloaded',
+
   /** Context length exceeded */
   CONTEXT_LENGTH_EXCEEDED = 'context_length_exceeded',
 

@@ -155,3 +155,31 @@ packages/core/src/providers/
 
 - **빌드**: ✅ 성공
 - **테스트**: ✅ 20/20 통과 (1개 추가됨)
+
+---
+
+## 📝 2차 리뷰 피드백 반영 (2026-02-02 00:45)
+
+### 이슈 검증 결과
+
+| ID  | 심각도   | 이슈                        | 결과                                                                          |
+| --- | -------- | --------------------------- | ----------------------------------------------------------------------------- |
+| C-1 | Critical | 누락된 문서 참조            | ❌ False Positive: `event-mapping-matrix.md`, `migration-plan.md` 모두 존재함 |
+| H-1 | High     | LlmImageSource 설계 불일치  | ✅ 설계문서 업데이트: base64는 `data`, url은 `url` 필드                       |
+| H-2 | High     | MODEL_OVERLOADED 누락       | ✅ `errors.ts`에 추가                                                         |
+| H-3 | High     | GeminiEventType 매핑        | ✅ 검증 완료: 18개 이벤트 정확히 매핑됨                                       |
+| M-1 | Medium   | content_delta vs text_delta | ✅ `text_delta`로 통일                                                        |
+| M-2 | Medium   | events/errors 테스트 부재   | 🔄 M1.2에서 추가 예정                                                         |
+| M-3 | Medium   | LlmEmbedRequest 미정의      | ✅ TODO 주석 추가                                                             |
+| L-1 | Low      | supportsThought 설계 반영   | 🔄 추후 설계문서 업데이트 예정                                                |
+
+### 수정된 파일
+
+- `errors.ts`: MODEL_OVERLOADED 에러 타입 추가
+- `types.ts`: content_delta → text_delta, Embed TODO 추가
+- `03-technical-design.md`: LlmImageSource, LlmToolResultContent 업데이트
+
+### 검증 결과
+
+- **빌드**: ✅ 성공
+- **테스트**: ✅ 20/20 통과

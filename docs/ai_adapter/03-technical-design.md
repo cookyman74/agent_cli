@@ -13,8 +13,8 @@
 export interface LlmMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: LlmContent[];
-  name?: string;  // 도구 호출 시 도구 이름
-  toolCallId?: string;  // 도구 응답 시 호출 ID
+  name?: string; // 도구 호출 시 도구 이름
+  toolCallId?: string; // 도구 응답 시 호출 ID
 }
 
 export type LlmContent =
@@ -22,7 +22,7 @@ export type LlmContent =
   | LlmImageContent
   | LlmToolCallContent
   | LlmToolResultContent
-  | LlmThoughtContent;  // Gemini 사고 과정 데이터 지원
+  | LlmThoughtContent; // Gemini 사고 과정 데이터 지원
 
 export interface LlmTextContent {
   type: 'text';
@@ -31,12 +31,13 @@ export interface LlmTextContent {
 
 export interface LlmImageContent {
   type: 'image';
-  source: {
-    type: 'base64' | 'url';
-    mediaType: string;
-    data: string;
-  };
+  source: LlmImageSource;
 }
+
+// URL 타입과 base64 타입의 필드를 명확히 분리
+export type LlmImageSource =
+  | { type: 'base64'; mediaType: string; data: string }
+  | { type: 'url'; mediaType: string; url: string };
 
 export interface LlmToolCallContent {
   type: 'tool_call';
@@ -49,7 +50,7 @@ export interface LlmToolResultContent {
   type: 'tool_result';
   toolCallId: string;
   name?: string; // Gemini 등 일부 프로바이더를 위해 필요
-  content: string;
+  content: string | Record<string, unknown>; // Part[] 호환성을 위해 확장
   isError?: boolean;
 }
 
@@ -62,9 +63,9 @@ export interface LlmThoughtContent {
   type: 'thought';
   thought: string;
   metadata?: {
-    step?: number;        // 사고 단계 번호
-    phase?: string;       // 'planning' | 'reasoning' | 'reflection'
-    provider?: string;    // 프로바이더별 확장 가능
+    step?: number; // 사고 단계 번호
+    phase?: string; // 'planning' | 'reasoning' | 'reflection'
+    provider?: string; // 프로바이더별 확장 가능
     [key: string]: unknown;
   };
 }
@@ -107,12 +108,12 @@ export interface LlmGenerateResponse {
 }
 
 export type LlmStopReason =
-  | 'end_turn'      // 정상 종료
-  | 'max_tokens'    // 토큰 한도 도달
+  | 'end_turn' // 정상 종료
+  | 'max_tokens' // 토큰 한도 도달
   | 'stop_sequence' // 중지 시퀀스 발견
-  | 'tool_use'      // 도구 호출 필요
+  | 'tool_use' // 도구 호출 필요
   | 'content_filter' // 콘텐츠 필터링
-  | 'error';        // 에러
+  | 'error'; // 에러
 
 export interface LlmTokenUsage {
   promptTokens: number;
@@ -143,8 +144,8 @@ export interface LlmToolProperty {
   type: 'string' | 'number' | 'boolean' | 'array' | 'object';
   description?: string;
   enum?: string[];
-  items?: LlmToolProperty;  // array인 경우
-  properties?: Record<string, LlmToolProperty>;  // object인 경우
+  items?: LlmToolProperty; // array인 경우
+  properties?: Record<string, LlmToolProperty>; // object인 경우
 }
 ```
 
@@ -162,15 +163,14 @@ export interface LlmStreamEvent {
 
   // Provider-specific metadata (optional)
   metadata?: Record<string, unknown>;
-  
+
   // Didim integration: conversation tracking
-  threadId?: string;  // 대화 스레드 ID (multi-turn)
-  qaId?: string;      // 개별 Q&A 세션 ID
+  threadId?: string; // 대화 스레드 ID (multi-turn)
+  qaId?: string; // 개별 Q&A 세션 ID
 }
 
 export type LlmStream = AsyncGenerator<LlmStreamEvent, void, unknown>;
 ```
-
 
 ## 3.2 ContentGenerator 인터페이스 재정의
 
@@ -191,7 +191,7 @@ export interface ContentGenerator {
    */
   generateContent(
     request: LlmGenerateRequest,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmGenerateResponse>;
 
   /**
@@ -199,22 +199,18 @@ export interface ContentGenerator {
    */
   generateContentStream(
     request: LlmGenerateRequest,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmStream>;
 
   /**
    * 토큰 수 계산
    */
-  countTokens(
-    request: LlmGenerateRequest
-  ): Promise<LlmTokenCount>;
+  countTokens(request: LlmGenerateRequest): Promise<LlmTokenCount>;
 
   /**
    * 임베딩 생성 (선택적)
    */
-  embedContent?(
-    request: LlmEmbedRequest
-  ): Promise<LlmEmbedResponse>;
+  embedContent?(request: LlmEmbedRequest): Promise<LlmEmbedResponse>;
 }
 
 export interface GenerateOptions {
@@ -261,23 +257,21 @@ export abstract class BaseAdapter implements ContentGenerator {
   abstract generateContent(
     request: LlmGenerateRequest,
     userPromptId: string,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmGenerateResponse>;
 
   abstract generateContentStream(
     request: LlmGenerateRequest,
     userPromptId: string,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmStream>;
 
-  abstract countTokens(
-    request: LlmGenerateRequest
-  ): Promise<LlmTokenCount>;
+  abstract countTokens(request: LlmGenerateRequest): Promise<LlmTokenCount>;
 
   // 기본 구현: 지원하지 않음
   embedContent(request: LlmEmbedRequest): Promise<LlmEmbedResponse> {
     throw new UnsupportedFeatureError(
-      `Embedding is not supported by ${this.providerName}`
+      `Embedding is not supported by ${this.providerName}`,
     );
   }
 
@@ -297,7 +291,7 @@ export abstract class BaseAdapter implements ContentGenerator {
     }
     throw new LlmError(
       LlmErrorType.UNKNOWN,
-      `${this.providerName} error: ${error}`
+      `${this.providerName} error: ${error}`,
     );
   }
 }
@@ -323,7 +317,7 @@ import {
   LlmGenerateRequest,
   LlmGenerateResponse,
   LlmStream,
-  ProviderCapabilities
+  ProviderCapabilities,
 } from '../types';
 import { GeminiTypeConverter } from './converter';
 
@@ -337,7 +331,7 @@ export class GeminiAdapter extends BaseAdapter {
     supportsEmbedding: true,
     supportsTokenCount: true,
     supportsSystemMessage: true,
-    maxContextLength: 1_000_000,  // 모델별로 다를 수 있음 (구현 시 동적 처리 권장)
+    maxContextLength: 1_000_000, // 모델별로 다를 수 있음 (구현 시 동적 처리 권장)
     maxOutputTokens: 8_192,
   };
 
@@ -347,7 +341,7 @@ export class GeminiAdapter extends BaseAdapter {
   constructor(config: AdapterConfig) {
     super(config);
     // apiKey가 없으면 ADC 등을 사용한다고 가정 (SDK 버전에 따라 처리)
-    this.client = new GoogleGenAI({ 
+    this.client = new GoogleGenAI({
       apiKey: config.apiKey || '',
       apiVersion: 'v1beta', // 예시
     });
@@ -357,16 +351,16 @@ export class GeminiAdapter extends BaseAdapter {
   async generateContent(
     request: LlmGenerateRequest,
     userPromptId: string,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmGenerateResponse> {
     this.validateRequest(request);
 
     try {
       const geminiRequest = this.converter.toGeminiRequest(request);
-      
-      const modelParams = { 
+
+      const modelParams = {
         model: request.model,
-        ...this.config // baseUrl 등 전달 가능한 경우
+        ...this.config, // baseUrl 등 전달 가능한 경우
       };
 
       const response = await this.client
@@ -382,7 +376,7 @@ export class GeminiAdapter extends BaseAdapter {
   async generateContentStream(
     request: LlmGenerateRequest,
     userPromptId: string,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmStream> {
     this.validateRequest(request);
 
@@ -397,7 +391,7 @@ export class GeminiAdapter extends BaseAdapter {
   private async *createStream(
     model: GenerativeModel,
     request: GenerateContentParameters,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): LlmStream {
     const stream = await model.generateContentStream(request);
 
@@ -408,28 +402,31 @@ export class GeminiAdapter extends BaseAdapter {
     for await (const chunk of stream) {
       // Chunk 내에 함수 호출이 있는지 확인하여 ID 관리
       const parts = chunk.candidates?.[0]?.content?.parts || [];
-      const functionCallPart = parts.find(p => 'functionCall' in p);
+      const functionCallPart = parts.find((p) => 'functionCall' in p);
 
       if (functionCallPart && 'functionCall' in functionCallPart) {
-         // 새로운 함수 호출 시작으로 간주하거나, 기존 호출의 연속일 수 있음
-         // Gemini 스트림에서 functionCall이 나뉘어 오는지 확인 필요
-         // 여기서는 단순화를 위해 매 호출마다 새로운 ID를 부여하지 않고,
-         // 스트림 컨텍스트 내에서 관리하는 로직을 예시로 듦.
-         if (!currentToolCallId || currentFunctionName !== functionCallPart.functionCall.name) {
-             currentToolCallId = crypto.randomUUID();
-             currentFunctionName = functionCallPart.functionCall.name;
-         }
+        // 새로운 함수 호출 시작으로 간주하거나, 기존 호출의 연속일 수 있음
+        // Gemini 스트림에서 functionCall이 나뉘어 오는지 확인 필요
+        // 여기서는 단순화를 위해 매 호출마다 새로운 ID를 부여하지 않고,
+        // 스트림 컨텍스트 내에서 관리하는 로직을 예시로 듦.
+        if (
+          !currentToolCallId ||
+          currentFunctionName !== functionCallPart.functionCall.name
+        ) {
+          currentToolCallId = crypto.randomUUID();
+          currentFunctionName = functionCallPart.functionCall.name;
+        }
       } else {
-         // 텍스트 청크나 기타 이벤트
-         if (parts.some(p => 'text' in p)) {
-             // 텍스트 전환 시 도구 호출 컨텍스트 초기화 여부 결정
-         }
+        // 텍스트 청크나 기타 이벤트
+        if (parts.some((p) => 'text' in p)) {
+          // 텍스트 전환 시 도구 호출 컨텍스트 초기화 여부 결정
+        }
       }
 
       yield this.converter.fromGeminiStreamChunk(chunk, currentToolCallId);
     }
   }
-  
+
   // ... mapGeminiError
 }
 ```
@@ -459,9 +456,9 @@ export class GeminiTypeConverter {
    */
   toGeminiRequest(request: LlmGenerateRequest): GenerateContentParameters {
     const { contents, systemInstruction } = this.toGeminiContents(request.messages);
-    
+
     // 요청의 systemInstruction이 있으면 우선 사용, 없으면 메시지에서 추출한 것 사용
-    const finalSystemInstruction = request.systemInstruction 
+    const finalSystemInstruction = request.systemInstruction
       ? (systemInstruction.length > 0 ? { parts: [{ text: `${request.systemInstruction}\n${systemInstruction}` }] } : { parts: [{ text: request.systemInstruction }] })
       : (systemInstruction.length > 0 ? { parts: [{ text: systemInstruction }] } : undefined);
 
@@ -471,8 +468,8 @@ export class GeminiTypeConverter {
       tools: request.tools
         ? this.toGeminiTools(request.tools)
         : undefined,
-      toolConfig: request.toolChoice 
-        ? this.toGeminiToolConfig(request.toolChoice) 
+      toolConfig: request.toolChoice
+        ? this.toGeminiToolConfig(request.toolChoice)
         : undefined,
       generationConfig: {
         temperature: request.temperature,
@@ -563,16 +560,16 @@ export class GeminiTypeConverter {
         systemInstruction += textParts.map(c => c.text).join('\n') + '\n';
         continue;
       }
-      
+
       const role = msg.role === 'assistant' ? 'model' : 'user';
       // tool role 메시지도 Gemini에서는 user role에 functionResponse Parts로 포함됨
-      
+
       contents.push({
         role,
         parts: this.toGeminiParts(msg.content),
       });
     }
-    
+
     return { contents, systemInstruction };
   }
 
@@ -585,7 +582,7 @@ export class GeminiTypeConverter {
           if (content.source.type === 'url') {
              // URL 이미지는 fileData로 처리 (Gemini File API가 지원하는 URI여야 함)
              // 일반 HTTP URL인 경우 Adapter 레벨에서 다운로드 후 base64 변환하거나
-             // 5.x 버전 SDK의 fileData 처리 확인 필요. 
+             // 5.x 버전 SDK의 fileData 처리 확인 필요.
              // 여기서는 설계를 위해 fileData로 매핑
              return {
                fileData: {
@@ -645,12 +642,12 @@ export class GeminiTypeConverter {
       return { type: 'text', text: '' };
     });
   }
-  
+
   // ... mapStopReason, toGeminiTools ...
-  
+
   private toGeminiToolConfig(choice: any): ToolConfig {
      // 구현 필요
-     return {}; 
+     return {};
   }
 }
 
@@ -687,7 +684,7 @@ import {
   LlmGenerateRequest,
   LlmGenerateResponse,
   LlmStream,
-  ProviderCapabilities
+  ProviderCapabilities,
 } from '../types';
 import { ClaudeTypeConverter } from './converter';
 
@@ -717,14 +714,17 @@ export class ClaudeAdapter extends BaseAdapter {
   async generateContent(
     request: LlmGenerateRequest,
     userPromptId: string,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmGenerateResponse> {
     this.validateRequest(request);
 
     // 이미지 등 비동기 리소스 해결 (URL 다운로드)
     const resolvedRequest = await this.converter.resolveResources(request);
-    const claudeRequest = this.converter.toClaudeRequest(resolvedRequest, false);
-    
+    const claudeRequest = this.converter.toClaudeRequest(
+      resolvedRequest,
+      false,
+    );
+
     try {
       const response = await this.client.messages.create(claudeRequest);
       return this.converter.fromClaudeResponse(response);
@@ -736,7 +736,7 @@ export class ClaudeAdapter extends BaseAdapter {
   async generateContentStream(
     request: LlmGenerateRequest,
     userPromptId: string,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmStream> {
     this.validateRequest(request);
 
@@ -747,20 +747,20 @@ export class ClaudeAdapter extends BaseAdapter {
   }
 
   // ... (countTokens, createStream, mapClaudeError 구현은 기존과 동일하되 createStream 로직 보완 필요)
-  
+
   private async *createStream(
     request: Anthropic.MessageCreateParams,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): LlmStream {
     const stream = await this.client.messages.stream(request);
-    
+
     // 스트림 어셈블러: 델타를 모아 완전한 툴 호출 등을 구성하는데 도움을 줄 수 있음
     // 여기서는 Converter가 Delta 이벤트를 직접 처리하도록 위임
     for await (const event of stream) {
       yield this.converter.fromClaudeStreamEvent(event);
     }
   }
-  
+
   private mapClaudeError(error: unknown): LlmError {
     // ... (기존 에러 매핑 로직)
     return new LlmError(LlmErrorType.UNKNOWN, String(error));
@@ -780,14 +780,16 @@ import {
   LlmMessage,
   LlmContent,
   LlmStreamEvent,
-  LlmStopReason
+  LlmStopReason,
 } from '../types';
 
 export class ClaudeTypeConverter {
   /**
    * 외부 리소스(이미지 URL 등) 다운로드 및 포맷팅
    */
-  async resolveResources(request: LlmGenerateRequest): Promise<LlmGenerateRequest> {
+  async resolveResources(
+    request: LlmGenerateRequest,
+  ): Promise<LlmGenerateRequest> {
     // 실제 구현 시:
     // 1. 메시지 내의 모든 Image Content 스캔
     // 2. URL 타입인 경우 fetch 후 base64 변환
@@ -795,11 +797,16 @@ export class ClaudeTypeConverter {
     return request; // Placeholder
   }
 
-  toClaudeRequest(request: LlmGenerateRequest, stream: boolean): Anthropic.MessageCreateParams {
+  toClaudeRequest(
+    request: LlmGenerateRequest,
+    stream: boolean,
+  ): Anthropic.MessageCreateParams {
     // System Instruction 병합 정책: Request 우선 + 메시지 내 System은 Prepend
     const { system, messages } = this.splitSystemMessage(request.messages);
-    const finalSystem = request.systemInstruction 
-      ? (system ? `${request.systemInstruction}\n${system}` : request.systemInstruction)
+    const finalSystem = request.systemInstruction
+      ? system
+        ? `${request.systemInstruction}\n${system}`
+        : request.systemInstruction
       : system;
 
     return {
@@ -812,73 +819,86 @@ export class ClaudeTypeConverter {
       top_k: request.topK,
       stop_sequences: request.stopSequences,
       tools: request.tools ? this.toClaudeTools(request.tools) : undefined,
-      tool_choice: request.toolChoice ? this.toClaudeToolChoice(request.toolChoice) : undefined,
-      stream, 
+      tool_choice: request.toolChoice
+        ? this.toClaudeToolChoice(request.toolChoice)
+        : undefined,
+      stream,
     } as any; // stream 타입 호환성 위해 any 캐스팅 혹은 분기 처리
   }
-  
+
   // ... (fromClaudeResponse, splitSystemMessage, toClaudeMessages, toClaudeContent 기존 유지)
 
   fromClaudeStreamEvent(event: Anthropic.MessageStreamEvent): LlmStreamEvent {
-    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+    if (
+      event.type === 'content_block_delta' &&
+      event.delta.type === 'text_delta'
+    ) {
       return {
         type: 'content_delta',
         delta: { text: event.delta.text },
       };
     }
-    
+
     // Tool Call Stream 지원
-    if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
-       return {
-         type: 'tool_call_delta',
-         delta: {
-           toolCall: {
-             type: 'tool_call',
-             id: event.content_block.id,
-             name: event.content_block.name,
-             arguments: {}, // 시작 시점엔 빈 객체
-           }
-         }
-       };
+    if (
+      event.type === 'content_block_start' &&
+      event.content_block.type === 'tool_use'
+    ) {
+      return {
+        type: 'tool_call_delta',
+        delta: {
+          toolCall: {
+            type: 'tool_call',
+            id: event.content_block.id,
+            name: event.content_block.name,
+            arguments: {}, // 시작 시점엔 빈 객체
+          },
+        },
+      };
     }
-    
-    if (event.type === 'content_block_delta' && event.delta.type === 'input_json_delta') {
-       // 부분 JSON 전달. 
-       // 주의: 공통 인터페이스가 'arguments 문자열 델타'를 받는지 '파싱된 객체'를 받는지 정의 필요.
-       // 여기서는 문자열 델타를 전달하거나, 상위에서 조립해야 함.
-       // 임시적으로 arguments 필드에 partial string을 넣는 방식 사용 가능 (타입 정의 확인 필요)
-       return {
-         type: 'tool_call_delta',
-         delta: {
-           toolCall: {
-             // 부분 문자열 전달 (LlmToolCallContent 정의가 string args 지원 시)
-             // 현재 정의는 Record<string, unknown>이므로, 
-             // **StreamAssembler**가 필수적임. 
-             // 이 단계에서는 raw string 델타를 보낼 방법이 마땅치 않으므로 
-             // 임시로 무시하거나 별도 이벤트 타입 필요.
-           }
-         }
-       };
+
+    if (
+      event.type === 'content_block_delta' &&
+      event.delta.type === 'input_json_delta'
+    ) {
+      // 부분 JSON 전달.
+      // 주의: 공통 인터페이스가 'arguments 문자열 델타'를 받는지 '파싱된 객체'를 받는지 정의 필요.
+      // 여기서는 문자열 델타를 전달하거나, 상위에서 조립해야 함.
+      // 임시적으로 arguments 필드에 partial string을 넣는 방식 사용 가능 (타입 정의 확인 필요)
+      return {
+        type: 'tool_call_delta',
+        delta: {
+          toolCall: {
+            // 부분 문자열 전달 (LlmToolCallContent 정의가 string args 지원 시)
+            // 현재 정의는 Record<string, unknown>이므로,
+            // **StreamAssembler**가 필수적임.
+            // 이 단계에서는 raw string 델타를 보낼 방법이 마땅치 않으므로
+            // 임시로 무시하거나 별도 이벤트 타입 필요.
+          },
+        },
+      };
     }
 
     if (event.type === 'message_stop') {
-        // usage 정보가 event 내에 없을 수 있음 (message_delta 등에서 확인 필요)
-        return { type: 'message_end' };
+      // usage 정보가 event 내에 없을 수 있음 (message_delta 등에서 확인 필요)
+      return { type: 'message_end' };
     }
 
     return { type: 'content_delta', delta: {} };
   }
 
-  private toClaudeToolChoice(choice: NonNullable<LlmGenerateRequest['toolChoice']>): Anthropic.MessageCreateParams.ToolChoice {
-      if (choice === 'auto') return { type: 'auto' };
-      if (choice === 'none') return { type: 'any' }; // 주의: Claude는 'none' 명시가 없음, 툴을 안 보내거나 auto
-      if (choice === 'required') return { type: 'any' };
-      if (typeof choice === 'object' && choice.name) {
-          return { type: 'tool', name: choice.name };
-      }
-      return { type: 'auto' };
+  private toClaudeToolChoice(
+    choice: NonNullable<LlmGenerateRequest['toolChoice']>,
+  ): Anthropic.MessageCreateParams.ToolChoice {
+    if (choice === 'auto') return { type: 'auto' };
+    if (choice === 'none') return { type: 'any' }; // 주의: Claude는 'none' 명시가 없음, 툴을 안 보내거나 auto
+    if (choice === 'required') return { type: 'any' };
+    if (typeof choice === 'object' && choice.name) {
+      return { type: 'tool', name: choice.name };
+    }
+    return { type: 'auto' };
   }
-  
+
   // ... (기타 메서드)
 }
 ```
@@ -897,7 +917,7 @@ import {
   ProviderCapabilities,
   LlmError,
   LlmErrorType,
-  LlmTokenCount
+  LlmTokenCount,
 } from '../types';
 import { ClaudeTypeConverter } from './converter';
 import { GenerateOptions } from '../contentGenerator';
@@ -908,9 +928,9 @@ export class ClaudeAdapter extends BaseAdapter {
     supportsStreaming: true,
     supportsToolCalls: true,
     supportsImageInput: true,
-    supportsImageGeneration: false,  // Claude는 이미지 생성 미지원
-    supportsEmbedding: false,        // Claude는 임베딩 미지원
-    supportsTokenCount: false,       // 토큰 카운트는 추정만 가능
+    supportsImageGeneration: false, // Claude는 이미지 생성 미지원
+    supportsEmbedding: false, // Claude는 임베딩 미지원
+    supportsTokenCount: false, // 토큰 카운트는 추정만 가능
     supportsSystemMessage: true,
     maxContextLength: 200_000,
     maxOutputTokens: 8_192,
@@ -928,7 +948,7 @@ export class ClaudeAdapter extends BaseAdapter {
   async generateContent(
     request: LlmGenerateRequest,
     userPromptId: string,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmGenerateResponse> {
     this.validateRequest(request);
 
@@ -944,7 +964,7 @@ export class ClaudeAdapter extends BaseAdapter {
   async generateContentStream(
     request: LlmGenerateRequest,
     userPromptId: string,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmStream> {
     this.validateRequest(request);
 
@@ -957,7 +977,7 @@ export class ClaudeAdapter extends BaseAdapter {
     // Claude는 공식 토큰 카운트 API가 없으므로 추정
     // tiktoken 또는 간단한 휴리스틱 사용
     const text = request.messages
-      .map(m => m.content.map(c => 'text' in c ? c.text : '').join(''))
+      .map((m) => m.content.map((c) => ('text' in c ? c.text : '')).join(''))
       .join('');
 
     // 대략적인 추정: 4자당 1토큰
@@ -970,7 +990,7 @@ export class ClaudeAdapter extends BaseAdapter {
 
   private async *createStream(
     request: Anthropic.MessageCreateParams,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): LlmStream {
     const stream = await this.client.messages.stream(request);
 
@@ -1010,7 +1030,7 @@ import {
   LlmGenerateResponse,
   LlmStream,
   ProviderCapabilities,
-  LlmTokenCount
+  LlmTokenCount,
 } from '../types';
 import { OpenAITypeConverter } from './converter';
 import { GenerateOptions } from '../contentGenerator';
@@ -1032,13 +1052,18 @@ import {
   LlmMessage,
   LlmContent,
   LlmStreamEvent,
-  LlmStopReason
+  LlmStopReason,
 } from '../types';
 
 export class OpenAITypeConverter {
-  toOpenAIRequest(request: LlmGenerateRequest): OpenAI.Chat.ChatCompletionCreateParamsNonStreaming {
+  toOpenAIRequest(
+    request: LlmGenerateRequest,
+  ): OpenAI.Chat.ChatCompletionCreateParamsNonStreaming {
     // OpenAI는 system role을 messages 배열 내에서 지원
-    const messages = this.toOpenAIMessages(request.messages, request.systemInstruction);
+    const messages = this.toOpenAIMessages(
+      request.messages,
+      request.systemInstruction,
+    );
 
     return {
       model: request.model,
@@ -1048,14 +1073,19 @@ export class OpenAITypeConverter {
       top_p: request.topP,
       stop: request.stopSequences,
       tools: request.tools ? this.toOpenAITools(request.tools) : undefined,
-      tool_choice: request.toolChoice ? this.toOpenAIToolChoice(request.toolChoice) : undefined,
-      response_format: request.responseFormat === 'json' ? { type: 'json_object' } : undefined,
+      tool_choice: request.toolChoice
+        ? this.toOpenAIToolChoice(request.toolChoice)
+        : undefined,
+      response_format:
+        request.responseFormat === 'json' ? { type: 'json_object' } : undefined,
     };
   }
 
-  fromOpenAIResponse(response: OpenAI.Chat.ChatCompletion): LlmGenerateResponse {
+  fromOpenAIResponse(
+    response: OpenAI.Chat.ChatCompletion,
+  ): LlmGenerateResponse {
     const choice = response.choices[0];
-    
+
     return {
       id: response.id,
       content: this.fromOpenAIMessage(choice.message),
@@ -1070,7 +1100,10 @@ export class OpenAITypeConverter {
     };
   }
 
-  private toOpenAIMessages(messages: LlmMessage[], systemInstruction?: string): OpenAI.Chat.ChatCompletionMessageParam[] {
+  private toOpenAIMessages(
+    messages: LlmMessage[],
+    systemInstruction?: string,
+  ): OpenAI.Chat.ChatCompletionMessageParam[] {
     const openaiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
 
     if (systemInstruction) {
@@ -1080,7 +1113,9 @@ export class OpenAITypeConverter {
     for (const msg of messages) {
       if (msg.role === 'system') {
         // 이미 systemInstruction으로 처리되었거나, 별도 system 메시지로 추가
-        const content = msg.content.map(c => 'text' in c ? c.text : '').join('\n');
+        const content = msg.content
+          .map((c) => ('text' in c ? c.text : ''))
+          .join('\n');
         openaiMessages.push({ role: 'system', content });
         continue;
       }
@@ -1088,13 +1123,13 @@ export class OpenAITypeConverter {
       if (msg.role === 'tool') {
         // role: tool -> tool result
         for (const content of msg.content) {
-            if (content.type === 'tool_result') {
-                openaiMessages.push({
-                    role: 'tool',
-                    tool_call_id: content.toolCallId,
-                    content: content.content
-                });
-            }
+          if (content.type === 'tool_result') {
+            openaiMessages.push({
+              role: 'tool',
+              tool_call_id: content.toolCallId,
+              content: content.content,
+            });
+          }
         }
         continue;
       }
@@ -1103,7 +1138,10 @@ export class OpenAITypeConverter {
         role: msg.role as 'user' | 'assistant',
         content: this.toOpenAIContent(msg.content),
         // assistant tool calls 처리 필요
-        tool_calls: msg.role === 'assistant' ? this.extractToolCalls(msg.content) : undefined,
+        tool_calls:
+          msg.role === 'assistant'
+            ? this.extractToolCalls(msg.content)
+            : undefined,
       } as any);
     }
 
@@ -1112,90 +1150,97 @@ export class OpenAITypeConverter {
 
   private toOpenAIContent(contents: LlmContent[]): any {
     // 텍스트만 있는 경우 문자열로 반환 가능
-    const textOnly = contents.every(c => c.type === 'text');
+    const textOnly = contents.every((c) => c.type === 'text');
     if (textOnly) {
-        return contents.map(c => (c as any).text).join('');
+      return contents.map((c) => (c as any).text).join('');
     }
 
-    return contents.map(content => {
-      switch (content.type) {
-        case 'text':
-          return { type: 'text', text: content.text };
-        case 'image':
-          return {
-            type: 'image_url',
-            image_url: {
-              url: content.source.type === 'url' 
-                   ? content.source.data 
-                   : `data:${content.source.mediaType};base64,${content.source.data}`
-            }
-          };
-        // tool_call, tool_result는 message level에서 처리 (위 loop 참조)
-      }
-    }).filter(Boolean);
+    return contents
+      .map((content) => {
+        switch (content.type) {
+          case 'text':
+            return { type: 'text', text: content.text };
+          case 'image':
+            return {
+              type: 'image_url',
+              image_url: {
+                url:
+                  content.source.type === 'url'
+                    ? content.source.data
+                    : `data:${content.source.mediaType};base64,${content.source.data}`,
+              },
+            };
+          // tool_call, tool_result는 message level에서 처리 (위 loop 참조)
+        }
+      })
+      .filter(Boolean);
   }
-  
-  private extractToolCalls(contents: LlmContent[]): OpenAI.Chat.ChatCompletionMessageToolCall[] | undefined {
-      const toolCalls = contents
-          .filter(c => c.type === 'tool_call')
-          .map(c => ({
-              id: (c as any).id,
-              type: 'function',
-              function: {
-                  name: (c as any).name,
-                  arguments: JSON.stringify((c as any).arguments)
-              }
-          }));
-      return toolCalls.length > 0 ? (toolCalls as any) : undefined;
+
+  private extractToolCalls(
+    contents: LlmContent[],
+  ): OpenAI.Chat.ChatCompletionMessageToolCall[] | undefined {
+    const toolCalls = contents
+      .filter((c) => c.type === 'tool_call')
+      .map((c) => ({
+        id: (c as any).id,
+        type: 'function',
+        function: {
+          name: (c as any).name,
+          arguments: JSON.stringify((c as any).arguments),
+        },
+      }));
+    return toolCalls.length > 0 ? (toolCalls as any) : undefined;
   }
-  
-  private fromOpenAIMessage(message: OpenAI.Chat.ChatCompletionMessage): LlmContent[] {
-      const contents: LlmContent[] = [];
-      
-      if (message.content) {
-          contents.push({ type: 'text', text: message.content });
+
+  private fromOpenAIMessage(
+    message: OpenAI.Chat.ChatCompletionMessage,
+  ): LlmContent[] {
+    const contents: LlmContent[] = [];
+
+    if (message.content) {
+      contents.push({ type: 'text', text: message.content });
+    }
+
+    if (message.tool_calls) {
+      for (const tc of message.tool_calls) {
+        contents.push({
+          type: 'tool_call',
+          id: tc.id,
+          name: tc.function.name,
+          arguments: JSON.parse(tc.function.arguments),
+        });
       }
-      
-      if (message.tool_calls) {
-          for (const tc of message.tool_calls) {
-              contents.push({
-                  type: 'tool_call',
-                  id: tc.id,
-                  name: tc.function.name,
-                  arguments: JSON.parse(tc.function.arguments),
-              });
-          }
-      }
-      
-      return contents;
+    }
+
+    return contents;
   }
 
   // ... mapStopReason, toOpenAITools ...
   private toOpenAITools(tools: any[]): any[] {
-      return tools.map(t => ({
-          type: 'function',
-          function: {
-              name: t.name,
-              description: t.description,
-              parameters: t.parameters
-          }
-      }));
+    return tools.map((t) => ({
+      type: 'function',
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      },
+    }));
   }
-  
+
   private toOpenAIToolChoice(choice: any): any {
-      return choice;
+    return choice;
   }
-  
+
   private mapStopReason(reason: any): LlmStopReason {
-      if (reason === 'stop') return 'end_turn';
-      if (reason === 'length') return 'max_tokens';
-      if (reason === 'tool_calls') return 'tool_use';
-      return 'end_turn';
+    if (reason === 'stop') return 'end_turn';
+    if (reason === 'length') return 'max_tokens';
+    if (reason === 'tool_calls') return 'tool_use';
+    return 'end_turn';
   }
 }
 ```
 
-```
+````
 
 ### 3.4 vLLM 및 기타 OpenAI 호환 프로바이더 확장
 
@@ -1219,11 +1264,12 @@ export class OpenAICompatibleAdapter extends OpenAIAdapter {
         // BaseUrl 등 오버라이딩 처리
     }
 }
-```
+````
 
 ## 3.5 프로바이더 레지스트리 (제거됨)
 
-`ProviderRegistry`는 `Config` 시스템과의 충돌로 인해 제거되었습니다. 대신 `createContentGenerator` 팩토리를 확장하여 사용합니다.
+`ProviderRegistry`는 `Config` 시스템과의 충돌로 인해 제거되었습니다. 대신
+`createContentGenerator` 팩토리를 확장하여 사용합니다.
 
 ```typescript
 // packages/core/src/providers/registry.ts
@@ -1232,7 +1278,8 @@ export class OpenAICompatibleAdapter extends OpenAIAdapter {
 
 ### 3.6 통합 팩토리 (createContentGenerator 확장)
 
-기존 `createContentGenerator` 함수를 확장하여 `LLM_PROVIDER` 설정에 따라 적절한 어댑터를 인스턴스화하고, 로깅/레코딩/헤더 처리를 공통으로 적용합니다.
+기존 `createContentGenerator` 함수를 확장하여 `LLM_PROVIDER` 설정에 따라 적절한
+어댑터를 인스턴스화하고, 로깅/레코딩/헤더 처리를 공통으로 적용합니다.
 
 ```typescript
 // packages/core/src/core/contentGenerator.ts
@@ -1243,13 +1290,13 @@ export async function createContentGenerator(
   sessionId?: string,
 ): Promise<ContentGenerator> {
     const providerName = process.env['LLM_PROVIDER'] || 'gemini';
-    
+
     let generator: ContentGenerator;
-    
+
     if (providerName === 'gemini') {
         // 기존 Gemini 로직
         const googleGenAI = new GoogleGenAI({ ... });
-        generator = new GeminiAdapter(googleGenAI, config); 
+        generator = new GeminiAdapter(googleGenAI, config);
     } else if (providerName === 'claude') {
         const apiKey = process.env['ANTHROPIC_API_KEY'];
         if (!apiKey) throw new Error('ANTHROPIC_API_KEY required');
@@ -1266,7 +1313,7 @@ export async function createContentGenerator(
     if (gcConfig.recordResponses) {
         generator = new RecordingContentGenerator(generator, gcConfig.recordResponses);
     }
-    
+
     return generator;
 }
 ```
@@ -1294,7 +1341,7 @@ export class LlmError extends Error {
     public readonly type: LlmErrorType,
     message: string,
     public readonly provider?: string,
-    public readonly cause?: Error
+    public readonly cause?: Error,
   ) {
     super(message);
     this.name = 'LlmError';
@@ -1353,7 +1400,7 @@ export class GeminiClient {
   constructor(generator?: ContentGenerator) {
     // 의존성 주입이 없으면 활성 프로바이더 조회 시도, 없으면 기본값으로 초기화하거나 오류 발생
     const registry = ProviderRegistry.getInstance();
-    
+
     if (generator) {
       this.generator = generator;
     } else {
@@ -1370,7 +1417,7 @@ export class GeminiClient {
 
 ### 3.7.2 하위 호환성 유지
 
-```typescript
+````typescript
 // packages/core/src/index.ts
 
 // 기존 API 유지 (deprecated 마킹)
@@ -1401,11 +1448,11 @@ export class ModelRouterService {
   async route(request: LlmGenerateRequest): Promise<LlmGenerateResponse> {
     // 1. 모델 이름으로 프로바이더 감지
     const providerName = detectProvider(request.model);
-    
+
     // 2. 레지스트리에서 프로바이더 조회 (없으면 활성 프로바이더 사용)
     const registry = ProviderRegistry.getInstance();
     let provider;
-    
+
     try {
       provider = registry.get(providerName);
     } catch {
@@ -1416,5 +1463,8 @@ export class ModelRouterService {
     return provider.generateContent(request);
   }
 }
+````
+
 ```
+
 ```

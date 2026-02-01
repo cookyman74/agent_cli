@@ -261,10 +261,14 @@ export type LlmStream = AsyncGenerator<LlmStreamEvent, void, unknown>;
 /**
  * Simplified stream event for basic content streaming.
  * For full event types (ToolCallRequest, Finished, etc.), use LlmEvent from events.ts
+ *
+ * NOTE: Type names are aligned with LlmEventType for consistency:
+ * - text_delta (not content_delta) matches LlmEventType.TextDelta
+ * - thought_delta matches LlmEventType.ThoughtDelta
  */
 export interface LlmStreamEvent {
   type:
-    | 'content_delta'
+    | 'text_delta'
     | 'tool_call_delta'
     | 'thought_delta'
     | 'message_end'
@@ -334,3 +338,13 @@ export interface LlmTokenCount {
     system: number;
   };
 }
+
+// ============================================================================
+// TODO: Embedding Types (M1.3 or Phase 2)
+// ============================================================================
+
+/**
+ * TODO: LlmEmbedRequest - embedContent API 지원용
+ * TODO: LlmEmbedResponse - embedContent API 응답용
+ * @see docs/ai_adapter/03-technical-design.md §3.2.1
+ */

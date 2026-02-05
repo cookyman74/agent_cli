@@ -383,11 +383,11 @@ describe('BaseAdapter', () => {
 
 | ID      | 작업                           | 상태 | 테스트 파일        |
 | ------- | ------------------------------ | ---- | ------------------ |
-| 1.2.2.1 | `ProviderRegistry` 싱글톤 구현 | ⬜   | `registry.test.ts` |
-| 1.2.2.2 | `register()` 메서드            | ⬜   | `registry.test.ts` |
-| 1.2.2.3 | `get()` 메서드                 | ⬜   | `registry.test.ts` |
-| 1.2.2.4 | `list()` 메서드                | ⬜   | `registry.test.ts` |
-| 1.2.2.5 | `has()` 메서드                 | ⬜   | `registry.test.ts` |
+| 1.2.2.1 | `ProviderRegistry` 싱글톤 구현 | [x]  | `registry.test.ts` |
+| 1.2.2.2 | `register()` 메서드            | [x]  | `registry.test.ts` |
+| 1.2.2.3 | `get()` 메서드                 | [x]  | `registry.test.ts` |
+| 1.2.2.4 | `list()` 메서드                | [x]  | `registry.test.ts` |
+| 1.2.2.5 | `has()` 메서드                 | [x]  | `registry.test.ts` |
 
 ### 1.2.3 Provider Factory (`factory.ts`)
 

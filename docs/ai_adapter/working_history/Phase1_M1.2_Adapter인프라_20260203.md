@@ -16,13 +16,13 @@ Registry, Factory 등)
 
 **진행 방식**: 5단계로 나누어 순차적으로 진행하며, 각 단계 완료 시 피드백 반영.
 
-| 단계  | 작업 항목             | 상태    | 비고                         |
-| ----- | --------------------- | ------- | ---------------------------- |
-| 1.2.1 | **BaseAdapter 구현**  | ✅ 완료 | 추상 클래스, 공통 인터페이스 |
-| 1.2.2 | ProviderRegistry 구현 | ⬜ 대기 | 싱글톤 레지스트리            |
-| 1.2.3 | ProviderFactory 구현  | ⬜ 대기 | 동적 생성 팩토리             |
-| 1.2.4 | StreamAssembler 구현  | ⬜ 대기 | 스트림 조립기                |
-| 1.2.5 | 지원 모듈 구현        | ⬜ 대기 | Resolver, Spec, Config       |
+| 단계  | 작업 항목                 | 상태    | 비고                         |
+| ----- | ------------------------- | ------- | ---------------------------- |
+| 1.2.1 | **BaseAdapter 구현**      | ✅ 완료 | 추상 클래스, 공통 인터페이스 |
+| 1.2.2 | **ProviderRegistry 구현** | ✅ 완료 | 싱글톤 레지스트리 (19 tests) |
+| 1.2.3 | ProviderFactory 구현      | ⬜ 대기 | 동적 생성 팩토리             |
+| 1.2.4 | StreamAssembler 구현      | ⬜ 대기 | 스트림 조립기                |
+| 1.2.5 | 지원 모듈 구현            | ⬜ 대기 | Resolver, Spec, Config       |
 
 ---
 
@@ -185,5 +185,74 @@ getCapabilities(): LlmProviderCapabilities {
 |  **Low**   | `embedContent` 에러 타입 불일치   | `UnsupportedFeatureError` 클래스 사용으로 통일                |
 |  **Low**   | `countTokens` 기본 동작 미정의    | 기본 구현 추가 (capability 체크 후 `UnsupportedFeatureError`) |
 |  **Low**   | `embedContent` 타입 미정의        | TODO 주석 추가 (M1.3 예정)                                    |
+
+---
+
+## 🏗️ 1.2.2 ProviderRegistry 구현
+
+### 📝 계획
+
+- **목표**: 프로바이더 어댑터 팩토리를 관리하는 싱글톤 레지스트리 구현
+- **파일**:
+  - `packages/core/src/providers/registry.ts` (신규)
+  - `packages/core/src/providers/registry.test.ts` (신규)
+
+### 🔴 Red Phase (테스트 작성)
+
+- [x] 싱글톤 패턴 테스트
+- [x] `register()` 메서드 테스트 (중복 등록 에러, force 옵션)
+- [x] `get()`, `getOrThrow()` 메서드 테스트
+- [x] `has()`, `list()` 메서드 테스트
+- [x] `unregister()`, `clear()` 메서드 테스트
+- [x] `createAdapter()` 메서드 테스트
+- **결과**: 테스트 실패 확인 (`Cannot find module './registry.js'`)
+
+### 🟢 Green Phase (구현)
+
+- [x] `ProviderRegistry` 싱글톤 클래스
+- [x] `AdapterFactory` 타입 정의
+- [x] 모든 CRUD 메서드 구현
+- **결과**: 테스트 통과 (19 passed)
+
+**구현된 ProviderRegistry**:
+
+```typescript
+export class ProviderRegistry {
+  private static instance: ProviderRegistry | null = null;
+  private readonly providers = new Map<string, AdapterFactory>();
+
+  static getInstance(): ProviderRegistry { ... }
+  register(name, factory, options?): void { ... }
+  get(name): AdapterFactory | undefined { ... }
+  getOrThrow(name): AdapterFactory { ... }
+  has(name): boolean { ... }
+  list(): string[] { ... }
+  unregister(name): boolean { ... }
+  clear(): void { ... }
+  createAdapter(name, config): BaseAdapter { ... }
+}
+```
+
+### 🔄 Refactor Phase
+
+- [x] ESLint 통과
+- [x] `index.ts`에 export 추가
+- [x] 타입 에러 수정 (`LlmEventType` enum 사용, `override` 키워드)
+- **결과**: 테스트 통과 (19 passed), ESLint 통과
+
+### 🔧 6차 리뷰 반영 (report.md 이슈 해결)
+
+**검증 및 수정 완료 이슈 목록**:
+
+|  우선순위  | 이슈                                      | 조치 내용                                                       | 상태 |
+| :--------: | ----------------------------------------- | --------------------------------------------------------------- | :--: |
+| **Medium** | ProviderRegistry 오류 타입 의미 혼선      | `PROVIDER_NOT_FOUND` 신규 에러타입 추가, `MODEL_NOT_FOUND` 대체 |  ✅  |
+| **Medium** | ContentGenerator 인터페이스 이중 정의     | 이전 M1.2.1에서 JSDoc에 구분 설명 추가됨                        |  ✅  |
+|  **Low**   | BaseAdapter 검증 로직 호출 보장 부재      | JSDoc 강화됨 + `validateRequest` 테스트 3개 추가                |  ✅  |
+|  **Low**   | ProviderRegistry 이름 정규화 부재         | `normalizeName()` 메서드 추가, 모든 조회에 `toLowerCase()` 적용 |  ✅  |
+|  **Low**   | LlmStream 타입 잔존                       | 이전 M1.2.1에서 `@deprecated` 처리됨                            |  ✅  |
+|  **Low**   | BaseAdapter 유틸리티 테스트 커버리지 부족 | `validateRequest` 3개 + `handleError` 2개 테스트 추가           |  ✅  |
+
+**테스트 결과**: 31 passed (baseAdapter 11 + registry 20)
 
 ---

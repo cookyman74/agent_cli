@@ -16,6 +16,9 @@
 // Adapter base classes
 export * from './baseAdapter.js';
 
+// Provider registry
+export * from './registry.js';
+
 // Core types
 export * from './types.js';
 

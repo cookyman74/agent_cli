@@ -33,6 +33,9 @@ export enum LlmErrorType {
   /** Model not found or not available */
   MODEL_NOT_FOUND = 'model_not_found',
 
+  /** Provider not registered in registry */
+  PROVIDER_NOT_FOUND = 'provider_not_found',
+
   /** Model overloaded (Claude-specific, temporary capacity issue) */
   MODEL_OVERLOADED = 'model_overloaded',
 

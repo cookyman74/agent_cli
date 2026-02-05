@@ -15,6 +15,7 @@ import type {
 } from './types.js';
 import { LlmEventType } from './events.js';
 import type { LlmEventStream } from './events.js';
+import { LlmError, LlmErrorType } from './errors.js';
 
 // Mock concrete implementation for testing abstract class
 class TestAdapter extends BaseAdapter {
@@ -59,6 +60,15 @@ class TestAdapter extends BaseAdapter {
 
   mapToProviderConfig(_config: LlmGenerateConfig): Record<string, unknown> {
     return {};
+  }
+
+  // Test helper methods to expose protected methods for testing
+  testValidateRequest(request: LlmGenerateRequest): void {
+    return this.validateRequest(request);
+  }
+
+  testHandleError(error: unknown): never {
+    return this.handleError(error);
   }
 }
 
@@ -116,5 +126,62 @@ describe('BaseAdapter', () => {
     };
     const count = await adapter.countTokens(mockRequest);
     expect(count.totalTokens).toBe(10);
+  });
+
+  describe('validateRequest', () => {
+    it('should throw error when model is missing', () => {
+      const adapter = new TestAdapter(validConfig);
+      const invalidRequest = {
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'hello' }] },
+        ],
+      } as LlmGenerateRequest;
+
+      expect(() => adapter.testValidateRequest(invalidRequest)).toThrow(
+        'Model is required',
+      );
+    });
+
+    it('should throw error when messages are empty', () => {
+      const adapter = new TestAdapter(validConfig);
+      const invalidRequest = {
+        model: 'test-model',
+        messages: [],
+      } as LlmGenerateRequest;
+
+      expect(() => adapter.testValidateRequest(invalidRequest)).toThrow(
+        'At least one message is required',
+      );
+    });
+
+    it('should pass validation for valid request', () => {
+      const adapter = new TestAdapter(validConfig);
+      const validRequest: LlmGenerateRequest = {
+        model: 'test-model',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'hello' }] },
+        ],
+      };
+
+      expect(() => adapter.testValidateRequest(validRequest)).not.toThrow();
+    });
+  });
+
+  describe('handleError', () => {
+    it('should wrap non-LlmError in LlmError', () => {
+      const adapter = new TestAdapter(validConfig);
+      const genericError = new Error('Something went wrong');
+
+      expect(() => adapter.testHandleError(genericError)).toThrow(
+        'test-provider error: Something went wrong',
+      );
+    });
+
+    it('should rethrow LlmError as-is', () => {
+      const adapter = new TestAdapter(validConfig);
+      const llmError = new LlmError(LlmErrorType.RATE_LIMIT, 'Rate limit hit');
+
+      expect(() => adapter.testHandleError(llmError)).toThrow(llmError);
+    });
   });
 });

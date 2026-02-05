@@ -13,6 +13,9 @@
  * @see docs/ai_adapter/03-technical-design.md
  */
 
+// Adapter base classes
+export * from './baseAdapter.js';
+
 // Core types
 export * from './types.js';
 

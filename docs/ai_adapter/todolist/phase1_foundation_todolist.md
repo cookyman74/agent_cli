@@ -1,6 +1,6 @@
 # Phase 1: 기반 작업 및 의존성 분석
 
-> 기간: 2-3주 | 상태: ⏳ 대기 **v0.2** - 소스코드 기반 리뷰 반영
+> 기간: 2-3주 | 상태: 🔄 진행 **v0.3** - M1.2.1 완료
 
 ## System Prompt
 
@@ -356,13 +356,13 @@ describe('LlmStreamEvent', () => {
 
 | ID      | 작업                                   | 상태 | 테스트 파일           |
 | ------- | -------------------------------------- | ---- | --------------------- |
-| 1.2.1.1 | `LlmAdapter` 인터페이스 정의           | ⬜   | `baseAdapter.test.ts` |
-| 1.2.1.2 | `BaseAdapter` 추상 클래스 구현         | ⬜   | `baseAdapter.test.ts` |
-| 1.2.1.3 | `generate()` 추상 메서드               | ⬜   | `baseAdapter.test.ts` |
-| 1.2.1.4 | `generateStream()` 추상 메서드         | ⬜   | `baseAdapter.test.ts` |
-| 1.2.1.5 | `validateConfig()` 메서드              | ⬜   | `baseAdapter.test.ts` |
-| 1.2.1.6 | `getCapabilities()` 메서드             | ⬜   | `baseAdapter.test.ts` |
-| 1.2.1.7 | 🆕 `mapToProviderConfig()` 추상 메서드 | ⬜   | `baseAdapter.test.ts` |
+| 1.2.1.1 | `LlmAdapter` 인터페이스 정의           | [x]  | `baseAdapter.test.ts` |
+| 1.2.1.2 | `BaseAdapter` 추상 클래스 구현         | [x]  | `baseAdapter.test.ts` |
+| 1.2.1.3 | `generate()` 추상 메서드               | [x]  | `baseAdapter.test.ts` |
+| 1.2.1.4 | `generateStream()` 추상 메서드         | [x]  | `baseAdapter.test.ts` |
+| 1.2.1.5 | `validateConfig()` 메서드              | [x]  | `baseAdapter.test.ts` |
+| 1.2.1.6 | `getCapabilities()` 메서드             | [x]  | `baseAdapter.test.ts` |
+| 1.2.1.7 | 🆕 `mapToProviderConfig()` 추상 메서드 | [x]  | `baseAdapter.test.ts` |
 
 **TDD 시나리오**:
 

@@ -253,18 +253,14 @@ export interface LlmToolDefinition {
 // ============================================================================
 
 /**
+ * @deprecated Use LlmEventStream from events.ts instead.
  * Async generator type for streaming responses.
- * Use LlmEventStream from events.ts for full server event streaming.
  */
 export type LlmStream = AsyncGenerator<LlmStreamEvent, void, unknown>;
 
 /**
+ * @deprecated Use LlmEvent from events.ts instead.
  * Simplified stream event for basic content streaming.
- * For full event types (ToolCallRequest, Finished, etc.), use LlmEvent from events.ts
- *
- * NOTE: Type names are aligned with LlmEventType for consistency:
- * - text_delta (not content_delta) matches LlmEventType.TextDelta
- * - thought_delta matches LlmEventType.ThoughtDelta
  */
 export interface LlmStreamEvent {
   type:
@@ -315,6 +311,7 @@ export interface LlmProviderCapabilities {
 // ============================================================================
 
 /**
+ * @deprecated Use GenerateOptions instead.
  * Options for content generation.
  */
 export interface LlmGenerateOptions {
@@ -323,9 +320,25 @@ export interface LlmGenerateOptions {
   traceId?: string;
 }
 
-// ============================================================================
-// Token Count Types
-// ============================================================================
+/**
+ * Configuration for adapter instantiation (API keys, endpoints, etc).
+ */
+export interface AdapterConfig {
+  apiKey?: string;
+  baseUrl?: string;
+  timeout?: number;
+  maxRetries?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Options for a single generation request.
+ */
+export interface GenerateOptions {
+  signal?: AbortSignal;
+  timeout?: number;
+  traceId?: string;
+}
 
 /**
  * Token count result.
@@ -338,6 +351,59 @@ export interface LlmTokenCount {
     system: number;
   };
 }
+
+/**
+ * Common interface for all LLM providers (provider-independent).
+ *
+ * NOTE: This is distinct from `core/contentGenerator.ts` which is the legacy
+ * Gemini-specific interface using @google/genai types. This interface is
+ * designed for multi-provider support with provider-independent types.
+ *
+ * @see docs/ai_adapter/03-technical-design.md §3.2.1
+ */
+export interface ContentGenerator {
+  readonly providerName: string;
+  readonly capabilities: LlmProviderCapabilities;
+
+  generateContent(
+    request: LlmGenerateRequest,
+    userPromptId: string,
+    options?: GenerateOptions,
+  ): Promise<LlmGenerateResponse>;
+
+  generateContentStream(
+    request: LlmGenerateRequest,
+    userPromptId: string,
+    options?: GenerateOptions,
+  ): import('./events.js').LlmEventStream;
+
+  countTokens(request: LlmGenerateRequest): Promise<LlmTokenCount>;
+
+  /**
+   * Embed content (optional). Providers that don't support embedding
+   * should throw an UnsupportedFeatureError.
+   */
+  embedContent?(request: unknown): Promise<unknown>;
+}
+
+/**
+ * Configuration for content generation (defaults/presets).
+ */
+export interface LlmGenerateConfig {
+  provider: string; // Target provider identifier
+  model: string; // Target model identifier
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  maxTokens?: number;
+  stopSequences?: string[];
+  responseFormat?: LlmResponseFormat;
+  systemInstruction?: string;
+  providerOptions?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+// NOTE: LlmTokenCount is defined above (lines 349-356). This duplicate removed.
 
 // ============================================================================
 // TODO: Embedding Types (M1.3 or Phase 2)

@@ -43,6 +43,9 @@ export * from './providerConfig.js';
 // Provider selector
 export * from './providerSelector.js';
 
+// Provider config integration
+export * from './providerConfigIntegration.js';
+
 // Core types
 export * from './types.js';
 

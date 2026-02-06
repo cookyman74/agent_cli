@@ -178,7 +178,7 @@ packages/core/src/core/turn.ts → providers/gemini/turn.ts (Gemini 특화 부�
 
 | Phase | 문서                                                                             | 기간  | 상태    |
 | ----- | -------------------------------------------------------------------------------- | ----- | ------- |
-| 1     | [phase1_foundation_todolist.md](./phase1_foundation_todolist.md)                 | 2-3주 | 🔄 진행 |
+| 1     | [phase1_foundation_todolist.md](./phase1_foundation_todolist.md)                 | 2-3주 | ✅ 완료 |
 | 2     | [phase2_core_refactoring_todolist.md](./phase2_core_refactoring_todolist.md)     | 3-4주 | ⏳ 대기 |
 | 3     | [phase3_provider_extension_todolist.md](./phase3_provider_extension_todolist.md) | 3-4주 | ⏳ 대기 |
 
@@ -192,9 +192,9 @@ packages/core/src/core/turn.ts → providers/gemini/turn.ts (Gemini 특화 부�
 | --------- | ------------------------------------- | ------- | ---- | ----------------- |
 | M1.0      | 코드 인벤토리/영향도 분석             | 3일     | ✅   | ✅ 확대           |
 | M1.1      | 타입/에러/호환 레이어 설계            | 3-4일   | ✅   | ✅ 이벤트 매핑    |
-| M1.2      | Adapter 인프라 구축                   | 4-5일   | 🔄   | ✅ ModelSpec 연동 |
-| M1.3      | Provider 선택 경로/Config 설계        | 2-3일   | ⬜   | ✅ AuthType 확장  |
-| **M1.4**  | **유틸리티/테스트 마이그레이션 계획** | **2일** | ⬜   | 🆕 신규           |
+| M1.2      | Adapter 인프라 구축                   | 4-5일   | ✅   | ✅ ModelSpec 연동 |
+| M1.3      | Provider 선택 경로/Config 설계        | 2-3일   | ✅   | ✅ AuthType 확장  |
+| **M1.4**  | **유틸리티/테스트 마이그레이션 계획** | **2일** | ✅   | 🆕 신규           |
 
 ## Phase 2: 코어 리팩토링 (3-4주)
 

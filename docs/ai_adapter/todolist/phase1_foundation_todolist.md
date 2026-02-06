@@ -395,7 +395,7 @@ describe('BaseAdapter', () => {
 | ------- | ----------------------------- | ---- | ----------------- |
 | 1.2.3.1 | `ProviderFactory` 클래스      | [x]  | `factory.test.ts` |
 | 1.2.3.2 | `create()` 메서드             | [x]  | `factory.test.ts` |
-| 1.2.3.3 | Dynamic import 지원           | [x]  | `factory.test.ts` |
+| 1.2.3.3 | Dynamic import 지원           | [ ]  | `factory.test.ts` |
 | 1.2.3.4 | 에러 처리 (미등록 프로바이더) | [x]  | `factory.test.ts` |
 
 ### 1.2.4 Stream Assembler (`streamAssembler.ts`)
@@ -407,36 +407,36 @@ describe('BaseAdapter', () => {
 | 1.2.4.3 | 툴 콜 델타 합성          | [x]  | `streamAssembler.test.ts` |
 | 1.2.4.4 | Usage 정보 누적          | [x]  | `streamAssembler.test.ts` |
 | 1.2.4.5 | 완료된 메시지 반환       | [x]  | `streamAssembler.test.ts` |
-| 1.2.4.6 | 🆕 이벤트 타입 변환 지원 | [x]  | `streamAssembler.test.ts` |
+| 1.2.4.6 | 🆕 이벤트 타입 변환 지원 | [ ]  | `streamAssembler.test.ts` |
 
 ### 1.2.5 Content Resolver (`contentResolver.ts`)
 
 | ID      | 작업                     | 상태 | 테스트 파일               |
 | ------- | ------------------------ | ---- | ------------------------- |
-| 1.2.5.1 | `ContentResolver` 클래스 | ⬜   | `contentResolver.test.ts` |
+| 1.2.5.1 | `ContentResolver` 클래스 | [x]  | `contentResolver.test.ts` |
 | 1.2.5.2 | 이미지 URL → base64 변환 | ⬜   | `contentResolver.test.ts` |
 | 1.2.5.3 | 파일 경로 → base64 변환  | ⬜   | `contentResolver.test.ts` |
-| 1.2.5.4 | MIME 타입 감지           | ⬜   | `contentResolver.test.ts` |
+| 1.2.5.4 | MIME 타입 감지           | [x]  | `contentResolver.test.ts` |
 | 1.2.5.5 | 캐싱 전략                | ⬜   | `contentResolver.test.ts` |
 
 ### 1.2.6 Model Spec (`modelSpec.ts`) - 확대
 
 | ID      | 작업                                    | 상태 | 테스트 파일         |
 | ------- | --------------------------------------- | ---- | ------------------- |
-| 1.2.6.1 | `ModelSpec` 인터페이스                  | ⬜   | `modelSpec.test.ts` |
-| 1.2.6.2 | `ModelCapabilities` 인터페이스          | ⬜   | `modelSpec.test.ts` |
-| 1.2.6.3 | 기본 모델 스펙 정의                     | ⬜   | `modelSpec.test.ts` |
-| 1.2.6.4 | 기능 가용성 체크 함수                   | ⬜   | `modelSpec.test.ts` |
+| 1.2.6.1 | `ModelSpec` 인터페이스                  | [x]  | `modelSpec.test.ts` |
+| 1.2.6.2 | `ModelCapabilities` 인터페이스          | [x]  | `modelSpec.test.ts` |
+| 1.2.6.3 | 기본 모델 스펙 정의                     | [x]  | `modelSpec.test.ts` |
+| 1.2.6.4 | 기능 가용성 체크 함수                   | [x]  | `modelSpec.test.ts` |
 | 1.2.6.5 | 🆕 `ModelConfigService` 연동 인터페이스 | ⬜   | `modelSpec.test.ts` |
 
 ### 1.2.7 🆕 Config Adapter (`configAdapter.ts`)
 
 | ID      | 작업                                                 | 상태 | 테스트 파일             |
 | ------- | ---------------------------------------------------- | ---- | ----------------------- |
-| 1.2.7.1 | `ConfigAdapter` 인터페이스 정의                      | ⬜   | `configAdapter.test.ts` |
-| 1.2.7.2 | `LlmGenerateConfig` → `GenerateContentConfig` 변환   | ⬜   | `configAdapter.test.ts` |
-| 1.2.7.3 | `GenerateContentConfig` → `LlmGenerateConfig` 역변환 | ⬜   | `configAdapter.test.ts` |
-| 1.2.7.4 | 설정 머지 로직                                       | ⬜   | `configAdapter.test.ts` |
+| 1.2.7.1 | `ConfigAdapter` 인터페이스 정의                      | [x]  | `configAdapter.test.ts` |
+| 1.2.7.2 | `LlmGenerateConfig` → `GenerateContentConfig` 변환   | [x]  | `configAdapter.test.ts` |
+| 1.2.7.3 | `GenerateContentConfig` → `LlmGenerateConfig` 역변환 | [x]  | `configAdapter.test.ts` |
+| 1.2.7.4 | 설정 머지 로직                                       | [x]  | `configAdapter.test.ts` |
 
 **TDD 시나리오**:
 
@@ -495,9 +495,9 @@ describe('ConfigAdapter', () => {
 
 | ID      | 작업                            | 상태 | 테스트 파일             |
 | ------- | ------------------------------- | ---- | ----------------------- |
-| 1.3.1.1 | `ProviderType` enum 정의        | ⬜   | `providerTypes.test.ts` |
-| 1.3.1.2 | 기존 `AuthType`과의 관계 정의   | ⬜   | `providerTypes.test.ts` |
-| 1.3.1.3 | 프로바이더-인증타입 매핑 테이블 | ⬜   | `providerTypes.test.ts` |
+| 1.3.1.1 | `ProviderType` enum 정의        | [x]  | `providerTypes.test.ts` |
+| 1.3.1.2 | 기존 `AuthType`과의 관계 정의   | [x]  | `providerTypes.test.ts` |
+| 1.3.1.3 | 프로바이더-인증타입 매핑 테이블 | [x]  | `providerTypes.test.ts` |
 
 **ProviderType과 AuthType 관계**:
 
@@ -523,24 +523,24 @@ enum AuthType {
 
 ### 1.3.2 Provider Config 타입 정의
 
-| ID      | 작업                                   | 상태 | 테스트 파일      |
-| ------- | -------------------------------------- | ---- | ---------------- |
-| 1.3.2.1 | `ProviderConfig` 기본 인터페이스       | ⬜   | `config.test.ts` |
-| 1.3.2.2 | `GeminiProviderConfig` (authType 포함) | ⬜   | `config.test.ts` |
-| 1.3.2.3 | `ClaudeProviderConfig`                 | ⬜   | `config.test.ts` |
-| 1.3.2.4 | `OpenAIProviderConfig`                 | ⬜   | `config.test.ts` |
-| 1.3.2.5 | `OpenAICompatibleConfig`               | ⬜   | `config.test.ts` |
-| 1.3.2.6 | 🆕 `DidimProviderConfig`               | ⬜   | `config.test.ts` |
+| ID      | 작업                                   | 상태 | 테스트 파일              |
+| ------- | -------------------------------------- | ---- | ------------------------ |
+| 1.3.2.1 | `ProviderConfig` 기본 인터페이스       | [x]  | `providerConfig.test.ts` |
+| 1.3.2.2 | `GeminiProviderConfig` (authType 포함) | [x]  | `providerConfig.test.ts` |
+| 1.3.2.3 | `ClaudeProviderConfig`                 | [x]  | `providerConfig.test.ts` |
+| 1.3.2.4 | `OpenAIProviderConfig`                 | [x]  | `providerConfig.test.ts` |
+| 1.3.2.5 | `OpenAICompatibleConfig`               | [x]  | `providerConfig.test.ts` |
+| 1.3.2.6 | 🆕 `DidimProviderConfig`               | [x]  | `providerConfig.test.ts` |
 
 ### 1.3.3 Provider 선택 우선순위 로직
 
 | ID      | 작업                           | 상태 | 테스트 파일                |
 | ------- | ------------------------------ | ---- | -------------------------- |
-| 1.3.3.1 | 환경변수 파싱 (`LLM_PROVIDER`) | ⬜   | `providerSelector.test.ts` |
-| 1.3.3.2 | authType 호환 로직             | ⬜   | `providerSelector.test.ts` |
-| 1.3.3.3 | 우선순위 결정 로직             | ⬜   | `providerSelector.test.ts` |
-| 1.3.3.4 | 기본값 폴백 로직               | ⬜   | `providerSelector.test.ts` |
-| 1.3.3.5 | 🆕 프로바이더별 환경변수 검증  | ⬜   | `providerSelector.test.ts` |
+| 1.3.3.1 | 환경변수 파싱 (`LLM_PROVIDER`) | [x]  | `providerSelector.test.ts` |
+| 1.3.3.2 | authType 호환 로직             | [x]  | `providerSelector.test.ts` |
+| 1.3.3.3 | 우선순위 결정 로직             | [x]  | `providerSelector.test.ts` |
+| 1.3.3.4 | 기본값 폴백 로직               | [x]  | `providerSelector.test.ts` |
+| 1.3.3.5 | 🆕 프로바이더별 환경변수 검증  | [x]  | `providerSelector.test.ts` |
 
 **우선순위 규칙**:
 

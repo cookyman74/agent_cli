@@ -589,12 +589,12 @@ describe('ProviderSelector', () => {
 
 ### 1.3.4 Configuration 통합
 
-| ID      | 작업                  | 상태 | 테스트 파일      |
-| ------- | --------------------- | ---- | ---------------- |
-| 1.3.4.1 | 설정 파일 스키마 확장 | ⬜   | `config.test.ts` |
-| 1.3.4.2 | CLI 옵션 통합         | ⬜   | `config.test.ts` |
-| 1.3.4.3 | 환경변수 통합         | ⬜   | `config.test.ts` |
-| 1.3.4.4 | 설정 검증 로직        | ⬜   | `config.test.ts` |
+| ID      | 작업                          | 상태 | 테스트 파일                         |
+| ------- | ----------------------------- | ---- | ----------------------------------- |
+| 1.3.4.1 | providerConfigIntegration구현 | [x]  | `providerConfigIntegration.test.ts` |
+| 1.3.4.2 | index.ts export 추가          | [x]  | N/A                                 |
+| 1.3.4.3 | 환경변수 통합                 | [x]  | `providerConfigIntegration.test.ts` |
+| 1.3.4.4 | 설정 검증 로직                | [x]  | `providerConfigIntegration.test.ts` |
 
 **검증 기준**:
 

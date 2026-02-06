@@ -19,8 +19,8 @@ Registry, Factory 등)
 | 단계  | 작업 항목                 | 상태    | 비고                         |
 | ----- | ------------------------- | ------- | ---------------------------- |
 | 1.2.1 | **BaseAdapter 구현**      | ✅ 완료 | 추상 클래스, 공통 인터페이스 |
-| 1.2.2 | **ProviderRegistry 구현** | ✅ 완료 | 싱글톤 레지스트리 (19 tests) |
-| 1.2.3 | ProviderFactory 구현      | ⬜ 대기 | 동적 생성 팩토리             |
+| 1.2.2 | **ProviderRegistry 구현** | ✅ 완료 | 싱글톤 레지스트리 (20 tests) |
+| 1.2.3 | **ProviderFactory 구현**  | ✅ 완료 | 동적 생성 팩토리 (16 tests)  |
 | 1.2.4 | StreamAssembler 구현      | ⬜ 대기 | 스트림 조립기                |
 | 1.2.5 | 지원 모듈 구현            | ⬜ 대기 | Resolver, Spec, Config       |
 
@@ -212,7 +212,7 @@ getCapabilities(): LlmProviderCapabilities {
 - [x] `ProviderRegistry` 싱글톤 클래스
 - [x] `AdapterFactory` 타입 정의
 - [x] 모든 CRUD 메서드 구현
-- **결과**: 테스트 통과 (19 passed)
+- **결과**: 테스트 통과 (20 passed)
 
 **구현된 ProviderRegistry**:
 
@@ -254,5 +254,65 @@ export class ProviderRegistry {
 |  **Low**   | BaseAdapter 유틸리티 테스트 커버리지 부족 | `validateRequest` 3개 + `handleError` 2개 테스트 추가           |  ✅  |
 
 **테스트 결과**: 31 passed (baseAdapter 11 + registry 20)
+
+---
+
+## 🏗️ 1.2.3 ProviderFactory 구현
+
+### 📝 계획
+
+- **목표**: 프로바이더 어댑터 인스턴스 생성 팩토리
+- **파일**:
+  - `packages/core/src/providers/factory.ts` (신규)
+  - `packages/core/src/providers/factory.test.ts` (신규)
+
+### 🔴 Red Phase (테스트 작성)
+
+- [x] 생성자 테스트 (registry 주입, 기본값)
+- [x] `create()` 메서드 테스트 (등록/미등록, 대소문자 정규화)
+- [x] `createWithValidation()` 메서드 테스트 (apiKey 검증)
+- [x] `canCreate()` 메서드 테스트
+- [x] `getAvailableProviders()` 메서드 테스트
+- [x] 에러 타입 테스트 (`PROVIDER_NOT_FOUND`)
+- **결과**: 테스트 실패 확인 (`Cannot find module './factory.js'`)
+
+### 🟢 Green Phase (구현)
+
+- [x] `ProviderFactory` 클래스
+- [x] `create()` - 어댑터 인스턴스 생성
+- [x] `createWithValidation()` - 설정 검증 후 생성
+- [x] `canCreate()` - 생성 가능 여부 확인
+- [x] `getAvailableProviders()` - 등록된 프로바이더 목록
+- **결과**: 테스트 통과 (14 passed)
+
+**구현된 ProviderFactory**:
+
+```typescript
+export class ProviderFactory {
+  constructor(registry?: ProviderRegistry) { ... }
+  create(providerName: string, config: AdapterConfig): BaseAdapter { ... }
+  createWithValidation(providerName: string, config: AdapterConfig): BaseAdapter { ... }
+  canCreate(providerName: string): boolean { ... }
+  getAvailableProviders(): string[] { ... }
+}
+```
+
+### 🔄 Refactor Phase
+
+- [x] ESLint 통과
+- [x] `index.ts`에 export 추가
+- **결과**: 전체 테스트 통과 (45 passed)
+
+### 🔧 M1.2.3 리뷰 반영
+
+**검증 및 수정 완료 이슈 목록**:
+
+|  우선순위  | 이슈                                             | 조치 내용                                         | 상태 |
+| :--------: | ------------------------------------------------ | ------------------------------------------------- | :--: |
+| **Medium** | apiKey만 검증 - OAuth/ADC 미지원                 | `options.requireApiKey` 플래그 추가, 기본값=false |  ✅  |
+|  **Low**   | export 누락                                      | ❌ 거짓 - `index.ts` Line 23에 이미 존재          |  ⛔  |
+|  **Low**   | 검증 우선순위 (VALIDATION vs PROVIDER_NOT_FOUND) | 프로바이더 확인 먼저 후 config 검증으로 순서 변경 |  ✅  |
+
+**테스트 결과**: 16 passed (factory.test.ts)
 
 ---

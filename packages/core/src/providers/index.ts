@@ -19,6 +19,9 @@ export * from './baseAdapter.js';
 // Provider registry
 export * from './registry.js';
 
+// Provider factory
+export * from './factory.js';
+
 // Core types
 export * from './types.js';
 

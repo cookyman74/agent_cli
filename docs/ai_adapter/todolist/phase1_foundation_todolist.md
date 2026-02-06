@@ -393,10 +393,10 @@ describe('BaseAdapter', () => {
 
 | ID      | 작업                          | 상태 | 테스트 파일       |
 | ------- | ----------------------------- | ---- | ----------------- |
-| 1.2.3.1 | `ProviderFactory` 클래스      | ⬜   | `factory.test.ts` |
-| 1.2.3.2 | `create()` 메서드             | ⬜   | `factory.test.ts` |
-| 1.2.3.3 | Dynamic import 지원           | ⬜   | `factory.test.ts` |
-| 1.2.3.4 | 에러 처리 (미등록 프로바이더) | ⬜   | `factory.test.ts` |
+| 1.2.3.1 | `ProviderFactory` 클래스      | [x]  | `factory.test.ts` |
+| 1.2.3.2 | `create()` 메서드             | [x]  | `factory.test.ts` |
+| 1.2.3.3 | Dynamic import 지원           | [x]  | `factory.test.ts` |
+| 1.2.3.4 | 에러 처리 (미등록 프로바이더) | [x]  | `factory.test.ts` |
 
 ### 1.2.4 Stream Assembler (`streamAssembler.ts`)
 

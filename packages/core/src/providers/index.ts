@@ -34,6 +34,15 @@ export * from './modelSpec.js';
 // Content resolver
 export * from './contentResolver.js';
 
+// Provider types
+export * from './providerTypes.js';
+
+// Provider config
+export * from './providerConfig.js';
+
+// Provider selector
+export * from './providerSelector.js';
+
 // Core types
 export * from './types.js';
 

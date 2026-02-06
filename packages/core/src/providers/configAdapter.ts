@@ -7,12 +7,12 @@
 import type { LlmGenerateConfig } from './types.js';
 
 /**
- * Provider-specific configuration format.
+ * Provider-specific generation configuration format.
  *
- * This interface represents the configuration format used by
+ * This interface represents the generation parameters used by
  * provider SDKs (Gemini, OpenAI, Claude, etc.)
  */
-export interface ProviderConfig {
+export interface GenerationConfig {
   temperature?: number;
   maxOutputTokens?: number;
   topP?: number;
@@ -39,8 +39,8 @@ export interface ProviderConfig {
  */
 export function toProviderConfig(
   config: Partial<LlmGenerateConfig>,
-): ProviderConfig {
-  const result: ProviderConfig = {};
+): GenerationConfig {
+  const result: GenerationConfig = {};
 
   if (config.temperature !== undefined) {
     result.temperature = config.temperature;
@@ -82,7 +82,7 @@ export function toProviderConfig(
  * ```
  */
 export function fromProviderConfig(
-  config: ProviderConfig,
+  config: GenerationConfig,
 ): Partial<LlmGenerateConfig> {
   const result: Partial<LlmGenerateConfig> = {};
 
@@ -162,14 +162,14 @@ export class ConfigAdapter {
   /**
    * Convert LlmGenerateConfig to provider-specific format.
    */
-  toProvider(config: Partial<LlmGenerateConfig>): ProviderConfig {
+  toProvider(config: Partial<LlmGenerateConfig>): GenerationConfig {
     return toProviderConfig(config);
   }
 
   /**
    * Convert provider-specific config to LlmGenerateConfig.
    */
-  fromProvider(config: ProviderConfig): Partial<LlmGenerateConfig> {
+  fromProvider(config: GenerationConfig): Partial<LlmGenerateConfig> {
     return fromProviderConfig(config);
   }
 

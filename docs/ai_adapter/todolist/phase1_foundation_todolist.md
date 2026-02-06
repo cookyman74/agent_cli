@@ -402,12 +402,12 @@ describe('BaseAdapter', () => {
 
 | ID      | 작업                     | 상태 | 테스트 파일               |
 | ------- | ------------------------ | ---- | ------------------------- |
-| 1.2.4.1 | `StreamAssembler` 클래스 | ⬜   | `streamAssembler.test.ts` |
-| 1.2.4.2 | 텍스트 델타 합성         | ⬜   | `streamAssembler.test.ts` |
-| 1.2.4.3 | 툴 콜 델타 합성          | ⬜   | `streamAssembler.test.ts` |
-| 1.2.4.4 | Usage 정보 누적          | ⬜   | `streamAssembler.test.ts` |
-| 1.2.4.5 | 완료된 메시지 반환       | ⬜   | `streamAssembler.test.ts` |
-| 1.2.4.6 | 🆕 이벤트 타입 변환 지원 | ⬜   | `streamAssembler.test.ts` |
+| 1.2.4.1 | `StreamAssembler` 클래스 | [x]  | `streamAssembler.test.ts` |
+| 1.2.4.2 | 텍스트 델타 합성         | [x]  | `streamAssembler.test.ts` |
+| 1.2.4.3 | 툴 콜 델타 합성          | [x]  | `streamAssembler.test.ts` |
+| 1.2.4.4 | Usage 정보 누적          | [x]  | `streamAssembler.test.ts` |
+| 1.2.4.5 | 완료된 메시지 반환       | [x]  | `streamAssembler.test.ts` |
+| 1.2.4.6 | 🆕 이벤트 타입 변환 지원 | [x]  | `streamAssembler.test.ts` |
 
 ### 1.2.5 Content Resolver (`contentResolver.ts`)
 

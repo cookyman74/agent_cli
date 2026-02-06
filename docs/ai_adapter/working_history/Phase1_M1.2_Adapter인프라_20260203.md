@@ -21,7 +21,7 @@ Registry, Factory 등)
 | 1.2.1 | **BaseAdapter 구현**      | ✅ 완료 | 추상 클래스, 공통 인터페이스 |
 | 1.2.2 | **ProviderRegistry 구현** | ✅ 완료 | 싱글톤 레지스트리 (20 tests) |
 | 1.2.3 | **ProviderFactory 구현**  | ✅ 완료 | 동적 생성 팩토리 (16 tests)  |
-| 1.2.4 | StreamAssembler 구현      | ⬜ 대기 | 스트림 조립기                |
+| 1.2.4 | **StreamAssembler 구현**  | ✅ 완료 | 스트림 조립기 (21 tests)     |
 | 1.2.5 | 지원 모듈 구현            | ⬜ 대기 | Resolver, Spec, Config       |
 
 ---
@@ -314,5 +314,63 @@ export class ProviderFactory {
 |  **Low**   | 검증 우선순위 (VALIDATION vs PROVIDER_NOT_FOUND) | 프로바이더 확인 먼저 후 config 검증으로 순서 변경 |  ✅  |
 
 **테스트 결과**: 16 passed (factory.test.ts)
+
+---
+
+## 🏗️ 1.2.4 StreamAssembler 구현
+
+### 📝 계획
+
+- **목표**: 스트림 이벤트를 완성된 메시지로 조립
+- **파일**:
+  - `packages/core/src/providers/streamAssembler.ts` (신규)
+  - `packages/core/src/providers/streamAssembler.test.ts` (신규)
+
+### 🔴 Red Phase (테스트 작성)
+
+- [x] 생성자 및 초기 상태 테스트
+- [x] `processEvent()` 기본 동작 테스트
+- [x] 텍스트 델타 합성 (연결, 빈값, 공백)
+- [x] Thought 델타 합성
+- [x] 도구 호출 수집
+- [x] Usage 정보 누적
+- [x] 완료 상태 감지
+- [x] `getAssembledMessage()` 통합 테스트
+- [x] `reset()` 상태 초기화
+- [x] 에러 처리
+- **결과**: 21 tests 작성
+
+### 🟢 Green Phase (구현)
+
+```typescript
+export class StreamAssembler {
+  processEvent(event: LlmEvent): this { ... }
+  getText(): string { ... }
+  getThought(): string { ... }
+  getToolCalls(): LlmToolCallContent[] { ... }
+  getUsage(): LlmTokenUsage | undefined { ... }
+  isComplete(): boolean { ... }
+  getAssembledMessage(): AssembledMessage { ... }
+  reset(): void { ... }
+}
+```
+
+- **결과**: 21 tests 통과
+
+### 🔄 Refactor Phase
+
+- [x] 불필요한 타입 assertion 제거
+- [x] ESLint 통과
+- [x] `index.ts`에 export 추가
+
+### 🔧 M1.2.4 리뷰 반영
+
+|  우선순위  | 이슈                                 | 조치 내용                                                       | 상태 |
+| :--------: | ------------------------------------ | --------------------------------------------------------------- | :--: |
+| **Medium** | LlmTokenUsage 필드명 불일치          | `inputTokens`→`promptTokens`, `outputTokens`→`completionTokens` |  ✅  |
+|  **Low**   | Error 이벤트 시 complete=false       | `handleError`에서 `complete=true` 설정 + 테스트 추가            |  ✅  |
+|  **Low**   | ToolCallResponse/Confirmation 미처리 | 설계 의도 - JSDoc에 이유 문서화                                 |  ⛔  |
+
+**테스트 결과**: 22 passed (streamAssembler.test.ts)
 
 ---

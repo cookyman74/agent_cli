@@ -22,6 +22,9 @@ export * from './registry.js';
 // Provider factory
 export * from './factory.js';
 
+// Stream assembler
+export * from './streamAssembler.js';
+
 // Core types
 export * from './types.js';
 

@@ -25,6 +25,15 @@ export * from './factory.js';
 // Stream assembler
 export * from './streamAssembler.js';
 
+// Config adapter
+export * from './configAdapter.js';
+
+// Model specifications
+export * from './modelSpec.js';
+
+// Content resolver
+export * from './contentResolver.js';
+
 // Core types
 export * from './types.js';
 

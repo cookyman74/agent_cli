@@ -21,8 +21,10 @@ Registry, Factory 등)
 | 1.2.1 | **BaseAdapter 구현**      | ✅ 완료 | 추상 클래스, 공통 인터페이스 |
 | 1.2.2 | **ProviderRegistry 구현** | ✅ 완료 | 싱글톤 레지스트리 (20 tests) |
 | 1.2.3 | **ProviderFactory 구현**  | ✅ 완료 | 동적 생성 팩토리 (16 tests)  |
-| 1.2.4 | **StreamAssembler 구현**  | ✅ 완료 | 스트림 조립기 (21 tests)     |
-| 1.2.5 | 지원 모듈 구현            | ⬜ 대기 | Resolver, Spec, Config       |
+| 1.2.4 | **StreamAssembler 구현**  | ✅ 완료 | 스트림 조립기 (22 tests)     |
+| 1.2.5 | **ConfigAdapter 구현**    | ✅ 완료 | 설정 변환기 (16 tests)       |
+| 1.2.6 | **ModelSpec 구현**        | ✅ 완료 | 모델 메타데이터 (11 tests)   |
+| 1.2.7 | **ContentResolver 구현**  | ✅ 완료 | 콘텐츠 해석기 (18 tests)     |
 
 ---
 
@@ -338,7 +340,7 @@ export class ProviderFactory {
 - [x] `getAssembledMessage()` 통합 테스트
 - [x] `reset()` 상태 초기화
 - [x] 에러 처리
-- **결과**: 21 tests 작성
+- **결과**: 22 tests 작성
 
 ### 🟢 Green Phase (구현)
 
@@ -355,7 +357,7 @@ export class StreamAssembler {
 }
 ```
 
-- **결과**: 21 tests 통과
+- **결과**: 22 tests 통과
 
 ### 🔄 Refactor Phase
 
@@ -369,7 +371,7 @@ export class StreamAssembler {
 | :--------: | ------------------------------------ | --------------------------------------------------------------- | :--: |
 | **Medium** | LlmTokenUsage 필드명 불일치          | `inputTokens`→`promptTokens`, `outputTokens`→`completionTokens` |  ✅  |
 |  **Low**   | Error 이벤트 시 complete=false       | `handleError`에서 `complete=true` 설정 + 테스트 추가            |  ✅  |
-|  **Low**   | ToolCallResponse/Confirmation 미처리 | 설계 의도 - JSDoc에 이유 문서화                                 |  ⛔  |
+|  **Low**   | ToolCallResponse/Confirmation 미처리 | 설계 의도 - JSDoc에 이유 문서화                                 |  ✅  |
 
 **테스트 결과**: 22 passed (streamAssembler.test.ts)
 

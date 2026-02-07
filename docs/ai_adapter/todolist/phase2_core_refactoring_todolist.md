@@ -461,20 +461,20 @@ geminiChat.ts
 | 2.2.4.4 | Auth 에러 매핑                               | ✅   | `errorClassifier.test.ts` |
 | 2.2.4.5 | 에러 변환 유틸 함수 구현                     | ✅   | `errorClassifier.test.ts` |
 
-### 2.2.5 Telemetry 포맷 변경
+### 2.2.5 Telemetry 포맷 변경 ✅
 
-| ID      | 작업                                      | 상태 | 테스트 파일         |
-| ------- | ----------------------------------------- | ---- | ------------------- |
-| 2.2.5.1 | 현재 Telemetry semantic 분석              | ⬜   | N/A (분석)          |
-| 2.2.5.2 | provider-agnostic 스키마 정의             | ⬜   | `telemetry.test.ts` |
-| 2.2.5.3 | 공통 필드 정의 (provider, model, latency) | ⬜   | `telemetry.test.ts` |
-| 2.2.5.4 | 기존 Telemetry 호환성 유지                | ⬜   | `telemetry.test.ts` |
+| ID      | 작업                                      | 상태 | 테스트 파일               |
+| ------- | ----------------------------------------- | ---- | ------------------------- |
+| 2.2.5.1 | 현재 Telemetry semantic 분석              | ✅   | N/A (분석)                |
+| 2.2.5.2 | provider-agnostic 스키마 정의             | ✅   | `telemetryBridge.test.ts` |
+| 2.2.5.3 | 공통 필드 정의 (provider, model, latency) | ✅   | `telemetryBridge.test.ts` |
+| 2.2.5.4 | 기존 Telemetry 호환성 유지                | ✅   | `telemetryBridge.test.ts` |
 
 **검증 기준**:
 
 - [ ] GeminiChat이 신규 StreamEvent로 동작
-- [ ] 🆕 18개 이벤트 전수 매핑 완료
-- [ ] Telemetry가 provider 공통 스키마로 기록
+- [x] 🆕 18개 이벤트 전수 매핑 완료
+- [x] Telemetry가 provider 공통 스키마로 기록
 - [ ] 기존 스트리밍 기능 100% 동작
 
 ---

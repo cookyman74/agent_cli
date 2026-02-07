@@ -269,19 +269,62 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 
 ---
 
+### 2.2.5 Telemetry 포맷 변경 ✅
+
+| 항목                               | 상태 | 비고                                         |
+| ---------------------------------- | :--: | -------------------------------------------- |
+| 현재 Telemetry semantic 분석       |  ✅  | types.ts 4개, semantic.ts 6개 @google/genai  |
+| `LlmTokenUsage` 확장               |  ✅  | `thoughtTokens`, `toolTokens` optional 추가  |
+| `llmTokenUsageToGenAIUsage()` 구현 |  ✅  | LlmTokenUsage → GenAIUsageDetails 변환       |
+| `genAIUsageToLlmTokenUsage()` 구현 |  ✅  | GenAIUsageDetails → LlmTokenUsage 역변환     |
+| `ProviderApiResponseEvent` 구현    |  ✅  | LlmTokenUsage 수용 + provider 필드           |
+| `ProviderApiErrorEvent` 구현       |  ✅  | provider 필드 포함 에러 이벤트               |
+| index.ts export 추가               |  ✅  | telemetryBridge 내보내기                     |
+| 라운드트립 변환 검증               |  ✅  | LlmTokenUsage ↔ GenAIUsageDetails 왕복 일치 |
+
+**신규 파일**:
+
+| 파일                                | 설명                               |
+| ----------------------------------- | ---------------------------------- |
+| `providers/telemetryBridge.ts`      | provider-agnostic telemetry 브릿지 |
+| `providers/telemetryBridge.test.ts` | TDD 테스트 (13개)                  |
+
+**수정 파일**:
+
+| 파일                 | 변경 내용                                            |
+| -------------------- | ---------------------------------------------------- |
+| `providers/types.ts` | `LlmTokenUsage`에 `thoughtTokens`, `toolTokens` 추가 |
+| `providers/index.ts` | telemetryBridge export 추가                          |
+
+**Telemetry `@google/genai` 의존성 분석 결과**:
+
+| 파일                    | @google/genai imports                                                                   | M2.2.5 범위      | 잔여 (M2.7)                |
+| ----------------------- | --------------------------------------------------------------------------------------- | ---------------- | -------------------------- |
+| `telemetry/types.ts`    | `Content`, `Candidate`, `GenerateContentConfig`, `GenerateContentResponseUsageMetadata` | UsageMetadata ✅ | Content, Candidate, Config |
+| `telemetry/semantic.ts` | `FinishReason`, `Candidate`, `Content`, `ContentUnion`, `Part`, `PartUnion`             | —                | 전체 (M2.7)                |
+
+---
+
 ## ✅ 테스트 결과
 
 ### M2.2 전체 테스트
 
 ```
-errorClassifier.test.ts      : 10 passed (M2.2.4 신규)
-eventMapper.test.ts          : 35 passed (29 기존 + 6 신규)
+telemetryBridge.test.ts      : 13 passed (M2.2.5 신규)
+errorClassifier.test.ts      : 10 passed (기존, 회귀 확인)
+eventMapper.test.ts          : 35 passed (기존, 회귀 확인)
 streamConverter.test.ts      :  5 passed (기존, 회귀 확인)
 loopDetectionService.test.ts : 53 passed (기존, 회귀 확인)
 geminiStream.test.ts         : 15 passed (기존, 회귀 확인)
 streamAssembler.test.ts      : 22 passed (기존, 회귀 확인)
 ────────────────────────────────────────
-합계                          : 140 passed
+합계                          : 153 passed
+```
+
+### providers/ 전체 테스트
+
+```
+providers/ 디렉토리 전체: 297 passed (18 test files)
 ```
 
 ### TypeScript 컴파일
@@ -300,18 +343,30 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 | 1    | `819cadbd8` | M2.2.1 리뷰 수정 + M2.2.2 스트림 변환 + @deprecated |
 | 2    | `06e426ae5` | M2.2.3 StreamAssembler 적용 — 통합 파이프라인       |
 | 3    | `128ede2b9` | M2.2.4 Gemini 에러 매핑 — errorClassifier 구현      |
+| 4    | 3af6fbfb6   | M2.2.5 Telemetry 포맷 변경 — telemetryBridge 구현   |
 
 ---
 
 ## ✅ 완료 기준 체크
 
-- [x] 모든 테스트 통과 (140개)
+- [x] 모든 테스트 통과 (153개 M2.2 + 297개 providers/)
 - [x] TypeScript 컴파일 에러 없음
-- [x] 체크리스트 최종 확인 (2.2.1 ✅, 2.2.2 ✅, 2.2.2a ✅, 2.2.3 ✅, 2.2.4 ✅)
-- [x] 작업 결과서 작성
-- [x] 커밋: `128ede2b9`
+- [x] 체크리스트 최종 확인 (2.2.1 ✅, 2.2.2 ✅, 2.2.2a ✅, 2.2.3 ✅, 2.2.4 ✅,
+      2.2.5 ✅)
+- [x] 작업 결과서 업데이트
+- [x] 커밋: 3af6fbfb6 (feat), f92e7ac79 (docs)
 - [x] 이슈 전달: 다음 작업(M2.3)에 전달할 이슈 문서화
 
 ---
 
-**최종 상태**: ✅ 완료
+### 다음 작업에 전달할 이슈 (M2.2.5 추가분)
+
+| 이슈                                             | 영향                                                   | 대응 방안                                              |
+| ------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------ |
+| `telemetry/types.ts` Content/Candidate 잔여 결합 | ApiRequestEvent, ApiResponseEvent 시그니처 Gemini 전용 | M2.7에서 Provider-agnostic prompt/response 스키마 도입 |
+| `telemetry/semantic.ts` 전체 Gemini 결합         | toInputMessages/toOutputMessages 등 Part 기반          | M2.7에서 LlmContent 기반 변환기로 교체                 |
+| `loggingContentGenerator.ts` Gemini 타입 사용    | ApiResponseEvent 생성 시 UsageMetadata 직접 전달       | M2.3에서 ProviderApiResponseEvent 사용으로 전환        |
+
+---
+
+**최종 상태**: ✅ M2.2 전체 완료 (2.2.1~2.2.5)

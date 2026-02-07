@@ -8,14 +8,9 @@ import type {
   PartListUnion,
   GenerateContentResponse,
   FunctionCall,
-  FunctionDeclaration,
   FinishReason,
-  GenerateContentResponseUsageMetadata,
 } from '@google/genai';
-import type {
-  ToolCallConfirmationDetails,
-  ToolResult,
-} from '../tools/tools.js';
+
 import { getResponseText } from '../utils/partUtils.js';
 import { reportError } from '../utils/errorReporting.js';
 import {
@@ -25,211 +20,51 @@ import {
 } from '../utils/errors.js';
 import type { GeminiChat } from './geminiChat.js';
 import { InvalidStreamError } from './geminiChat.js';
-import { parseThought, type ThoughtSummary } from '../utils/thoughtUtils.js';
+import { parseThought } from '../utils/thoughtUtils.js';
 import { createUserContent } from '@google/genai';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { getCitations } from '../utils/generateContentResponseUtilities.js';
+import { type ToolCallRequestInfo } from '../scheduler/types.js';
 
-import {
-  type ToolCallRequestInfo,
-  type ToolCallResponseInfo,
-} from '../scheduler/types.js';
+// =============================================================================
+// Re-exports for backward compatibility
+// These types have been moved to providers/gemini/types.ts
+// =============================================================================
+export {
+  GeminiEventType,
+  CompressionStatus,
+  type ServerGeminiRetryEvent,
+  type ServerGeminiAgentExecutionStoppedEvent,
+  type ServerGeminiAgentExecutionBlockedEvent,
+  type ServerGeminiContextWindowWillOverflowEvent,
+  type ServerGeminiInvalidStreamEvent,
+  type ServerGeminiModelInfoEvent,
+  type ServerGeminiContentEvent,
+  type ServerGeminiThoughtEvent,
+  type ServerGeminiToolCallRequestEvent,
+  type ServerGeminiToolCallResponseEvent,
+  type ServerGeminiToolCallConfirmationEvent,
+  type ServerGeminiUserCancelledEvent,
+  type ServerGeminiErrorEvent,
+  type ServerGeminiChatCompressedEvent,
+  type ServerGeminiMaxSessionTurnsEvent,
+  type ServerGeminiFinishedEvent,
+  type ServerGeminiLoopDetectedEvent,
+  type ServerGeminiCitationEvent,
+  type ServerGeminiStreamEvent,
+  type StructuredError,
+  type GeminiErrorEventValue,
+  type GeminiFinishedEventValue,
+  type ServerToolCallConfirmationDetails,
+  type ChatCompressionInfo,
+} from '../providers/gemini/types.js';
 
-export interface ServerTool {
-  name: string;
-  schema: FunctionDeclaration;
-  // The execute method signature might differ slightly or be wrapped
-  execute(
-    params: Record<string, unknown>,
-    signal?: AbortSignal,
-  ): Promise<ToolResult>;
-  shouldConfirmExecute(
-    params: Record<string, unknown>,
-    abortSignal: AbortSignal,
-  ): Promise<ToolCallConfirmationDetails | false>;
-}
-
-export enum GeminiEventType {
-  Content = 'content',
-  ToolCallRequest = 'tool_call_request',
-  ToolCallResponse = 'tool_call_response',
-  ToolCallConfirmation = 'tool_call_confirmation',
-  UserCancelled = 'user_cancelled',
-  Error = 'error',
-  ChatCompressed = 'chat_compressed',
-  Thought = 'thought',
-  MaxSessionTurns = 'max_session_turns',
-  Finished = 'finished',
-  LoopDetected = 'loop_detected',
-  Citation = 'citation',
-  Retry = 'retry',
-  ContextWindowWillOverflow = 'context_window_will_overflow',
-  InvalidStream = 'invalid_stream',
-  ModelInfo = 'model_info',
-  AgentExecutionStopped = 'agent_execution_stopped',
-  AgentExecutionBlocked = 'agent_execution_blocked',
-}
-
-export type ServerGeminiRetryEvent = {
-  type: GeminiEventType.Retry;
-};
-
-export type ServerGeminiAgentExecutionStoppedEvent = {
-  type: GeminiEventType.AgentExecutionStopped;
-  value: {
-    reason: string;
-    systemMessage?: string;
-    contextCleared?: boolean;
-  };
-};
-
-export type ServerGeminiAgentExecutionBlockedEvent = {
-  type: GeminiEventType.AgentExecutionBlocked;
-  value: {
-    reason: string;
-    systemMessage?: string;
-    contextCleared?: boolean;
-  };
-};
-
-export type ServerGeminiContextWindowWillOverflowEvent = {
-  type: GeminiEventType.ContextWindowWillOverflow;
-  value: {
-    estimatedRequestTokenCount: number;
-    remainingTokenCount: number;
-  };
-};
-
-export type ServerGeminiInvalidStreamEvent = {
-  type: GeminiEventType.InvalidStream;
-};
-
-export type ServerGeminiModelInfoEvent = {
-  type: GeminiEventType.ModelInfo;
-  value: string;
-};
-
-export interface StructuredError {
-  message: string;
-  status?: number;
-}
-
-export interface GeminiErrorEventValue {
-  error: StructuredError;
-}
-
-export interface GeminiFinishedEventValue {
-  reason: FinishReason | undefined;
-  usageMetadata: GenerateContentResponseUsageMetadata | undefined;
-}
-
-export interface ServerToolCallConfirmationDetails {
-  request: ToolCallRequestInfo;
-  details: ToolCallConfirmationDetails;
-}
-
-export type ServerGeminiContentEvent = {
-  type: GeminiEventType.Content;
-  value: string;
-  traceId?: string;
-};
-
-export type ServerGeminiThoughtEvent = {
-  type: GeminiEventType.Thought;
-  value: ThoughtSummary;
-  traceId?: string;
-};
-
-export type ServerGeminiToolCallRequestEvent = {
-  type: GeminiEventType.ToolCallRequest;
-  value: ToolCallRequestInfo;
-};
-
-export type ServerGeminiToolCallResponseEvent = {
-  type: GeminiEventType.ToolCallResponse;
-  value: ToolCallResponseInfo;
-};
-
-export type ServerGeminiToolCallConfirmationEvent = {
-  type: GeminiEventType.ToolCallConfirmation;
-  value: ServerToolCallConfirmationDetails;
-};
-
-export type ServerGeminiUserCancelledEvent = {
-  type: GeminiEventType.UserCancelled;
-};
-
-export type ServerGeminiErrorEvent = {
-  type: GeminiEventType.Error;
-  value: GeminiErrorEventValue;
-};
-
-export enum CompressionStatus {
-  /** The compression was successful */
-  COMPRESSED = 1,
-
-  /** The compression failed due to the compression inflating the token count */
-  COMPRESSION_FAILED_INFLATED_TOKEN_COUNT,
-
-  /** The compression failed due to an error counting tokens */
-  COMPRESSION_FAILED_TOKEN_COUNT_ERROR,
-
-  /** The compression failed because the summary was empty */
-  COMPRESSION_FAILED_EMPTY_SUMMARY,
-
-  /** The compression was not necessary and no action was taken */
-  NOOP,
-}
-
-export interface ChatCompressionInfo {
-  originalTokenCount: number;
-  newTokenCount: number;
-  compressionStatus: CompressionStatus;
-}
-
-export type ServerGeminiChatCompressedEvent = {
-  type: GeminiEventType.ChatCompressed;
-  value: ChatCompressionInfo | null;
-};
-
-export type ServerGeminiMaxSessionTurnsEvent = {
-  type: GeminiEventType.MaxSessionTurns;
-};
-
-export type ServerGeminiFinishedEvent = {
-  type: GeminiEventType.Finished;
-  value: GeminiFinishedEventValue;
-};
-
-export type ServerGeminiLoopDetectedEvent = {
-  type: GeminiEventType.LoopDetected;
-};
-
-export type ServerGeminiCitationEvent = {
-  type: GeminiEventType.Citation;
-  value: string;
-};
-
-// The original union type, now composed of the individual types
-export type ServerGeminiStreamEvent =
-  | ServerGeminiChatCompressedEvent
-  | ServerGeminiCitationEvent
-  | ServerGeminiContentEvent
-  | ServerGeminiErrorEvent
-  | ServerGeminiFinishedEvent
-  | ServerGeminiLoopDetectedEvent
-  | ServerGeminiMaxSessionTurnsEvent
-  | ServerGeminiThoughtEvent
-  | ServerGeminiToolCallConfirmationEvent
-  | ServerGeminiToolCallRequestEvent
-  | ServerGeminiToolCallResponseEvent
-  | ServerGeminiUserCancelledEvent
-  | ServerGeminiRetryEvent
-  | ServerGeminiContextWindowWillOverflowEvent
-  | ServerGeminiInvalidStreamEvent
-  | ServerGeminiModelInfoEvent
-  | ServerGeminiAgentExecutionStoppedEvent
-  | ServerGeminiAgentExecutionBlockedEvent;
+import type {
+  StructuredError,
+  ServerGeminiStreamEvent,
+} from '../providers/gemini/types.js';
+import { GeminiEventType } from '../providers/gemini/types.js';
+// =============================================================================
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {

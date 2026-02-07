@@ -1,0 +1,12 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * Gemini provider module.
+ * Re-exports all Gemini-specific types and classes.
+ */
+
+export * from './types.js';

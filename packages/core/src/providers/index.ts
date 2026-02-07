@@ -58,3 +58,10 @@ export * from './errors.js';
 // Legacy aliases (for backward compatibility during migration)
 // Note: These are deprecated and will be removed after full migration
 export * from './legacyAliases.js';
+
+// Gemini provider types (Phase 2 - M2.0)
+// Exported as namespace to avoid conflict with legacyAliases
+// Use: import { Gemini } from '@google/gemini-cli-core/providers'
+// Then: Gemini.GeminiEventType, Gemini.ServerGeminiStreamEvent, etc.
+import * as Gemini from './gemini/index.js';
+export { Gemini };

@@ -12,6 +12,13 @@ import {
   EmbedContentResponse,
   type EmbedContentParameters,
 } from '@google/genai';
+import type {
+  LlmGenerateRequest,
+  LlmGenerateResponse,
+  LlmTokenCount,
+  GenerateOptions,
+} from '../providers/types.js';
+import type { LlmEvent, LlmEventStream } from '../providers/events.js';
 import { promises } from 'node:fs';
 import type { ContentGenerator } from './contentGenerator.js';
 import type { UserTierId } from '../code_assist/types.js';
@@ -33,6 +40,19 @@ export type FakeResponse =
   | {
       method: 'embedContent';
       response: EmbedContentResponse;
+    }
+  // Provider-independent variants
+  | {
+      method: 'llmGenerateContent';
+      response: LlmGenerateResponse;
+    }
+  | {
+      method: 'llmGenerateContentStream';
+      response: LlmEvent[];
+    }
+  | {
+      method: 'llmCountTokens';
+      response: LlmTokenCount;
     };
 
 // A ContentGenerator that responds with canned responses.
@@ -113,5 +133,33 @@ export class FakeContentGenerator implements ContentGenerator {
       this.getNextResponse('embedContent', request),
       EmbedContentResponse.prototype,
     );
+  }
+
+  // Provider-independent methods
+
+  async llmGenerateContent(
+    request: LlmGenerateRequest,
+    _userPromptId: string,
+    _options?: GenerateOptions,
+  ): Promise<LlmGenerateResponse> {
+    return this.getNextResponse('llmGenerateContent', request);
+  }
+
+  llmGenerateContentStream(
+    request: LlmGenerateRequest,
+    _userPromptId: string,
+    _options?: GenerateOptions,
+  ): LlmEventStream {
+    const events = this.getNextResponse('llmGenerateContentStream', request);
+    async function* stream() {
+      for (const event of events) {
+        yield event;
+      }
+    }
+    return stream();
+  }
+
+  async llmCountTokens(request: LlmGenerateRequest): Promise<LlmTokenCount> {
+    return this.getNextResponse('llmCountTokens', request);
   }
 }

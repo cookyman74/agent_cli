@@ -30,6 +30,14 @@ import {
   logApiResponse,
 } from '../telemetry/loggers.js';
 import type { ContentGenerator } from './contentGenerator.js';
+import type {
+  LlmGenerateRequest,
+  LlmGenerateResponse,
+  LlmTokenCount,
+  GenerateOptions,
+} from '../providers/types.js';
+import type { LlmEventStream } from '../providers/events.js';
+import { debugLogger } from '../utils/debugLogger.js';
 import { CodeAssistServer } from '../code_assist/server.js';
 import { toContents } from '../code_assist/converter.js';
 import { isStructuredError } from '../utils/quotaErrorDetection.js';
@@ -397,5 +405,92 @@ export class LoggingContentGenerator implements ContentGenerator {
         return output;
       },
     );
+  }
+
+  // Provider-independent methods
+
+  async llmGenerateContent(
+    request: LlmGenerateRequest,
+    userPromptId: string,
+    options?: GenerateOptions,
+  ): Promise<LlmGenerateResponse> {
+    if (!this.wrapped.llmGenerateContent) {
+      throw new Error(
+        'Wrapped generator does not support provider-independent API',
+      );
+    }
+    const startTime = Date.now();
+    debugLogger.debug(
+      `[LLM] generateContent model=${request.model} promptId=${userPromptId}`,
+    );
+    try {
+      const response = await this.wrapped.llmGenerateContent(
+        request,
+        userPromptId,
+        options,
+      );
+      const durationMs = Date.now() - startTime;
+      debugLogger.debug(`[LLM] generateContent completed in ${durationMs}ms`);
+      return response;
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      debugLogger.debug(
+        `[LLM] generateContent error after ${durationMs}ms: ${error}`,
+      );
+      throw error;
+    }
+  }
+
+  llmGenerateContentStream(
+    request: LlmGenerateRequest,
+    userPromptId: string,
+    options?: GenerateOptions,
+  ): LlmEventStream {
+    if (!this.wrapped.llmGenerateContentStream) {
+      throw new Error(
+        'Wrapped generator does not support provider-independent API',
+      );
+    }
+    debugLogger.debug(
+      `[LLM] generateContentStream model=${request.model} promptId=${userPromptId}`,
+    );
+    const stream = this.wrapped.llmGenerateContentStream(
+      request,
+      userPromptId,
+      options,
+    );
+    return this.llmLoggingStreamWrapper(stream, request.model, userPromptId);
+  }
+
+  private async *llmLoggingStreamWrapper(
+    stream: LlmEventStream,
+    model: string,
+    userPromptId: string,
+  ): LlmEventStream {
+    const startTime = Date.now();
+    try {
+      for await (const event of stream) {
+        yield event;
+      }
+      const durationMs = Date.now() - startTime;
+      debugLogger.debug(
+        `[LLM] generateContentStream completed in ${durationMs}ms`,
+      );
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      debugLogger.debug(
+        `[LLM] generateContentStream error after ${durationMs}ms model=${model} promptId=${userPromptId}: ${error}`,
+      );
+      throw error;
+    }
+  }
+
+  async llmCountTokens(request: LlmGenerateRequest): Promise<LlmTokenCount> {
+    if (!this.wrapped.llmCountTokens) {
+      throw new Error(
+        'Wrapped generator does not support provider-independent API',
+      );
+    }
+    return this.wrapped.llmCountTokens(request);
   }
 }

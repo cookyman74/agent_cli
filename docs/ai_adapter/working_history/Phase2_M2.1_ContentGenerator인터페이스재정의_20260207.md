@@ -472,13 +472,123 @@ New Path (LLMRequest)
 
 ---
 
+## 🔗 M2.1.6 ContentGenerator 래퍼/파생 클래스 마이그레이션 (2026-02-07)
+
+### 완료된 작업 (2.1.6.0~2.1.6.6) ✅
+
+| 항목                                            | 상태 | 비고                                                                 |
+| ----------------------------------------------- | :--: | -------------------------------------------------------------------- |
+| 2.1.6.0 GeminiContentGenerator 인터페이스 확장  |  ✅  | optional llm\* 3개 메서드 + isProviderIndependentGenerator 타입 가드 |
+| 2.1.6.1 LoggingContentGenerator 타입 전환       |  ✅  | llm\* 3개 메서드 + llmLoggingStreamWrapper (debug 로깅)              |
+| 2.1.6.2 RecordingContentGenerator 타입 전환     |  ✅  | llm\* 3개 메서드 (JSONL 녹화)                                        |
+| 2.1.6.3 FakeContentGenerator 타입 전환          |  ✅  | FakeResponse llm 변형 3개 + llm\* 3개 메서드                         |
+| 2.1.6.4 code_assist/codeAssist.ts 분석          |  ✅  | 변경 불필요 (optional 확장으로 자동 호환)                            |
+| 2.1.6.5 code_assist/server.ts 분석              |  ✅  | 변경 불필요 (optional → implements 안 깨짐, M2.3+)                   |
+| 2.1.6.6 CodeAssist ContentGenerator 호환 레이어 |  ✅  | optional 메서드로 기존 코드와 완전 호환                              |
+
+### 핵심 설계 결정
+
+**새 메서드 이름 사용** (`llmGenerateContent`, `llmGenerateContentStream`,
+`llmCountTokens`): Union 타입 오버로드가 아닌 별도 메서드명을 채택. 이유: 반환
+타입이 근본적으로 다름 (`AsyncGenerator<GenerateContentResponse>` vs
+`LlmEventStream`), TypeScript에서 반환 타입만 다른 오버로드는 지원하지 않음.
+
+**Optional 메서드로 하위 호환성 보장**: `GeminiContentGenerator` 인터페이스의
+`llm*` 메서드를 optional(`?`)로 선언하여, `code_assist/server.ts`의
+`CodeAssistServer`가 구현하지 않아도 `implements ContentGenerator`가 깨지지
+않음.
+
+### 🔴 Red Phase
+
+**테스트 파일**: `core/contentGenerator_new_types.test.ts` (14개 테스트)
+
+| #     | 테스트                                               | 검증 내용                                          |
+| ----- | ---------------------------------------------------- | -------------------------------------------------- |
+| 1     | GeminiContentGenerator optional llm\* 메서드         | 인터페이스 확장 검증                               |
+| 2     | isProviderIndependentGenerator 타입 가드             | llm\* 메서드 유무로 분기                           |
+| 3-5   | FakeContentGenerator llm\* 3개 메서드                | LlmGenerateResponse, LlmEventStream, LlmTokenCount |
+| 6     | FakeResponse llm 변형 JSON roundtrip                 | 직렬화/역직렬화 호환                               |
+| 7-9   | LoggingContentGenerator llm\* 위임 + 로깅            | debug 로깅 + stream wrapper                        |
+| 10    | LoggingContentGenerator llm\* wrapped 미지원 시 에러 | 런타임 방어                                        |
+| 11-13 | RecordingContentGenerator llm\* 녹화                 | JSONL 기록 확인                                    |
+| 14    | Legacy Gemini method 호환성                          | 기존 generateContent 정상 동작                     |
+
+초기 결과: 11 failed, 3 passed → 기존 호환 테스트만 통과
+
+### 🟢 Green Phase
+
+#### 1. `contentGenerator.ts` — 인터페이스 확장 + 타입 가드
+
+```typescript
+export interface GeminiContentGenerator {
+  // 기존 Gemini 메서드 (변경 없음)
+  // ...
+  // 신규 (optional)
+  llmGenerateContent?(...): Promise<LlmGenerateResponse>;
+  llmGenerateContentStream?(...): LlmEventStream;
+  llmCountTokens?(...): Promise<LlmTokenCount>;
+}
+
+export function isProviderIndependentGenerator(gen): gen is ... {
+  return typeof gen.llmGenerateContent === 'function' && ...;
+}
+```
+
+#### 2. `fakeContentGenerator.ts` — FakeResponse 확장 + llm\* 메서드
+
+FakeResponse Union에 3개 변형 추가: `llmGenerateContent`,
+`llmGenerateContentStream`, `llmCountTokens`. llm\* 메서드는 prototype 복원
+불필요 (plain object 반환).
+
+#### 3. `loggingContentGenerator.ts` — llm\* 메서드 + stream wrapper
+
+- `llmGenerateContent`: wrapped 위임 + debugLogger 로깅
+- `llmGenerateContentStream`: wrapped 위임 + `llmLoggingStreamWrapper`
+  (LlmEventStream yield)
+- `llmCountTokens`: wrapped 위임
+- wrapped에 해당 메서드 없으면
+  `Error('does not support provider-independent API')` throw
+
+#### 4. `recordingContentGenerator.ts` — llm\* 메서드 + JSONL 녹화
+
+- `llmGenerateContent`: 녹화 후 appendFileSync
+- `llmGenerateContentStream`: async generator 내부에서 이벤트 수집 후 스트림
+  종료 시 기록
+- `llmCountTokens`: 녹화 후 appendFileSync
+
+### 수정/생성 파일
+
+| 파일                                      | 변경 내용                                           |
+| ----------------------------------------- | --------------------------------------------------- |
+| `core/contentGenerator.ts`                | optional llm\* 3개 + isProviderIndependentGenerator |
+| `core/fakeContentGenerator.ts`            | FakeResponse llm 변형 3개 + llm\* 3개 메서드        |
+| `core/loggingContentGenerator.ts`         | llm\* 3개 + llmLoggingStreamWrapper                 |
+| `core/recordingContentGenerator.ts`       | llm\* 3개 (JSONL 녹화)                              |
+| `core/contentGenerator_new_types.test.ts` | **신규** — 14개 테스트                              |
+
+변경하지 않음: `code_assist/codeAssist.ts`, `code_assist/server.ts` (optional
+메서드로 자동 호환), `geminiChat.ts`, `baseLlmClient.ts`
+
+### M2.1.6 변경 통계
+
+| 항목                | 수치                                                                          |
+| ------------------- | ----------------------------------------------------------------------------- |
+| 수정된 파일         | 4개                                                                           |
+| 생성된 파일         | 1개                                                                           |
+| 추가된 테스트       | 14개                                                                          |
+| 총 테스트 통과      | 52개 (기존 38 + 신규 14)                                                      |
+| TypeScript 에러     | 0개                                                                           |
+| 추가된 llm\* 메서드 | 9개 (인터페이스 3 + Fake 3 + Logging 3 + Recording 3 = 12, 인터페이스 제외 9) |
+
+---
+
 ## 📝 다음 작업
 
 ### M2.1 잔여 작업
 
 - ~~2.1.4 Retry 로직 리팩토링~~ ✅
 - ~~2.1.5 Hook 시스템 타입 전환~~ ✅
-- 2.1.6 ContentGenerator 래퍼/파생 클래스 마이그레이션
+- ~~2.1.6 ContentGenerator 래퍼/파생 클래스 마이그레이션~~ ✅
 
 ### M2.2 이어서 진행
 
@@ -511,10 +621,10 @@ M2.1 BaseLlmClient 프로바이더 독립 타입 전환 및 M2.2 EventMapper 구
 
 ## 📊 변경 통계 (누적)
 
-| 항목            | 수치                                                                 |
-| --------------- | -------------------------------------------------------------------- |
-| 수정된 파일     | 14개 (M2.1.3: 8개, M2.1.4: +2개, M2.1.5: +4개)                       |
-| 생성된 파일     | 1개 (M2.1.5: hookSystem_new_types.test.ts)                           |
-| 추가된 테스트   | 31개 (M2.1.3: 5개, M2.1.4: 12개, M2.1.5: 14개)                       |
-| 총 테스트 통과  | 235개 (baseLlmClient 38 + retry 30 + retry_llm_error 12 + hooks 155) |
-| TypeScript 에러 | 0개                                                                  |
+| 항목            | 수치                                                                                          |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| 수정된 파일     | 18개 (M2.1.3: 8개, M2.1.4: +2개, M2.1.5: +4개, M2.1.6: +4개)                                  |
+| 생성된 파일     | 2개 (M2.1.5: hookSystem_new_types.test.ts, M2.1.6: contentGenerator_new_types.test.ts)        |
+| 추가된 테스트   | 45개 (M2.1.3: 5개, M2.1.4: 12개, M2.1.5: 14개, M2.1.6: 14개)                                  |
+| 총 테스트 통과  | 287개 (baseLlmClient 38 + retry 30 + retry_llm_error 12 + hooks 155 + contentGen wrappers 52) |
+| TypeScript 에러 | 0개                                                                                           |

@@ -17,6 +17,13 @@ import type { ContentGenerator } from './contentGenerator.js';
 import type { FakeResponse } from './fakeContentGenerator.js';
 import type { UserTierId } from '../code_assist/types.js';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
+import type {
+  LlmGenerateRequest,
+  LlmGenerateResponse,
+  LlmTokenCount,
+  GenerateOptions,
+} from '../providers/types.js';
+import type { LlmEvent, LlmEventStream } from '../providers/events.js';
 
 // A ContentGenerator that wraps another content generator and records all the
 // responses, with the ability to write them out to a file. These files are
@@ -110,6 +117,88 @@ export class RecordingContentGenerator implements ContentGenerator {
       response: {
         embeddings: response.embeddings,
         metadata: response.metadata,
+      },
+    };
+    appendFileSync(this.filePath, `${safeJsonStringify(recordedResponse)}\n`);
+    return response;
+  }
+
+  // Provider-independent methods
+
+  async llmGenerateContent(
+    request: LlmGenerateRequest,
+    userPromptId: string,
+    options?: GenerateOptions,
+  ): Promise<LlmGenerateResponse> {
+    if (!this.realGenerator.llmGenerateContent) {
+      throw new Error(
+        'Wrapped generator does not support provider-independent API',
+      );
+    }
+    const response = await this.realGenerator.llmGenerateContent(
+      request,
+      userPromptId,
+      options,
+    );
+    const recordedResponse: FakeResponse = {
+      method: 'llmGenerateContent',
+      response: {
+        id: response.id,
+        content: response.content,
+        model: response.model,
+        stopReason: response.stopReason,
+        usage: response.usage,
+      },
+    };
+    appendFileSync(this.filePath, `${safeJsonStringify(recordedResponse)}\n`);
+    return response;
+  }
+
+  llmGenerateContentStream(
+    request: LlmGenerateRequest,
+    userPromptId: string,
+    options?: GenerateOptions,
+  ): LlmEventStream {
+    if (!this.realGenerator.llmGenerateContentStream) {
+      throw new Error(
+        'Wrapped generator does not support provider-independent API',
+      );
+    }
+    const realStream = this.realGenerator.llmGenerateContentStream(
+      request,
+      userPromptId,
+      options,
+    );
+    const filePath = this.filePath;
+
+    const recordedResponse: FakeResponse = {
+      method: 'llmGenerateContentStream',
+      response: [],
+    };
+
+    async function* recordingStream(): LlmEventStream {
+      for await (const event of realStream) {
+        (recordedResponse.response as LlmEvent[]).push(event);
+        yield event;
+      }
+      appendFileSync(filePath, `${safeJsonStringify(recordedResponse)}\n`);
+    }
+
+    return recordingStream();
+  }
+
+  async llmCountTokens(request: LlmGenerateRequest): Promise<LlmTokenCount> {
+    if (!this.realGenerator.llmCountTokens) {
+      throw new Error(
+        'Wrapped generator does not support provider-independent API',
+      );
+    }
+    const response = await this.realGenerator.llmCountTokens(request);
+    const recordedResponse: FakeResponse = {
+      method: 'llmCountTokens',
+      response: {
+        totalTokens: response.totalTokens,
+        breakdown: response.breakdown,
       },
     };
     appendFileSync(this.filePath, `${safeJsonStringify(recordedResponse)}\n`);

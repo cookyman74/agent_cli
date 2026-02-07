@@ -12,6 +12,13 @@ import type {
   EmbedContentResponse,
   EmbedContentParameters,
 } from '@google/genai';
+import type {
+  LlmGenerateRequest,
+  LlmGenerateResponse,
+  LlmTokenCount,
+  GenerateOptions,
+} from '../providers/types.js';
+import type { LlmEventStream } from '../providers/events.js';
 import { GoogleGenAI } from '@google/genai';
 import { createCodeAssistContentGenerator } from '../code_assist/codeAssist.js';
 import type { Config } from '../config/config.js';
@@ -50,6 +57,40 @@ export interface GeminiContentGenerator {
   userTier?: UserTierId;
 
   userTierName?: string;
+
+  // Provider-independent methods (optional for backward compatibility)
+  llmGenerateContent?(
+    request: LlmGenerateRequest,
+    userPromptId: string,
+    options?: GenerateOptions,
+  ): Promise<LlmGenerateResponse>;
+
+  llmGenerateContentStream?(
+    request: LlmGenerateRequest,
+    userPromptId: string,
+    options?: GenerateOptions,
+  ): LlmEventStream;
+
+  llmCountTokens?(request: LlmGenerateRequest): Promise<LlmTokenCount>;
+}
+
+/**
+ * Type guard to check if a GeminiContentGenerator supports provider-independent methods.
+ */
+export function isProviderIndependentGenerator(
+  gen: GeminiContentGenerator,
+): gen is GeminiContentGenerator &
+  Required<
+    Pick<
+      GeminiContentGenerator,
+      'llmGenerateContent' | 'llmGenerateContentStream' | 'llmCountTokens'
+    >
+  > {
+  return (
+    typeof gen.llmGenerateContent === 'function' &&
+    typeof gen.llmGenerateContentStream === 'function' &&
+    typeof gen.llmCountTokens === 'function'
+  );
 }
 
 /**

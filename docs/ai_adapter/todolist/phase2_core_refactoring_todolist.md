@@ -249,14 +249,14 @@ describe('LlmContentGenerator', () => {
 
 ### 2.1.6 🆕 ContentGenerator 래퍼/파생 클래스 마이그레이션
 
-| ID      | 작업                                                   | 상태 | 테스트 파일                         |
-| ------- | ------------------------------------------------------ | ---- | ----------------------------------- |
-| 2.1.6.1 | `LoggingContentGenerator` 타입 전환                    | ⬜   | `loggingContentGenerator.test.ts`   |
-| 2.1.6.2 | `RecordingContentGenerator` 타입 전환                  | ⬜   | `recordingContentGenerator.test.ts` |
-| 2.1.6.3 | `FakeContentGenerator` 타입 전환                       | ⬜   | `fakeContentGenerator.test.ts`      |
-| 2.1.6.4 | `code_assist/codeAssist.ts` ContentGenerator 사용 분석 | ⬜   | N/A (분석)                          |
-| 2.1.6.5 | `code_assist/server.ts` ContentGenerator 사용 분석     | ⬜   | N/A (분석)                          |
-| 2.1.6.6 | CodeAssist ContentGenerator 호환 레이어                | ⬜   | `codeAssist.test.ts`                |
+| ID      | 작업                                                   | 상태 | 테스트 파일                          |
+| ------- | ------------------------------------------------------ | ---- | ------------------------------------ |
+| 2.1.6.1 | `LoggingContentGenerator` 타입 전환                    | ✅   | `contentGenerator_new_types.test.ts` |
+| 2.1.6.2 | `RecordingContentGenerator` 타입 전환                  | ✅   | `contentGenerator_new_types.test.ts` |
+| 2.1.6.3 | `FakeContentGenerator` 타입 전환                       | ✅   | `contentGenerator_new_types.test.ts` |
+| 2.1.6.4 | `code_assist/codeAssist.ts` ContentGenerator 사용 분석 | ✅   | N/A (분석: 변경 불필요)              |
+| 2.1.6.5 | `code_assist/server.ts` ContentGenerator 사용 분석     | ✅   | N/A (분석: 변경 불필요, M2.3+)       |
+| 2.1.6.6 | CodeAssist ContentGenerator 호환 레이어                | ✅   | N/A (optional 메서드로 자동 호환)    |
 
 **래퍼 클래스 의존성 분석**:
 
@@ -272,10 +272,10 @@ contentGenerator.ts (기반)
 
 **검증 기준**:
 
-- [ ] `ContentGenerator` 호출 경로가 신규 타입으로 동작
-- [ ] 🆕 모든 래퍼/파생 클래스 타입 전환 완료
-- [ ] Retry/Hook이 프로바이더 독립 에러로 동작
-- [ ] 기존 테스트 100% 통과
+- [x] `ContentGenerator` 호출 경로가 신규 타입으로 동작
+- [x] 🆕 모든 래퍼/파생 클래스 타입 전환 완료
+- [x] Retry/Hook이 프로바이더 독립 에러로 동작
+- [x] 기존 테스트 100% 통과
 
 ---
 

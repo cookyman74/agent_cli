@@ -70,13 +70,14 @@
 
 ## 📊 검증 결과
 
-| 검증 항목           |      결과       | 비고                  |
-| ------------------- | :-------------: | --------------------- |
-| 전체 테스트         | ✅ 398/398 pass | 기존 297 + 신규 101   |
-| TypeScript 컴파일   |     ✅ 클린     | tsc --noEmit 0 errors |
-| ESLint              |     ✅ 통과     | pre-commit hook 통과  |
-| 기존 기능 100% 동작 |       ✅        | 기존 테스트 전체 통과 |
-| 18개 이벤트 동등성  |       ✅        | 전체 매핑 검증 완료   |
+| 검증 항목           |       결과        | 비고                                |
+| ------------------- | :---------------: | ----------------------------------- |
+| 전체 테스트         | ✅ 4720/4720 pass | 기존 4610 + 신규 110 (리뷰 수정 후) |
+| TypeScript 컴파일   |      ✅ 클린      | tsc --noEmit 0 errors               |
+| ESLint              |      ✅ 통과      | pre-commit hook 통과                |
+| 기존 기능 100% 동작 |        ✅         | 기존 테스트 전체 통과               |
+| 18개 이벤트 동등성  |        ✅         | 전체 매핑 검증 완료                 |
+| 기능 플래그 연결    |        ✅         | 프로덕션 실행 경로 연결 확인        |
 
 ---
 
@@ -93,12 +94,15 @@
 | `providers/gemini/geminiAdapter.test.ts`   | Adapter TDD 테스트             | ~320 |
 | `providers/gemini/geminiParity.test.ts`    | 동등성 검증 테스트             | ~570 |
 | `providers/gemini/featureFlag.test.ts`     | 기능 플래그 테스트             | ~155 |
+| `providers/gemini/adapterBridge.ts`        | 기능 플래그 → 실행 경로 연결   | ~105 |
+| `providers/gemini/adapterBridge.test.ts`   | AdapterBridge TDD 테스트       | ~227 |
 
 ### 수정
 
-| 파일                        | 변경 내용                                               |
-| --------------------------- | ------------------------------------------------------- |
-| `providers/gemini/index.ts` | GeminiAdapter, GeminiConverter, featureFlag export 추가 |
+| 파일                        | 변경 내용                                                         |
+| --------------------------- | ----------------------------------------------------------------- |
+| `providers/gemini/index.ts` | GeminiAdapter, GeminiConverter, featureFlag, adapterBridge export |
+| `core/contentGenerator.ts`  | createAdapterBridge 연결 (googleGenAI.models 래핑)                |
 
 ---
 
@@ -134,6 +138,38 @@ SDK의 `contents` 필드가 `ContentListUnion` (union type)이라 배열 인덱�
 
 ---
 
+## 🔄 리뷰 후 수정 사항
+
+### 이슈: 기능 플래그 프로덕션 코드 미연결
+
+**지적 내용**: `isMultiProviderEnabled()`와 `withFallback()`가
+테스트/re-export에서만 사용되고, 실제 실행 경로에 연결되지 않음. 플래그 ON/OFF가
+실행 경로를 변경하지 않음.
+
+**검증 결과**: 확인됨 — grep 결과 featureFlag.ts, featureFlag.test.ts,
+index.ts에서만 참조.
+
+**수정 내용**:
+
+| 항목                       | 상태 | 비고                                               |
+| -------------------------- | :--: | -------------------------------------------------- |
+| `adapterBridge.ts` 신규    |  ✅  | createAdapterBridge 함수, BridgeableGenerator 타입 |
+| `adapterBridge.test.ts`    |  ✅  | 10개 테스트 (flag ON/OFF, legacy/llm\* 검증)       |
+| `contentGenerator.ts` 수정 |  ✅  | createAdapterBridge 실행 경로 연결                 |
+| `index.ts` export 추가     |  ✅  | createAdapterBridge, BridgeableGenerator           |
+
+**실행 경로 변경**:
+
+```
+Before: googleGenAI.models → LoggingContentGenerator
+After:  googleGenAI.models → createAdapterBridge → LoggingContentGenerator
+        (flag OFF: 패스스루, flag ON: llm* 메서드 추가)
+```
+
+**검증**: 4720/4720 tests pass, TypeScript clean
+
+---
+
 ## ⚠️ 다음 마일스톤 이월 사항
 
 ### M2.4로 이월
@@ -152,7 +188,9 @@ SDK의 `contents` 필드가 `ContentListUnion` (union type)이라 배열 인덱�
 | 커밋 | 해시      | 설명                                                    |
 | ---- | --------- | ------------------------------------------------------- |
 | feat | 91a8f1e5e | feat(providers): M2.3 GeminiAdapter 구현 및 동등성 검증 |
-| docs | (미커밋)  | 작업 결과서                                             |
+| docs | 58fd15b1c | docs: M2.3 작업 결과서 및 체크리스트 업데이트           |
+| feat | a5a81c60e | feat(providers): M2.3 리뷰 수정 — AdapterBridge 연결    |
+| docs | 15f69a79c | docs: M2.3 작업 결과서 리뷰 수정 사항 반영              |
 
 ---
 
@@ -162,5 +200,6 @@ SDK의 `contents` 필드가 `ContentListUnion` (union type)이라 배열 인덱�
 - [x] 테스트: 101개 신규, 398개 전체 통과
 - [x] TypeScript 컴파일: 클린
 - [x] ESLint: 통과 (pre-commit hook)
-- [x] 커밋: 91a8f1e5e (feat)
-- [ ] 커밋: (docs — 사용자 확인 대기)
+- [x] 커밋: 91a8f1e5e (feat), 58fd15b1c (docs)
+- [x] 리뷰 이슈 수정: adapterBridge 추가, contentGenerator.ts 연결
+- [x] 리뷰 수정 후 검증: 4720/4720 tests, TS clean

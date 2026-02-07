@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { GenerateContentResponse } from '@google/genai';
 import { ApiError } from '@google/genai';
 import {
   TerminalQuotaError,
@@ -16,19 +15,28 @@ import { delay, createAbortError } from './delay.js';
 import { debugLogger } from './debugLogger.js';
 import { getErrorStatus, ModelNotFoundError } from './httpErrors.js';
 import type { RetryAvailabilityContext } from '../availability/modelPolicy.js';
+import { isLlmError } from '../providers/errors.js';
 
 export type { RetryAvailabilityContext };
 
-export interface RetryOptions {
+export interface RetryOptions<T = unknown> {
   maxAttempts: number;
   initialDelayMs: number;
   maxDelayMs: number;
   shouldRetryOnError: (error: Error, retryFetchErrors?: boolean) => boolean;
-  shouldRetryOnContent?: (content: GenerateContentResponse) => boolean;
+  shouldRetryOnContent?: (content: T) => boolean;
+  /** @deprecated Use onTerminalError for provider-independent code. */
   onPersistent429?: (
     authType?: string,
     error?: unknown,
   ) => Promise<string | boolean | null>;
+  /** Provider-independent terminal error handler for model fallback. */
+  onTerminalError?: (
+    authType?: string,
+    error?: unknown,
+  ) => Promise<string | boolean | null>;
+  /** Custom error classifier callback for provider-specific error mapping. */
+  classifyError?: (error: unknown) => unknown;
   onValidationRequired?: (
     error: ValidationRequiredError,
   ) => Promise<'verify' | 'change_auth' | 'cancel'>;
@@ -39,7 +47,7 @@ export interface RetryOptions {
   onRetry?: (attempt: number, error: unknown, delayMs: number) => void;
 }
 
-const DEFAULT_RETRY_OPTIONS: RetryOptions = {
+const DEFAULT_RETRY_OPTIONS: RetryOptions<unknown> = {
   maxAttempts: 10,
   initialDelayMs: 5000,
   maxDelayMs: 30000, // 30 seconds
@@ -91,6 +99,11 @@ export function isRetryableError(
   error: Error | unknown,
   retryFetchErrors?: boolean,
 ): boolean {
+  // Check for provider-independent LlmError first
+  if (isLlmError(error)) {
+    return error.isRetryable;
+  }
+
   // Check for common network error codes
   const errorCode = getNetworkErrorCode(error);
   if (errorCode && RETRYABLE_NETWORK_CODES.includes(errorCode)) {
@@ -129,7 +142,7 @@ export function isRetryableError(
  */
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  options?: Partial<RetryOptions>,
+  options?: Partial<RetryOptions<T>>,
 ): Promise<T> {
   if (options?.signal?.aborted) {
     throw createAbortError();
@@ -148,6 +161,8 @@ export async function retryWithBackoff<T>(
     initialDelayMs,
     maxDelayMs,
     onPersistent429,
+    onTerminalError,
+    classifyError: classifyErrorFn,
     onValidationRequired,
     authType,
     shouldRetryOnError,
@@ -160,7 +175,7 @@ export async function retryWithBackoff<T>(
     ...DEFAULT_RETRY_OPTIONS,
     shouldRetryOnError: isRetryableError,
     ...cleanOptions,
-  };
+  } as RetryOptions<T>;
 
   let attempt = 0;
   let currentDelay = initialDelayMs;
@@ -173,10 +188,7 @@ export async function retryWithBackoff<T>(
     try {
       const result = await fn();
 
-      if (
-        shouldRetryOnContent &&
-        shouldRetryOnContent(result as GenerateContentResponse)
-      ) {
+      if (shouldRetryOnContent && shouldRetryOnContent(result)) {
         const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
         const delayWithJitter = Math.max(0, currentDelay + jitter);
         if (onRetry) {
@@ -198,6 +210,73 @@ export async function retryWithBackoff<T>(
         throw error;
       }
 
+      // Classify error using custom classifier or keep original
+      let processedError: unknown = error;
+      if (classifyErrorFn) {
+        processedError = classifyErrorFn(error);
+      }
+
+      // Provider-independent LlmError path
+      if (isLlmError(processedError)) {
+        if (!processedError.isRetryable) {
+          // Non-retryable error - try terminal error handler for model fallback
+          if (onTerminalError) {
+            try {
+              const fallbackResult = await onTerminalError(
+                authType,
+                processedError,
+              );
+              if (fallbackResult) {
+                attempt = 0;
+                currentDelay = initialDelayMs;
+                continue;
+              }
+            } catch (fallbackError) {
+              debugLogger.warn('Terminal error handler failed:', fallbackError);
+            }
+          }
+          throw processedError;
+        }
+
+        // Retryable LlmError - check max attempts
+        if (attempt >= maxAttempts) {
+          if (onTerminalError) {
+            try {
+              const fallbackResult = await onTerminalError(
+                authType,
+                processedError,
+              );
+              if (fallbackResult) {
+                attempt = 0;
+                currentDelay = initialDelayMs;
+                continue;
+              }
+            } catch (fallbackError) {
+              debugLogger.warn('Model fallback failed:', fallbackError);
+            }
+          }
+          throw processedError;
+        }
+
+        // Retry with retryAfterMs or exponential backoff
+        if (processedError.retryAfterMs !== undefined) {
+          if (onRetry) {
+            onRetry(attempt, processedError, processedError.retryAfterMs);
+          }
+          await delay(processedError.retryAfterMs, signal);
+        } else {
+          const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
+          const delayWithJitter = Math.max(0, currentDelay + jitter);
+          if (onRetry) {
+            onRetry(attempt, processedError, delayWithJitter);
+          }
+          await delay(delayWithJitter, signal);
+          currentDelay = Math.min(maxDelayMs, currentDelay * 2);
+        }
+        continue;
+      }
+
+      // Legacy Google error path
       const classifiedError = classifyGoogleError(error);
 
       const errorCode = getErrorStatus(error);

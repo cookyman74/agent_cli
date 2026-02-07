@@ -38,6 +38,20 @@
 | 레거시 별칭 @deprecated 표시              |  ✅  | 기존 코드 호환성 100%                |
 | **메서드 로직에 신규 타입 연결**          |  ✅  | 오버로딩 구현 및 변환 로직 적용 완료 |
 
+### 완료된 작업 (2.1.4) ✅
+
+| 항목                                       | 상태 | 비고                                             |
+| ------------------------------------------ | :--: | ------------------------------------------------ |
+| retry.ts Gemini 의존성 분석                |  ✅  | GenerateContentResponse, ApiError 등 확인        |
+| RetryOptions 제네릭 전환                   |  ✅  | `RetryOptions<T>`, shouldRetryOnContent 제네릭화 |
+| isRetryableError에 LlmError 우선 체크 추가 |  ✅  | isLlmError → isRetryable 사용                    |
+| LlmError 기반 재시도 경로 추가             |  ✅  | retryAfterMs, onTerminalError 지원               |
+| classifyError 콜백 추가                    |  ✅  | 프로바이더별 에러 분류 콜백                      |
+| 기존 Google 에러 경로 보존                 |  ✅  | classifyGoogleError 레거시 경로 유지             |
+| onPersistent429 @deprecated 표시           |  ✅  | onTerminalError로 대체 권장                      |
+| TDD 테스트 12개 작성 및 통과               |  ✅  | retry_llm_error.test.ts                          |
+| 기존 retry 테스트 30개 호환성 확인         |  ✅  | 하위 호환성 100%                                 |
+
 ---
 
 ## 🔍 리뷰 결과 (2026-02-07)
@@ -184,6 +198,8 @@ M2.1.3 (현재) → M2.3 GeminiAdapter 구현 → BaseLlmClient 생성자 리팩
 | `services/*.test.ts`                   | 타입 단언 추가 (2개 파일)                                                           |
 | `providers/baseAdapter.test.ts`        | override modifier 추가 (M2.2 관련)                                                  |
 | `providers/streamAssembler.test.ts`    | finishReason 타입 수정 (M2.2 관련)                                                  |
+| `utils/retry.ts`                       | LlmError 기반 재시도 로직, 제네릭 T, classifyError/onTerminalError 콜백 (M2.1.4)    |
+| `utils/retry_llm_error.test.ts`        | 신규 LlmError 재시도 테스트 12개 (M2.1.4)                                           |
 
 ---
 
@@ -246,11 +262,86 @@ function convertLlmMessagesToContents(messages: LlmMessage[]): Content[] {
 
 ---
 
+## 🏗️ M2.1.4 Retry 로직 리팩토링 상세
+
+### 제거된 Gemini 의존성
+
+| 변경 전                                                   | 변경 후                        |
+| --------------------------------------------------------- | ------------------------------ |
+| `import type { GenerateContentResponse }` (retry.ts)      | 제거 (제네릭 T로 대체)         |
+| `shouldRetryOnContent(result as GenerateContentResponse)` | `shouldRetryOnContent(result)` |
+
+### 추가된 프로바이더 독립 필드 (RetryOptions)
+
+```typescript
+export interface RetryOptions<T = unknown> {
+  // 기존 필드 유지...
+  shouldRetryOnContent?: (content: T) => boolean;        // GenerateContentResponse → T
+  /** @deprecated Use onTerminalError */
+  onPersistent429?: (...) => Promise<...>;               // 레거시 유지
+  onTerminalError?: (authType?, error?) => Promise<...>; // NEW: 프로바이더 독립
+  classifyError?: (error: unknown) => unknown;           // NEW: 커스텀 에러 분류
+}
+```
+
+### Catch 블록 에러 처리 흐름
+
+```
+catch (error)
+  │
+  ├─ AbortError → throw (기존)
+  │
+  ├─ classifyError 콜백 → processedError 생성
+  │
+  ├─ isLlmError(processedError)? ──── NEW PATH
+  │   ├─ isRetryable=false → onTerminalError → throw
+  │   ├─ attempt >= maxAttempts → onTerminalError → throw
+  │   └─ retryAfterMs? → delay(retryAfterMs)
+  │       └─ else → exponential backoff
+  │
+  └─ Legacy Google path (기존 코드 그대로)
+      ├─ classifyGoogleError(error)
+      ├─ TerminalQuotaError → onPersistent429
+      ├─ ValidationRequiredError → onValidationRequired
+      └─ RetryableQuotaError/5xx → backoff
+```
+
+### isRetryableError 변경
+
+```typescript
+export function isRetryableError(error, retryFetchErrors?): boolean {
+  // NEW: LlmError 우선 체크
+  if (isLlmError(error)) {
+    return error.isRetryable;
+  }
+  // 기존 로직 유지: network codes, fetch errors, ApiError, status codes
+}
+```
+
+### 테스트 커버리지 (retry_llm_error.test.ts)
+
+| #   | 테스트                                     | 검증 내용                    |
+| --- | ------------------------------------------ | ---------------------------- |
+| 1   | LlmError isRetryable=true → 재시도         | exponential backoff 경로     |
+| 2   | LlmError isRetryable=false → 즉시 throw    | AuthenticationError 처리     |
+| 3   | RateLimitError + retryAfterMs → 지정 대기  | setTimeout(fn, 15000) 검증   |
+| 4   | RateLimitError max exhausted → onTerminal  | 폴백 콜백 + 재시도           |
+| 5   | NetworkError → 재시도                      | isRetryable=true 경로        |
+| 6   | classifyError 콜백 사용                    | 커스텀 분류기 → retryAfterMs |
+| 7   | classifyError 미제공 → classifyGoogleError | 429 하위 호환성              |
+| 8   | isRetryableError: LlmError true            | RateLimitError               |
+| 9   | isRetryableError: LlmError false           | AuthenticationError          |
+| 10  | isRetryableError: non-LlmError 500         | 기존 status 체크 경로        |
+| 11  | Generic shouldRetryOnContent\<T\>          | CustomResponse (GCR 없이)    |
+| 12  | onTerminalError: non-retryable LlmError    | MODEL_NOT_FOUND → 폴백       |
+
+---
+
 ## 📝 다음 작업
 
 ### M2.1 잔여 작업
 
-- 2.1.4 Retry 로직 리팩토링
+- ~~2.1.4 Retry 로직 리팩토링~~ ✅
 - 2.1.5 Hook 시스템 타입 전환
 - 2.1.6 ContentGenerator 래퍼/파생 클래스 마이그레이션
 
@@ -285,9 +376,9 @@ M2.1 BaseLlmClient 프로바이더 독립 타입 전환 및 M2.2 EventMapper 구
 
 ## 📊 변경 통계
 
-| 항목            | 수치                                             |
-| --------------- | ------------------------------------------------ |
-| 수정된 파일     | 8개                                              |
-| 추가된 테스트   | 5개 (tool_call, tool_result x2, thought, system) |
-| 총 테스트 통과  | 38개 (baseLlmClient 관련)                        |
-| TypeScript 에러 | 0개                                              |
+| 항목            | 수치                                                    |
+| --------------- | ------------------------------------------------------- |
+| 수정된 파일     | 10개 (M2.1.3: 8개, M2.1.4: +2개)                        |
+| 추가된 테스트   | 17개 (M2.1.3: 5개, M2.1.4: 12개)                        |
+| 총 테스트 통과  | 80개 (baseLlmClient 38 + retry 30 + retry_llm_error 12) |
+| TypeScript 에러 | 0개                                                     |

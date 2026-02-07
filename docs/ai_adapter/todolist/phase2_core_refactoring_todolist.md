@@ -224,13 +224,13 @@ describe('LlmContentGenerator', () => {
 
 ### 2.1.4 Retry 로직 리팩토링
 
-| ID      | 작업                             | 상태 | 테스트 파일     |
-| ------- | -------------------------------- | ---- | --------------- |
-| 2.1.4.1 | 현재 `retry.ts` 에러 처리 분석   | ⬜   | N/A (분석)      |
-| 2.1.4.2 | `LlmError` 기반 재시도 조건 정의 | ⬜   | `retry.test.ts` |
-| 2.1.4.3 | `LlmRateLimitError` 재시도 전략  | ⬜   | `retry.test.ts` |
-| 2.1.4.4 | 프로바이더별 재시도 헤더 파싱    | ⬜   | `retry.test.ts` |
-| 2.1.4.5 | 재시도 통계/로깅 추가            | ⬜   | `retry.test.ts` |
+| ID      | 작업                             | 상태 | 테스트 파일               |
+| ------- | -------------------------------- | ---- | ------------------------- |
+| 2.1.4.1 | 현재 `retry.ts` 에러 처리 분석   | ✅   | N/A (분석)                |
+| 2.1.4.2 | `LlmError` 기반 재시도 조건 정의 | ✅   | `retry_llm_error.test.ts` |
+| 2.1.4.3 | `LlmRateLimitError` 재시도 전략  | ✅   | `retry_llm_error.test.ts` |
+| 2.1.4.4 | 프로바이더별 재시도 헤더 파싱    | ✅   | `retry_llm_error.test.ts` |
+| 2.1.4.5 | 재시도 통계/로깅 추가            | ✅   | `retry_llm_error.test.ts` |
 
 ### 2.1.5 Hook 시스템 타입 전환
 

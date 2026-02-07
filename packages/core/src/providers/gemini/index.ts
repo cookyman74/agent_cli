@@ -15,3 +15,7 @@ export {
   convertGeminiStream,
   convertGeminiStreamWithReturn,
 } from './streamConverter.js';
+export {
+  createGeminiStreamPipeline,
+  type GeminiStreamPipeline,
+} from './geminiStream.js';

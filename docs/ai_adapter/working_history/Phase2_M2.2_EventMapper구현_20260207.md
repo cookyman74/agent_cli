@@ -69,6 +69,18 @@
 | `RETRY/STOPPED/BLOCKED` → 기존 Turn 경유 경로 확인 |  ✅  | GeminiEventType → EventMapper 경로 |
 | `StreamEventType` @deprecated 마킹                 |  ✅  | geminiChat.ts JSDoc 추가           |
 
+### 2.2.3 StreamAssembler 적용 ✅
+
+| 항목                                | 상태 | 비고                               |
+| ----------------------------------- | :--: | ---------------------------------- |
+| GeminiChat 스트림 처리 로직 분석    |  ✅  | Turn → client 파이프라인 파악      |
+| `createGeminiStreamPipeline()` 구현 |  ✅  | EventMapper + StreamAssembler 통합 |
+| `GeminiStreamPipeline` 인터페이스   |  ✅  | stream + assembler 이중 접근       |
+| 텍스트 델타 합성 검증               |  ✅  | 다수 Content → text 연결           |
+| 툴 콜 델타 합성 검증                |  ✅  | 단일/다수 ToolCallRequest 수집     |
+| Usage 정보 누적 검증                |  ✅  | Finished(usageMetadata) → usage    |
+| 통합 테스트                         |  ✅  | 15개 테스트 (geminiStream.test.ts) |
+
 ---
 
 ## 📁 파일 변경 사항
@@ -81,17 +93,19 @@
 | `providers/gemini/eventMapper.test.ts`     | EventMapper TDD 테스트 (29개)    |
 | `providers/gemini/streamConverter.ts`      | 스트림 변환 유틸리티 (78줄)      |
 | `providers/gemini/streamConverter.test.ts` | StreamConverter TDD 테스트 (5개) |
+| `providers/gemini/geminiStream.ts`         | 통합 파이프라인 유틸리티 (90줄)  |
+| `providers/gemini/geminiStream.test.ts`    | 통합 파이프라인 테스트 (15개)    |
 
 ### 수정 파일
 
-| 파일                                    | 변경 내용                                                                                    |
-| --------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `providers/gemini/index.ts`             | GeminiEventMapper, convertGeminiStream, convertGeminiStreamWithReturn export 추가            |
-| `providers/events.ts`                   | Agent 이벤트 필드 추가, Citation optional화, result 타입 확장                                |
-| `services/loopDetectionService.ts`      | `addAndCheckLlm(LlmEvent)` 메서드 추가, `addAndCheck` @deprecated 마킹, LlmEvent import 추가 |
-| `services/loopDetectionService.test.ts` | addAndCheckLlm 테스트 6개 추가 (47 → 53 테스트)                                              |
-| `core/geminiChat.ts`                    | `StreamEventType`, `StreamEvent` @deprecated JSDoc 추가                                      |
-| `core/client.ts`                        | `loopDetector.addAndCheck()` 호출부에 TODO(M2.3) 마이그레이션 코멘트                         |
+| 파일                                    | 변경 내용                                                                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `providers/gemini/index.ts`             | GeminiEventMapper, convertGeminiStream, convertGeminiStreamWithReturn, createGeminiStreamPipeline export 추가 |
+| `providers/events.ts`                   | Agent 이벤트 필드 추가, Citation optional화, result 타입 확장                                                 |
+| `services/loopDetectionService.ts`      | `addAndCheckLlm(LlmEvent)` 메서드 추가, `addAndCheck` @deprecated 마킹, LlmEvent import 추가                  |
+| `services/loopDetectionService.test.ts` | addAndCheckLlm 테스트 6개 추가 (47 → 53 테스트)                                                               |
+| `core/geminiChat.ts`                    | `StreamEventType`, `StreamEvent` @deprecated JSDoc 추가                                                       |
+| `core/client.ts`                        | `loopDetector.addAndCheck()` 호출부에 TODO(M2.3) 마이그레이션 코멘트                                          |
 
 ---
 
@@ -170,11 +184,13 @@ calls/citations 등으로 다수 분해. 따라서 StreamEventType → LlmEvent 
 ### M2.2 전체 테스트
 
 ```
-eventMapper.test.ts       : 29 passed
-streamConverter.test.ts   :  5 passed
+eventMapper.test.ts          : 29 passed
+streamConverter.test.ts      :  5 passed
 loopDetectionService.test.ts : 53 passed (47 기존 + 6 신규)
+geminiStream.test.ts         : 15 passed (M2.2.3 통합 테스트)
+streamAssembler.test.ts      : 22 passed (기존, 회귀 확인)
 ────────────────────────────────────────
-합계                       : 87 passed
+합계                          : 124 passed
 ```
 
 ### TypeScript 컴파일
@@ -206,7 +222,9 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 
 ## 📝 다음 작업
 
-- [ ] **M2.2.3**: StreamAssembler 리팩토링 — Turn 출력 스트림에 EventMapper 적용
+- [x] **M2.2.3**: StreamAssembler 적용 — EventMapper + StreamAssembler 통합
+      파이프라인
+- [ ] **M2.2.4**: Gemini 에러 매핑
 - [ ] **M2.3**: Turn/Client 레벨 LlmEvent 전환 (processTurn → LlmEvent 스트림)
 
 ### 다음 작업에 전달할 이슈
@@ -216,6 +234,7 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 | `client.ts`의 24개 GeminiEventType 참조 | M2.3 전환 시 대규모 변경 예상                 | convertGeminiStreamWithReturn 활용    |
 | `turn.ts`의 12개 이벤트 생성점          | Turn 반환 타입 변경 시 영향 범위 큼           | 단계적 전환 (내부 유지 → 출력만 변환) |
 | `ToolCallResponse.name = ''` 설계       | caller가 ToolCallRequestInfo로 name 보강 필요 | M2.3에서 enrichment 로직 검토         |
+| `createGeminiStreamPipelineWithReturn`  | client.ts의 Turn return value 보존 필요       | M2.3에서 WithReturn 변형 추가         |
 
 ---
 
@@ -224,14 +243,15 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 | 순서 | 커밋 ID     | 설명                                                |
 | ---- | ----------- | --------------------------------------------------- |
 | 1    | `819cadbd8` | M2.2.1 리뷰 수정 + M2.2.2 스트림 변환 + @deprecated |
+| 2    | (pending)   | M2.2.3 StreamAssembler 적용 — 통합 파이프라인       |
 
 ---
 
 ## ✅ 완료 기준 체크
 
-- [x] 모든 테스트 통과 (87/87)
+- [x] 모든 테스트 통과 (87 + 15 = 102)
 - [x] TypeScript 컴파일 에러 없음
-- [x] 체크리스트 최종 확인 (2.2.1 ✅, 2.2.2 ✅, 2.2.2a ✅)
+- [x] 체크리스트 최종 확인 (2.2.1 ✅, 2.2.2 ✅, 2.2.2a ✅, 2.2.3 ✅)
 - [x] 작업 결과서 작성
 - [x] 커밋: `819cadbd8`
 - [x] 이슈 전달: 다음 작업(M2.3)에 전달할 이슈 문서화

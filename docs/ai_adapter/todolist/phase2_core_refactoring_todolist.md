@@ -440,16 +440,16 @@ geminiChat.ts
 ⚠️ 두 체계가 분리되어 있어 통합 전략 필요
 ```
 
-### 2.2.3 StreamAssembler 적용
+### 2.2.3 StreamAssembler 적용 ✅
 
 | ID      | 작업                             | 상태 | 테스트 파일            |
 | ------- | -------------------------------- | ---- | ---------------------- |
-| 2.2.3.1 | GeminiChat 스트림 처리 로직 분석 | ⬜   | N/A (분석)             |
-| 2.2.3.2 | Gemini 스트림 → 공통 이벤트 변환 | ⬜   | `geminiStream.test.ts` |
-| 2.2.3.3 | `StreamAssembler` 통합           | ⬜   | `geminiStream.test.ts` |
-| 2.2.3.4 | 텍스트 델타 합성 검증            | ⬜   | `geminiStream.test.ts` |
-| 2.2.3.5 | 툴 콜 델타 합성 검증             | ⬜   | `geminiStream.test.ts` |
-| 2.2.3.6 | Usage 정보 누적 검증             | ⬜   | `geminiStream.test.ts` |
+| 2.2.3.1 | GeminiChat 스트림 처리 로직 분석 | ✅   | N/A (분석)             |
+| 2.2.3.2 | Gemini 스트림 → 공통 이벤트 변환 | ✅   | `geminiStream.test.ts` |
+| 2.2.3.3 | `StreamAssembler` 통합           | ✅   | `geminiStream.test.ts` |
+| 2.2.3.4 | 텍스트 델타 합성 검증            | ✅   | `geminiStream.test.ts` |
+| 2.2.3.5 | 툴 콜 델타 합성 검증             | ✅   | `geminiStream.test.ts` |
+| 2.2.3.6 | Usage 정보 누적 검증             | ✅   | `geminiStream.test.ts` |
 
 ### 2.2.4 Gemini 에러 매핑
 

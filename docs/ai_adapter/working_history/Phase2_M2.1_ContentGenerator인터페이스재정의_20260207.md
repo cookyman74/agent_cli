@@ -343,12 +343,141 @@ export function isRetryableError(error, retryFetchErrors?): boolean {
 
 ---
 
+---
+
+## 🔗 M2.1.5 Hook 시스템 타입 전환 (2026-02-07)
+
+### 완료된 작업 (2.1.5.1~2.1.5.4) ✅
+
+| 항목                                                              | 상태 | 비고                                   |
+| ----------------------------------------------------------------- | :--: | -------------------------------------- |
+| 2.1.5.1 Hook 시스템 분석                                          |  ✅  | 4개 파일의 @google/genai 의존성 매핑   |
+| 2.1.5.2 Hook 이벤트 타입 전환 (hookAggregator, types, hookSystem) |  ✅  | Union 타입 + 신규 메서드 + @deprecated |
+| 2.1.5.3 Hook 컨텍스트 타입 전환 (hookEventHandler)                |  ✅  | V2 fire 메서드 3개 추가                |
+| 2.1.5.4 기존 Hook 호환성 테스트                                   |  ✅  | 155/155 전체 통과                      |
+
+### 핵심 발견
+
+Hook 시스템에는 이미 `hookTranslator.ts`가 의도적인 브릿지 레이어로 존재하며,
+`LLMRequest`/`LLMResponse`/`HookToolConfig`라는 프로바이더 독립 타입을 정의하고
+있었다. 훅 입력(BeforeModelInput 등)은 이미 이 독립 타입을 사용하지만,
+**출력(result) 인터페이스와 fire 메서드 시그니처**가 여전히 Gemini SDK 타입을
+직접 노출하고 있어 이를 전환했다.
+
+### 🔴 Red Phase
+
+**테스트 파일**: `hooks/hookSystem_new_types.test.ts` (14개 테스트)
+
+| #     | 테스트                                            | 검증 내용                                                            |
+| ----- | ------------------------------------------------- | -------------------------------------------------------------------- |
+| 1     | hookAggregator string literal compatibility       | `FunctionCallingConfigMode` enum 없이 `'NONE'`/`'ANY'`/`'AUTO'` 동작 |
+| 2-3   | BeforeModelHookOutput.getSyntheticLLMResponse()   | LLMResponse 직접 반환 + undefined 처리                               |
+| 4-5   | AfterModelHookOutput.getModifiedLLMResponse()     | LLMResponse 직접 반환 + undefined 처리                               |
+| 6-7   | BeforeToolSelectionHookOutput.getHookToolConfig() | HookToolConfig 직접 반환 + undefined 처리                            |
+| 8-9   | applyLLMRequestModifications with LLMRequest      | LLMRequest 입력 처리 + DefaultHookOutput passthrough                 |
+| 10-12 | hookEventHandler V2 methods                       | V2 fire 메서드 3개 프로토타입 존재 확인                              |
+| 13-14 | Legacy compatibility                              | GenerateContentParameters/toolConfig 레거시 호환                     |
+
+초기 결과: 10 failed, 4 passed → 레거시 호환 테스트만 통과
+
+### 🟢 Green Phase
+
+#### 1. `hookAggregator.ts` — `FunctionCallingConfigMode` 제거
+
+| 변경 전                                                     | 변경 후                                    |
+| ----------------------------------------------------------- | ------------------------------------------ |
+| `import { FunctionCallingConfigMode } from '@google/genai'` | import 제거                                |
+| `let finalMode: FunctionCallingConfigMode`                  | `let finalMode: 'NONE' \| 'ANY' \| 'AUTO'` |
+| `FunctionCallingConfigMode.NONE/ANY/AUTO`                   | `'NONE'`/`'ANY'`/`'AUTO'` 문자열 리터럴    |
+
+#### 2. `types.ts` — Union 타입 + 신규 메서드
+
+- `isGenerateContentParameters` 타입 가드 추가 (`'contents' in obj`)
+- `DefaultHookOutput.applyLLMRequestModifications`:
+  `GenerateContentParameters | LLMRequest` Union 타입
+- `BeforeModelHookOutput`: `getSyntheticResponse()` @deprecated → **신규**
+  `getSyntheticLLMResponse()`
+- `AfterModelHookOutput`: `getModifiedResponse()` @deprecated → **신규**
+  `getModifiedLLMResponse()`
+- `BeforeToolSelectionHookOutput`: **신규** `getHookToolConfig()`
+
+#### 3. `hookEventHandler.ts` — V2 메서드 3개
+
+기존 fire 메서드 @deprecated. V2는 `hookTranslator` 변환 없이 LLMRequest 직접
+사용:
+
+```typescript
+async fireBeforeModelEventV2(llmRequest: LLMRequest): Promise<AggregatedHookResult>
+async fireAfterModelEventV2(llmRequest: LLMRequest, llmResponse: LLMResponse): Promise<AggregatedHookResult>
+async fireBeforeToolSelectionEventV2(llmRequest: LLMRequest): Promise<AggregatedHookResult>
+```
+
+#### 4. `hookSystem.ts` — Result 인터페이스 + Fire 메서드
+
+Result 인터페이스에 프로바이더 독립 필드 추가:
+
+| 인터페이스                      | 신규 필드                                                       |
+| ------------------------------- | --------------------------------------------------------------- |
+| `BeforeModelHookResult`         | `syntheticLLMResponse`, `modifiedLLMConfig`, `modifiedMessages` |
+| `AfterModelHookResult`          | `llmResponse`                                                   |
+| `BeforeToolSelectionHookResult` | `hookToolConfig`                                                |
+
+Fire 메서드: `const isLegacy = 'contents' in llmRequest`로 분기 → Legacy
+path(기존) vs New path(V2)
+
+### 타입 흐름
+
+```
+Legacy Path (GenerateContentParameters)
+  → hookEventHandler.fire*Event() [@deprecated]
+    → hookTranslator.toHookLLMRequest() 변환
+
+New Path (LLMRequest)
+  → hookEventHandler.fire*EventV2() [신규]
+    → LLMRequest 직접 사용 (변환 없음)
+```
+
+### 이슈 및 해결
+
+| 이슈                                    | 원인                                      | 해결                                     |
+| --------------------------------------- | ----------------------------------------- | ---------------------------------------- |
+| Config 생성자 `/tmp/test` 에러          | Config가 유효 디렉토리 검증               | 통합 테스트 → 단위 테스트로 전환         |
+| `BeforeToolSelectionOutput` 타입 불일치 | `Record<string, unknown>` 인덱스 시그니처 | `as BeforeToolSelectionOutput` 타입 단언 |
+
+### 수정/생성 파일
+
+| 파일                                 | 변경 내용                                                     |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `hooks/hookAggregator.ts`            | `FunctionCallingConfigMode` import 제거, string 리터럴 대체   |
+| `hooks/types.ts`                     | 타입 가드, Union 타입 apply, 신규 get 메서드 3개, @deprecated |
+| `hooks/hookEventHandler.ts`          | V2 fire 메서드 3개 추가, 기존 @deprecated                     |
+| `hooks/hookSystem.ts`                | Result 인터페이스 확장, fire 메서드 Union 시그니처            |
+| `hooks/hookSystem_new_types.test.ts` | **신규** — 14개 테스트                                        |
+
+변경하지 않음: `hookTranslator.ts` (의도적 Gemini 브릿지), `hookPlanner.ts`,
+`hookRunner.ts`, `hookRegistry.ts` (@google/genai 의존성 없음)
+
+### M2.1.5 변경 통계
+
+| 항목                        | 수치                              |
+| --------------------------- | --------------------------------- |
+| 수정된 파일                 | 4개                               |
+| 생성된 파일                 | 1개                               |
+| 추가된 테스트               | 14개                              |
+| 총 테스트 통과              | 155개 (기존 141 + 신규 14)        |
+| TypeScript 에러             | 0개                               |
+| 제거된 @google/genai import | 1개 (`FunctionCallingConfigMode`) |
+| @deprecated 표시            | 9개                               |
+| 신규 V2/get 메서드          | 6개                               |
+
+---
+
 ## 📝 다음 작업
 
 ### M2.1 잔여 작업
 
 - ~~2.1.4 Retry 로직 리팩토링~~ ✅
-- 2.1.5 Hook 시스템 타입 전환
+- ~~2.1.5 Hook 시스템 타입 전환~~ ✅
 - 2.1.6 ContentGenerator 래퍼/파생 클래스 마이그레이션
 
 ### M2.2 이어서 진행
@@ -380,11 +509,12 @@ M2.1 BaseLlmClient 프로바이더 독립 타입 전환 및 M2.2 EventMapper 구
 
 ---
 
-## 📊 변경 통계
+## 📊 변경 통계 (누적)
 
-| 항목            | 수치                                                    |
-| --------------- | ------------------------------------------------------- |
-| 수정된 파일     | 10개 (M2.1.3: 8개, M2.1.4: +2개)                        |
-| 추가된 테스트   | 17개 (M2.1.3: 5개, M2.1.4: 12개)                        |
-| 총 테스트 통과  | 80개 (baseLlmClient 38 + retry 30 + retry_llm_error 12) |
-| TypeScript 에러 | 0개                                                     |
+| 항목            | 수치                                                                 |
+| --------------- | -------------------------------------------------------------------- |
+| 수정된 파일     | 14개 (M2.1.3: 8개, M2.1.4: +2개, M2.1.5: +4개)                       |
+| 생성된 파일     | 1개 (M2.1.5: hookSystem_new_types.test.ts)                           |
+| 추가된 테스트   | 31개 (M2.1.3: 5개, M2.1.4: 12개, M2.1.5: 14개)                       |
+| 총 테스트 통과  | 235개 (baseLlmClient 38 + retry 30 + retry_llm_error 12 + hooks 155) |
+| TypeScript 에러 | 0개                                                                  |

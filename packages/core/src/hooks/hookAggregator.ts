@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FunctionCallingConfigMode } from '@google/genai';
 import type {
   HookOutput,
   HookExecutionResult,
@@ -275,21 +274,22 @@ export class HookAggregator {
     }
 
     // Determine final mode and function names
-    let finalMode: FunctionCallingConfigMode;
+    // Uses string literals for provider independence (no @google/genai dependency)
+    let finalMode: 'NONE' | 'ANY' | 'AUTO';
     let finalFunctionNames: string[] = [];
 
     if (hasNoneMode) {
       // NONE mode wins - most restrictive
-      finalMode = FunctionCallingConfigMode.NONE;
+      finalMode = 'NONE';
       finalFunctionNames = [];
     } else if (hasAnyMode) {
       // ANY mode if present (and no NONE)
-      finalMode = FunctionCallingConfigMode.ANY;
+      finalMode = 'ANY';
       // Sort for deterministic output to ensure consistent caching
       finalFunctionNames = Array.from(allFunctionNames).sort();
     } else {
       // Default to AUTO mode
-      finalMode = FunctionCallingConfigMode.AUTO;
+      finalMode = 'AUTO';
       // Sort for deterministic output to ensure consistent caching
       finalFunctionNames = Array.from(allFunctionNames).sort();
     }

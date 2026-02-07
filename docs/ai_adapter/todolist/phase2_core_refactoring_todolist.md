@@ -234,12 +234,12 @@ describe('LlmContentGenerator', () => {
 
 ### 2.1.5 Hook 시스템 타입 전환
 
-| ID      | 작업                                   | 상태 | 테스트 파일                      |
-| ------- | -------------------------------------- | ---- | -------------------------------- |
-| 2.1.5.1 | 현재 `hooks/types.ts` 분석             | ⬜   | N/A (분석)                       |
-| 2.1.5.2 | Hook 이벤트 타입 `LlmStreamEvent` 전환 | ⬜   | `hooks/hookSystem.test.ts`       |
-| 2.1.5.3 | Hook 컨텍스트 타입 전환                | ⬜   | `hooks/hookEventHandler.test.ts` |
-| 2.1.5.4 | 기존 Hook 호환성 테스트                | ⬜   | `hooks/*.test.ts` (9개 파일)     |
+| ID      | 작업                                  | 상태 | 테스트 파일                          |
+| ------- | ------------------------------------- | ---- | ------------------------------------ |
+| 2.1.5.1 | 현재 `hooks/types.ts` 분석            | ✅   | N/A (분석)                           |
+| 2.1.5.2 | Hook 이벤트 타입 프로바이더 독립 전환 | ✅   | `hooks/hookSystem_new_types.test.ts` |
+| 2.1.5.3 | Hook 컨텍스트 타입 전환               | ✅   | `hooks/hookSystem_new_types.test.ts` |
+| 2.1.5.4 | 기존 Hook 호환성 테스트               | ✅   | `hooks/*.test.ts` (10개 파일)        |
 
 **Hook 테스트 파일 목록** (실제 존재):
 

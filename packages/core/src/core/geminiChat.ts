@@ -842,7 +842,7 @@ export class GeminiChat {
           );
         }
 
-        yield hookResult.response;
+        yield hookResult.response ?? chunk;
       } else {
         yield chunk;
       }

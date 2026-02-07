@@ -191,24 +191,26 @@ export class DefaultHookOutput implements HookOutput {
   }
 
   /**
-   * Apply LLM request modifications (specific method for BeforeModel hooks)
+   * Apply LLM request modifications (specific method for BeforeModel hooks).
+   * Accepts both GenerateContentParameters (legacy) and LLMRequest (provider-independent).
    */
   applyLLMRequestModifications(
-    target: GenerateContentParameters,
-  ): GenerateContentParameters {
+    target: GenerateContentParameters | LLMRequest,
+  ): GenerateContentParameters | LLMRequest {
     // Base implementation - overridden by BeforeModelHookOutput
     return target;
   }
 
   /**
-   * Apply tool config modifications (specific method for BeforeToolSelection hooks)
+   * Apply tool config modifications (specific method for BeforeToolSelection hooks).
+   * Accepts both GenAI SDK types (legacy) and HookToolConfig (provider-independent).
    */
   applyToolConfigModifications(target: {
-    toolConfig?: GenAIToolConfig;
-    tools?: ToolListUnion;
+    toolConfig?: GenAIToolConfig | HookToolConfig;
+    tools?: ToolListUnion | string[];
   }): {
-    toolConfig?: GenAIToolConfig;
-    tools?: ToolListUnion;
+    toolConfig?: GenAIToolConfig | HookToolConfig;
+    tools?: ToolListUnion | string[];
   } {
     // Base implementation - overridden by BeforeToolSelectionHookOutput
     return target;
@@ -277,11 +279,21 @@ export class BeforeToolHookOutput extends DefaultHookOutput {
 }
 
 /**
+ * Type guard: checks if the target is a GenerateContentParameters (has 'contents' field).
+ */
+function isGenerateContentParameters(
+  obj: unknown,
+): obj is GenerateContentParameters {
+  return typeof obj === 'object' && obj !== null && 'contents' in obj;
+}
+
+/**
  * Specific hook output class for BeforeModel events
  */
 export class BeforeModelHookOutput extends DefaultHookOutput {
   /**
-   * Get synthetic LLM response if provided by hook
+   * Get synthetic LLM response if provided by hook.
+   * @deprecated Use getSyntheticLLMResponse() for provider-independent code.
    */
   getSyntheticResponse(): GenerateContentResponse | undefined {
     if (this.hookSpecificOutput && 'llm_response' in this.hookSpecificOutput) {
@@ -297,25 +309,50 @@ export class BeforeModelHookOutput extends DefaultHookOutput {
   }
 
   /**
-   * Apply modifications to LLM request
+   * Get synthetic LLM response in provider-independent format.
+   * Returns the raw LLMResponse without SDK conversion.
+   */
+  getSyntheticLLMResponse(): LLMResponse | undefined {
+    if (this.hookSpecificOutput && 'llm_response' in this.hookSpecificOutput) {
+      const hookResponse = this.hookSpecificOutput[
+        'llm_response'
+      ] as LLMResponse;
+      if (hookResponse) {
+        return hookResponse;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Apply modifications to LLM request.
+   * Accepts both GenerateContentParameters (legacy) and LLMRequest (provider-independent).
    */
   override applyLLMRequestModifications(
-    target: GenerateContentParameters,
-  ): GenerateContentParameters {
+    target: GenerateContentParameters | LLMRequest,
+  ): GenerateContentParameters | LLMRequest {
     if (this.hookSpecificOutput && 'llm_request' in this.hookSpecificOutput) {
       const hookRequest = this.hookSpecificOutput[
         'llm_request'
       ] as Partial<LLMRequest>;
       if (hookRequest) {
-        // Convert hook format to SDK format
-        const sdkRequest = defaultHookTranslator.fromHookLLMRequest(
-          hookRequest as LLMRequest,
-          target,
-        );
-        return {
-          ...target,
-          ...sdkRequest,
-        };
+        if (isGenerateContentParameters(target)) {
+          // Legacy path: convert hook format to SDK format
+          const sdkRequest = defaultHookTranslator.fromHookLLMRequest(
+            hookRequest as LLMRequest,
+            target,
+          );
+          return {
+            ...target,
+            ...sdkRequest,
+          };
+        } else {
+          // Provider-independent path: merge LLMRequest directly
+          return {
+            ...target,
+            ...hookRequest,
+          };
+        }
       }
     }
     return target;
@@ -327,12 +364,16 @@ export class BeforeModelHookOutput extends DefaultHookOutput {
  */
 export class BeforeToolSelectionHookOutput extends DefaultHookOutput {
   /**
-   * Apply tool configuration modifications
+   * Apply tool configuration modifications.
+   * Accepts both GenAI SDK types (legacy) and HookToolConfig (provider-independent).
    */
   override applyToolConfigModifications(target: {
-    toolConfig?: GenAIToolConfig;
-    tools?: ToolListUnion;
-  }): { toolConfig?: GenAIToolConfig; tools?: ToolListUnion } {
+    toolConfig?: GenAIToolConfig | HookToolConfig;
+    tools?: ToolListUnion | string[];
+  }): {
+    toolConfig?: GenAIToolConfig | HookToolConfig;
+    tools?: ToolListUnion | string[];
+  } {
     if (this.hookSpecificOutput && 'toolConfig' in this.hookSpecificOutput) {
       const hookToolConfig = this.hookSpecificOutput[
         'toolConfig'
@@ -350,6 +391,22 @@ export class BeforeToolSelectionHookOutput extends DefaultHookOutput {
     }
     return target;
   }
+
+  /**
+   * Get tool config in provider-independent format.
+   * Returns the raw HookToolConfig without SDK conversion.
+   */
+  getHookToolConfig(): HookToolConfig | undefined {
+    if (this.hookSpecificOutput && 'toolConfig' in this.hookSpecificOutput) {
+      const hookToolConfig = this.hookSpecificOutput[
+        'toolConfig'
+      ] as HookToolConfig;
+      if (hookToolConfig) {
+        return hookToolConfig;
+      }
+    }
+    return undefined;
+  }
 }
 
 /**
@@ -357,7 +414,8 @@ export class BeforeToolSelectionHookOutput extends DefaultHookOutput {
  */
 export class AfterModelHookOutput extends DefaultHookOutput {
   /**
-   * Get modified LLM response if provided by hook
+   * Get modified LLM response if provided by hook.
+   * @deprecated Use getModifiedLLMResponse() for provider-independent code.
    */
   getModifiedResponse(): GenerateContentResponse | undefined {
     if (this.hookSpecificOutput && 'llm_response' in this.hookSpecificOutput) {
@@ -372,6 +430,22 @@ export class AfterModelHookOutput extends DefaultHookOutput {
       }
     }
 
+    return undefined;
+  }
+
+  /**
+   * Get modified LLM response in provider-independent format.
+   * Returns the raw LLMResponse without SDK conversion.
+   */
+  getModifiedLLMResponse(): LLMResponse | undefined {
+    if (this.hookSpecificOutput && 'llm_response' in this.hookSpecificOutput) {
+      const hookResponse = this.hookSpecificOutput[
+        'llm_response'
+      ] as Partial<LLMResponse>;
+      if (hookResponse?.candidates?.[0]?.content?.parts?.length) {
+        return hookResponse as LLMResponse;
+      }
+    }
     return undefined;
   }
 }

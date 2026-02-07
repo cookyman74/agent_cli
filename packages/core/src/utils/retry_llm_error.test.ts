@@ -18,6 +18,7 @@ import {
   NetworkError,
   AuthenticationError,
 } from '../providers/errors.js';
+import { ModelNotFoundError } from './httpErrors.js';
 import { debugLogger } from './debugLogger.js';
 
 describe('retryWithBackoff - LlmError Support', () => {
@@ -210,6 +211,54 @@ describe('retryWithBackoff - LlmError Support', () => {
 
       // Should have retried (429 is retryable in both old and new path)
       expect(mockFn).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('classifyGoogleError isolation when classifyErrorFn provided (2.1.4.4)', () => {
+    it('should skip classifyGoogleError when classifyErrorFn returns non-LlmError', async () => {
+      // classifyErrorFn that passes through original error (non-LlmError)
+      const classifyError = vi.fn((error: unknown) => error);
+
+      // 404 error - without the guard, classifyGoogleError would convert to ModelNotFoundError
+      const originalError = new Error('Not Found');
+      (originalError as unknown as { status: number }).status = 404;
+
+      const mockFn = vi.fn(async () => {
+        throw originalError;
+      });
+
+      const promise = retryWithBackoff(mockFn, {
+        maxAttempts: 3,
+        initialDelayMs: 10,
+        classifyError,
+      });
+
+      // Should throw original Error, NOT ModelNotFoundError
+      // If classifyGoogleError were called, it would convert 404 → ModelNotFoundError
+      await expect(promise).rejects.toBe(originalError);
+
+      // 404 is not retryable in generic path (not 429, not 5xx), so only 1 call
+      expect(mockFn).toHaveBeenCalledTimes(1);
+      expect(classifyError).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call classifyGoogleError when classifyErrorFn is NOT provided (backward compat)', async () => {
+      // 404 error without classifyErrorFn - classifyGoogleError converts to ModelNotFoundError
+      const mockFn = vi.fn(async () => {
+        const error = new Error('Not Found');
+        (error as unknown as { status: number }).status = 404;
+        throw error;
+      });
+
+      const promise = retryWithBackoff(mockFn, {
+        maxAttempts: 3,
+        initialDelayMs: 10,
+      });
+
+      // Should throw ModelNotFoundError (from classifyGoogleError)
+      await expect(promise).rejects.toBeInstanceOf(ModelNotFoundError);
+      // ModelNotFoundError is terminal, so no retry
+      expect(mockFn).toHaveBeenCalledTimes(1);
     });
   });
 

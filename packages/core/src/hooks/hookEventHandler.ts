@@ -31,6 +31,7 @@ import type {
   McpToolContext,
 } from './types.js';
 import { defaultHookTranslator } from './hookTranslator.js';
+import type { LLMRequest, LLMResponse } from './hookTranslator.js';
 import type {
   GenerateContentParameters,
   GenerateContentResponse,
@@ -201,6 +202,7 @@ export class HookEventHandler {
   /**
    * Fire a BeforeModel event
    * Called by handleHookExecutionRequest - executes hooks directly
+   * @deprecated Use fireBeforeModelEventV2 for provider-independent code.
    */
   async fireBeforeModelEvent(
     llmRequest: GenerateContentParameters,
@@ -214,8 +216,24 @@ export class HookEventHandler {
   }
 
   /**
+   * Fire a BeforeModel event with provider-independent LLMRequest.
+   * Skips hookTranslator conversion since input is already in LLMRequest format.
+   */
+  async fireBeforeModelEventV2(
+    llmRequest: LLMRequest,
+  ): Promise<AggregatedHookResult> {
+    const input: BeforeModelInput = {
+      ...this.createBaseInput(HookEventName.BeforeModel),
+      llm_request: llmRequest,
+    };
+
+    return this.executeHooks(HookEventName.BeforeModel, input);
+  }
+
+  /**
    * Fire an AfterModel event
    * Called by handleHookExecutionRequest - executes hooks directly
+   * @deprecated Use fireAfterModelEventV2 for provider-independent code.
    */
   async fireAfterModelEvent(
     llmRequest: GenerateContentParameters,
@@ -231,8 +249,26 @@ export class HookEventHandler {
   }
 
   /**
+   * Fire an AfterModel event with provider-independent types.
+   * Skips hookTranslator conversion since inputs are already in LLM format.
+   */
+  async fireAfterModelEventV2(
+    llmRequest: LLMRequest,
+    llmResponse: LLMResponse,
+  ): Promise<AggregatedHookResult> {
+    const input: AfterModelInput = {
+      ...this.createBaseInput(HookEventName.AfterModel),
+      llm_request: llmRequest,
+      llm_response: llmResponse,
+    };
+
+    return this.executeHooks(HookEventName.AfterModel, input);
+  }
+
+  /**
    * Fire a BeforeToolSelection event
    * Called by handleHookExecutionRequest - executes hooks directly
+   * @deprecated Use fireBeforeToolSelectionEventV2 for provider-independent code.
    */
   async fireBeforeToolSelectionEvent(
     llmRequest: GenerateContentParameters,
@@ -240,6 +276,21 @@ export class HookEventHandler {
     const input: BeforeToolSelectionInput = {
       ...this.createBaseInput(HookEventName.BeforeToolSelection),
       llm_request: defaultHookTranslator.toHookLLMRequest(llmRequest),
+    };
+
+    return this.executeHooks(HookEventName.BeforeToolSelection, input);
+  }
+
+  /**
+   * Fire a BeforeToolSelection event with provider-independent LLMRequest.
+   * Skips hookTranslator conversion since input is already in LLMRequest format.
+   */
+  async fireBeforeToolSelectionEventV2(
+    llmRequest: LLMRequest,
+  ): Promise<AggregatedHookResult> {
+    const input: BeforeToolSelectionInput = {
+      ...this.createBaseInput(HookEventName.BeforeToolSelection),
+      llm_request: llmRequest,
     };
 
     return this.executeHooks(HookEventName.BeforeToolSelection, input);

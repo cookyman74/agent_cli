@@ -32,6 +32,11 @@ import type {
   ToolConfig,
   ToolListUnion,
 } from '@google/genai';
+import type {
+  LLMRequest,
+  LLMResponse,
+  HookToolConfig,
+} from './hookTranslator.js';
 import type { ToolCallConfirmationDetails } from '../tools/tools.js';
 
 /**
@@ -45,22 +50,30 @@ export interface BeforeModelHookResult {
   stopped?: boolean;
   /** Reason for blocking (if blocked) */
   reason?: string;
-  /** Synthetic response to return instead of calling the model (if blocked) */
+  /** @deprecated Use syntheticLLMResponse for provider-independent code. */
   syntheticResponse?: GenerateContentResponse;
-  /** Modified config (if not blocked) */
+  /** Provider-independent synthetic response */
+  syntheticLLMResponse?: LLMResponse;
+  /** @deprecated Use modifiedLLMConfig for provider-independent code. */
   modifiedConfig?: GenerateContentConfig;
-  /** Modified contents (if not blocked) */
+  /** Provider-independent modified config */
+  modifiedLLMConfig?: LLMRequest['config'];
+  /** @deprecated Use modifiedMessages for provider-independent code. */
   modifiedContents?: ContentListUnion;
+  /** Provider-independent modified messages */
+  modifiedMessages?: LLMRequest['messages'];
 }
 
 /**
  * Result from firing the BeforeToolSelection hook.
  */
 export interface BeforeToolSelectionHookResult {
-  /** Modified tool config */
+  /** @deprecated Use hookToolConfig for provider-independent code. */
   toolConfig?: ToolConfig;
-  /** Modified tools */
+  /** @deprecated Use hookTools for provider-independent code. */
   tools?: ToolListUnion;
+  /** Provider-independent tool config */
+  hookToolConfig?: HookToolConfig;
 }
 
 /**
@@ -68,8 +81,10 @@ export interface BeforeToolSelectionHookResult {
  * Contains either a modified response or indicates to use the original chunk.
  */
 export interface AfterModelHookResult {
-  /** The response to yield (either modified or original) */
-  response: GenerateContentResponse;
+  /** @deprecated Use llmResponse for provider-independent code. Undefined when called via LLMRequest path. */
+  response?: GenerateContentResponse;
+  /** Provider-independent response */
+  llmResponse?: LLMResponse;
   /** Whether the execution should be stopped entirely */
   stopped?: boolean;
   /** Whether the model call was blocked */
@@ -245,11 +260,17 @@ export class HookSystem {
   }
 
   async fireBeforeModelEvent(
-    llmRequest: GenerateContentParameters,
+    llmRequest: GenerateContentParameters | LLMRequest,
   ): Promise<BeforeModelHookResult> {
+    const isLegacy = 'contents' in llmRequest;
     try {
-      const result =
-        await this.hookEventHandler.fireBeforeModelEvent(llmRequest);
+      const result = isLegacy
+        ? await this.hookEventHandler.fireBeforeModelEvent(
+            llmRequest,
+          )
+        : await this.hookEventHandler.fireBeforeModelEventV2(
+            llmRequest,
+          );
       const hookOutput = result.finalOutput;
 
       if (hookOutput?.shouldStopExecution()) {
@@ -264,11 +285,14 @@ export class HookSystem {
       if (blockingError?.blocked) {
         const beforeModelOutput = hookOutput as BeforeModelHookOutput;
         const syntheticResponse = beforeModelOutput.getSyntheticResponse();
+        const syntheticLLMResponse =
+          beforeModelOutput.getSyntheticLLMResponse();
         return {
           blocked: true,
           reason:
             hookOutput?.getEffectiveReason() || 'Model call blocked by hook',
           syntheticResponse,
+          syntheticLLMResponse,
         };
       }
 
@@ -276,11 +300,22 @@ export class HookSystem {
         const beforeModelOutput = hookOutput as BeforeModelHookOutput;
         const modifiedRequest =
           beforeModelOutput.applyLLMRequestModifications(llmRequest);
-        return {
-          blocked: false,
-          modifiedConfig: modifiedRequest?.config,
-          modifiedContents: modifiedRequest?.contents,
-        };
+
+        if (isLegacy) {
+          const sdkRequest = modifiedRequest as GenerateContentParameters;
+          return {
+            blocked: false,
+            modifiedConfig: sdkRequest?.config,
+            modifiedContents: sdkRequest?.contents,
+          };
+        } else {
+          const llmReq = modifiedRequest as LLMRequest;
+          return {
+            blocked: false,
+            modifiedLLMConfig: llmReq?.config,
+            modifiedMessages: llmReq?.messages,
+          };
+        }
       }
 
       return { blocked: false };
@@ -291,19 +326,26 @@ export class HookSystem {
   }
 
   async fireAfterModelEvent(
-    originalRequest: GenerateContentParameters,
-    chunk: GenerateContentResponse,
+    originalRequest: GenerateContentParameters | LLMRequest,
+    chunk: GenerateContentResponse | LLMResponse,
   ): Promise<AfterModelHookResult> {
+    const isLegacy = 'contents' in originalRequest;
     try {
-      const result = await this.hookEventHandler.fireAfterModelEvent(
-        originalRequest,
-        chunk,
-      );
+      const result = isLegacy
+        ? await this.hookEventHandler.fireAfterModelEvent(
+            originalRequest,
+            chunk as GenerateContentResponse,
+          )
+        : await this.hookEventHandler.fireAfterModelEventV2(
+            originalRequest,
+            chunk as LLMResponse,
+          );
       const hookOutput = result.finalOutput;
 
       if (hookOutput?.shouldStopExecution()) {
         return {
-          response: chunk,
+          response: isLegacy ? (chunk as GenerateContentResponse) : undefined,
+          llmResponse: isLegacy ? undefined : (chunk as LLMResponse),
           stopped: true,
           reason: hookOutput.getEffectiveReason(),
         };
@@ -312,7 +354,8 @@ export class HookSystem {
       const blockingError = hookOutput?.getBlockingError();
       if (blockingError?.blocked) {
         return {
-          response: chunk,
+          response: isLegacy ? (chunk as GenerateContentResponse) : undefined,
+          llmResponse: isLegacy ? undefined : (chunk as LLMResponse),
           blocked: true,
           reason: hookOutput?.getEffectiveReason(),
         };
@@ -320,39 +363,69 @@ export class HookSystem {
 
       if (hookOutput) {
         const afterModelOutput = hookOutput as AfterModelHookOutput;
-        const modifiedResponse = afterModelOutput.getModifiedResponse();
-        if (modifiedResponse) {
-          return { response: modifiedResponse };
+
+        if (isLegacy) {
+          const modifiedResponse = afterModelOutput.getModifiedResponse();
+          if (modifiedResponse) {
+            return { response: modifiedResponse };
+          }
+        } else {
+          const modifiedLLMResponse = afterModelOutput.getModifiedLLMResponse();
+          if (modifiedLLMResponse) {
+            return {
+              llmResponse: modifiedLLMResponse,
+            };
+          }
         }
       }
 
-      return { response: chunk };
+      return {
+        response: isLegacy ? (chunk as GenerateContentResponse) : undefined,
+        llmResponse: isLegacy ? undefined : (chunk as LLMResponse),
+      };
     } catch (error) {
       debugLogger.debug(`AfterModelHookEvent failed:`, error);
-      return { response: chunk };
+      return {
+        response: isLegacy ? (chunk as GenerateContentResponse) : undefined,
+        llmResponse: isLegacy ? undefined : (chunk as LLMResponse),
+      };
     }
   }
 
   async fireBeforeToolSelectionEvent(
-    llmRequest: GenerateContentParameters,
+    llmRequest: GenerateContentParameters | LLMRequest,
   ): Promise<BeforeToolSelectionHookResult> {
+    const isLegacy = 'contents' in llmRequest;
     try {
-      const result =
-        await this.hookEventHandler.fireBeforeToolSelectionEvent(llmRequest);
+      const result = isLegacy
+        ? await this.hookEventHandler.fireBeforeToolSelectionEvent(
+            llmRequest,
+          )
+        : await this.hookEventHandler.fireBeforeToolSelectionEventV2(
+            llmRequest,
+          );
       const hookOutput = result.finalOutput;
 
       if (hookOutput) {
         const toolSelectionOutput = hookOutput as BeforeToolSelectionHookOutput;
-        const modifiedConfig = toolSelectionOutput.applyToolConfigModifications(
-          {
-            toolConfig: llmRequest.config?.toolConfig,
-            tools: llmRequest.config?.tools,
-          },
-        );
-        return {
-          toolConfig: modifiedConfig.toolConfig,
-          tools: modifiedConfig.tools,
-        };
+
+        if (isLegacy) {
+          const sdkRequest = llmRequest;
+          const modifiedConfig =
+            toolSelectionOutput.applyToolConfigModifications({
+              toolConfig: sdkRequest.config?.toolConfig,
+              tools: sdkRequest.config?.tools,
+            });
+          return {
+            toolConfig: modifiedConfig.toolConfig as ToolConfig | undefined,
+            tools: modifiedConfig.tools as ToolListUnion | undefined,
+          };
+        } else {
+          const hookToolConfig = toolSelectionOutput.getHookToolConfig();
+          return {
+            hookToolConfig,
+          };
+        }
       }
       return {};
     } catch (error) {

@@ -380,5 +380,158 @@ describe('GeminiEventMapper', () => {
 
       expect(geminiEvent.type).toBe(GeminiEventType.Error);
     });
+
+    it('should reverse map Finished -> Finished with usage', () => {
+      const llmEvent: LlmEvent = {
+        type: LlmEventType.Finished,
+        finishReason: 'end_turn',
+        usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+      };
+
+      const geminiEvent = mapper.toGeminiEvent(llmEvent);
+
+      expect(geminiEvent.type).toBe(GeminiEventType.Finished);
+      expect(geminiEvent).toMatchObject({
+        type: GeminiEventType.Finished,
+        value: {
+          reason: 'STOP',
+          usageMetadata: {
+            promptTokenCount: 100,
+            candidatesTokenCount: 50,
+            totalTokenCount: 150,
+          },
+        },
+      });
+    });
+
+    it('should reverse map ThoughtDelta -> Thought', () => {
+      const llmEvent: LlmEvent = {
+        type: LlmEventType.ThoughtDelta,
+        thought: 'Thinking...',
+        traceId: 'trace-t',
+      };
+
+      const geminiEvent = mapper.toGeminiEvent(llmEvent);
+
+      expect(geminiEvent.type).toBe(GeminiEventType.Thought);
+      expect(geminiEvent).toMatchObject({
+        type: GeminiEventType.Thought,
+        value: { subject: 'Thought', description: 'Thinking...' },
+        traceId: 'trace-t',
+      });
+    });
+
+    it('should throw for unsupported LlmEvent types in reverse mapping', () => {
+      const llmEvent: LlmEvent = {
+        type: LlmEventType.ChatCompressed,
+        originalTokens: 10000,
+        compressedTokens: 2000,
+      };
+
+      expect(() => mapper.toGeminiEvent(llmEvent)).toThrow(
+        "Cannot convert LlmEvent type 'chat_compressed' to Gemini event",
+      );
+    });
+  });
+
+  describe('toLlmEvent - Edge Cases', () => {
+    it('should map Finished without usageMetadata', () => {
+      const geminiEvent: ServerGeminiFinishedEvent = {
+        type: GeminiEventType.Finished,
+        value: {
+          reason: 'MAX_TOKENS' as unknown as FinishReason,
+          usageMetadata: undefined,
+        },
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.Finished,
+        finishReason: 'max_tokens',
+        usage: undefined,
+      });
+    });
+
+    it('should map SAFETY FinishReason to content_filter', () => {
+      const geminiEvent: ServerGeminiFinishedEvent = {
+        type: GeminiEventType.Finished,
+        value: {
+          reason: 'SAFETY' as unknown as FinishReason,
+          usageMetadata: undefined,
+        },
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.Finished,
+        finishReason: 'content_filter',
+      });
+    });
+
+    it('should map Error without status code', () => {
+      const geminiEvent: ServerGeminiErrorEvent = {
+        type: GeminiEventType.Error,
+        value: {
+          error: { message: 'Network error' },
+        },
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.Error,
+        error: 'Network error',
+        code: undefined,
+      });
+    });
+
+    it('should map ChatCompressed with null value', () => {
+      const geminiEvent: ServerGeminiChatCompressedEvent = {
+        type: GeminiEventType.ChatCompressed,
+        value: null,
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.ChatCompressed,
+        originalTokens: undefined,
+        compressedTokens: undefined,
+      });
+    });
+
+    it('should map ToolCallResponse with error', () => {
+      const geminiEvent: ServerGeminiToolCallResponseEvent = {
+        type: GeminiEventType.ToolCallResponse,
+        value: {
+          callId: 'call-err',
+          responseParts: [],
+          resultDisplay: undefined,
+          error: new Error('Tool execution failed'),
+          errorType: undefined,
+        } as unknown as ToolCallResponseInfo,
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.ToolCallResponse,
+        callId: 'call-err',
+        isError: true,
+        result: 'Tool execution failed',
+      });
+    });
+
+    it('should map unknown GeminiEventType to Error', () => {
+      const unknownEvent = {
+        type: 'unknown_event_type',
+      } as unknown as import('./types.js').ServerGeminiStreamEvent;
+
+      const llmEvent = mapper.toLlmEvent(unknownEvent);
+
+      expect(llmEvent.type).toBe(LlmEventType.Error);
+    });
   });
 });

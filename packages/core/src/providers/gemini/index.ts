@@ -11,3 +11,7 @@
 
 export * from './types.js';
 export { GeminiEventMapper } from './eventMapper.js';
+export {
+  convertGeminiStream,
+  convertGeminiStreamWithReturn,
+} from './streamConverter.js';

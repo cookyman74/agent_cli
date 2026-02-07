@@ -52,6 +52,12 @@ import {
 } from '../availability/policyHelpers.js';
 import { coreEvents } from '../utils/events.js';
 
+/**
+ * @deprecated Use GeminiEventType from providers/gemini/types.ts and
+ * LlmEventType from providers/events.ts instead. StreamEventType is a
+ * Gemini-internal transport type that will be moved to providers/gemini/
+ * in a future milestone (M2.3+).
+ */
 export enum StreamEventType {
   /** A regular content chunk from the API. */
   CHUNK = 'chunk',
@@ -64,6 +70,12 @@ export enum StreamEventType {
   AGENT_EXECUTION_BLOCKED = 'agent_execution_blocked',
 }
 
+/**
+ * @deprecated Use ServerGeminiStreamEvent from providers/gemini/types.ts and
+ * LlmEvent from providers/events.ts instead. StreamEvent is a Gemini-internal
+ * transport type that will be moved to providers/gemini/ in a future
+ * milestone (M2.3+).
+ */
 export type StreamEvent =
   | { type: StreamEventType.CHUNK; value: GenerateContentResponse }
   | { type: StreamEventType.RETRY }

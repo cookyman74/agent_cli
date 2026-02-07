@@ -183,7 +183,7 @@ export class GeminiEventMapper {
         return {
           type: GeminiEventType.Finished,
           value: {
-            reason: this.toLlmFinishReasonToGemini(llmEvent.finishReason),
+            reason: this.toGeminiFinishReason(llmEvent.finishReason),
             usageMetadata: llmEvent.usage
               ? {
                   promptTokenCount: llmEvent.usage.promptTokens,
@@ -432,7 +432,7 @@ export class GeminiEventMapper {
   /**
    * Reverse map LlmFinishReason to Gemini FinishReason.
    */
-  private toLlmFinishReasonToGemini(
+  private toGeminiFinishReason(
     reason: LlmFinishReason | undefined,
   ): FinishReason | undefined {
     if (!reason) return undefined;

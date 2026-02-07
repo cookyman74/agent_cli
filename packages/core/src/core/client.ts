@@ -652,6 +652,8 @@ export class GeminiClient {
     let isInvalidStream = false;
 
     for await (const event of resultStream) {
+      // TODO(M2.3): Migrate to loopDetector.addAndCheckLlm() when
+      // processTurn yields LlmEvent instead of ServerGeminiStreamEvent.
       if (this.loopDetector.addAndCheck(event)) {
         yield { type: GeminiEventType.LoopDetected };
         controller.abort();

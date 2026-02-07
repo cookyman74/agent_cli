@@ -18,6 +18,8 @@ import type {
   ServerGeminiToolCallRequestEvent,
 } from '../core/turn.js';
 import { GeminiEventType } from '../core/turn.js';
+import { LlmEventType } from '../providers/events.js';
+import type { LlmEvent } from '../providers/events.js';
 import * as loggers from '../telemetry/loggers.js';
 import { LoopType } from '../telemetry/types.js';
 import { LoopDetectionService } from './loopDetectionService.js';
@@ -719,6 +721,120 @@ describe('LoopDetectionService', () => {
       } as unknown as ServerGeminiStreamEvent;
       expect(service.addAndCheck(otherEvent)).toBe(false);
       expect(service.addAndCheck(otherEvent)).toBe(false);
+    });
+  });
+
+  describe('addAndCheckLlm - LlmEvent support (M2.2.2.3)', () => {
+    it('should detect tool call loop via LlmEvent ToolCallRequest', () => {
+      const llmToolCallEvent: LlmEvent = {
+        type: LlmEventType.ToolCallRequest,
+        callId: 'call-1',
+        name: 'testTool',
+        args: { param: 'value' },
+      };
+      for (let i = 0; i < TOOL_CALL_LOOP_THRESHOLD - 1; i++) {
+        expect(service.addAndCheckLlm(llmToolCallEvent)).toBe(false);
+      }
+      expect(service.addAndCheckLlm(llmToolCallEvent)).toBe(true);
+      expect(loggers.logLoopDetected).toHaveBeenCalledTimes(1);
+    });
+
+    it('should detect content loop via LlmEvent TextDelta', () => {
+      service.reset('');
+      const repeatedContent = createRepetitiveContent(1, CONTENT_CHUNK_SIZE);
+      const llmTextEvent: LlmEvent = {
+        type: LlmEventType.TextDelta,
+        text: repeatedContent,
+      };
+
+      let isLoop = false;
+      for (let i = 0; i < CONTENT_LOOP_THRESHOLD; i++) {
+        isLoop = service.addAndCheckLlm(llmTextEvent);
+      }
+      expect(isLoop).toBe(true);
+      expect(loggers.logLoopDetected).toHaveBeenCalledTimes(1);
+    });
+
+    it('should reset content tracking when ToolCallRequest arrives', () => {
+      service.reset('');
+      const repeatedContent = createRepetitiveContent(1, CONTENT_CHUNK_SIZE);
+      const llmTextEvent: LlmEvent = {
+        type: LlmEventType.TextDelta,
+        text: repeatedContent,
+      };
+      const llmToolCallEvent: LlmEvent = {
+        type: LlmEventType.ToolCallRequest,
+        callId: 'call-1',
+        name: 'someTool',
+        args: { key: 'val' },
+      };
+
+      // Build up near content loop threshold
+      for (let i = 0; i < CONTENT_LOOP_THRESHOLD - 2; i++) {
+        service.addAndCheckLlm(llmTextEvent);
+      }
+
+      // Tool call should reset content tracking
+      service.addAndCheckLlm(llmToolCallEvent);
+
+      // Content should start fresh — no loop detection
+      for (let i = 0; i < CONTENT_LOOP_THRESHOLD - 2; i++) {
+        expect(service.addAndCheckLlm(llmTextEvent)).toBe(false);
+      }
+    });
+
+    it('should return false for non-monitored LlmEvent types', () => {
+      const finishedEvent: LlmEvent = {
+        type: LlmEventType.Finished,
+        finishReason: 'end_turn',
+      };
+      const errorEvent: LlmEvent = {
+        type: LlmEventType.Error,
+        error: 'some error',
+      };
+      const retryEvent: LlmEvent = {
+        type: LlmEventType.Retry,
+      };
+
+      expect(service.addAndCheckLlm(finishedEvent)).toBe(false);
+      expect(service.addAndCheckLlm(errorEvent)).toBe(false);
+      expect(service.addAndCheckLlm(retryEvent)).toBe(false);
+    });
+
+    it('should respect disabledForSession flag', () => {
+      service.disableForSession();
+      const llmToolCallEvent: LlmEvent = {
+        type: LlmEventType.ToolCallRequest,
+        callId: 'call-1',
+        name: 'testTool',
+        args: { param: 'value' },
+      };
+
+      for (let i = 0; i < TOOL_CALL_LOOP_THRESHOLD + 5; i++) {
+        expect(service.addAndCheckLlm(llmToolCallEvent)).toBe(false);
+      }
+      expect(loggers.logLoopDetected).not.toHaveBeenCalled();
+    });
+
+    it('should share state between addAndCheck and addAndCheckLlm', () => {
+      // Start with legacy Gemini events
+      const geminiEvent = createToolCallRequestEvent('testTool', {
+        param: 'value',
+      });
+      for (let i = 0; i < TOOL_CALL_LOOP_THRESHOLD - 2; i++) {
+        expect(service.addAndCheck(geminiEvent)).toBe(false);
+      }
+
+      // Switch to LlmEvent — should continue the same counter
+      const llmToolCallEvent: LlmEvent = {
+        type: LlmEventType.ToolCallRequest,
+        callId: 'test-id',
+        name: 'testTool',
+        args: { param: 'value' },
+      };
+      expect(service.addAndCheckLlm(llmToolCallEvent)).toBe(false); // threshold - 1
+      expect(service.addAndCheckLlm(llmToolCallEvent)).toBe(true); // threshold reached
+      expect(loggers.logLoopDetected).toHaveBeenCalledTimes(1);
     });
   });
 });

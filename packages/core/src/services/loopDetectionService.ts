@@ -8,6 +8,8 @@ import type { Content } from '@google/genai';
 import { createHash } from 'node:crypto';
 import type { ServerGeminiStreamEvent } from '../core/turn.js';
 import { GeminiEventType } from '../core/turn.js';
+import { LlmEventType } from '../providers/events.js';
+import type { LlmEvent } from '../providers/events.js';
 import {
   logLoopDetected,
   logLoopDetectionDisabled,
@@ -143,6 +145,8 @@ export class LoopDetectionService {
 
   /**
    * Processes a stream event and checks for loop conditions.
+   * @deprecated Use addAndCheckLlm() with LlmEvent instead.
+   * This method will be removed when all consumers migrate to LlmEvent.
    * @param event - The stream event to process
    * @returns true if a loop is detected, false otherwise
    */
@@ -164,6 +168,40 @@ export class LoopDetectionService {
         break;
       case GeminiEventType.Content:
         this.loopDetected = this.checkContentLoop(event.value);
+        break;
+      default:
+        break;
+    }
+    return this.loopDetected;
+  }
+
+  /**
+   * Processes a provider-independent LlmEvent and checks for loop conditions.
+   * Shares internal state with addAndCheck() so both APIs can be used
+   * interchangeably during the migration period.
+   *
+   * @param event - The provider-independent LlmEvent to process
+   * @returns true if a loop is detected, false otherwise
+   */
+  addAndCheckLlm(event: LlmEvent): boolean {
+    if (this.disabledForSession) {
+      return false;
+    }
+
+    if (this.loopDetected) {
+      return this.loopDetected;
+    }
+
+    switch (event.type) {
+      case LlmEventType.ToolCallRequest:
+        this.resetContentTracking();
+        this.loopDetected = this.checkToolCallLoop({
+          name: event.name,
+          args: event.args,
+        });
+        break;
+      case LlmEventType.TextDelta:
+        this.loopDetected = this.checkContentLoop(event.text);
         break;
       default:
         break;

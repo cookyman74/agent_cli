@@ -393,24 +393,24 @@ describe('GeminiEventMapper', () => {
 
 ### 2.2.2 StreamEvent → LlmStreamEvent 전환
 
-| ID      | 작업                                | 상태 | 테스트 파일           |
-| ------- | ----------------------------------- | ---- | --------------------- |
-| 2.2.2.1 | 현재 `StreamEvent` 사용처 전체 스캔 | ⬜   | N/A (분석)            |
-| 2.2.2.2 | `LlmStreamEvent` alias 추가 (병행)  | ⬜   | `streamEvent.test.ts` |
-| 2.2.2.3 | 핵심 경로 `LlmStreamEvent` 전환     | ⬜   | `streamEvent.test.ts` |
-| 2.2.2.4 | 비핵심 경로 점진적 전환             | ⬜   | `streamEvent.test.ts` |
-| 2.2.2.5 | 레거시 `StreamEvent` deprecate 표시 | ⬜   | N/A (문서)            |
+| ID      | 작업                                                    | 상태 | 테스트 파일                    |
+| ------- | ------------------------------------------------------- | ---- | ------------------------------ |
+| 2.2.2.1 | 현재 `StreamEvent` 사용처 전체 스캔                     | ✅   | N/A (분석)                     |
+| 2.2.2.2 | 스트림 변환 유틸리티 (`streamConverter.ts`)             | ✅   | `streamConverter.test.ts`      |
+| 2.2.2.3 | `loopDetectionService.addAndCheckLlm()` 추가            | ✅   | `loopDetectionService.test.ts` |
+| 2.2.2.4 | 비핵심 경로 점진적 전환 (client.ts 마이그레이션 코멘트) | ✅   | N/A (코멘트)                   |
+| 2.2.2.5 | 레거시 `StreamEvent` / `addAndCheck` deprecate 표시     | ✅   | N/A (문서)                     |
 
 ### 2.2.2a 🆕 geminiChat.ts StreamEventType 매핑 (리뷰 반영)
 
-| ID       | 작업                                                 | 상태 | 테스트 파일           |
-| -------- | ---------------------------------------------------- | ---- | --------------------- |
-| 2.2.2a.1 | `geminiChat.ts` 내부 `StreamEventType` enum 분석     | ⬜   | N/A (분석)            |
-| 2.2.2a.2 | `StreamEventType.CHUNK` → `LlmStreamEvent` 매핑      | ⬜   | `geminiChat.test.ts`  |
-| 2.2.2a.3 | `StreamEventType.RETRY` → `LlmStreamEvent` 매핑      | ⬜   | `geminiChat.test.ts`  |
-| 2.2.2a.4 | `StreamEventType.AGENT_EXECUTION_STOPPED` 매핑       | ⬜   | `geminiChat.test.ts`  |
-| 2.2.2a.5 | `StreamEventType.AGENT_EXECUTION_BLOCKED` 매핑       | ⬜   | `geminiChat.test.ts`  |
-| 2.2.2a.6 | 두 체계(GeminiEventType + StreamEventType) 통합 전략 | ⬜   | `eventMapper.test.ts` |
+| ID       | 작업                                                                 | 상태 | 테스트 파일               |
+| -------- | -------------------------------------------------------------------- | ---- | ------------------------- |
+| 2.2.2a.1 | `geminiChat.ts` 내부 `StreamEventType` enum 분석                     | ✅   | N/A (분석)                |
+| 2.2.2a.2 | `StreamEventType.CHUNK` → 1:N 분해로 직접 매핑 불가 확인             | ✅   | N/A (설계 결정)           |
+| 2.2.2a.3 | `StreamEventType.RETRY` → Turn 경유 GeminiEventType.Retry → LlmEvent | ✅   | N/A (기존 경로)           |
+| 2.2.2a.4 | `StreamEventType.AGENT_EXECUTION_STOPPED` → 기존 경로 확인           | ✅   | N/A (기존 경로)           |
+| 2.2.2a.5 | `StreamEventType.AGENT_EXECUTION_BLOCKED` → 기존 경로 확인           | ✅   | N/A (기존 경로)           |
+| 2.2.2a.6 | StreamEventType @deprecated + 변환 경계 Turn 출력 레벨로 결정        | ✅   | `streamConverter.test.ts` |
 
 **geminiChat.ts 내부 StreamEventType (4개)**:
 

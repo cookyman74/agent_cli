@@ -221,29 +221,9 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 
 ## 🔖 커밋 정보
 
-> 커밋 전 상태 - 사용자 검토 후 커밋 예정
-
-**예정 커밋 메시지:**
-
-```
-feat(providers): add stream conversion utilities and LlmEvent loop detection
-
-M2.2.1 Review:
-- Rename toLlmFinishReasonToGemini → toGeminiFinishReason
-- Add 9 edge case tests for EventMapper (20 → 29 tests)
-
-M2.2.2 StreamEvent → LlmEvent:
-- Add convertGeminiStream/convertGeminiStreamWithReturn in streamConverter.ts
-- Add addAndCheckLlm(LlmEvent) to LoopDetectionService (shared state with legacy)
-- Mark StreamEventType/StreamEvent and addAndCheck as @deprecated
-- Add migration comment to client.ts for M2.3
-
-M2.2.2a StreamEventType integration:
-- Confirm CHUNK 1:N decomposition prevents direct mapping
-- Conversion boundary set at Turn output level
-
-All 87 related tests pass, TypeScript clean
-```
+| 순서 | 커밋 ID     | 설명                                                |
+| ---- | ----------- | --------------------------------------------------- |
+| 1    | `819cadbd8` | M2.2.1 리뷰 수정 + M2.2.2 스트림 변환 + @deprecated |
 
 ---
 
@@ -253,9 +233,9 @@ All 87 related tests pass, TypeScript clean
 - [x] TypeScript 컴파일 에러 없음
 - [x] 체크리스트 최종 확인 (2.2.1 ✅, 2.2.2 ✅, 2.2.2a ✅)
 - [x] 작업 결과서 작성
-- [ ] 커밋: 사용자 검토 후
+- [x] 커밋: `819cadbd8`
 - [x] 이슈 전달: 다음 작업(M2.3)에 전달할 이슈 문서화
 
 ---
 
-**최종 상태**: ✅ 완료 (커밋 대기)
+**최종 상태**: ✅ 완료

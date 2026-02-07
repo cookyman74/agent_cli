@@ -23,3 +23,11 @@ export {
   classifyGeminiError,
   type GeminiErrorClassification,
 } from './errorClassifier.js';
+export { GeminiAdapter, type GeminiModelsApi } from './adapter.js';
+export { GeminiConverter } from './converter.js';
+export {
+  isMultiProviderEnabled,
+  setMultiProviderOverride,
+  clearMultiProviderOverride,
+  withFallback,
+} from './featureFlag.js';

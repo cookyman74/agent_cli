@@ -31,3 +31,7 @@ export {
   clearMultiProviderOverride,
   withFallback,
 } from './featureFlag.js';
+export {
+  createAdapterBridge,
+  type BridgeableGenerator,
+} from './adapterBridge.js';

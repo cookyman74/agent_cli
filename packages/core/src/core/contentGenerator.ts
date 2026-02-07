@@ -31,6 +31,10 @@ import { FakeContentGenerator } from './fakeContentGenerator.js';
 import { parseCustomHeaders } from '../utils/customHeaderUtils.js';
 import { RecordingContentGenerator } from './recordingContentGenerator.js';
 import { getVersion, resolveModel } from '../../index.js';
+import {
+  createAdapterBridge,
+  type BridgeableGenerator,
+} from '../providers/gemini/adapterBridge.js';
 
 /**
  * Gemini-specific content generator interface.
@@ -233,7 +237,14 @@ export async function createContentGenerator(
         vertexai: config.vertexai,
         httpOptions,
       });
-      return new LoggingContentGenerator(googleGenAI.models, gcConfig);
+      const bridgedModels = createAdapterBridge(
+        googleGenAI.models as unknown as BridgeableGenerator,
+        { apiKey: config.apiKey },
+      );
+      return new LoggingContentGenerator(
+        bridgedModels as ContentGenerator,
+        gcConfig,
+      );
     }
     throw new Error(
       `Error creating contentGenerator: Unsupported authType: ${config.authType}`,

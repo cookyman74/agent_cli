@@ -82,13 +82,13 @@
 
 **코드 근거:**
 
-- `baseLlmClient.ts:164-225`: `convertLlmMessagesToContents()` 함수가
+- `baseLlmClient.ts:166-231`: `convertLlmMessagesToContents()` 함수가
   `LlmMessage[]` → `Content[]` 변환
-- `baseLlmClient.ts:232-234`: `isLlmGenerateJsonOptions()` 타입 가드로 분기
-- `baseLlmClient.ts:241-245`: `isLlmGenerateContentOptions()` 타입 가드로 분기
-- `baseLlmClient.ts:257-258`:
+- `baseLlmClient.ts:236-239`: `isLlmGenerateJsonOptions()` 타입 가드로 분기
+- `baseLlmClient.ts:245-249`: `isLlmGenerateContentOptions()` 타입 가드로 분기
+- `baseLlmClient.ts:265-266`:
   `generateJson(options: GenerateJsonOptions | LlmGenerateJsonOptions)`
-- `baseLlmClient.ts:370-371`:
+- `baseLlmClient.ts:373-375`:
   `generateContent(options: GenerateContentOptions | LlmGenerateContentOptions)`
 - `baseLlmClient_new_types.test.ts`: 9개 테스트가 새 타입 경로 검증
 
@@ -129,7 +129,7 @@ providers/types.ts:364 →  interface ContentGenerator {
 **2차 리뷰 조치:**
 
 - `baseLlmClient.ts:16-17`: TODO(M2.2) 코멘트 추가
-- `baseLlmClient.ts:248-253`: 클래스 JSDoc에 의존성 제한사항 명시
+- `baseLlmClient.ts:254-257`: 클래스 JSDoc에 의존성 제한사항 명시
 - 해결 시점: M2.3 `GeminiAdapter` 구현 시 생성자가 프로바이더 독립 인터페이스를
   받도록 리팩토링
 
@@ -154,9 +154,9 @@ providers/types.ts:364 →  interface ContentGenerator {
 
 | 이슈                             | 현재 상태                                                                                               | 해결 시점                     | 코드 위치                  |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------- |
-| BaseLlmClient 생성자 Gemini 의존 | `core/contentGenerator.ts`의 `ContentGenerator` 주입 → `providers/types.ts`의 독립 인터페이스 주입 불가 | **M2.3** (GeminiAdapter 구현) | `baseLlmClient.ts:16, 252` |
-| 내부 API 호출 Gemini 전용        | `_generateWithRetry()`가 `GenerateContentParameters`로 직접 호출                                        | **M2.3** (어댑터 캡슐화)      | `baseLlmClient.ts:464-469` |
-| 이중 옵션 정의                   | 구형(`GenerateJsonOptions`)/신형(`LlmGenerateJsonOptions`) 타입 공존                                    | 전체 마이그레이션 후          | `baseLlmClient.ts:38, 68`  |
+| BaseLlmClient 생성자 Gemini 의존 | `core/contentGenerator.ts`의 `ContentGenerator` 주입 → `providers/types.ts`의 독립 인터페이스 주입 불가 | **M2.3** (GeminiAdapter 구현) | `baseLlmClient.ts:16, 258` |
+| 내부 API 호출 Gemini 전용        | `_generateWithRetry()`가 `GenerateContentParameters`로 직접 호출                                        | **M2.3** (어댑터 캡슐화)      | `baseLlmClient.ts:462-467` |
+| 이중 옵션 정의                   | 구형(`GenerateJsonOptions`)/신형(`LlmGenerateJsonOptions`) 타입 공존                                    | 전체 마이그레이션 후          | `baseLlmClient.ts:40, 68`  |
 | system role 메시지 병합 미구현   | system role은 필터링만 됨 (systemInstruction과 병합 안됨)                                               | 필요 시                       | `baseLlmClient.ts:168`     |
 
 **생성자 의존성 해소 경로:**
@@ -182,6 +182,8 @@ M2.1.3 (현재) → M2.3 GeminiAdapter 구현 → BaseLlmClient 생성자 리팩
 | `core/baseLlmClient_new_types.test.ts` | 9개 테스트 (tool, thought, system 테스트 추가)                                      |
 | `routing/strategies/*.test.ts`         | 타입 단언 추가 (2개 파일)                                                           |
 | `services/*.test.ts`                   | 타입 단언 추가 (2개 파일)                                                           |
+| `providers/baseAdapter.test.ts`        | override modifier 추가 (M2.2 관련)                                                  |
+| `providers/streamAssembler.test.ts`    | finishReason 타입 수정 (M2.2 관련)                                                  |
 
 ---
 
@@ -271,25 +273,12 @@ function convertLlmMessagesToContents(messages: LlmMessage[]): Content[] {
 
 ## 🔖 커밋 정보
 
+**커밋**: `2b18279c6`
+
 **커밋 메시지:**
 
 ```
-refactor(core): implement provider-independent types in BaseLlmClient
-
-- Add LlmGenerateJsonOptions/LlmGenerateContentOptions interfaces
-- Implement convertLlmMessagesToContents utility with full content type support
-- Add system role filtering (system messages should use systemInstruction)
-- Update generateJson/generateContent to support new types via overloading
-- Mark legacy options as @deprecated
-- Add comprehensive tests for tool_call, tool_result, thought, system role
-- Fix union type access issues in test files with type assertions
-- All 38 baseLlmClient tests pass
-- TypeScript compilation: 0 errors
-
-Review fixes:
-- Fix system role handling (was passing invalid role to Gemini API)
-- Add type assertions to test files accessing .contents property
-- Fix unrelated M2.2 test issues (override modifier, finishReason type)
+M2.1 BaseLlmClient 프로바이더 독립 타입 전환 및 M2.2 EventMapper 구현
 ```
 
 ---

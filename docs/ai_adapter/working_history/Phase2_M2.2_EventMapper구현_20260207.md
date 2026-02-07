@@ -299,7 +299,7 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 | ---- | ----------- | --------------------------------------------------- |
 | 1    | `819cadbd8` | M2.2.1 리뷰 수정 + M2.2.2 스트림 변환 + @deprecated |
 | 2    | `06e426ae5` | M2.2.3 StreamAssembler 적용 — 통합 파이프라인       |
-| 3    | (미커밋)    | M2.2.4 Gemini 에러 매핑 — errorClassifier 구현      |
+| 3    | `128ede2b9` | M2.2.4 Gemini 에러 매핑 — errorClassifier 구현      |
 
 ---
 
@@ -309,9 +309,9 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 - [x] TypeScript 컴파일 에러 없음
 - [x] 체크리스트 최종 확인 (2.2.1 ✅, 2.2.2 ✅, 2.2.2a ✅, 2.2.3 ✅, 2.2.4 ✅)
 - [x] 작업 결과서 작성
-- [ ] 커밋: (대기)
+- [x] 커밋: `128ede2b9`
 - [x] 이슈 전달: 다음 작업(M2.3)에 전달할 이슈 문서화
 
 ---
 
-**최종 상태**: ✅ 완료 (커밋 대기)
+**최종 상태**: ✅ 완료

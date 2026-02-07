@@ -55,6 +55,9 @@ export * from './events.js';
 // Error types
 export * from './errors.js';
 
+// Telemetry bridge (provider-agnostic telemetry schema)
+export * from './telemetryBridge.js';
+
 // Legacy aliases (for backward compatibility during migration)
 // Note: These are deprecated and will be removed after full migration
 export * from './legacyAliases.js';

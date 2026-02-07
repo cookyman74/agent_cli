@@ -172,12 +172,19 @@ export type LlmStopReason =
 
 /**
  * Token usage statistics.
+ *
+ * Provider-agnostic usage reporting.
+ * Maps to GenAIUsageDetails (telemetry) and provider-specific usage types.
  */
 export interface LlmTokenUsage {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
   cachedTokens?: number;
+  /** Tokens used for extended thinking / chain-of-thought (Gemini thoughts, Claude thinking) */
+  thoughtTokens?: number;
+  /** Tokens used for tool call prompts */
+  toolTokens?: number;
 }
 
 /**

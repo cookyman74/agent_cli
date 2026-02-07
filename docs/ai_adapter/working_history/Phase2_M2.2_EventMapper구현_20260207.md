@@ -243,7 +243,7 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 | 순서 | 커밋 ID     | 설명                                                |
 | ---- | ----------- | --------------------------------------------------- |
 | 1    | `819cadbd8` | M2.2.1 리뷰 수정 + M2.2.2 스트림 변환 + @deprecated |
-| 2    | (pending)   | M2.2.3 StreamAssembler 적용 — 통합 파이프라인       |
+| 2    | `06e426ae5` | M2.2.3 StreamAssembler 적용 — 통합 파이프라인       |
 
 ---
 

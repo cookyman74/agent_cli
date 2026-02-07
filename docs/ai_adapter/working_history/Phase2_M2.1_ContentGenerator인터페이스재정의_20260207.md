@@ -299,12 +299,18 @@ catch (error)
   │   └─ retryAfterMs? → delay(retryAfterMs)
   │       └─ else → exponential backoff
   │
-  └─ Legacy Google path (기존 코드 그대로)
-      ├─ classifyGoogleError(error)
-      ├─ TerminalQuotaError → onPersistent429
-      ├─ ValidationRequiredError → onValidationRequired
-      └─ RetryableQuotaError/5xx → backoff
+  ├─ !classifyErrorFn? ──── Legacy Google path (classifyError 미제공 시에만 실행)
+  │   ├─ classifyGoogleError(error)
+  │   ├─ TerminalQuotaError → onPersistent429
+  │   ├─ ValidationRequiredError → onValidationRequired
+  │   └─ RetryableQuotaError/5xx → backoff
+  │
+  └─ Generic retry (shouldRetryOnError → backoff or throw)
 ```
+
+> **리뷰 반영 (2026-02-07)**: `classifyErrorFn`이 제공된 경우 레거시 Google
+> 경로를 건너뛰도록 수정. 비-Google 프로바이더의 에러(예: Claude 429)가
+> `classifyGoogleError`에 의해 `RetryableQuotaError`로 잘못 분류되는 문제 방지.
 
 ### isRetryableError 변경
 

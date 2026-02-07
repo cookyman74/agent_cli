@@ -276,64 +276,20 @@ export async function retryWithBackoff<T>(
         continue;
       }
 
-      // Legacy Google error path
-      const classifiedError = classifyGoogleError(error);
+      // Legacy Google error path - only used when no custom classifier is provided.
+      // When classifyErrorFn is set, the provider takes responsibility for error
+      // classification via the LlmError path above. Skipping this prevents
+      // non-Google errors (e.g., Claude 429) from being misclassified as
+      // RetryableQuotaError or ModelNotFoundError by classifyGoogleError.
+      if (!classifyErrorFn) {
+        const classifiedError = classifyGoogleError(error);
 
-      const errorCode = getErrorStatus(error);
+        const errorCode = getErrorStatus(error);
 
-      if (
-        classifiedError instanceof TerminalQuotaError ||
-        classifiedError instanceof ModelNotFoundError
-      ) {
-        if (onPersistent429) {
-          try {
-            const fallbackModel = await onPersistent429(
-              authType,
-              classifiedError,
-            );
-            if (fallbackModel) {
-              attempt = 0; // Reset attempts and retry with the new model.
-              currentDelay = initialDelayMs;
-              continue;
-            }
-          } catch (fallbackError) {
-            debugLogger.warn('Fallback to Flash model failed:', fallbackError);
-          }
-        }
-        // Terminal/not_found already recorded; nothing else to mark here.
-        throw classifiedError; // Throw if no fallback or fallback failed.
-      }
-
-      // Handle ValidationRequiredError - user needs to verify before proceeding
-      if (classifiedError instanceof ValidationRequiredError) {
-        if (onValidationRequired) {
-          try {
-            const intent = await onValidationRequired(classifiedError);
-            if (intent === 'verify') {
-              // User verified, retry the request
-              attempt = 0;
-              currentDelay = initialDelayMs;
-              continue;
-            }
-            // 'change_auth' or 'cancel' - mark as handled and throw
-            classifiedError.userHandled = true;
-          } catch (validationError) {
-            debugLogger.warn('Validation handler failed:', validationError);
-          }
-        }
-        throw classifiedError;
-      }
-
-      const is500 =
-        errorCode !== undefined && errorCode >= 500 && errorCode < 600;
-
-      if (classifiedError instanceof RetryableQuotaError || is500) {
-        if (attempt >= maxAttempts) {
-          const errorMessage =
-            classifiedError instanceof Error ? classifiedError.message : '';
-          debugLogger.warn(
-            `Attempt ${attempt} failed${errorMessage ? `: ${errorMessage}` : ''}. Max attempts reached`,
-          );
+        if (
+          classifiedError instanceof TerminalQuotaError ||
+          classifiedError instanceof ModelNotFoundError
+        ) {
           if (onPersistent429) {
             try {
               const fallbackModel = await onPersistent429(
@@ -346,39 +302,92 @@ export async function retryWithBackoff<T>(
                 continue;
               }
             } catch (fallbackError) {
-              debugLogger.warn('Model fallback failed:', fallbackError);
+              debugLogger.warn(
+                'Fallback to Flash model failed:',
+                fallbackError,
+              );
             }
           }
-          throw classifiedError instanceof RetryableQuotaError
-            ? classifiedError
-            : error;
+          // Terminal/not_found already recorded; nothing else to mark here.
+          throw classifiedError; // Throw if no fallback or fallback failed.
         }
 
-        if (
-          classifiedError instanceof RetryableQuotaError &&
-          classifiedError.retryDelayMs !== undefined
-        ) {
-          debugLogger.warn(
-            `Attempt ${attempt} failed: ${classifiedError.message}. Retrying after ${classifiedError.retryDelayMs}ms...`,
-          );
-          if (onRetry) {
-            onRetry(attempt, error, classifiedError.retryDelayMs);
+        // Handle ValidationRequiredError - user needs to verify before proceeding
+        if (classifiedError instanceof ValidationRequiredError) {
+          if (onValidationRequired) {
+            try {
+              const intent = await onValidationRequired(classifiedError);
+              if (intent === 'verify') {
+                // User verified, retry the request
+                attempt = 0;
+                currentDelay = initialDelayMs;
+                continue;
+              }
+              // 'change_auth' or 'cancel' - mark as handled and throw
+              classifiedError.userHandled = true;
+            } catch (validationError) {
+              debugLogger.warn('Validation handler failed:', validationError);
+            }
           }
-          await delay(classifiedError.retryDelayMs, signal);
-          continue;
-        } else {
-          const errorStatus = getErrorStatus(error);
-          logRetryAttempt(attempt, error, errorStatus);
+          throw classifiedError;
+        }
 
-          // Exponential backoff with jitter for non-quota errors
-          const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
-          const delayWithJitter = Math.max(0, currentDelay + jitter);
-          if (onRetry) {
-            onRetry(attempt, error, delayWithJitter);
+        const is500 =
+          errorCode !== undefined && errorCode >= 500 && errorCode < 600;
+
+        if (classifiedError instanceof RetryableQuotaError || is500) {
+          if (attempt >= maxAttempts) {
+            const errorMessage =
+              classifiedError instanceof Error ? classifiedError.message : '';
+            debugLogger.warn(
+              `Attempt ${attempt} failed${errorMessage ? `: ${errorMessage}` : ''}. Max attempts reached`,
+            );
+            if (onPersistent429) {
+              try {
+                const fallbackModel = await onPersistent429(
+                  authType,
+                  classifiedError,
+                );
+                if (fallbackModel) {
+                  attempt = 0; // Reset attempts and retry with the new model.
+                  currentDelay = initialDelayMs;
+                  continue;
+                }
+              } catch (fallbackError) {
+                debugLogger.warn('Model fallback failed:', fallbackError);
+              }
+            }
+            throw classifiedError instanceof RetryableQuotaError
+              ? classifiedError
+              : error;
           }
-          await delay(delayWithJitter, signal);
-          currentDelay = Math.min(maxDelayMs, currentDelay * 2);
-          continue;
+
+          if (
+            classifiedError instanceof RetryableQuotaError &&
+            classifiedError.retryDelayMs !== undefined
+          ) {
+            debugLogger.warn(
+              `Attempt ${attempt} failed: ${classifiedError.message}. Retrying after ${classifiedError.retryDelayMs}ms...`,
+            );
+            if (onRetry) {
+              onRetry(attempt, error, classifiedError.retryDelayMs);
+            }
+            await delay(classifiedError.retryDelayMs, signal);
+            continue;
+          } else {
+            const errorStatus = getErrorStatus(error);
+            logRetryAttempt(attempt, error, errorStatus);
+
+            // Exponential backoff with jitter for non-quota errors
+            const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
+            const delayWithJitter = Math.max(0, currentDelay + jitter);
+            if (onRetry) {
+              onRetry(attempt, error, delayWithJitter);
+            }
+            await delay(delayWithJitter, signal);
+            currentDelay = Math.min(maxDelayMs, currentDelay * 2);
+            continue;
+          }
         }
       }
 

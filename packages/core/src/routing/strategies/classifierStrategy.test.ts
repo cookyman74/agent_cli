@@ -8,7 +8,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClassifierStrategy } from './classifierStrategy.js';
 import type { RoutingContext } from '../routingStrategy.js';
 import type { Config } from '../../config/config.js';
-import type { BaseLlmClient } from '../../core/baseLlmClient.js';
+import type {
+  BaseLlmClient,
+  GenerateJsonOptions,
+} from '../../core/baseLlmClient.js';
 import {
   isFunctionCall,
   isFunctionResponse,
@@ -210,7 +213,7 @@ describe('ClassifierStrategy', () => {
     await strategy.route(mockContext, mockConfig, mockBaseLlmClient);
 
     const generateJsonCall = vi.mocked(mockBaseLlmClient.generateJson).mock
-      .calls[0][0];
+      .calls[0][0] as GenerateJsonOptions;
     const contents = generateJsonCall.contents;
 
     const expectedContents = [
@@ -246,7 +249,7 @@ describe('ClassifierStrategy', () => {
     await strategy.route(mockContext, mockConfig, mockBaseLlmClient);
 
     const generateJsonCall = vi.mocked(mockBaseLlmClient.generateJson).mock
-      .calls[0][0];
+      .calls[0][0] as GenerateJsonOptions;
     const contents = generateJsonCall.contents;
 
     // Manually calculate what the history should be

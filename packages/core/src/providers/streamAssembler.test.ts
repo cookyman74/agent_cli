@@ -246,12 +246,12 @@ describe('StreamAssembler', () => {
     it('should include finish reason when available', () => {
       assembler.processEvent({
         type: LlmEventType.Finished,
-        finishReason: 'stop',
+        finishReason: 'end_turn',
       } as LlmFinishedEvent);
 
       const message = assembler.getAssembledMessage();
 
-      expect(message.finishReason).toBe('stop');
+      expect(message.finishReason).toBe('end_turn');
     });
   });
 

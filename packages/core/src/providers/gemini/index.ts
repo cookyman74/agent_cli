@@ -10,3 +10,4 @@
  */
 
 export * from './types.js';
+export { GeminiEventMapper } from './eventMapper.js';

@@ -13,6 +13,8 @@ import type {
   GenerateContentConfig,
 } from '@google/genai';
 import type { Config } from '../config/config.js';
+// TODO(M2.2): Replace with provider-independent ContentGenerator from '../providers/types.js'
+// after GeminiAdapter implementation. Currently bound to Gemini-specific GeminiContentGenerator.
 import type { ContentGenerator } from './contentGenerator.js';
 import type { AuthType } from './contentGenerator.js';
 import { handleFallback } from '../fallback/handler.js';
@@ -27,11 +29,13 @@ import {
   applyModelSelection,
   createAvailabilityContextProvider,
 } from '../availability/policyHelpers.js';
+import type { LlmMessage } from '../providers/types.js';
 
 const DEFAULT_MAX_ATTEMPTS = 5;
 
 /**
  * Options for the generateJson utility function.
+ * @deprecated Use LlmGenerateJsonOptions for new code.
  */
 export interface GenerateJsonOptions {
   /** The desired model config. */
@@ -58,7 +62,35 @@ export interface GenerateJsonOptions {
 }
 
 /**
+ * Provider-independent options for generateJson.
+ * Uses LlmMessage[] instead of Content[] for multi-provider support.
+ */
+export interface LlmGenerateJsonOptions {
+  /** The desired model config. */
+  modelConfigKey: ModelConfigKey;
+  /** The input prompt or history (provider-independent). */
+  messages: LlmMessage[];
+  /** The required JSON schema for the output. */
+  schema: Record<string, unknown>;
+  /**
+   * Task-specific system instructions (string only for provider independence).
+   */
+  systemInstruction?: string;
+  /** Signal for cancellation. */
+  abortSignal: AbortSignal;
+  /**
+   * A unique ID for the prompt, used for logging/telemetry correlation.
+   */
+  promptId: string;
+  /**
+   * The maximum number of attempts for the request.
+   */
+  maxAttempts?: number;
+}
+
+/**
  * Options for the generateContent utility function.
+ * @deprecated Use LlmGenerateContentOptions for new code.
  */
 export interface GenerateContentOptions {
   /** The desired model config. */
@@ -70,6 +102,31 @@ export interface GenerateContentOptions {
    * If omitted, no system instruction is sent.
    */
   systemInstruction?: string | Part | Part[] | Content;
+  /** Signal for cancellation. */
+  abortSignal: AbortSignal;
+  /**
+   * A unique ID for the prompt, used for logging/telemetry correlation.
+   */
+  promptId: string;
+  /**
+   * The maximum number of attempts for the request.
+   */
+  maxAttempts?: number;
+}
+
+/**
+ * Provider-independent options for generateContent.
+ * Uses LlmMessage[] instead of Content[] for multi-provider support.
+ */
+export interface LlmGenerateContentOptions {
+  /** The desired model config. */
+  modelConfigKey: ModelConfigKey;
+  /** The input prompt or history (provider-independent). */
+  messages: LlmMessage[];
+  /**
+   * Task-specific system instructions (string only for provider independence).
+   */
+  systemInstruction?: string;
   /** Signal for cancellation. */
   abortSignal: AbortSignal;
   /**
@@ -95,8 +152,108 @@ interface _CommonGenerateOptions {
   };
 }
 
+// ============================================================================
+// Type Conversion Utilities
+// ============================================================================
+
+/**
+ * Converts provider-independent LlmMessage[] to Gemini Content[].
+ * This is the bridge between multi-provider types and Gemini-specific types.
+ *
+ * Note: 'system' role messages are filtered out and should be passed
+ * via the systemInstruction parameter instead.
+ */
+function convertLlmMessagesToContents(messages: LlmMessage[]): Content[] {
+  return messages
+    .filter((msg) => msg.role !== 'system') // System messages handled via systemInstruction
+    .map((msg) => {
+      const parts: Part[] = msg.content.map((content) => {
+        switch (content.type) {
+          case 'text':
+            return { text: content.text };
+          case 'image': {
+            if (content.source.type === 'base64') {
+              return {
+                inlineData: {
+                  mimeType: content.source.mediaType,
+                  data: content.source.data,
+                },
+              };
+            } else {
+              // URL-based images - use fileData for Gemini
+              return {
+                fileData: {
+                  mimeType: content.source.mediaType,
+                  fileUri: content.source.url,
+                },
+              };
+            }
+          }
+          case 'tool_call':
+            return {
+              functionCall: {
+                name: content.name,
+                args: content.arguments,
+              },
+            };
+          case 'tool_result':
+            return {
+              functionResponse: {
+                name: content.name ?? '',
+                response:
+                  typeof content.content === 'string'
+                    ? { result: content.content }
+                    : content.content,
+              },
+            };
+          case 'thought':
+            // Gemini uses thought in response, not request - convert to text
+            return { text: `[Thought] ${content.thought}` };
+          default:
+            return { text: '' };
+        }
+      });
+
+      // Map role: LlmRole -> Gemini role
+      // 'assistant' -> 'model', 'tool' -> 'user', 'user' -> 'user'
+      const role =
+        msg.role === 'assistant'
+          ? 'model'
+          : msg.role === 'tool'
+            ? 'user'
+            : 'user';
+
+      return {
+        role,
+        parts,
+      };
+    });
+}
+
+/**
+ * Type guard to check if options use provider-independent LlmMessage[]
+ */
+function isLlmGenerateJsonOptions(
+  options: GenerateJsonOptions | LlmGenerateJsonOptions,
+): options is LlmGenerateJsonOptions {
+  return 'messages' in options && !('contents' in options);
+}
+
+/**
+ * Type guard to check if options use provider-independent LlmMessage[]
+ */
+function isLlmGenerateContentOptions(
+  options: GenerateContentOptions | LlmGenerateContentOptions,
+): options is LlmGenerateContentOptions {
+  return 'messages' in options && !('contents' in options);
+}
+
 /**
  * A client dedicated to stateless, utility-focused LLM calls.
+ *
+ * Note: Currently depends on Gemini-specific ContentGenerator (core/contentGenerator.ts).
+ * TODO(M2.2): Refactor to accept provider-independent ContentGenerator (providers/types.ts)
+ * via GeminiAdapter, enabling multi-provider support.
  */
 export class BaseLlmClient {
   constructor(
@@ -106,17 +263,24 @@ export class BaseLlmClient {
   ) {}
 
   async generateJson(
-    options: GenerateJsonOptions,
+    options: GenerateJsonOptions | LlmGenerateJsonOptions,
   ): Promise<Record<string, unknown>> {
-    const {
-      schema,
-      modelConfigKey,
-      contents,
-      systemInstruction,
-      abortSignal,
-      promptId,
-      maxAttempts,
-    } = options;
+    // Normalize to internal format - support both legacy and new types
+    let contents: Content[];
+    let systemInstruction: string | Part | Part[] | Content | undefined;
+
+    if (isLlmGenerateJsonOptions(options)) {
+      // New provider-independent type
+      contents = convertLlmMessagesToContents(options.messages);
+      systemInstruction = options.systemInstruction;
+    } else {
+      // Legacy Gemini-specific type
+      contents = options.contents;
+      systemInstruction = options.systemInstruction;
+    }
+
+    const { schema, modelConfigKey, abortSignal, promptId, maxAttempts } =
+      options;
 
     const { model } =
       this.config.modelConfigService.getResolvedConfig(modelConfigKey);
@@ -207,16 +371,23 @@ export class BaseLlmClient {
   }
 
   async generateContent(
-    options: GenerateContentOptions,
+    options: GenerateContentOptions | LlmGenerateContentOptions,
   ): Promise<GenerateContentResponse> {
-    const {
-      modelConfigKey,
-      contents,
-      systemInstruction,
-      abortSignal,
-      promptId,
-      maxAttempts,
-    } = options;
+    // Normalize to internal format - support both legacy and new types
+    let contents: Content[];
+    let systemInstruction: string | Part | Part[] | Content | undefined;
+
+    if (isLlmGenerateContentOptions(options)) {
+      // New provider-independent type
+      contents = convertLlmMessagesToContents(options.messages);
+      systemInstruction = options.systemInstruction;
+    } else {
+      // Legacy Gemini-specific type
+      contents = options.contents;
+      systemInstruction = options.systemInstruction;
+    }
+
+    const { modelConfigKey, abortSignal, promptId, maxAttempts } = options;
 
     const shouldRetryOnContent = (response: GenerateContentResponse) => {
       const text = getResponseText(response)?.trim();

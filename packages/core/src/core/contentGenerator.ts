@@ -26,9 +26,13 @@ import { RecordingContentGenerator } from './recordingContentGenerator.js';
 import { getVersion, resolveModel } from '../../index.js';
 
 /**
- * Interface abstracting the core functionalities for generating content and counting tokens.
+ * Gemini-specific content generator interface.
+ * Uses @google/genai types directly for Gemini API integration.
+ *
+ * @deprecated For new multi-provider code, use ContentGenerator from '../providers/types.js'
+ * which uses provider-independent types (LlmGenerateRequest, LlmGenerateResponse).
  */
-export interface ContentGenerator {
+export interface GeminiContentGenerator {
   generateContent(
     request: GenerateContentParameters,
     userPromptId: string,
@@ -47,6 +51,12 @@ export interface ContentGenerator {
 
   userTierName?: string;
 }
+
+/**
+ * @deprecated Use GeminiContentGenerator for Gemini-specific code,
+ * or ContentGenerator from '../providers/types.js' for multi-provider code.
+ */
+export type ContentGenerator = GeminiContentGenerator;
 
 export enum AuthType {
   LOGIN_WITH_GOOGLE = 'oauth-personal',
@@ -113,7 +123,7 @@ export async function createContentGenerator(
   config: ContentGeneratorConfig,
   gcConfig: Config,
   sessionId?: string,
-): Promise<ContentGenerator> {
+): Promise<GeminiContentGenerator> {
   const generator = await (async () => {
     if (gcConfig.fakeResponses) {
       const fakeGenerator = await FakeContentGenerator.fromFile(

@@ -12,7 +12,10 @@ import {
 } from './chatCompressionService.js';
 import type { Content, GenerateContentResponse } from '@google/genai';
 import { CompressionStatus } from '../core/turn.js';
-import type { BaseLlmClient } from '../core/baseLlmClient.js';
+import type {
+  BaseLlmClient,
+  GenerateContentOptions,
+} from '../core/baseLlmClient.js';
 import type { GeminiChat } from '../core/geminiChat.js';
 import type { Config } from '../config/config.js';
 import * as fileUtils from '../utils/fileUtils.js';
@@ -342,7 +345,7 @@ describe('ChatCompressionService', () => {
     );
 
     const firstCall = vi.mocked(mockConfig.getBaseLlmClient().generateContent)
-      .mock.calls[0][0];
+      .mock.calls[0][0] as GenerateContentOptions;
     const lastContent = firstCall.contents?.[firstCall.contents.length - 1];
     expect(lastContent?.parts?.[0].text).toContain(
       'A previous <state_snapshot> exists',
@@ -760,7 +763,7 @@ describe('ChatCompressionService', () => {
       // 1. Verify that the summary was generated from the ORIGINAL high-fidelity history
       const generateContentCall = vi.mocked(
         mockConfig.getBaseLlmClient().generateContent,
-      ).mock.calls[0][0];
+      ).mock.calls[0][0] as GenerateContentOptions;
       const historySentToSummarizer = generateContentCall.contents;
 
       const summarizerGrepResponse =
@@ -817,7 +820,7 @@ describe('ChatCompressionService', () => {
       // Verify that the summary was generated from the TRUNCATED history
       const generateContentCall = vi.mocked(
         mockConfig.getBaseLlmClient().generateContent,
-      ).mock.calls[0][0];
+      ).mock.calls[0][0] as GenerateContentOptions;
       const historySentToSummarizer = generateContentCall.contents;
 
       const summarizerGrepResponse =

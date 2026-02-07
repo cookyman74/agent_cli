@@ -8,7 +8,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Content } from '@google/genai';
 import type { Config } from '../config/config.js';
 import type { GeminiClient } from '../core/client.js';
-import type { BaseLlmClient } from '../core/baseLlmClient.js';
+import type {
+  BaseLlmClient,
+  GenerateJsonOptions,
+} from '../core/baseLlmClient.js';
 import type {
   ServerGeminiContentEvent,
   ServerGeminiStreamEvent,
@@ -898,7 +901,7 @@ describe('LoopDetectionService LLM Checks', () => {
 
     expect(mockBaseLlmClient.generateJson).toHaveBeenCalledTimes(1);
     const calledArg = vi.mocked(mockBaseLlmClient.generateJson).mock
-      .calls[0][0];
+      .calls[0][0] as GenerateJsonOptions;
     expect(calledArg.contents[0]).toEqual({
       role: 'user',
       parts: [{ text: 'Recent conversation history:' }],

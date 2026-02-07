@@ -54,7 +54,9 @@ class TestAdapter extends BaseAdapter {
     };
   }
 
-  async countTokens(_request: LlmGenerateRequest): Promise<LlmTokenCount> {
+  override async countTokens(
+    _request: LlmGenerateRequest,
+  ): Promise<LlmTokenCount> {
     return { totalTokens: 10 };
   }
 

@@ -8,7 +8,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NumericalClassifierStrategy } from './numericalClassifierStrategy.js';
 import type { RoutingContext } from '../routingStrategy.js';
 import type { Config } from '../../config/config.js';
-import type { BaseLlmClient } from '../../core/baseLlmClient.js';
+import type {
+  BaseLlmClient,
+  GenerateJsonOptions,
+} from '../../core/baseLlmClient.js';
 import {
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL,
@@ -88,7 +91,7 @@ describe('NumericalClassifierStrategy', () => {
     await strategy.route(mockContext, mockConfig, mockBaseLlmClient);
 
     const generateJsonCall = vi.mocked(mockBaseLlmClient.generateJson).mock
-      .calls[0][0];
+      .calls[0][0] as GenerateJsonOptions;
 
     expect(generateJsonCall).toMatchObject({
       modelConfigKey: { model: mockResolvedConfig.model },
@@ -432,7 +435,7 @@ describe('NumericalClassifierStrategy', () => {
     await strategy.route(mockContext, mockConfig, mockBaseLlmClient);
 
     const generateJsonCall = vi.mocked(mockBaseLlmClient.generateJson).mock
-      .calls[0][0];
+      .calls[0][0] as GenerateJsonOptions;
     const contents = generateJsonCall.contents;
 
     const expectedContents = [
@@ -464,7 +467,7 @@ describe('NumericalClassifierStrategy', () => {
     await strategy.route(mockContext, mockConfig, mockBaseLlmClient);
 
     const generateJsonCall = vi.mocked(mockBaseLlmClient.generateJson).mock
-      .calls[0][0];
+      .calls[0][0] as GenerateJsonOptions;
     const contents = generateJsonCall.contents;
 
     // Manually calculate what the history should be

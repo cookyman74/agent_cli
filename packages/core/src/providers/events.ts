@@ -160,7 +160,7 @@ export interface LlmToolCallResponseEvent extends LlmBaseEvent {
   type: LlmEventType.ToolCallResponse;
   callId: string;
   name: string;
-  result: string | Record<string, unknown>; // Extended for Part[] compatibility
+  result: unknown; // Supports string, object, or Part[] from Gemini
   isError?: boolean;
 }
 
@@ -266,6 +266,8 @@ export interface LlmLoopDetectedEvent extends LlmBaseEvent {
 export interface LlmAgentStoppedEvent extends LlmBaseEvent {
   type: LlmEventType.AgentStopped;
   reason?: string;
+  systemMessage?: string;
+  contextCleared?: boolean;
 }
 
 /**
@@ -275,6 +277,8 @@ export interface LlmAgentBlockedEvent extends LlmBaseEvent {
   type: LlmEventType.AgentBlocked;
   reason?: string;
   blockType?: string;
+  systemMessage?: string;
+  contextCleared?: boolean;
 }
 
 /**
@@ -299,8 +303,8 @@ export interface LlmCitationEvent extends LlmBaseEvent {
  * Citation reference.
  */
 export interface LlmCitation {
-  startIndex: number;
-  endIndex: number;
+  startIndex?: number;
+  endIndex?: number;
   url?: string;
   title?: string;
   license?: string;

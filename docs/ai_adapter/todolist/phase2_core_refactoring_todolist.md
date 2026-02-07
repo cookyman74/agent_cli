@@ -496,54 +496,54 @@ geminiChat.ts
 
 | ID      | 작업                            | 상태 | 테스트 파일             |
 | ------- | ------------------------------- | ---- | ----------------------- |
-| 2.3.1.1 | `GeminiAdapter` 클래스 생성     | ⬜   | `geminiAdapter.test.ts` |
-| 2.3.1.2 | `BaseAdapter` 상속 구현         | ⬜   | `geminiAdapter.test.ts` |
-| 2.3.1.3 | `generate()` 메서드 구현        | ⬜   | `geminiAdapter.test.ts` |
-| 2.3.1.4 | `generateStream()` 메서드 구현  | ⬜   | `geminiAdapter.test.ts` |
-| 2.3.1.5 | `getCapabilities()` 구현        | ⬜   | `geminiAdapter.test.ts` |
-| 2.3.1.6 | 설정 검증 로직 구현             | ⬜   | `geminiAdapter.test.ts` |
-| 2.3.1.7 | 🆕 `mapToProviderConfig()` 구현 | ⬜   | `geminiAdapter.test.ts` |
+| 2.3.1.1 | `GeminiAdapter` 클래스 생성     | ✅   | `geminiAdapter.test.ts` |
+| 2.3.1.2 | `BaseAdapter` 상속 구현         | ✅   | `geminiAdapter.test.ts` |
+| 2.3.1.3 | `generate()` 메서드 구현        | ✅   | `geminiAdapter.test.ts` |
+| 2.3.1.4 | `generateStream()` 메서드 구현  | ✅   | `geminiAdapter.test.ts` |
+| 2.3.1.5 | `getCapabilities()` 구현        | ✅   | `geminiAdapter.test.ts` |
+| 2.3.1.6 | 설정 검증 로직 구현             | ✅   | `geminiAdapter.test.ts` |
+| 2.3.1.7 | 🆕 `mapToProviderConfig()` 구현 | ✅   | `geminiAdapter.test.ts` |
 | 2.3.1.8 | 🆕 AuthType 처리 통합           | ⬜   | `geminiAdapter.test.ts` |
 
 ### 2.3.2 Gemini 타입 변환기 구현
 
 | ID      | 작업                                | 상태 | 테스트 파일               |
 | ------- | ----------------------------------- | ---- | ------------------------- |
-| 2.3.2.1 | `toGeminiContent()` 변환 함수       | ⬜   | `geminiConverter.test.ts` |
-| 2.3.2.2 | `toGeminiMessage()` 변환 함수       | ⬜   | `geminiConverter.test.ts` |
-| 2.3.2.3 | `toGeminiTool()` 변환 함수          | ⬜   | `geminiConverter.test.ts` |
-| 2.3.2.4 | `fromGeminiResponse()` 변환 함수    | ⬜   | `geminiConverter.test.ts` |
-| 2.3.2.5 | `fromGeminiStreamEvent()` 변환 함수 | ⬜   | `geminiConverter.test.ts` |
-| 2.3.2.6 | 이미지 콘텐츠 변환                  | ⬜   | `geminiConverter.test.ts` |
-| 2.3.2.7 | 🆕 `toGenerateContentConfig()` 변환 | ⬜   | `geminiConverter.test.ts` |
+| 2.3.2.1 | `toGeminiContent()` 변환 함수       | ✅   | `geminiConverter.test.ts` |
+| 2.3.2.2 | `toGeminiMessage()` 변환 함수       | ✅   | `geminiConverter.test.ts` |
+| 2.3.2.3 | `toGeminiTool()` 변환 함수          | ✅   | `geminiConverter.test.ts` |
+| 2.3.2.4 | `fromGeminiResponse()` 변환 함수    | ✅   | `geminiConverter.test.ts` |
+| 2.3.2.5 | `fromGeminiStreamEvent()` 변환 함수 | ✅   | `geminiConverter.test.ts` |
+| 2.3.2.6 | 이미지 콘텐츠 변환                  | ✅   | `geminiConverter.test.ts` |
+| 2.3.2.7 | 🆕 `toGenerateContentConfig()` 변환 | ✅   | `geminiConverter.test.ts` |
 
 ### 2.3.3 동등성 검증 테스트
 
 | ID      | 작업                                | 상태 | 테스트 파일            |
 | ------- | ----------------------------------- | ---- | ---------------------- |
-| 2.3.3.1 | 기본 대화 동등성 테스트             | ⬜   | `geminiParity.test.ts` |
-| 2.3.3.2 | 스트리밍 대화 동등성 테스트         | ⬜   | `geminiParity.test.ts` |
-| 2.3.3.3 | 도구 호출 동등성 테스트             | ⬜   | `geminiParity.test.ts` |
-| 2.3.3.4 | 이미지 입력 동등성 테스트           | ⬜   | `geminiParity.test.ts` |
-| 2.3.3.5 | 에러 처리 동등성 테스트             | ⬜   | `geminiParity.test.ts` |
-| 2.3.3.6 | Rate limit 동등성 테스트            | ⬜   | `geminiParity.test.ts` |
-| 2.3.3.7 | 🆕 18개 스트림 이벤트 동등성 테스트 | ⬜   | `geminiParity.test.ts` |
+| 2.3.3.1 | 기본 대화 동등성 테스트             | ✅   | `geminiParity.test.ts` |
+| 2.3.3.2 | 스트리밍 대화 동등성 테스트         | ✅   | `geminiParity.test.ts` |
+| 2.3.3.3 | 도구 호출 동등성 테스트             | ✅   | `geminiParity.test.ts` |
+| 2.3.3.4 | 이미지 입력 동등성 테스트           | ✅   | `geminiParity.test.ts` |
+| 2.3.3.5 | 에러 처리 동등성 테스트             | ✅   | `geminiParity.test.ts` |
+| 2.3.3.6 | Rate limit 동등성 테스트            | ✅   | `geminiParity.test.ts` |
+| 2.3.3.7 | 🆕 18개 스트림 이벤트 동등성 테스트 | ✅   | `geminiParity.test.ts` |
 
 ### 2.3.4 기능 플래그 통합
 
 | ID      | 작업                                | 상태 | 테스트 파일           |
 | ------- | ----------------------------------- | ---- | --------------------- |
-| 2.3.4.1 | `ENABLE_MULTI_PROVIDER` 플래그 구현 | ⬜   | `featureFlag.test.ts` |
-| 2.3.4.2 | 플래그 기반 경로 분기               | ⬜   | `featureFlag.test.ts` |
-| 2.3.4.3 | 런타임 전환 테스트                  | ⬜   | `featureFlag.test.ts` |
-| 2.3.4.4 | 폴백 로직 구현                      | ⬜   | `featureFlag.test.ts` |
+| 2.3.4.1 | `ENABLE_MULTI_PROVIDER` 플래그 구현 | ✅   | `featureFlag.test.ts` |
+| 2.3.4.2 | 플래그 기반 경로 분기               | ✅   | `featureFlag.test.ts` |
+| 2.3.4.3 | 런타임 전환 테스트                  | ✅   | `featureFlag.test.ts` |
+| 2.3.4.4 | 폴백 로직 구현                      | ✅   | `featureFlag.test.ts` |
 
 **검증 기준**:
 
-- [ ] 기존 Gemini 기능 100% 동작
-- [ ] 기능 플래그로 신규 경로 전환 가능
-- [ ] 성능 저하 < 50ms
-- [ ] 🆕 18개 이벤트 동등성 검증 완료
+- [x] 기존 Gemini 기능 100% 동작
+- [x] 기능 플래그로 신규 경로 전환 가능
+- [ ] 성능 저하 < 50ms (런타임 검증 필요)
+- [x] 🆕 18개 이벤트 동등성 검증 완료
 
 ---
 

@@ -81,6 +81,8 @@ export type ServerGeminiContextWindowWillOverflowEvent = {
 
 export type ServerGeminiInvalidStreamEvent = {
   type: GeminiEventType.InvalidStream;
+  /** InvalidStreamError type (e.g., NO_FINISH_REASON). Populated in M2.3. */
+  reason?: string;
 };
 
 export type ServerGeminiModelInfoEvent = {

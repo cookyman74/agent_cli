@@ -534,4 +534,102 @@ describe('GeminiEventMapper', () => {
       expect(llmEvent.type).toBe(LlmEventType.Error);
     });
   });
+
+  // =========================================================================
+  // M2.2.4: Error classification — isRetryable
+  // =========================================================================
+  describe('M2.2.4 - Error isRetryable classification', () => {
+    it('should set isRetryable to true for 429 (rate limit)', () => {
+      const geminiEvent: ServerGeminiErrorEvent = {
+        type: GeminiEventType.Error,
+        value: { error: { message: 'Rate limit exceeded', status: 429 } },
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.Error,
+        error: 'Rate limit exceeded',
+        code: '429',
+        isRetryable: true,
+      });
+    });
+
+    it('should set isRetryable to true for 500 (server error)', () => {
+      const geminiEvent: ServerGeminiErrorEvent = {
+        type: GeminiEventType.Error,
+        value: { error: { message: 'Internal server error', status: 500 } },
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.Error,
+        isRetryable: true,
+      });
+    });
+
+    it('should set isRetryable to false for 401 (auth error)', () => {
+      const geminiEvent: ServerGeminiErrorEvent = {
+        type: GeminiEventType.Error,
+        value: { error: { message: 'Unauthorized', status: 401 } },
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.Error,
+        isRetryable: false,
+      });
+    });
+
+    it('should set isRetryable to false when status is undefined', () => {
+      const geminiEvent: ServerGeminiErrorEvent = {
+        type: GeminiEventType.Error,
+        value: { error: { message: 'Unknown error' } },
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.Error,
+        isRetryable: false,
+      });
+    });
+  });
+
+  // =========================================================================
+  // M2.2.4: InvalidStream reason propagation
+  // =========================================================================
+  describe('M2.2.4 - InvalidStream reason', () => {
+    it('should propagate reason when provided', () => {
+      const geminiEvent: ServerGeminiInvalidStreamEvent = {
+        type: GeminiEventType.InvalidStream,
+        reason: 'NO_FINISH_REASON',
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.InvalidStream,
+        reason: 'NO_FINISH_REASON',
+      });
+    });
+
+    it('should return undefined reason when not provided', () => {
+      const geminiEvent: ServerGeminiInvalidStreamEvent = {
+        type: GeminiEventType.InvalidStream,
+      };
+
+      const llmEvent = mapper.toLlmEvent(geminiEvent);
+
+      expect(llmEvent).toMatchObject({
+        type: LlmEventType.InvalidStream,
+      });
+      expect(
+        (llmEvent as { type: LlmEventType.InvalidStream; reason?: string })
+          .reason,
+      ).toBeUndefined();
+    });
+  });
 });

@@ -19,3 +19,7 @@ export {
   createGeminiStreamPipeline,
   type GeminiStreamPipeline,
 } from './geminiStream.js';
+export {
+  classifyGeminiError,
+  type GeminiErrorClassification,
+} from './errorClassifier.js';

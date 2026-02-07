@@ -224,17 +224,72 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 
 - [x] **M2.2.3**: StreamAssembler 적용 — EventMapper + StreamAssembler 통합
       파이프라인
-- [ ] **M2.2.4**: Gemini 에러 매핑
+- [x] **M2.2.4**: Gemini 에러 매핑 — errorClassifier + EventMapper isRetryable
 - [ ] **M2.3**: Turn/Client 레벨 LlmEvent 전환 (processTurn → LlmEvent 스트림)
 
 ### 다음 작업에 전달할 이슈
 
-| 이슈                                    | 영향                                          | 대응 방안                             |
-| --------------------------------------- | --------------------------------------------- | ------------------------------------- |
-| `client.ts`의 24개 GeminiEventType 참조 | M2.3 전환 시 대규모 변경 예상                 | convertGeminiStreamWithReturn 활용    |
-| `turn.ts`의 12개 이벤트 생성점          | Turn 반환 타입 변경 시 영향 범위 큼           | 단계적 전환 (내부 유지 → 출력만 변환) |
-| `ToolCallResponse.name = ''` 설계       | caller가 ToolCallRequestInfo로 name 보강 필요 | M2.3에서 enrichment 로직 검토         |
-| `createGeminiStreamPipelineWithReturn`  | client.ts의 Turn return value 보존 필요       | M2.3에서 WithReturn 변형 추가         |
+| 이슈                                    | 영향                                          | 대응 방안                                     |
+| --------------------------------------- | --------------------------------------------- | --------------------------------------------- |
+| `client.ts`의 24개 GeminiEventType 참조 | M2.3 전환 시 대규모 변경 예상                 | convertGeminiStreamWithReturn 활용            |
+| `turn.ts`의 12개 이벤트 생성점          | Turn 반환 타입 변경 시 영향 범위 큼           | 단계적 전환 (내부 유지 → 출력만 변환)         |
+| `ToolCallResponse.name = ''` 설계       | caller가 ToolCallRequestInfo로 name 보강 필요 | M2.3에서 enrichment 로직 검토                 |
+| `createGeminiStreamPipelineWithReturn`  | client.ts의 Turn return value 보존 필요       | M2.3에서 WithReturn 변형 추가                 |
+| InvalidStream reason 미전파             | turn.ts가 reason 없이 이벤트 생성             | M2.3에서 turn.ts InvalidStreamError.type 전달 |
+
+---
+
+### 2.2.4 Gemini 에러 매핑 ✅
+
+| 항목                             | 상태 | 비고                                   |
+| -------------------------------- | :--: | -------------------------------------- |
+| Gemini SDK 에러 타입 분석        |  ✅  | StructuredError, ApiError, retry.ts    |
+| errorClassifier.ts 구현          |  ✅  | HTTP status → LlmErrorType 매핑        |
+| EventMapper mapErrorEvent 개선   |  ✅  | isRetryable 설정 (classifyGeminiError) |
+| InvalidStream reason 인프라 준비 |  ✅  | types.ts + EventMapper (M2.3 연동용)   |
+| Rate limit 매핑 (429)            |  ✅  | RATE_LIMIT, isRetryable: true          |
+| Auth 매핑 (401/403)              |  ✅  | AUTHENTICATION, isRetryable: false     |
+| index.ts export 추가             |  ✅  | classifyGeminiError, type 내보내기     |
+
+**신규 파일**:
+
+| 파일                                       | 설명                        |
+| ------------------------------------------ | --------------------------- |
+| `providers/gemini/errorClassifier.ts`      | Gemini 에러 분류기 (~70줄)  |
+| `providers/gemini/errorClassifier.test.ts` | 에러 분류 TDD 테스트 (10개) |
+
+**수정 파일**:
+
+| 파일                                   | 변경 내용                                                        |
+| -------------------------------------- | ---------------------------------------------------------------- |
+| `providers/gemini/eventMapper.ts`      | mapErrorEvent에 isRetryable, mapInvalidStreamEvent에 reason 전파 |
+| `providers/gemini/eventMapper.test.ts` | isRetryable 테스트 4개 + InvalidStream reason 테스트 2개 추가    |
+| `providers/gemini/types.ts`            | ServerGeminiInvalidStreamEvent에 optional reason 추가            |
+| `providers/gemini/index.ts`            | classifyGeminiError, GeminiErrorClassification export 추가       |
+
+---
+
+## ✅ 테스트 결과
+
+### M2.2 전체 테스트
+
+```
+errorClassifier.test.ts      : 10 passed (M2.2.4 신규)
+eventMapper.test.ts          : 35 passed (29 기존 + 6 신규)
+streamConverter.test.ts      :  5 passed (기존, 회귀 확인)
+loopDetectionService.test.ts : 53 passed (기존, 회귀 확인)
+geminiStream.test.ts         : 15 passed (기존, 회귀 확인)
+streamAssembler.test.ts      : 22 passed (기존, 회귀 확인)
+────────────────────────────────────────
+합계                          : 140 passed
+```
+
+### TypeScript 컴파일
+
+```
+npx tsc --noEmit -p packages/core/tsconfig.json
+→ 에러 없음 (clean)
+```
 
 ---
 
@@ -244,18 +299,19 @@ npx tsc --noEmit -p packages/core/tsconfig.json
 | ---- | ----------- | --------------------------------------------------- |
 | 1    | `819cadbd8` | M2.2.1 리뷰 수정 + M2.2.2 스트림 변환 + @deprecated |
 | 2    | `06e426ae5` | M2.2.3 StreamAssembler 적용 — 통합 파이프라인       |
+| 3    | (미커밋)    | M2.2.4 Gemini 에러 매핑 — errorClassifier 구현      |
 
 ---
 
 ## ✅ 완료 기준 체크
 
-- [x] 모든 테스트 통과 (87 + 15 = 102)
+- [x] 모든 테스트 통과 (140개)
 - [x] TypeScript 컴파일 에러 없음
-- [x] 체크리스트 최종 확인 (2.2.1 ✅, 2.2.2 ✅, 2.2.2a ✅, 2.2.3 ✅)
+- [x] 체크리스트 최종 확인 (2.2.1 ✅, 2.2.2 ✅, 2.2.2a ✅, 2.2.3 ✅, 2.2.4 ✅)
 - [x] 작업 결과서 작성
-- [x] 커밋: `819cadbd8`
+- [ ] 커밋: (대기)
 - [x] 이슈 전달: 다음 작업(M2.3)에 전달할 이슈 문서화
 
 ---
 
-**최종 상태**: ✅ 완료
+**최종 상태**: ✅ 완료 (커밋 대기)

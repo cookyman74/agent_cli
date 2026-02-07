@@ -451,15 +451,15 @@ geminiChat.ts
 | 2.2.3.5 | 툴 콜 델타 합성 검증             | ✅   | `geminiStream.test.ts` |
 | 2.2.3.6 | Usage 정보 누적 검증             | ✅   | `geminiStream.test.ts` |
 
-### 2.2.4 Gemini 에러 매핑
+### 2.2.4 Gemini 에러 매핑 ✅
 
-| ID      | 작업                                         | 상태 | 테스트 파일      |
-| ------- | -------------------------------------------- | ---- | ---------------- |
-| 2.2.4.1 | Gemini SDK 에러 타입 분석                    | ⬜   | N/A (분석)       |
-| 2.2.4.2 | `InvalidStreamError` → `LlmStreamError` 매핑 | ⬜   | `errors.test.ts` |
-| 2.2.4.3 | Rate limit 에러 매핑                         | ⬜   | `errors.test.ts` |
-| 2.2.4.4 | Auth 에러 매핑                               | ⬜   | `errors.test.ts` |
-| 2.2.4.5 | 에러 변환 유틸 함수 구현                     | ⬜   | `errors.test.ts` |
+| ID      | 작업                                         | 상태 | 테스트 파일               |
+| ------- | -------------------------------------------- | ---- | ------------------------- |
+| 2.2.4.1 | Gemini SDK 에러 타입 분석                    | ✅   | N/A (분석)                |
+| 2.2.4.2 | `InvalidStreamError` → `LlmStreamError` 매핑 | ✅   | `eventMapper.test.ts`     |
+| 2.2.4.3 | Rate limit 에러 매핑                         | ✅   | `errorClassifier.test.ts` |
+| 2.2.4.4 | Auth 에러 매핑                               | ✅   | `errorClassifier.test.ts` |
+| 2.2.4.5 | 에러 변환 유틸 함수 구현                     | ✅   | `errorClassifier.test.ts` |
 
 ### 2.2.5 Telemetry 포맷 변경
 

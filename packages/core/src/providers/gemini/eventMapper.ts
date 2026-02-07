@@ -30,7 +30,10 @@ import {
   type ServerGeminiAgentExecutionStoppedEvent,
   type ServerGeminiAgentExecutionBlockedEvent,
   type ServerGeminiCitationEvent,
+  type ServerGeminiInvalidStreamEvent,
 } from './types.js';
+
+import { classifyGeminiError } from './errorClassifier.js';
 
 import {
   LlmEventType,
@@ -107,7 +110,7 @@ export class GeminiEventMapper {
         return this.mapContextWindowOverflowEvent(geminiEvent);
 
       case GeminiEventType.InvalidStream:
-        return this.mapInvalidStreamEvent();
+        return this.mapInvalidStreamEvent(geminiEvent);
 
       case GeminiEventType.ModelInfo:
         return this.mapModelInfoEvent(geminiEvent);
@@ -299,10 +302,12 @@ export class GeminiEventMapper {
   }
 
   private mapErrorEvent(event: ServerGeminiErrorEvent): LlmErrorEvent {
+    const { isRetryable } = classifyGeminiError(event.value.error.status);
     return {
       type: LlmEventType.Error,
       error: event.value.error.message,
       code: event.value.error.status?.toString(),
+      isRetryable,
     };
   }
 
@@ -359,8 +364,14 @@ export class GeminiEventMapper {
     };
   }
 
-  private mapInvalidStreamEvent(): LlmInvalidStreamEvent {
-    return { type: LlmEventType.InvalidStream };
+  private mapInvalidStreamEvent(
+    event: ServerGeminiInvalidStreamEvent,
+  ): LlmInvalidStreamEvent {
+    // TODO(M2.3): turn.ts에서 InvalidStreamError.type을 reason으로 전달하도록 변경
+    return {
+      type: LlmEventType.InvalidStream,
+      reason: event.reason,
+    };
   }
 
   private mapModelInfoEvent(

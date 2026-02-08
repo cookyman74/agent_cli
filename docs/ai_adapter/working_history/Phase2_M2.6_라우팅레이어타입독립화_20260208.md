@@ -44,7 +44,7 @@ RoutingContext 인터페이스를 직접 변경하는 방식을 채택. 이유: 
 | 파일                                     | 설명                                           |
 | ---------------------------------------- | ---------------------------------------------- |
 | `src/utils/geminiTypeConversion.ts`      | Gemini SDK → LlmMessage/LlmContent 변환 브릿지 |
-| `src/utils/geminiTypeConversion.test.ts` | 변환 함수 테스트 (15개)                        |
+| `src/utils/geminiTypeConversion.test.ts` | 변환 함수 테스트 (18개)                        |
 
 ### 2.6.1 RoutingContext 타입 전환 ✅
 
@@ -91,8 +91,8 @@ RoutingContext 인터페이스를 직접 변경하는 방식을 채택. 이유: 
 
 | 파일                           | 테스트 수 | 내용                                                                                              |
 | ------------------------------ | :-------: | ------------------------------------------------------------------------------------------------- |
-| `geminiTypeConversion.test.ts` |    15     | `convertContentToLlmMessage`, `convertContentsToLlmMessages`, `convertPartListUnionToLlmContents` |
-| `llmUtils.test.ts` (추가분)    |     6     | `isToolCallMessage`, `isToolResultMessage`                                                        |
+| `geminiTypeConversion.test.ts` |    18     | `convertContentToLlmMessage`, `convertContentsToLlmMessages`, `convertPartListUnionToLlmContents` |
+| `llmUtils.test.ts` (추가분)    |     8     | `isToolCallMessage`, `isToolResultMessage`                                                        |
 
 ### 수정된 테스트 파일
 
@@ -106,7 +106,7 @@ RoutingContext 인터페이스를 직접 변경하는 방식을 채택. 이유: 
 
 ```
  Test Files  260 passed (260)
-      Tests  4824 passed | 24 skipped (4848)
+      Tests  4829 passed | 24 skipped (4853)
  TypeCheck   All workspaces passed
  Lint        0 errors, 0 warnings
 ```
@@ -151,8 +151,8 @@ RoutingContext 인터페이스를 직접 변경하는 방식을 채택. 이유: 
 | ---------------------------------------------------- | :--: |
 | `routingStrategy.ts`에서 `@google/genai` import 제거 |  ✅  |
 | 모든 라우팅 전략 구현체 타입 전환 완료               |  ✅  |
-| 기존 라우팅 테스트 100% 통과 (85개)                  |  ✅  |
-| 전체 테스트 스위트 통과 (4824개)                     |  ✅  |
+| 기존 라우팅 테스트 100% 통과 (52개)                  |  ✅  |
+| 전체 테스트 스위트 통과 (4829개)                     |  ✅  |
 | TypeScript 타입체크 통과                             |  ✅  |
 | ESLint 통과                                          |  ✅  |
 
@@ -184,6 +184,38 @@ M2.5에서는 기존 함수를 유지하고 `@deprecated`를 붙이는 병행 �
 `@google/genai`의 `Type.OBJECT` = `'OBJECT'` 등이 단순 문자열임을 확인 후
 리터럴로 대체. JSON Schema 형식의 RESPONSE_SCHEMA가 Gemini API에 직접 전달되므로
 값은 동일.
+
+---
+
+## 🔧 리뷰 수정 사항
+
+### 이슈 1 (High): `fileData` 변환 누락
+
+- **위치**: `geminiTypeConversion.ts:59`
+- **문제**: `inlineData`만 처리하고 `fileData`(URI 기반 파일 참조)는 `null` 반환
+- **수정**: `fileData` → `LlmImageContent(source: { type: 'url' })` 분기 추가
+- **회귀 테스트**:
+  `should convert fileData parts to image content with url source`
+
+### 이슈 2 (High): 빈 content 배열의 `every()` 오탐
+
+- **위치**: `llmUtils.ts:80,91`
+- **문제**: `[].every(fn)` = `true` (vacuous truth) → 빈 content 메시지가 tool
+  메시지로 오분류
+- **수정**: `message.content.length > 0` 가드 추가
+- **회귀 테스트**:
+  `should return false for assistant/user message with empty content` (2건)
+
+### 이슈 3 (Medium): `thought: false` 텍스트의 thought 오분류
+
+- **위치**: `geminiTypeConversion.ts:27`
+- **문제**: `thought !== undefined` 조건이 `thought: false`도 통과시켜 일반
+  텍스트를 thought로 변환
+- **수정**: truthiness 체크 (`thoughtPart.thought`)로 변경 — SDK의
+  `semantic.ts`(`part.thought`) 패턴과 일치
+- **회귀 테스트**:
+  `should treat thought:false text as regular text, not thought`,
+  `should treat thought:true as thought content`
 
 ---
 

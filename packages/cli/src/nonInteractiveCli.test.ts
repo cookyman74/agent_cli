@@ -7,15 +7,15 @@
 import type {
   Config,
   ToolRegistry,
-  ServerGeminiStreamEvent,
   SessionMetrics,
   AnyDeclarativeTool,
   AnyToolInvocation,
   UserFeedbackPayload,
+  LlmEvent,
 } from '@google/gemini-cli-core';
 import {
   ToolErrorType,
-  GeminiEventType,
+  LlmEventType,
   OutputFormat,
   uiTelemetryService,
   FatalInputError,
@@ -219,8 +219,8 @@ describe('runNonInteractive', () => {
   });
 
   async function* createStreamFromEvents(
-    events: ServerGeminiStreamEvent[],
-  ): AsyncGenerator<ServerGeminiStreamEvent> {
+    events: LlmEvent[],
+  ): AsyncGenerator<LlmEvent> {
     for (const event of events) {
       yield event;
     }
@@ -230,12 +230,13 @@ describe('runNonInteractive', () => {
     processStdoutSpy.mock.calls.map((c) => c[0]).join('');
 
   it('should process input and write text output', async () => {
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Hello' },
-      { type: GeminiEventType.Content, value: ' World' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Hello' },
+      { type: LlmEventType.TextDelta, text: ' World' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -260,15 +261,13 @@ describe('runNonInteractive', () => {
   });
 
   it('should handle a single tool call and respond', async () => {
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'tool-1',
-        name: 'testTool',
-        args: { arg1: 'value1' },
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-2',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'tool-1',
+      name: 'testTool',
+      args: { arg1: 'value1' },
+      isClientInitiated: false,
+      promptId: 'prompt-id-2',
     };
     const toolResponse: Part[] = [{ text: 'Tool response' }];
     mockSchedulerSchedule.mockResolvedValue([
@@ -293,12 +292,13 @@ describe('runNonInteractive', () => {
       },
     ]);
 
-    const firstCallEvents: ServerGeminiStreamEvent[] = [toolCallEvent];
-    const secondCallEvents: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Final answer' },
+    const firstCallEvents: LlmEvent[] = [toolCallEvent];
+    const secondCallEvents: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Final answer' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
 
@@ -332,22 +332,26 @@ describe('runNonInteractive', () => {
     // is printed between each block of text output from the model.
 
     // 1. Define the tool requests that the model will ask the CLI to run.
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'mock-tool',
-        name: 'mockTool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-multi',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'mock-tool',
+      name: 'mockTool',
+      args: {},
+      isClientInitiated: false,
+      promptId: 'prompt-id-multi',
     };
 
     // 2. Mock the execution of the tools. We just need them to succeed.
     mockSchedulerSchedule.mockResolvedValue([
       {
         status: 'success',
-        request: toolCallEvent.value, // This is generic enough for both calls
+        request: {
+          callId: 'mock-tool',
+          name: 'mockTool',
+          args: {},
+          isClientInitiated: false,
+          prompt_id: 'prompt-id-multi',
+        },
         tool: {} as AnyDeclarativeTool,
         invocation: {} as AnyToolInvocation,
         response: {
@@ -359,21 +363,22 @@ describe('runNonInteractive', () => {
 
     // 3. Define the sequence of events streamed from the mock model.
     // Turn 1: Model outputs text, then requests a tool call.
-    const modelTurn1: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Use mock tool' },
+    const modelTurn1: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Use mock tool' },
       toolCallEvent,
     ];
     // Turn 2: Model outputs more text, then requests another tool call.
-    const modelTurn2: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Use mock tool again' },
+    const modelTurn2: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Use mock tool again' },
       toolCallEvent,
     ];
     // Turn 3: Model outputs a final answer.
-    const modelTurn3: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Finished.' },
+    const modelTurn3: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Finished.' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
 
@@ -400,15 +405,13 @@ describe('runNonInteractive', () => {
   });
 
   it('should handle error during tool execution and should send error back to the model', async () => {
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'tool-1',
-        name: 'errorTool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-3',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'tool-1',
+      name: 'errorTool',
+      args: {},
+      isClientInitiated: false,
+      promptId: 'prompt-id-3',
     };
     mockSchedulerSchedule.mockResolvedValue([
       {
@@ -440,14 +443,15 @@ describe('runNonInteractive', () => {
         },
       },
     ]);
-    const finalResponse: ServerGeminiStreamEvent[] = [
+    const finalResponse: LlmEvent[] = [
       {
-        type: GeminiEventType.Content,
-        value: 'Sorry, let me try again.',
+        type: LlmEventType.TextDelta,
+        text: 'Sorry, let me try again.',
       },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
     mockGeminiClient.sendMessageStream
@@ -501,15 +505,13 @@ describe('runNonInteractive', () => {
   });
 
   it('should not exit if a tool is not found, and should send error back to model', async () => {
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'tool-1',
-        name: 'nonexistentTool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-5',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'tool-1',
+      name: 'nonexistentTool',
+      args: {},
+      isClientInitiated: false,
+      promptId: 'prompt-id-5',
     };
     mockSchedulerSchedule.mockResolvedValue([
       {
@@ -531,14 +533,15 @@ describe('runNonInteractive', () => {
         },
       },
     ]);
-    const finalResponse: ServerGeminiStreamEvent[] = [
+    const finalResponse: LlmEvent[] = [
       {
-        type: GeminiEventType.Content,
-        value: "Sorry, I can't find that tool.",
+        type: LlmEventType.TextDelta,
+        text: "Sorry, I can't find that tool.",
       },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
 
@@ -595,11 +598,12 @@ describe('runNonInteractive', () => {
     });
 
     // Mock a simple stream response from the Gemini client
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Summary complete.' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Summary complete.' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -626,11 +630,12 @@ describe('runNonInteractive', () => {
   });
 
   it('should process input and write JSON output with stats', async () => {
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Hello World' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Hello World' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -669,15 +674,13 @@ describe('runNonInteractive', () => {
   it('should write JSON output with stats for tool-only commands (no text response)', async () => {
     // Test the scenario where a command completes successfully with only tool calls
     // but no text response - this would have caught the original bug
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'tool-1',
-        name: 'testTool',
-        args: { arg1: 'value1' },
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-tool-only',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'tool-1',
+      name: 'testTool',
+      args: { arg1: 'value1' },
+      isClientInitiated: false,
+      promptId: 'prompt-id-tool-only',
     };
     const toolResponse: Part[] = [{ text: 'Tool executed successfully' }];
     mockSchedulerSchedule.mockResolvedValue([
@@ -703,19 +706,21 @@ describe('runNonInteractive', () => {
     ]);
 
     // First call returns only tool call, no content
-    const firstCallEvents: ServerGeminiStreamEvent[] = [
+    const firstCallEvents: LlmEvent[] = [
       toolCallEvent,
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 5 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 5 },
       },
     ];
 
     // Second call returns no content (tool-only completion)
-    const secondCallEvents: ServerGeminiStreamEvent[] = [
+    const secondCallEvents: LlmEvent[] = [
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 3 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 3 },
       },
     ];
 
@@ -757,10 +762,11 @@ describe('runNonInteractive', () => {
 
   it('should write JSON output with stats for empty response commands', async () => {
     // Test the scenario where a command completes but produces no content at all
-    const events: ServerGeminiStreamEvent[] = [
+    const events: LlmEvent[] = [
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 1 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 1 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -893,11 +899,12 @@ describe('runNonInteractive', () => {
     };
     mockGetCommands.mockReturnValue([mockCommand]);
 
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Response from command' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Response from command' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 5 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 5 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -931,11 +938,12 @@ describe('runNonInteractive', () => {
     );
     handleSlashCommandSpy.mockResolvedValue([{ text: 'Slash command output' }]);
 
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Response to slash command' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Response to slash command' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -998,8 +1006,8 @@ describe('runNonInteractive', () => {
         throw new Error('Cancelled');
       });
 
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Thinking...' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Thinking...' },
     ];
     // Create a stream that responds to abortion
     mockGeminiClient.sendMessageStream.mockImplementation(
@@ -1110,11 +1118,12 @@ describe('runNonInteractive', () => {
     // No commands are mocked, so any slash command is "unknown"
     mockGetCommands.mockReturnValue([]);
 
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Response to unknown' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Response to unknown' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 5 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 5 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1172,11 +1181,12 @@ describe('runNonInteractive', () => {
     };
     mockGetCommands.mockReturnValue([mockCommand]);
 
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Acknowledged' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Acknowledged' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 1 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 1 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1205,11 +1215,12 @@ describe('runNonInteractive', () => {
       './services/BuiltinCommandLoader.js'
     );
     mockGetCommands.mockReturnValue([]); // No commands found, so it will fall through
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Acknowledged' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Acknowledged' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 1 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 1 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1253,15 +1264,13 @@ describe('runNonInteractive', () => {
       getFunctionDeclarations: vi.fn().mockReturnValue([{ name: 'ShellTool' }]),
     } as unknown as ToolRegistry);
 
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'tool-shell-1',
-        name: 'ShellTool',
-        args: { command: 'ls' },
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-allowed',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'tool-shell-1',
+      name: 'ShellTool',
+      args: { command: 'ls' },
+      isClientInitiated: false,
+      promptId: 'prompt-id-allowed',
     };
     const toolResponse: Part[] = [{ text: 'file.txt' }];
     mockSchedulerSchedule.mockResolvedValue([
@@ -1286,12 +1295,13 @@ describe('runNonInteractive', () => {
       },
     ]);
 
-    const firstCallEvents: ServerGeminiStreamEvent[] = [toolCallEvent];
-    const secondCallEvents: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'file.txt' },
+    const firstCallEvents: LlmEvent[] = [toolCallEvent];
+    const secondCallEvents: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'file.txt' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
 
@@ -1315,10 +1325,11 @@ describe('runNonInteractive', () => {
 
   describe('CoreEvents Integration', () => {
     it('subscribes to UserFeedback and drains backlog on start', async () => {
-      const events: ServerGeminiStreamEvent[] = [
+      const events: LlmEvent[] = [
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 0 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1340,10 +1351,11 @@ describe('runNonInteractive', () => {
     });
 
     it('unsubscribes from UserFeedback on finish', async () => {
-      const events: ServerGeminiStreamEvent[] = [
+      const events: LlmEvent[] = [
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 0 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1364,10 +1376,11 @@ describe('runNonInteractive', () => {
     });
 
     it('logs to process.stderr when UserFeedback event is received', async () => {
-      const events: ServerGeminiStreamEvent[] = [
+      const events: LlmEvent[] = [
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 0 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1401,10 +1414,11 @@ describe('runNonInteractive', () => {
 
     it('logs optional error object to process.stderr in debug mode', async () => {
       vi.mocked(mockConfig.getDebugMode).mockReturnValue(true);
-      const events: ServerGeminiStreamEvent[] = [
+      const events: LlmEvent[] = [
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 0 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1452,21 +1466,25 @@ describe('runNonInteractive', () => {
       MOCK_SESSION_METRICS,
     );
 
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'tool-1',
-        name: 'testTool',
-        args: { arg1: 'value1' },
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-stream',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'tool-1',
+      name: 'testTool',
+      args: { arg1: 'value1' },
+      isClientInitiated: false,
+      promptId: 'prompt-id-stream',
     };
 
     mockSchedulerSchedule.mockResolvedValue([
       {
         status: 'success',
-        request: toolCallEvent.value,
+        request: {
+          callId: 'tool-1',
+          name: 'testTool',
+          args: { arg1: 'value1' },
+          isClientInitiated: false,
+          prompt_id: 'prompt-id-stream',
+        },
         tool: {} as AnyDeclarativeTool,
         invocation: {} as AnyToolInvocation,
         response: {
@@ -1480,15 +1498,16 @@ describe('runNonInteractive', () => {
       },
     ]);
 
-    const firstCallEvents: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Thinking...' },
+    const firstCallEvents: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Thinking...' },
       toolCallEvent,
     ];
-    const secondCallEvents: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Final answer' },
+    const secondCallEvents: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Final answer' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
       },
     ];
 
@@ -1511,9 +1530,9 @@ describe('runNonInteractive', () => {
   });
 
   it('should handle EPIPE error gracefully', async () => {
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Hello' },
-      { type: GeminiEventType.Content, value: ' World' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Hello' },
+      { type: LlmEventType.TextDelta, text: ' World' },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
       createStreamFromEvents(events),
@@ -1547,11 +1566,12 @@ describe('runNonInteractive', () => {
   });
 
   it('should resume chat when resumedSessionData is provided', async () => {
-    const events: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Resumed' },
+    const events: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Resumed' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 5 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 5 },
       },
     ];
     mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1590,17 +1610,13 @@ describe('runNonInteractive', () => {
   it.each([
     {
       name: 'loop detected',
-      events: [
-        { type: GeminiEventType.LoopDetected },
-      ] as ServerGeminiStreamEvent[],
+      events: [{ type: LlmEventType.LoopDetected }] as LlmEvent[],
       input: 'Loop test',
       promptId: 'prompt-id-loop',
     },
     {
       name: 'max session turns',
-      events: [
-        { type: GeminiEventType.MaxSessionTurns },
-      ] as ServerGeminiStreamEvent[],
+      events: [{ type: LlmEventType.MaxSessionTurns }] as LlmEvent[],
       input: 'Max turns test',
       promptId: 'prompt-id-max-turns',
     },
@@ -1614,11 +1630,12 @@ describe('runNonInteractive', () => {
         MOCK_SESSION_METRICS,
       );
 
-      const streamEvents: ServerGeminiStreamEvent[] = [
+      const streamEvents: LlmEvent[] = [
         ...events,
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 0 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1645,20 +1662,24 @@ describe('runNonInteractive', () => {
   );
 
   it('should log error when tool recording fails', async () => {
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'tool-1',
-        name: 'testTool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-tool-error',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'tool-1',
+      name: 'testTool',
+      args: {},
+      isClientInitiated: false,
+      promptId: 'prompt-id-tool-error',
     };
     mockSchedulerSchedule.mockResolvedValue([
       {
         status: 'success',
-        request: toolCallEvent.value,
+        request: {
+          callId: 'tool-1',
+          name: 'testTool',
+          args: {},
+          isClientInitiated: false,
+          prompt_id: 'prompt-id-tool-error',
+        },
         tool: {} as AnyDeclarativeTool,
         invocation: {} as AnyToolInvocation,
         response: {
@@ -1671,22 +1692,24 @@ describe('runNonInteractive', () => {
       },
     ]);
 
-    const events: ServerGeminiStreamEvent[] = [
+    const events: LlmEvent[] = [
       toolCallEvent,
-      { type: GeminiEventType.Content, value: 'Done' },
+      { type: LlmEventType.TextDelta, text: 'Done' },
       {
-        type: GeminiEventType.Finished,
-        value: { reason: undefined, usageMetadata: { totalTokenCount: 5 } },
+        type: LlmEventType.Finished,
+        finishReason: undefined,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 5 },
       },
     ];
     mockGeminiClient.sendMessageStream
       .mockReturnValueOnce(createStreamFromEvents(events))
       .mockReturnValueOnce(
         createStreamFromEvents([
-          { type: GeminiEventType.Content, value: 'Done' },
+          { type: LlmEventType.TextDelta, text: 'Done' },
           {
-            type: GeminiEventType.Finished,
-            value: { reason: undefined, usageMetadata: { totalTokenCount: 5 } },
+            type: LlmEventType.Finished,
+            finishReason: undefined,
+            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 5 },
           },
         ]),
       );
@@ -1726,22 +1749,26 @@ describe('runNonInteractive', () => {
   });
 
   it('should stop agent execution immediately when a tool call returns STOP_EXECUTION error', async () => {
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'stop-call',
-        name: 'stopTool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-stop',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'stop-call',
+      name: 'stopTool',
+      args: {},
+      isClientInitiated: false,
+      promptId: 'prompt-id-stop',
     };
 
     // Mock tool execution returning STOP_EXECUTION
     mockSchedulerSchedule.mockResolvedValue([
       {
         status: 'error',
-        request: toolCallEvent.value,
+        request: {
+          callId: 'stop-call',
+          name: 'stopTool',
+          args: {},
+          isClientInitiated: false,
+          prompt_id: 'prompt-id-stop',
+        },
         tool: {} as AnyDeclarativeTool,
         invocation: {} as AnyToolInvocation,
         response: {
@@ -1754,8 +1781,8 @@ describe('runNonInteractive', () => {
       },
     ]);
 
-    const firstCallEvents: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Executing tool...' },
+    const firstCallEvents: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Executing tool...' },
       toolCallEvent,
     ];
 
@@ -1789,21 +1816,25 @@ describe('runNonInteractive', () => {
       MOCK_SESSION_METRICS,
     );
 
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'stop-call',
-        name: 'stopTool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-stop-json',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'stop-call',
+      name: 'stopTool',
+      args: {},
+      isClientInitiated: false,
+      promptId: 'prompt-id-stop-json',
     };
 
     mockSchedulerSchedule.mockResolvedValue([
       {
         status: 'error',
-        request: toolCallEvent.value,
+        request: {
+          callId: 'stop-call',
+          name: 'stopTool',
+          args: {},
+          isClientInitiated: false,
+          prompt_id: 'prompt-id-stop-json',
+        },
         tool: {} as AnyDeclarativeTool,
         invocation: {} as AnyToolInvocation,
         response: {
@@ -1816,8 +1847,8 @@ describe('runNonInteractive', () => {
       },
     ]);
 
-    const firstCallEvents: ServerGeminiStreamEvent[] = [
-      { type: GeminiEventType.Content, value: 'Partial content' },
+    const firstCallEvents: LlmEvent[] = [
+      { type: LlmEventType.TextDelta, text: 'Partial content' },
       toolCallEvent,
     ];
 
@@ -1853,21 +1884,25 @@ describe('runNonInteractive', () => {
       MOCK_SESSION_METRICS,
     );
 
-    const toolCallEvent: ServerGeminiStreamEvent = {
-      type: GeminiEventType.ToolCallRequest,
-      value: {
-        callId: 'stop-call',
-        name: 'stopTool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: 'prompt-id-stop-stream',
-      },
+    const toolCallEvent: LlmEvent = {
+      type: LlmEventType.ToolCallRequest,
+      callId: 'stop-call',
+      name: 'stopTool',
+      args: {},
+      isClientInitiated: false,
+      promptId: 'prompt-id-stop-stream',
     };
 
     mockSchedulerSchedule.mockResolvedValue([
       {
         status: 'error',
-        request: toolCallEvent.value,
+        request: {
+          callId: 'stop-call',
+          name: 'stopTool',
+          args: {},
+          isClientInitiated: false,
+          prompt_id: 'prompt-id-stop-stream',
+        },
         tool: {} as AnyDeclarativeTool,
         invocation: {} as AnyToolInvocation,
         response: {
@@ -1880,7 +1915,7 @@ describe('runNonInteractive', () => {
       },
     ]);
 
-    const firstCallEvents: ServerGeminiStreamEvent[] = [toolCallEvent];
+    const firstCallEvents: LlmEvent[] = [toolCallEvent];
 
     mockGeminiClient.sendMessageStream.mockReturnValue(
       createStreamFromEvents(firstCallEvents),
@@ -1900,10 +1935,10 @@ describe('runNonInteractive', () => {
 
   describe('Agent Execution Events', () => {
     it('should handle AgentExecutionStopped event', async () => {
-      const events: ServerGeminiStreamEvent[] = [
+      const events: LlmEvent[] = [
         {
-          type: GeminiEventType.AgentExecutionStopped,
-          value: { reason: 'Stopped by hook' },
+          type: LlmEventType.AgentStopped,
+          reason: 'Stopped by hook',
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1925,15 +1960,16 @@ describe('runNonInteractive', () => {
     });
 
     it('should handle AgentExecutionBlocked event', async () => {
-      const allEvents: ServerGeminiStreamEvent[] = [
+      const allEvents: LlmEvent[] = [
         {
-          type: GeminiEventType.AgentExecutionBlocked,
-          value: { reason: 'Blocked by hook' },
+          type: LlmEventType.AgentBlocked,
+          reason: 'Blocked by hook',
         },
-        { type: GeminiEventType.Content, value: 'Final answer' },
+        { type: LlmEventType.TextDelta, text: 'Final answer' },
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
         },
       ];
 
@@ -1965,13 +2001,14 @@ describe('runNonInteractive', () => {
     const PLAIN_TEXT_LINK = 'Link';
 
     it('should sanitize ANSI output by default', async () => {
-      const events: ServerGeminiStreamEvent[] = [
-        { type: GeminiEventType.Content, value: ANSI_SEQUENCE },
-        { type: GeminiEventType.Content, value: ' ' },
-        { type: GeminiEventType.Content, value: OSC_HYPERLINK },
+      const events: LlmEvent[] = [
+        { type: LlmEventType.TextDelta, text: ANSI_SEQUENCE },
+        { type: LlmEventType.TextDelta, text: ' ' },
+        { type: LlmEventType.TextDelta, text: OSC_HYPERLINK },
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -1991,13 +2028,14 @@ describe('runNonInteractive', () => {
     });
 
     it('should allow ANSI output when rawOutput is true', async () => {
-      const events: ServerGeminiStreamEvent[] = [
-        { type: GeminiEventType.Content, value: ANSI_SEQUENCE },
-        { type: GeminiEventType.Content, value: ' ' },
-        { type: GeminiEventType.Content, value: OSC_HYPERLINK },
+      const events: LlmEvent[] = [
+        { type: LlmEventType.TextDelta, text: ANSI_SEQUENCE },
+        { type: LlmEventType.TextDelta, text: ' ' },
+        { type: LlmEventType.TextDelta, text: OSC_HYPERLINK },
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 10 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 10 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -2018,11 +2056,12 @@ describe('runNonInteractive', () => {
     });
 
     it('should allow ANSI output when only acceptRawOutputRisk is true', async () => {
-      const events: ServerGeminiStreamEvent[] = [
-        { type: GeminiEventType.Content, value: ANSI_SEQUENCE },
+      const events: LlmEvent[] = [
+        { type: LlmEventType.TextDelta, text: ANSI_SEQUENCE },
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 5 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 5 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -2043,10 +2082,11 @@ describe('runNonInteractive', () => {
     });
 
     it('should warn when rawOutput is true and acceptRisk is false', async () => {
-      const events: ServerGeminiStreamEvent[] = [
+      const events: LlmEvent[] = [
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 0 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -2069,10 +2109,11 @@ describe('runNonInteractive', () => {
     });
 
     it('should not warn when rawOutput is true and acceptRisk is true', async () => {
-      const events: ServerGeminiStreamEvent[] = [
+      const events: LlmEvent[] = [
         {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: { totalTokenCount: 0 } },
+          type: LlmEventType.Finished,
+          finishReason: undefined,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         },
       ];
       mockGeminiClient.sendMessageStream.mockReturnValue(
@@ -2095,22 +2136,26 @@ describe('runNonInteractive', () => {
     });
 
     it('should report cancelled tool calls as success in stream-json mode (legacy parity)', async () => {
-      const toolCallEvent: ServerGeminiStreamEvent = {
-        type: GeminiEventType.ToolCallRequest,
-        value: {
-          callId: 'tool-1',
-          name: 'testTool',
-          args: { arg1: 'value1' },
-          isClientInitiated: false,
-          prompt_id: 'prompt-id-cancel',
-        },
+      const toolCallEvent: LlmEvent = {
+        type: LlmEventType.ToolCallRequest,
+        callId: 'tool-1',
+        name: 'testTool',
+        args: { arg1: 'value1' },
+        isClientInitiated: false,
+        promptId: 'prompt-id-cancel',
       };
 
       // Mock the scheduler to return a cancelled status
       mockSchedulerSchedule.mockResolvedValue([
         {
           status: 'cancelled',
-          request: toolCallEvent.value,
+          request: {
+            callId: 'tool-1',
+            name: 'testTool',
+            args: { arg1: 'value1' },
+            isClientInitiated: false,
+            prompt_id: 'prompt-id-cancel',
+          },
           tool: {} as AnyDeclarativeTool,
           invocation: {} as AnyToolInvocation,
           response: {
@@ -2121,11 +2166,11 @@ describe('runNonInteractive', () => {
         },
       ]);
 
-      const events: ServerGeminiStreamEvent[] = [
+      const events: LlmEvent[] = [
         toolCallEvent,
         {
-          type: GeminiEventType.Content,
-          value: 'Model continues...',
+          type: LlmEventType.TextDelta,
+          text: 'Model continues...',
         },
       ];
 

@@ -13,7 +13,7 @@ import type {
 import { isSlashCommand } from './ui/utils/commandUtils.js';
 import type { LoadedSettings } from './config/settings.js';
 import {
-  GeminiEventType,
+  LlmEventType,
   FatalInputError,
   promptIdContext,
   OutputFormat,
@@ -301,10 +301,10 @@ export async function runNonInteractive({
             handleCancellationError(config);
           }
 
-          if (event.type === GeminiEventType.Content) {
+          if (event.type === LlmEventType.TextDelta) {
             const isRaw =
               config.getRawOutput() || config.getAcceptRawOutputRisk();
-            const output = isRaw ? event.value : stripAnsi(event.value);
+            const output = isRaw ? event.text : stripAnsi(event.text);
             if (streamFormatter) {
               streamFormatter.emitEvent({
                 type: JsonStreamEventType.MESSAGE,
@@ -316,22 +316,29 @@ export async function runNonInteractive({
             } else if (config.getOutputFormat() === OutputFormat.JSON) {
               responseText += output;
             } else {
-              if (event.value) {
+              if (event.text) {
                 textOutput.write(output);
               }
             }
-          } else if (event.type === GeminiEventType.ToolCallRequest) {
+          } else if (event.type === LlmEventType.ToolCallRequest) {
             if (streamFormatter) {
               streamFormatter.emitEvent({
                 type: JsonStreamEventType.TOOL_USE,
                 timestamp: new Date().toISOString(),
-                tool_name: event.value.name,
-                tool_id: event.value.callId,
-                parameters: event.value.args,
+                tool_name: event.name,
+                tool_id: event.callId,
+                parameters: event.args,
               });
             }
-            toolCallRequests.push(event.value);
-          } else if (event.type === GeminiEventType.LoopDetected) {
+            toolCallRequests.push({
+              callId: event.callId,
+              name: event.name,
+              args: event.args,
+              isClientInitiated: event.isClientInitiated ?? false,
+              prompt_id: event.promptId ?? '',
+              traceId: event.traceId,
+            });
+          } else if (event.type === LlmEventType.LoopDetected) {
             if (streamFormatter) {
               streamFormatter.emitEvent({
                 type: JsonStreamEventType.ERROR,
@@ -340,7 +347,7 @@ export async function runNonInteractive({
                 message: 'Loop detected, stopping execution',
               });
             }
-          } else if (event.type === GeminiEventType.MaxSessionTurns) {
+          } else if (event.type === LlmEventType.MaxSessionTurns) {
             if (streamFormatter) {
               streamFormatter.emitEvent({
                 type: JsonStreamEventType.ERROR,
@@ -349,10 +356,10 @@ export async function runNonInteractive({
                 message: 'Maximum session turns exceeded',
               });
             }
-          } else if (event.type === GeminiEventType.Error) {
-            throw event.value.error;
-          } else if (event.type === GeminiEventType.AgentExecutionStopped) {
-            const stopMessage = `Agent execution stopped: ${event.value.systemMessage?.trim() || event.value.reason}`;
+          } else if (event.type === LlmEventType.Error) {
+            throw event.error;
+          } else if (event.type === LlmEventType.AgentStopped) {
+            const stopMessage = `Agent execution stopped: ${event.systemMessage?.trim() || event.reason}`;
             if (config.getOutputFormat() === OutputFormat.TEXT) {
               process.stderr.write(`${stopMessage}\n`);
             }
@@ -371,8 +378,8 @@ export async function runNonInteractive({
               });
             }
             return;
-          } else if (event.type === GeminiEventType.AgentExecutionBlocked) {
-            const blockMessage = `Agent execution blocked: ${event.value.systemMessage?.trim() || event.value.reason}`;
+          } else if (event.type === LlmEventType.AgentBlocked) {
+            const blockMessage = `Agent execution blocked: ${event.systemMessage?.trim() || event.reason}`;
             if (config.getOutputFormat() === OutputFormat.TEXT) {
               process.stderr.write(`[WARNING] ${blockMessage}\n`);
             }

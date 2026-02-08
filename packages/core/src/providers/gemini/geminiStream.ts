@@ -51,7 +51,7 @@ export interface GeminiStreamPipeline {
  *
  * for await (const event of stream) {
  *   // Real-time event handling (loop detection, UI, etc.)
- *   loopDetector.addAndCheckLlm(event);
+ *   loopDetector.addAndCheck(event);
  * }
  *
  * const message = assembler.getAssembledMessage();

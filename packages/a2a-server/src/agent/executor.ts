@@ -13,10 +13,7 @@ import type {
   ExecutionEventBus,
 } from '@a2a-js/sdk/server';
 import type { ToolCallRequestInfo, Config } from '@google/gemini-cli-core';
-import {
-  GeminiEventType,
-  SimpleExtensionLoader,
-} from '@google/gemini-cli-core';
+import { LlmEventType, SimpleExtensionLoader } from '@google/gemini-cli-core';
 import { v4 as uuidv4 } from 'uuid';
 
 import { logger } from '../utils/logger.js';
@@ -480,8 +477,15 @@ export class CoderAgentExecutor implements AgentExecutor {
             );
             throw new Error('Execution aborted');
           }
-          if (event.type === GeminiEventType.ToolCallRequest) {
-            toolCallRequests.push(event.value);
+          if (event.type === LlmEventType.ToolCallRequest) {
+            toolCallRequests.push({
+              callId: event.callId,
+              name: event.name,
+              args: event.args,
+              isClientInitiated: event.isClientInitiated ?? false,
+              prompt_id: event.promptId ?? '',
+              traceId: event.traceId,
+            });
             continue;
           }
           await currentTask.acceptAgentMessage(event);

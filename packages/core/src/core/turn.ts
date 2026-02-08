@@ -25,10 +25,17 @@ import { createUserContent } from '@google/genai';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { getCitations } from '../utils/generateContentResponseUtilities.js';
 import { type ToolCallRequestInfo } from '../scheduler/types.js';
+import {
+  LlmEventType,
+  type LlmEvent,
+  type LlmFinishReason,
+} from '../providers/events.js';
+import type { LlmTokenUsage } from '../providers/types.js';
 
 // =============================================================================
 // Re-exports for backward compatibility
 // These types have been moved to providers/gemini/types.ts
+// @deprecated — Use LlmEventType and LlmEvent from providers/events.ts instead
 // =============================================================================
 export {
   GeminiEventType,
@@ -59,12 +66,48 @@ export {
   type ChatCompressionInfo,
 } from '../providers/gemini/types.js';
 
-import type {
-  StructuredError,
-  ServerGeminiStreamEvent,
-} from '../providers/gemini/types.js';
-import { GeminiEventType } from '../providers/gemini/types.js';
+// Re-export LlmEventType and LlmEvent for consumers migrating to new types
+export {
+  LlmEventType,
+  type LlmEvent,
+  type LlmFinishReason,
+} from '../providers/events.js';
 // =============================================================================
+
+/**
+ * Maps Gemini FinishReason to provider-independent LlmFinishReason.
+ */
+function mapFinishReason(reason: FinishReason | undefined): LlmFinishReason {
+  if (!reason) return 'unknown';
+  switch (reason) {
+    case 'STOP':
+      return 'end_turn';
+    case 'MAX_TOKENS':
+      return 'max_tokens';
+    case 'SAFETY':
+    case 'RECITATION':
+    case 'BLOCKLIST':
+    case 'PROHIBITED_CONTENT':
+    case 'SPII':
+      return 'content_filter';
+    default:
+      return 'unknown';
+  }
+}
+
+/**
+ * Maps Gemini UsageMetadata to provider-independent LlmTokenUsage.
+ */
+function mapUsageMetadata(
+  usageMetadata: GenerateContentResponse['usageMetadata'] | undefined,
+): LlmTokenUsage | undefined {
+  if (!usageMetadata) return undefined;
+  return {
+    promptTokens: usageMetadata.promptTokenCount || 0,
+    completionTokens: usageMetadata.candidatesTokenCount || 0,
+    totalTokens: usageMetadata.totalTokenCount || 0,
+  };
+}
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {
@@ -78,12 +121,12 @@ export class Turn {
     private readonly prompt_id: string,
   ) {}
 
-  // The run method yields simpler events suitable for server logic
+  // The run method yields provider-independent LlmEvent events
   async *run(
     modelConfigKey: ModelConfigKey,
     req: PartListUnion,
     signal: AbortSignal,
-  ): AsyncGenerator<ServerGeminiStreamEvent> {
+  ): AsyncGenerator<LlmEvent> {
     try {
       // Note: This assumes `sendMessageStream` yields events like
       // { type: StreamEventType.RETRY } or { type: StreamEventType.CHUNK, value: GenerateContentResponse }
@@ -96,28 +139,28 @@ export class Turn {
 
       for await (const streamEvent of responseStream) {
         if (signal?.aborted) {
-          yield { type: GeminiEventType.UserCancelled };
+          yield { type: LlmEventType.UserCancelled };
           return;
         }
 
         // Handle the new RETRY event
         if (streamEvent.type === 'retry') {
-          yield { type: GeminiEventType.Retry };
+          yield { type: LlmEventType.Retry };
           continue; // Skip to the next event in the stream
         }
 
         if (streamEvent.type === 'agent_execution_stopped') {
           yield {
-            type: GeminiEventType.AgentExecutionStopped,
-            value: { reason: streamEvent.reason },
+            type: LlmEventType.AgentStopped,
+            reason: streamEvent.reason,
           };
           return;
         }
 
         if (streamEvent.type === 'agent_execution_blocked') {
           yield {
-            type: GeminiEventType.AgentExecutionBlocked,
-            value: { reason: streamEvent.reason },
+            type: LlmEventType.AgentBlocked,
+            reason: streamEvent.reason,
           };
           continue;
         }
@@ -135,16 +178,17 @@ export class Turn {
           if (part.thought) {
             const thought = parseThought(part.text ?? '');
             yield {
-              type: GeminiEventType.Thought,
-              value: thought,
+              type: LlmEventType.ThoughtDelta,
+              thought: thought.description,
               traceId,
+              metadata: { subject: thought.subject },
             };
           }
         }
 
         const text = getResponseText(resp);
         if (text) {
-          yield { type: GeminiEventType.Content, value: text, traceId };
+          yield { type: LlmEventType.TextDelta, text, traceId };
         }
 
         // Handle function calls (requesting tool execution)
@@ -166,32 +210,31 @@ export class Turn {
         // This is the key change: Only yield 'Finished' if there is a finishReason.
         if (finishReason) {
           if (this.pendingCitations.size > 0) {
+            const citationText = `Citations:\n${[...this.pendingCitations].sort().join('\n')}`;
             yield {
-              type: GeminiEventType.Citation,
-              value: `Citations:\n${[...this.pendingCitations].sort().join('\n')}`,
+              type: LlmEventType.Citation,
+              citations: [{ url: citationText }],
             };
             this.pendingCitations.clear();
           }
 
           this.finishReason = finishReason;
           yield {
-            type: GeminiEventType.Finished,
-            value: {
-              reason: finishReason,
-              usageMetadata: resp.usageMetadata,
-            },
+            type: LlmEventType.Finished,
+            finishReason: mapFinishReason(finishReason),
+            usage: mapUsageMetadata(resp.usageMetadata),
           };
         }
       }
     } catch (e) {
       if (signal.aborted) {
-        yield { type: GeminiEventType.UserCancelled };
+        yield { type: LlmEventType.UserCancelled };
         // Regular cancellation error, fail gracefully.
         return;
       }
 
       if (e instanceof InvalidStreamError) {
-        yield { type: GeminiEventType.InvalidStream };
+        yield { type: LlmEventType.InvalidStream };
         return;
       }
 
@@ -217,12 +260,16 @@ export class Turn {
         typeof (error as { status: unknown }).status === 'number'
           ? (error as { status: number }).status
           : undefined;
-      const structuredError: StructuredError = {
+      const structuredError = {
         message: getErrorMessage(error),
         status,
       };
       await this.chat.maybeIncludeSchemaDepthContext(structuredError);
-      yield { type: GeminiEventType.Error, value: { error: structuredError } };
+      yield {
+        type: LlmEventType.Error,
+        error: structuredError.message,
+        code: status?.toString(),
+      };
       return;
     }
   }
@@ -230,7 +277,7 @@ export class Turn {
   private handlePendingFunctionCall(
     fnCall: FunctionCall,
     traceId?: string,
-  ): ServerGeminiStreamEvent | null {
+  ): LlmEvent | null {
     const callId =
       fnCall.id ??
       `${fnCall.name}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -248,8 +295,16 @@ export class Turn {
 
     this.pendingToolCalls.push(toolCallRequest);
 
-    // Yield a request for the tool call, not the pending/confirming status
-    return { type: GeminiEventType.ToolCallRequest, value: toolCallRequest };
+    // Yield a request for the tool call
+    return {
+      type: LlmEventType.ToolCallRequest,
+      callId,
+      name,
+      args,
+      isClientInitiated: false,
+      promptId: this.prompt_id,
+      traceId,
+    };
   }
 
   getDebugResponses(): GenerateContentResponse[] {

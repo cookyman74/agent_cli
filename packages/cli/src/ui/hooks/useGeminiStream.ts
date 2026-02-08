@@ -6,7 +6,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
-  GeminiEventType as ServerGeminiEventType,
+  LlmEventType,
   getErrorMessage,
   isNodeError,
   MessageSenderType,
@@ -36,17 +36,14 @@ import type {
   Config,
   EditorType,
   GeminiClient,
-  ServerGeminiChatCompressedEvent,
-  ServerGeminiContentEvent as ContentEvent,
-  ServerGeminiFinishedEvent,
-  ServerGeminiStreamEvent as GeminiEvent,
+  LlmEvent,
+  LlmFinishReason,
   ThoughtSummary,
   ToolCallRequestInfo,
-  GeminiErrorEventValue,
   RetryAttemptPayload,
   ToolCallConfirmationDetails,
 } from '@google/gemini-cli-core';
-import { type Part, type PartListUnion, FinishReason } from '@google/genai';
+import { type Part, type PartListUnion } from '@google/genai';
 import type {
   HistoryItem,
   HistoryItemWithoutId,
@@ -547,7 +544,7 @@ export const useGeminiStream = (
 
   const handleContentEvent = useCallback(
     (
-      eventValue: ContentEvent['value'],
+      eventValue: string,
       currentGeminiMessageBuffer: string,
       userMessageTimestamp: number,
     ): string => {
@@ -640,7 +637,7 @@ export const useGeminiStream = (
   );
 
   const handleErrorEvent = useCallback(
-    (eventValue: GeminiErrorEventValue, userMessageTimestamp: number) => {
+    (error: Error | string, userMessageTimestamp: number) => {
       if (pendingHistoryItemRef.current) {
         addItem(pendingHistoryItemRef.current, userMessageTimestamp);
         setPendingHistoryItem(null);
@@ -649,7 +646,7 @@ export const useGeminiStream = (
         {
           type: MessageType.ERROR,
           text: parseAndFormatApiError(
-            eventValue.error,
+            error,
             config.getContentGeneratorConfig()?.authType,
             undefined,
             config.getModel(),
@@ -679,36 +676,18 @@ export const useGeminiStream = (
   );
 
   const handleFinishedEvent = useCallback(
-    (event: ServerGeminiFinishedEvent, userMessageTimestamp: number) => {
-      const finishReason = event.value.reason;
+    (
+      finishReason: LlmFinishReason | undefined,
+      userMessageTimestamp: number,
+    ) => {
       if (!finishReason) {
         return;
       }
 
-      const finishReasonMessages: Record<FinishReason, string | undefined> = {
-        [FinishReason.FINISH_REASON_UNSPECIFIED]: undefined,
-        [FinishReason.STOP]: undefined,
-        [FinishReason.MAX_TOKENS]: 'Response truncated due to token limits.',
-        [FinishReason.SAFETY]: 'Response stopped due to safety reasons.',
-        [FinishReason.RECITATION]: 'Response stopped due to recitation policy.',
-        [FinishReason.LANGUAGE]:
-          'Response stopped due to unsupported language.',
-        [FinishReason.BLOCKLIST]: 'Response stopped due to forbidden terms.',
-        [FinishReason.PROHIBITED_CONTENT]:
-          'Response stopped due to prohibited content.',
-        [FinishReason.SPII]:
-          'Response stopped due to sensitive personally identifiable information.',
-        [FinishReason.OTHER]: 'Response stopped for other reasons.',
-        [FinishReason.MALFORMED_FUNCTION_CALL]:
-          'Response stopped due to malformed function call.',
-        [FinishReason.IMAGE_SAFETY]:
-          'Response stopped due to image safety violations.',
-        [FinishReason.UNEXPECTED_TOOL_CALL]:
-          'Response stopped due to unexpected tool call.',
-        [FinishReason.IMAGE_PROHIBITED_CONTENT]:
-          'Response stopped due to prohibited image content.',
-        [FinishReason.NO_IMAGE]:
-          'Response stopped because no image was generated.',
+      const finishReasonMessages: Partial<Record<LlmFinishReason, string>> = {
+        max_tokens: 'Response truncated due to token limits.',
+        content_filter: 'Response stopped due to content filtering.',
+        error: 'Response stopped due to an error.',
       };
 
       const message = finishReasonMessages[finishReason];
@@ -727,7 +706,8 @@ export const useGeminiStream = (
 
   const handleChatCompressionEvent = useCallback(
     (
-      eventValue: ServerGeminiChatCompressedEvent['value'],
+      originalTokens: number | undefined,
+      compressedTokens: number | undefined,
       userMessageTimestamp: number,
     ) => {
       if (pendingHistoryItemRef.current) {
@@ -739,8 +719,8 @@ export const useGeminiStream = (
         text:
           `IMPORTANT: This conversation exceeded the compress threshold. ` +
           `A compressed context will be sent for future messages (compressed from: ` +
-          `${eventValue?.originalTokenCount ?? 'unknown'} to ` +
-          `${eventValue?.newTokenCount ?? 'unknown'} tokens).`,
+          `${originalTokens ?? 'unknown'} to ` +
+          `${compressedTokens ?? 'unknown'} tokens).`,
       });
     },
     [addItem, pendingHistoryItemRef, setPendingHistoryItem],
@@ -866,7 +846,7 @@ export const useGeminiStream = (
 
   const processGeminiStreamEvents = useCallback(
     async (
-      stream: AsyncIterable<GeminiEvent>,
+      stream: AsyncIterable<LlmEvent>,
       userMessageTimestamp: number,
       signal: AbortSignal,
     ): Promise<StreamProcessingStatus> => {
@@ -874,75 +854,93 @@ export const useGeminiStream = (
       const toolCallRequests: ToolCallRequestInfo[] = [];
       for await (const event of stream) {
         switch (event.type) {
-          case ServerGeminiEventType.Thought:
+          case LlmEventType.ThoughtDelta:
             setLastGeminiActivityTime(Date.now());
-            setThought(event.value);
+            setThought({
+              description: event.thought,
+              subject: (event.metadata as { subject?: string })?.subject ?? '',
+            });
             break;
-          case ServerGeminiEventType.Content:
+          case LlmEventType.TextDelta:
             setLastGeminiActivityTime(Date.now());
             geminiMessageBuffer = handleContentEvent(
-              event.value,
+              event.text,
               geminiMessageBuffer,
               userMessageTimestamp,
             );
             break;
-          case ServerGeminiEventType.ToolCallRequest:
-            toolCallRequests.push(event.value);
+          case LlmEventType.ToolCallRequest:
+            toolCallRequests.push({
+              callId: event.callId,
+              name: event.name,
+              args: event.args,
+              isClientInitiated: event.isClientInitiated ?? false,
+              prompt_id: event.promptId ?? '',
+              traceId: event.traceId,
+            });
             break;
-          case ServerGeminiEventType.UserCancelled:
+          case LlmEventType.UserCancelled:
             handleUserCancelledEvent(userMessageTimestamp);
             break;
-          case ServerGeminiEventType.Error:
-            handleErrorEvent(event.value, userMessageTimestamp);
+          case LlmEventType.Error:
+            handleErrorEvent(event.error, userMessageTimestamp);
             break;
-          case ServerGeminiEventType.AgentExecutionStopped:
+          case LlmEventType.AgentStopped:
             handleAgentExecutionStoppedEvent(
-              event.value.reason,
+              event.reason ?? '',
               userMessageTimestamp,
-              event.value.systemMessage,
-              event.value.contextCleared,
+              event.systemMessage,
+              event.contextCleared,
             );
             break;
-          case ServerGeminiEventType.AgentExecutionBlocked:
+          case LlmEventType.AgentBlocked:
             handleAgentExecutionBlockedEvent(
-              event.value.reason,
+              event.reason ?? '',
               userMessageTimestamp,
-              event.value.systemMessage,
-              event.value.contextCleared,
+              event.systemMessage,
+              event.contextCleared,
             );
             break;
-          case ServerGeminiEventType.ChatCompressed:
-            handleChatCompressionEvent(event.value, userMessageTimestamp);
+          case LlmEventType.ChatCompressed:
+            handleChatCompressionEvent(
+              event.originalTokens,
+              event.compressedTokens,
+              userMessageTimestamp,
+            );
             break;
-          case ServerGeminiEventType.ToolCallConfirmation:
-          case ServerGeminiEventType.ToolCallResponse:
+          case LlmEventType.ToolCallConfirmation:
+          case LlmEventType.ToolCallResponse:
             // do nothing
             break;
-          case ServerGeminiEventType.MaxSessionTurns:
+          case LlmEventType.MaxSessionTurns:
             handleMaxSessionTurnsEvent();
             break;
-          case ServerGeminiEventType.ContextWindowWillOverflow:
+          case LlmEventType.ContextWindowOverflow:
             handleContextWindowWillOverflowEvent(
-              event.value.estimatedRequestTokenCount,
-              event.value.remainingTokenCount,
+              event.currentTokens ?? 0,
+              event.maxTokens ?? 0,
             );
             break;
-          case ServerGeminiEventType.Finished:
-            handleFinishedEvent(event, userMessageTimestamp);
+          case LlmEventType.Finished:
+            handleFinishedEvent(event.finishReason, userMessageTimestamp);
             break;
-          case ServerGeminiEventType.Citation:
-            handleCitationEvent(event.value, userMessageTimestamp);
+          case LlmEventType.Citation:
+            handleCitationEvent(
+              event.citations.map((c) => c.url ?? '').join('\n'),
+              userMessageTimestamp,
+            );
             break;
-          case ServerGeminiEventType.ModelInfo:
-            handleChatModelEvent(event.value, userMessageTimestamp);
+          case LlmEventType.ModelInfo:
+            handleChatModelEvent(event.modelName, userMessageTimestamp);
             break;
-          case ServerGeminiEventType.LoopDetected:
+          case LlmEventType.LoopDetected:
             // handle later because we want to move pending history to history
             // before we add loop detected message to history
             loopDetectedRef.current = true;
             break;
-          case ServerGeminiEventType.Retry:
-          case ServerGeminiEventType.InvalidStream:
+          case LlmEventType.Retry:
+          case LlmEventType.InvalidStream:
+          case LlmEventType.MessageEnd:
             // Will add the missing logic later
             break;
           default: {

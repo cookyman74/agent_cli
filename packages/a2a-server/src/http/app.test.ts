@@ -6,7 +6,7 @@
 
 import type { Config } from '@google/gemini-cli-core';
 import {
-  GeminiEventType,
+  LlmEventType,
   ApprovalMode,
   type ToolCallConfirmationDetails,
 } from '@google/gemini-cli-core';
@@ -130,7 +130,7 @@ describe('E2E Tests', () => {
 
   it('should create a new task and stream status updates (text-content) via POST /', async () => {
     sendMessageStreamSpy.mockImplementation(async function* () {
-      yield* [{ type: 'content', value: 'Hello how are you?' }];
+      yield* [{ type: LlmEventType.TextDelta, text: 'Hello how are you?' }];
     });
 
     const agent = request.agent(app);
@@ -170,12 +170,10 @@ describe('E2E Tests', () => {
     sendMessageStreamSpy.mockImplementationOnce(async function* () {
       yield* [
         {
-          type: GeminiEventType.ToolCallRequest,
-          value: {
-            callId: 'test-call-id',
-            name: 'test-tool',
-            args: {},
-          },
+          type: LlmEventType.ToolCallRequest,
+          callId: 'test-call-id',
+          name: 'test-tool',
+          args: {},
         },
       ];
     });
@@ -254,20 +252,16 @@ describe('E2E Tests', () => {
     sendMessageStreamSpy.mockImplementationOnce(async function* () {
       yield* [
         {
-          type: GeminiEventType.ToolCallRequest,
-          value: {
-            callId: 'test-call-id-1',
-            name: 'test-tool-1',
-            args: {},
-          },
+          type: LlmEventType.ToolCallRequest,
+          callId: 'test-call-id-1',
+          name: 'test-tool-1',
+          args: {},
         },
         {
-          type: GeminiEventType.ToolCallRequest,
-          value: {
-            callId: 'test-call-id-2',
-            name: 'test-tool-2',
-            args: {},
-          },
+          type: LlmEventType.ToolCallRequest,
+          callId: 'test-call-id-2',
+          name: 'test-tool-2',
+          args: {},
         },
       ];
     });
@@ -407,26 +401,22 @@ describe('E2E Tests', () => {
     sendMessageStreamSpy.mockImplementationOnce(async function* () {
       yield* [
         {
-          type: GeminiEventType.ToolCallRequest,
-          value: {
-            callId: 'test-call-id-1',
-            name: 'test-tool-1',
-            args: {},
-          },
+          type: LlmEventType.ToolCallRequest,
+          callId: 'test-call-id-1',
+          name: 'test-tool-1',
+          args: {},
         },
         {
-          type: GeminiEventType.ToolCallRequest,
-          value: {
-            callId: 'test-call-id-2',
-            name: 'test-tool-2',
-            args: {},
-          },
+          type: LlmEventType.ToolCallRequest,
+          callId: 'test-call-id-2',
+          name: 'test-tool-2',
+          args: {},
         },
       ];
     });
     // Subsequent calls yield nothing, as the tools will "succeed".
     sendMessageStreamSpy.mockImplementation(async function* () {
-      yield* [{ type: 'content', value: 'All tools executed.' }];
+      yield* [{ type: LlmEventType.TextDelta, text: 'All tools executed.' }];
     });
 
     const mockTool1 = new MockTool({
@@ -549,18 +539,18 @@ describe('E2E Tests', () => {
     sendMessageStreamSpy.mockImplementationOnce(async function* () {
       yield* [
         {
-          type: GeminiEventType.ToolCallRequest,
-          value: {
-            callId: 'test-call-id-no-approval',
-            name: 'test-tool-no-approval',
-            args: {},
-          },
+          type: LlmEventType.ToolCallRequest,
+          callId: 'test-call-id-no-approval',
+          name: 'test-tool-no-approval',
+          args: {},
         },
       ];
     });
     // Second call, after the tool runs, yields the final text
     sendMessageStreamSpy.mockImplementationOnce(async function* () {
-      yield* [{ type: 'content', value: 'Tool executed successfully.' }];
+      yield* [
+        { type: LlmEventType.TextDelta, text: 'Tool executed successfully.' },
+      ];
     });
 
     const mockTool = new MockTool({
@@ -677,18 +667,18 @@ describe('E2E Tests', () => {
     sendMessageStreamSpy.mockImplementationOnce(async function* () {
       yield* [
         {
-          type: GeminiEventType.ToolCallRequest,
-          value: {
-            callId: 'test-call-id-yolo',
-            name: 'test-tool-yolo',
-            args: {},
-          },
+          type: LlmEventType.ToolCallRequest,
+          callId: 'test-call-id-yolo',
+          name: 'test-tool-yolo',
+          args: {},
         },
       ];
     });
     // Second call, after the tool runs, yields the final text
     sendMessageStreamSpy.mockImplementationOnce(async function* () {
-      yield* [{ type: 'content', value: 'Tool executed successfully.' }];
+      yield* [
+        { type: LlmEventType.TextDelta, text: 'Tool executed successfully.' },
+      ];
     });
 
     // Set approval mode to yolo
@@ -807,8 +797,13 @@ describe('E2E Tests', () => {
     const traceId = 'test-trace-id';
     sendMessageStreamSpy.mockImplementation(async function* () {
       yield* [
-        { type: 'content', value: 'Hello', traceId },
-        { type: 'thought', value: { subject: 'Thinking...' }, traceId },
+        { type: LlmEventType.TextDelta, text: 'Hello', traceId },
+        {
+          type: LlmEventType.ThoughtDelta,
+          thought: '',
+          metadata: { subject: 'Thinking...' },
+          traceId,
+        },
       ];
     });
 

@@ -15,7 +15,7 @@ import {
 } from 'vitest';
 import { Task } from './task.js';
 import {
-  GeminiEventType,
+  LlmEventType,
   type Config,
   type ToolCallRequestInfo,
   type GitService,
@@ -242,8 +242,8 @@ describe('Task', () => {
       );
 
       const event = {
-        type: 'content',
-        value: 'test',
+        type: LlmEventType.TextDelta,
+        text: 'test',
         traceId: 'test-trace-id',
       };
 
@@ -279,8 +279,8 @@ describe('Task', () => {
 
       const citationText = 'Source: example.com';
       const citationEvent = {
-        type: GeminiEventType.Citation,
-        value: citationText,
+        type: LlmEventType.Citation,
+        citations: [{ url: citationText }],
       };
 
       await task.acceptAgentMessage(citationEvent);
@@ -322,8 +322,8 @@ describe('Task', () => {
       );
 
       const modelInfoEvent = {
-        type: GeminiEventType.ModelInfo,
-        value: 'new-model-name',
+        type: LlmEventType.ModelInfo,
+        modelName: 'new-model-name',
       };
 
       await task.acceptAgentMessage(modelInfoEvent);
@@ -351,8 +351,8 @@ describe('Task', () => {
     });
 
     it.each([
-      { eventType: GeminiEventType.Retry, eventName: 'Retry' },
-      { eventType: GeminiEventType.InvalidStream, eventName: 'InvalidStream' },
+      { eventType: LlmEventType.Retry, eventName: 'Retry' },
+      { eventType: LlmEventType.InvalidStream, eventName: 'InvalidStream' },
     ])(
       'should handle $eventName event without triggering error handling',
       async ({ eventType }) => {

@@ -16,9 +16,10 @@ import {
   getDirectoryContextString,
   getInitialChatHistory,
 } from '../utils/environmentContext.js';
-import type { ServerGeminiStreamEvent, ChatCompressionInfo } from './turn.js';
+import type { ChatCompressionInfo } from './turn.js';
 import { CompressionStatus } from './turn.js';
-import { Turn, GeminiEventType } from './turn.js';
+import { Turn, LlmEventType } from './turn.js';
+import type { LlmEvent } from '../providers/events.js';
 import type { Config } from '../config/config.js';
 import { getCoreSystemPrompt } from './prompts.js';
 import { checkNextSpeaker } from '../utils/nextSpeakerChecker.js';
@@ -72,12 +73,14 @@ const MAX_TURNS = 100;
 
 type BeforeAgentHookReturn =
   | {
-      type: GeminiEventType.AgentExecutionStopped;
-      value: { reason: string; systemMessage?: string };
+      type: LlmEventType.AgentStopped;
+      reason: string;
+      systemMessage?: string;
     }
   | {
-      type: GeminiEventType.AgentExecutionBlocked;
-      value: { reason: string; systemMessage?: string };
+      type: LlmEventType.AgentBlocked;
+      reason: string;
+      systemMessage?: string;
     }
   | { additionalContext: string | undefined }
   | undefined;
@@ -155,21 +158,17 @@ export class GeminiClient {
 
     if (hookOutput?.shouldStopExecution()) {
       return {
-        type: GeminiEventType.AgentExecutionStopped,
-        value: {
-          reason: hookOutput.getEffectiveReason(),
-          systemMessage: hookOutput.systemMessage,
-        },
+        type: LlmEventType.AgentStopped,
+        reason: hookOutput.getEffectiveReason(),
+        systemMessage: hookOutput.systemMessage,
       };
     }
 
     if (hookOutput?.isBlockingDecision()) {
       return {
-        type: GeminiEventType.AgentExecutionBlocked,
-        value: {
-          reason: hookOutput.getEffectiveReason(),
-          systemMessage: hookOutput.systemMessage,
-        },
+        type: LlmEventType.AgentBlocked,
+        reason: hookOutput.getEffectiveReason(),
+        systemMessage: hookOutput.systemMessage,
       };
     }
 
@@ -536,7 +535,7 @@ export class GeminiClient {
     prompt_id: string,
     boundedTurns: number,
     isInvalidStreamRetry: boolean,
-  ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
+  ): AsyncGenerator<LlmEvent, Turn> {
     // Re-initialize turn (it was empty before if in loop, or new instance)
     let turn = new Turn(this.getChat(), prompt_id);
 
@@ -545,7 +544,7 @@ export class GeminiClient {
       this.config.getMaxSessionTurns() > 0 &&
       this.sessionTurnCount > this.config.getMaxSessionTurns()
     ) {
-      yield { type: GeminiEventType.MaxSessionTurns };
+      yield { type: LlmEventType.MaxSessionTurns };
       return turn;
     }
 
@@ -559,7 +558,11 @@ export class GeminiClient {
     const compressed = await this.tryCompressChat(prompt_id, false);
 
     if (compressed.compressionStatus === CompressionStatus.COMPRESSED) {
-      yield { type: GeminiEventType.ChatCompressed, value: compressed };
+      yield {
+        type: LlmEventType.ChatCompressed,
+        originalTokens: compressed.originalTokenCount,
+        compressedTokens: compressed.newTokenCount,
+      };
     }
 
     const remainingTokenCount =
@@ -575,8 +578,9 @@ export class GeminiClient {
 
     if (estimatedRequestTokenCount > remainingTokenCount) {
       yield {
-        type: GeminiEventType.ContextWindowWillOverflow,
-        value: { estimatedRequestTokenCount, remainingTokenCount },
+        type: LlmEventType.ContextWindowOverflow,
+        currentTokens: estimatedRequestTokenCount,
+        maxTokens: remainingTokenCount,
       };
       return turn;
     }
@@ -616,7 +620,7 @@ export class GeminiClient {
 
     const loopDetected = await this.loopDetector.turnStarted(signal);
     if (loopDetected) {
-      yield { type: GeminiEventType.LoopDetected };
+      yield { type: LlmEventType.LoopDetected };
       return turn;
     }
 
@@ -650,7 +654,7 @@ export class GeminiClient {
     modelToUse = finalModel;
 
     if (!signal.aborted && !this.currentSequenceModel) {
-      yield { type: GeminiEventType.ModelInfo, value: modelToUse };
+      yield { type: LlmEventType.ModelInfo, modelName: modelToUse };
     }
     this.currentSequenceModel = modelToUse;
     const resultStream = turn.run(modelConfigKey, request, linkedSignal);
@@ -658,10 +662,8 @@ export class GeminiClient {
     let isInvalidStream = false;
 
     for await (const event of resultStream) {
-      // TODO(M2.3): Migrate to loopDetector.addAndCheckLlm() when
-      // processTurn yields LlmEvent instead of ServerGeminiStreamEvent.
       if (this.loopDetector.addAndCheck(event)) {
-        yield { type: GeminiEventType.LoopDetected };
+        yield { type: LlmEventType.LoopDetected };
         controller.abort();
         return turn;
       }
@@ -669,10 +671,10 @@ export class GeminiClient {
 
       this.updateTelemetryTokenCount();
 
-      if (event.type === GeminiEventType.InvalidStream) {
+      if (event.type === LlmEventType.InvalidStream) {
         isInvalidStream = true;
       }
-      if (event.type === GeminiEventType.Error) {
+      if (event.type === LlmEventType.Error) {
         isError = true;
       }
     }
@@ -762,7 +764,7 @@ export class GeminiClient {
     prompt_id: string,
     turns: number = MAX_TURNS,
     isInvalidStreamRetry: boolean = false,
-  ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
+  ): AsyncGenerator<LlmEvent, Turn> {
     if (!isInvalidStreamRetry) {
       this.config.resetTurn();
     }
@@ -782,7 +784,7 @@ export class GeminiClient {
       if (hookResult) {
         if (
           'type' in hookResult &&
-          hookResult.type === GeminiEventType.AgentExecutionStopped
+          hookResult.type === LlmEventType.AgentStopped
         ) {
           // Add user message to history before returning so it's kept in the transcript
           this.getChat().addHistory(createUserContent(request));
@@ -790,7 +792,7 @@ export class GeminiClient {
           return new Turn(this.getChat(), prompt_id);
         } else if (
           'type' in hookResult &&
-          hookResult.type === GeminiEventType.AgentExecutionBlocked
+          hookResult.type === LlmEventType.AgentBlocked
         ) {
           yield hookResult;
           return new Turn(this.getChat(), prompt_id);
@@ -833,12 +835,10 @@ export class GeminiClient {
         if (afterAgentOutput?.shouldStopExecution()) {
           const contextCleared = afterAgentOutput.shouldClearContext();
           yield {
-            type: GeminiEventType.AgentExecutionStopped,
-            value: {
-              reason: afterAgentOutput.getEffectiveReason(),
-              systemMessage: afterAgentOutput.systemMessage,
-              contextCleared,
-            },
+            type: LlmEventType.AgentStopped,
+            reason: afterAgentOutput.getEffectiveReason(),
+            systemMessage: afterAgentOutput.systemMessage,
+            contextCleared,
           };
           // Clear context if requested (honor both stop + clear)
           if (contextCleared) {
@@ -851,12 +851,10 @@ export class GeminiClient {
           const continueReason = afterAgentOutput.getEffectiveReason();
           const contextCleared = afterAgentOutput.shouldClearContext();
           yield {
-            type: GeminiEventType.AgentExecutionBlocked,
-            value: {
-              reason: continueReason,
-              systemMessage: afterAgentOutput.systemMessage,
-              contextCleared,
-            },
+            type: LlmEventType.AgentBlocked,
+            reason: continueReason,
+            systemMessage: afterAgentOutput.systemMessage,
+            contextCleared,
           };
           // Clear context if requested
           if (contextCleared) {

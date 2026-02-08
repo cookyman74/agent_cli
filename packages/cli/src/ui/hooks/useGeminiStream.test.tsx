@@ -29,7 +29,7 @@ import type {
 import {
   ApprovalMode,
   AuthType,
-  GeminiEventType as ServerGeminiEventType,
+  LlmEventType,
   ToolErrorType,
   ToolConfirmationOutcome,
   tokenLimit,
@@ -56,6 +56,7 @@ const MockedGeminiClientClass = vi.hoisted(() =>
     this.startChat = mockStartChat;
     this.sendMessageStream = mockSendMessageStream;
     this.addHistory = vi.fn();
+    this.getCurrentSequenceModel = vi.fn().mockReturnValue(null);
     this.getChat = vi.fn().mockReturnValue({
       recordCompletedToolCalls: vi.fn(),
     });
@@ -1070,7 +1071,7 @@ describe('useGeminiStream', () => {
 
     it('should cancel an in-progress stream when escape is pressed', async () => {
       const mockStream = (async function* () {
-        yield { type: 'content', value: 'Part 1' };
+        yield { type: LlmEventType.TextDelta, text: 'Part 1' };
         // Keep the stream open
         await new Promise(() => {});
       })();
@@ -1107,7 +1108,7 @@ describe('useGeminiStream', () => {
     it('should call onCancelSubmit handler when escape is pressed', async () => {
       const cancelSubmitSpy = vi.fn();
       const mockStream = (async function* () {
-        yield { type: 'content', value: 'Part 1' };
+        yield { type: LlmEventType.TextDelta, text: 'Part 1' };
         // Keep the stream open
         await new Promise(() => {});
       })();
@@ -1149,7 +1150,7 @@ describe('useGeminiStream', () => {
     it('should call setShellInputFocused(false) when escape is pressed', async () => {
       const setShellInputFocusedSpy = vi.fn();
       const mockStream = (async function* () {
-        yield { type: 'content', value: 'Part 1' };
+        yield { type: LlmEventType.TextDelta, text: 'Part 1' };
         await new Promise(() => {}); // Keep stream open
       })();
       mockSendMessageStream.mockReturnValue(mockStream);
@@ -1210,9 +1211,9 @@ describe('useGeminiStream', () => {
       });
 
       const mockStream = (async function* () {
-        yield { type: 'content', value: 'Initial' };
+        yield { type: LlmEventType.TextDelta, text: 'Initial' };
         await streamPromise; // Wait until we manually continue
-        yield { type: 'content', value: ' Canceled' };
+        yield { type: LlmEventType.TextDelta, text: ' Canceled' };
       })();
       mockSendMessageStream.mockReturnValue(mockStream);
 
@@ -1373,7 +1374,7 @@ describe('useGeminiStream', () => {
 
       // Start a query to make isResponding true
       const mockStream = (async function* () {
-        yield { type: ServerGeminiEventType.Content, value: 'Part 1' };
+        yield { type: LlmEventType.TextDelta, text: 'Part 1' };
         await new Promise(() => {}); // Keep stream open
       })();
       mockSendMessageStream.mockReturnValue(mockStream);
@@ -1664,7 +1665,7 @@ describe('useGeminiStream', () => {
       mockParseAndFormatApiError.mockClear();
       mockSendMessageStream.mockReturnValue(
         (async function* () {
-          yield { type: 'content', value: '' };
+          yield { type: LlmEventType.TextDelta, text: '' };
           throw mockError;
         })(),
       );
@@ -1968,12 +1969,12 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'This is a truncated response...',
+            type: LlmEventType.TextDelta,
+            text: 'This is a truncated response...',
           };
           yield {
-            type: ServerGeminiEventType.Finished,
-            value: { reason: 'MAX_TOKENS', usageMetadata: undefined },
+            type: LlmEventType.Finished,
+            finishReason: 'max_tokens',
           };
         })(),
       );
@@ -2043,11 +2044,9 @@ describe('useGeminiStream', () => {
           mockSendMessageStream.mockReturnValue(
             (async function* () {
               yield {
-                type: ServerGeminiEventType.ContextWindowWillOverflow,
-                value: {
-                  estimatedRequestTokenCount: requestTokens,
-                  remainingTokenCount: remainingTokens,
-                },
+                type: LlmEventType.ContextWindowOverflow,
+                currentTokens: requestTokens,
+                maxTokens: remainingTokens,
               };
             })(),
           );
@@ -2074,11 +2073,9 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.ContextWindowWillOverflow,
-            value: {
-              estimatedRequestTokenCount: 100,
-              remainingTokenCount: 50,
-            },
+            type: LlmEventType.ContextWindowOverflow,
+            currentTokens: 100,
+            maxTokens: 50,
           };
         })(),
       );
@@ -2118,53 +2115,28 @@ describe('useGeminiStream', () => {
 
     it.each([
       {
-        reason: 'STOP',
+        reason: 'end_turn' as const,
         shouldAddMessage: false,
       },
       {
-        reason: 'FINISH_REASON_UNSPECIFIED',
+        reason: undefined,
         shouldAddMessage: false,
       },
       {
-        reason: 'SAFETY',
-        message: '⚠️  Response stopped due to safety reasons.',
+        reason: 'max_tokens' as const,
+        message: '⚠️  Response truncated due to token limits.',
       },
       {
-        reason: 'RECITATION',
-        message: '⚠️  Response stopped due to recitation policy.',
+        reason: 'content_filter' as const,
+        message: '⚠️  Response stopped due to content filtering.',
       },
       {
-        reason: 'LANGUAGE',
-        message: '⚠️  Response stopped due to unsupported language.',
+        reason: 'error' as const,
+        message: '⚠️  Response stopped due to an error.',
       },
       {
-        reason: 'BLOCKLIST',
-        message: '⚠️  Response stopped due to forbidden terms.',
-      },
-      {
-        reason: 'PROHIBITED_CONTENT',
-        message: '⚠️  Response stopped due to prohibited content.',
-      },
-      {
-        reason: 'SPII',
-        message:
-          '⚠️  Response stopped due to sensitive personally identifiable information.',
-      },
-      {
-        reason: 'OTHER',
-        message: '⚠️  Response stopped for other reasons.',
-      },
-      {
-        reason: 'MALFORMED_FUNCTION_CALL',
-        message: '⚠️  Response stopped due to malformed function call.',
-      },
-      {
-        reason: 'IMAGE_SAFETY',
-        message: '⚠️  Response stopped due to image safety violations.',
-      },
-      {
-        reason: 'UNEXPECTED_TOOL_CALL',
-        message: '⚠️  Response stopped due to unexpected tool call.',
+        reason: 'unknown' as const,
+        shouldAddMessage: false,
       },
     ])(
       'should handle $reason finish reason correctly',
@@ -2172,12 +2144,12 @@ describe('useGeminiStream', () => {
         mockSendMessageStream.mockReturnValue(
           (async function* () {
             yield {
-              type: ServerGeminiEventType.Content,
-              value: `Response for ${reason}`,
+              type: LlmEventType.TextDelta,
+              text: `Response for ${reason}`,
             };
             yield {
-              type: ServerGeminiEventType.Finished,
-              value: { reason, usageMetadata: undefined },
+              type: LlmEventType.Finished,
+              finishReason: reason,
             };
           })(),
         );
@@ -2205,7 +2177,7 @@ describe('useGeminiStream', () => {
           });
 
           const infoMessages = mockAddItem.mock.calls.filter(
-            (call) => call[0].type === 'info',
+            (call: any[]) => call[0].type === 'info',
           );
           expect(infoMessages).toHaveLength(0);
         }
@@ -2276,12 +2248,14 @@ describe('useGeminiStream', () => {
 
     const mockStream = (async function* () {
       yield {
-        type: ServerGeminiEventType.Content,
-        value: 'Rationale rationale.',
+        type: LlmEventType.TextDelta,
+        text: 'Rationale rationale.',
       };
       yield {
-        type: ServerGeminiEventType.ToolCallRequest,
-        value: { callId: '1', name: 'test_tool', args: {} },
+        type: LlmEventType.ToolCallRequest,
+        callId: '1',
+        name: 'test_tool',
+        args: {},
       };
     })();
     mockSendMessageStream.mockReturnValue(mockStream);
@@ -2398,12 +2372,12 @@ describe('useGeminiStream', () => {
     mockSendMessageStream.mockReturnValue(
       (async function* () {
         yield {
-          type: ServerGeminiEventType.Content,
-          value: modelResponseContent,
+          type: LlmEventType.TextDelta,
+          text: modelResponseContent,
         };
         yield {
-          type: ServerGeminiEventType.Finished,
-          value: { reason: 'STOP' },
+          type: LlmEventType.Finished,
+          finishReason: 'end_turn',
         };
       })(),
     );
@@ -2460,19 +2434,17 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Thought,
-            value: {
-              subject: 'Previous thought',
-              description: 'Old description',
-            },
+            type: LlmEventType.ThoughtDelta,
+            thought: 'Old description',
+            metadata: { subject: 'Previous thought' },
           };
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'Some response content',
+            type: LlmEventType.TextDelta,
+            text: 'Some response content',
           };
           yield {
-            type: ServerGeminiEventType.Finished,
-            value: { reason: 'STOP', usageMetadata: undefined },
+            type: LlmEventType.Finished,
+            finishReason: 'end_turn',
           };
         })(),
       );
@@ -2519,12 +2491,12 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'New response content',
+            type: LlmEventType.TextDelta,
+            text: 'New response content',
           };
           yield {
-            type: ServerGeminiEventType.Finished,
-            value: { reason: 'STOP', usageMetadata: undefined },
+            type: LlmEventType.Finished,
+            finishReason: 'end_turn',
           };
         })(),
       );
@@ -2619,10 +2591,11 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Thought,
-            value: { subject: 'Some thought', description: 'Description' },
+            type: LlmEventType.ThoughtDelta,
+            thought: 'Description',
+            metadata: { subject: 'Some thought' },
           };
-          yield { type: ServerGeminiEventType.UserCancelled };
+          yield { type: LlmEventType.UserCancelled };
         })(),
       );
 
@@ -2673,12 +2646,13 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Thought,
-            value: { subject: 'Some thought', description: 'Description' },
+            type: LlmEventType.ThoughtDelta,
+            thought: 'Description',
+            metadata: { subject: 'Some thought' },
           };
           yield {
-            type: ServerGeminiEventType.Error,
-            value: { error: { message: 'Test error' } },
+            type: LlmEventType.Error,
+            error: new Error('Test error'),
           };
         })(),
       );
@@ -2722,7 +2696,7 @@ describe('useGeminiStream', () => {
 
       // Verify parseAndFormatApiError was called
       expect(mockParseAndFormatApiError).toHaveBeenCalledWith(
-        { message: 'Test error' },
+        expect.objectContaining({ message: 'Test error' }),
         expect.any(String),
         undefined,
         'gemini-2.5-pro',
@@ -2739,14 +2713,15 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Thought,
-            value: { subject: 'Thinking...', description: '' },
+            type: LlmEventType.ThoughtDelta,
+            thought: '',
+            metadata: { subject: 'Thinking...' },
           };
           // Advance time for the next event
           vi.advanceTimersByTime(1000);
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'Hello',
+            type: LlmEventType.TextDelta,
+            text: 'Hello',
           };
         })(),
       );
@@ -2802,11 +2777,11 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'Some content',
+            type: LlmEventType.TextDelta,
+            text: 'Some content',
           };
           yield {
-            type: ServerGeminiEventType.LoopDetected,
+            type: LlmEventType.LoopDetected,
           };
         })(),
       );
@@ -2839,7 +2814,7 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValueOnce(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.LoopDetected,
+            type: LlmEventType.LoopDetected,
           };
         })(),
       );
@@ -2848,12 +2823,12 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValueOnce(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'Retry successful',
+            type: LlmEventType.TextDelta,
+            text: 'Retry successful',
           };
           yield {
-            type: ServerGeminiEventType.Finished,
-            value: { reason: 'STOP' },
+            type: LlmEventType.Finished,
+            finishReason: 'end_turn',
           };
         })(),
       );
@@ -2915,7 +2890,7 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.LoopDetected,
+            type: LlmEventType.LoopDetected,
           };
         })(),
       );
@@ -2961,7 +2936,7 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValueOnce(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.LoopDetected,
+            type: LlmEventType.LoopDetected,
           };
         })(),
       );
@@ -2994,7 +2969,7 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValueOnce(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.LoopDetected,
+            type: LlmEventType.LoopDetected,
           };
         })(),
       );
@@ -3003,12 +2978,12 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValueOnce(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'Retry successful',
+            type: LlmEventType.TextDelta,
+            text: 'Retry successful',
           };
           yield {
-            type: ServerGeminiEventType.Finished,
-            value: { reason: 'STOP' },
+            type: LlmEventType.Finished,
+            finishReason: 'end_turn',
           };
         })(),
       );
@@ -3053,11 +3028,11 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'Some response content',
+            type: LlmEventType.TextDelta,
+            text: 'Some response content',
           };
           yield {
-            type: ServerGeminiEventType.LoopDetected,
+            type: LlmEventType.LoopDetected,
           };
         })(),
       );
@@ -3091,11 +3066,9 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.AgentExecutionStopped,
-            value: {
-              reason: 'hook-reason',
-              systemMessage: 'Custom stop message',
-            },
+            type: LlmEventType.AgentStopped,
+            reason: 'hook-reason',
+            systemMessage: 'Custom stop message',
           };
         })(),
       );
@@ -3122,8 +3095,8 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.AgentExecutionStopped,
-            value: { reason: 'Stopped by hook' },
+            type: LlmEventType.AgentStopped,
+            reason: 'Stopped by hook',
           };
         })(),
       );
@@ -3150,11 +3123,9 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.AgentExecutionBlocked,
-            value: {
-              reason: 'hook-reason',
-              systemMessage: 'Custom block message',
-            },
+            type: LlmEventType.AgentBlocked,
+            reason: 'hook-reason',
+            systemMessage: 'Custom block message',
           };
         })(),
       );
@@ -3180,8 +3151,8 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.AgentExecutionBlocked,
-            value: { reason: 'Blocked by hook' },
+            type: LlmEventType.AgentBlocked,
+            reason: 'Blocked by hook',
           };
         })(),
       );

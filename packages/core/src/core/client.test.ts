@@ -25,7 +25,7 @@ import { GeminiChat } from './geminiChat.js';
 import type { Config } from '../config/config.js';
 import {
   CompressionStatus,
-  GeminiEventType,
+  LlmEventType,
   Turn,
   type ChatCompressionInfo,
 } from './turn.js';
@@ -689,8 +689,9 @@ describe('Gemini Client (client.ts)', () => {
 
       // Assert
       expect(events).toContainEqual({
-        type: GeminiEventType.ChatCompressed,
-        value: compressionInfo,
+        type: LlmEventType.ChatCompressed,
+        originalTokens: compressionInfo.originalTokenCount,
+        compressedTokens: compressionInfo.newTokenCount,
       });
     });
 
@@ -717,7 +718,7 @@ describe('Gemini Client (client.ts)', () => {
       // Assert
       expect(events).not.toContainEqual(
         expect.objectContaining({
-          type: GeminiEventType.ModelInfo,
+          type: LlmEventType.ModelInfo,
         }),
       );
     });
@@ -757,10 +758,11 @@ describe('Gemini Client (client.ts)', () => {
         const events = await fromAsync(stream);
 
         // Assert
-        expect(events).not.toContainEqual({
-          type: GeminiEventType.ChatCompressed,
-          value: expect.anything(),
-        });
+        expect(events).not.toContainEqual(
+          expect.objectContaining({
+            type: LlmEventType.ChatCompressed,
+          }),
+        );
       },
     );
 
@@ -1261,7 +1263,7 @@ ${JSON.stringify(
         events.push(event);
       }
 
-      expect(events).toEqual([{ type: GeminiEventType.MaxSessionTurns }]);
+      expect(events).toEqual([{ type: LlmEventType.MaxSessionTurns }]);
       expect(mockTurnRunFn).toHaveBeenCalledTimes(MAX_SESSION_TURNS);
     });
 
@@ -1378,11 +1380,9 @@ ${JSON.stringify(
 
       // Assert
       expect(events).toContainEqual({
-        type: GeminiEventType.ContextWindowWillOverflow,
-        value: {
-          estimatedRequestTokenCount,
-          remainingTokenCount,
-        },
+        type: LlmEventType.ContextWindowOverflow,
+        currentTokens: estimatedRequestTokenCount,
+        maxTokens: remainingTokenCount,
       });
       // Ensure turn.run is not called
       expect(mockTurnRunFn).not.toHaveBeenCalled();
@@ -1437,11 +1437,9 @@ ${JSON.stringify(
       // Assert
       // Should overflow based on the sticky model's limit
       expect(events).toContainEqual({
-        type: GeminiEventType.ContextWindowWillOverflow,
-        value: {
-          estimatedRequestTokenCount,
-          remainingTokenCount,
-        },
+        type: LlmEventType.ContextWindowOverflow,
+        currentTokens: estimatedRequestTokenCount,
+        maxTokens: remainingTokenCount,
       });
       expect(tokenLimit).toHaveBeenCalledWith(STICKY_MODEL);
       expect(mockTurnRunFn).not.toHaveBeenCalled();
@@ -1517,14 +1515,14 @@ ${JSON.stringify(
       // 1. Should NOT contain overflow warning
       expect(events).not.toContainEqual(
         expect.objectContaining({
-          type: GeminiEventType.ContextWindowWillOverflow,
+          type: LlmEventType.ContextWindowOverflow,
         }),
       );
 
       // 2. Should contain compression event
       expect(events).toContainEqual(
         expect.objectContaining({
-          type: GeminiEventType.ChatCompressed,
+          type: LlmEventType.ChatCompressed,
         }),
       );
 
@@ -1597,11 +1595,9 @@ ${JSON.stringify(
       // 2. Should yield overflow warning because 10000 > 1000 limit.
       expect(events).toContainEqual(
         expect.objectContaining({
-          type: GeminiEventType.ContextWindowWillOverflow,
-          value: expect.objectContaining({
-            estimatedRequestTokenCount: expect.any(Number),
-            remainingTokenCount: expect.any(Number),
-          }),
+          type: LlmEventType.ContextWindowOverflow,
+          currentTokens: expect.any(Number),
+          maxTokens: expect.any(Number),
         }),
       );
     });
@@ -1658,7 +1654,7 @@ ${JSON.stringify(
       // Should NOT contain overflow warning
       expect(events).not.toContainEqual(
         expect.objectContaining({
-          type: GeminiEventType.ContextWindowWillOverflow,
+          type: LlmEventType.ContextWindowOverflow,
         }),
       );
 
@@ -1871,10 +1867,10 @@ ${JSON.stringify(
       );
       // Arrange
       const mockStream1 = (async function* () {
-        yield { type: GeminiEventType.InvalidStream };
+        yield { type: LlmEventType.InvalidStream };
       })();
       const mockStream2 = (async function* () {
-        yield { type: GeminiEventType.Content, value: 'Continued content' };
+        yield { type: LlmEventType.TextDelta, text: 'Continued content' };
       })();
 
       mockTurnRunFn
@@ -1898,9 +1894,9 @@ ${JSON.stringify(
 
       // Assert
       expect(events).toEqual([
-        { type: GeminiEventType.ModelInfo, value: 'default-routed-model' },
-        { type: GeminiEventType.InvalidStream },
-        { type: GeminiEventType.Content, value: 'Continued content' },
+        { type: LlmEventType.ModelInfo, modelName: 'default-routed-model' },
+        { type: LlmEventType.InvalidStream },
+        { type: LlmEventType.TextDelta, text: 'Continued content' },
       ]);
 
       // Verify that turn.run was called twice
@@ -1929,7 +1925,7 @@ ${JSON.stringify(
       );
       // Arrange
       const mockStream1 = (async function* () {
-        yield { type: GeminiEventType.InvalidStream };
+        yield { type: LlmEventType.InvalidStream };
       })();
 
       mockTurnRunFn.mockReturnValueOnce(mockStream1);
@@ -1951,8 +1947,8 @@ ${JSON.stringify(
 
       // Assert
       expect(events).toEqual([
-        { type: GeminiEventType.ModelInfo, value: 'default-routed-model' },
-        { type: GeminiEventType.InvalidStream },
+        { type: LlmEventType.ModelInfo, modelName: 'default-routed-model' },
+        { type: LlmEventType.InvalidStream },
       ]);
 
       // Verify that turn.run was called only once
@@ -1967,7 +1963,7 @@ ${JSON.stringify(
       // Always return a new invalid stream
       mockTurnRunFn.mockImplementation(() =>
         (async function* () {
-          yield { type: GeminiEventType.InvalidStream };
+          yield { type: LlmEventType.InvalidStream };
         })(),
       );
 
@@ -1991,8 +1987,8 @@ ${JSON.stringify(
       expect(events.length).toBe(3);
       expect(
         events
-          .filter((e) => e.type === GeminiEventType.ModelInfo)
-          .map((e) => e.value),
+          .filter((e) => e.type === LlmEventType.ModelInfo)
+          .map((e) => (e as { modelName: string }).modelName),
       ).toEqual(['default-routed-model']);
 
       // Verify that turn.run was called twice
@@ -2391,7 +2387,7 @@ ${JSON.stringify(
           'getContinueOnFailedApiCall',
         ).mockReturnValue(true);
         const mockStream1 = (async function* () {
-          yield { type: GeminiEventType.InvalidStream };
+          yield { type: LlmEventType.InvalidStream };
         })();
         const mockStream2 = (async function* () {
           yield { type: 'content', value: 'ok' };
@@ -2763,8 +2759,8 @@ ${JSON.stringify(
 
       const mockStream = (async function* () {
         yield {
-          type: GeminiEventType.Error,
-          value: { error: { message: 'test error' } },
+          type: LlmEventType.Error,
+          error: 'test error',
         };
       })();
       mockTurnRunFn.mockReturnValue(mockStream);
@@ -2798,10 +2794,10 @@ ${JSON.stringify(
       const mockCheckNextSpeaker = vi.mocked(checkNextSpeaker);
 
       const mockStream = (async function* () {
-        yield { type: GeminiEventType.Content, value: 'some content' };
+        yield { type: LlmEventType.TextDelta, text: 'some content' };
         yield {
-          type: GeminiEventType.Error,
-          value: { error: { message: 'test error' } },
+          type: LlmEventType.Error,
+          error: 'test error',
         };
       })();
       mockTurnRunFn.mockReturnValue(mockStream);
@@ -2838,8 +2834,8 @@ ${JSON.stringify(
       mockTurnRunFn.mockImplementation((_modelConfigKey, _request, signal) => {
         capturedSignal = signal;
         return (async function* () {
-          yield { type: 'content', value: 'First event' };
-          yield { type: 'content', value: 'Second event' };
+          yield { type: LlmEventType.TextDelta, text: 'First event' };
+          yield { type: LlmEventType.TextDelta, text: 'Second event' };
         })();
       });
 
@@ -2863,7 +2859,7 @@ ${JSON.stringify(
       }
 
       // Assert
-      expect(events).toContainEqual({ type: GeminiEventType.LoopDetected });
+      expect(events).toContainEqual({ type: LlmEventType.LoopDetected });
       expect(capturedSignal!.aborted).toBe(true);
     });
   });
@@ -2935,7 +2931,7 @@ ${JSON.stringify(
           this: MockTurnContext,
         ) {
           this.getResponseText.mockReturnValue('Hook Response');
-          yield { type: GeminiEventType.Content, value: 'Hook Response' };
+          yield { type: LlmEventType.TextDelta, text: 'Hook Response' };
         });
 
         const stream = client.sendMessageStream(request, signal, promptId);
@@ -2971,7 +2967,7 @@ ${JSON.stringify(
           callCount++;
           const response = `Response ${callCount}`;
           this.getResponseText.mockReturnValue(response);
-          yield { type: GeminiEventType.Content, value: response };
+          yield { type: LlmEventType.TextDelta, text: response };
         });
 
         const stream = client.sendMessageStream(request, signal, promptId);
@@ -3008,7 +3004,7 @@ ${JSON.stringify(
           this: MockTurnContext,
         ) {
           this.getResponseText.mockReturnValue('Ok');
-          yield { type: GeminiEventType.Content, value: 'Ok' };
+          yield { type: LlmEventType.TextDelta, text: 'Ok' };
         });
 
         const stream = client.sendMessageStream(request, signal, promptId);
@@ -3026,7 +3022,7 @@ ${JSON.stringify(
           this: MockTurnContext,
         ) {
           this.getResponseText.mockReturnValue('Ok');
-          yield { type: GeminiEventType.Content, value: 'Ok' };
+          yield { type: LlmEventType.TextDelta, text: 'Ok' };
         });
 
         client['hookStateMap'].set('old-id', {
@@ -3071,8 +3067,8 @@ ${JSON.stringify(
         const events = await fromAsync(stream);
 
         expect(events).toContainEqual({
-          type: GeminiEventType.AgentExecutionStopped,
-          value: { reason: 'Stopped by hook' },
+          type: LlmEventType.AgentStopped,
+          reason: 'Stopped by hook',
         });
         expect(mockChat.addHistory).toHaveBeenCalledWith({
           role: 'user',
@@ -3105,10 +3101,8 @@ ${JSON.stringify(
         const events = await fromAsync(stream);
 
         expect(events).toContainEqual({
-          type: GeminiEventType.AgentExecutionBlocked,
-          value: {
-            reason: 'Blocked by hook',
-          },
+          type: LlmEventType.AgentBlocked,
+          reason: 'Blocked by hook',
         });
         expect(mockChat.addHistory).not.toHaveBeenCalled();
         expect(mockTurnRunFn).not.toHaveBeenCalled();
@@ -3123,7 +3117,7 @@ ${JSON.stringify(
         });
 
         mockTurnRunFn.mockImplementation(async function* () {
-          yield { type: GeminiEventType.Content, value: 'Hello' };
+          yield { type: LlmEventType.TextDelta, text: 'Hello' };
         });
 
         const stream = client.sendMessageStream(
@@ -3135,8 +3129,8 @@ ${JSON.stringify(
 
         expect(events).toContainEqual(
           expect.objectContaining({
-            type: GeminiEventType.AgentExecutionStopped,
-            value: expect.objectContaining({ reason: 'Stopped after agent' }),
+            type: LlmEventType.AgentStopped,
+            reason: 'Stopped after agent',
           }),
         );
         // sendMessageStream should not recurse
@@ -3160,7 +3154,7 @@ ${JSON.stringify(
           });
 
         mockTurnRunFn.mockImplementation(async function* () {
-          yield { type: GeminiEventType.Content, value: 'Response' };
+          yield { type: LlmEventType.TextDelta, text: 'Response' };
         });
 
         const stream = client.sendMessageStream(
@@ -3172,8 +3166,8 @@ ${JSON.stringify(
 
         expect(events).toContainEqual(
           expect.objectContaining({
-            type: GeminiEventType.AgentExecutionBlocked,
-            value: expect.objectContaining({ reason: 'Please explain' }),
+            type: LlmEventType.AgentBlocked,
+            reason: 'Please explain',
           }),
         );
         // Should have called turn run twice (original + re-prompt)
@@ -3207,7 +3201,7 @@ ${JSON.stringify(
           });
 
         mockTurnRunFn.mockImplementation(async function* () {
-          yield { type: GeminiEventType.Content, value: 'Response' };
+          yield { type: LlmEventType.TextDelta, text: 'Response' };
         });
 
         const stream = client.sendMessageStream(
@@ -3218,12 +3212,10 @@ ${JSON.stringify(
         const events = await fromAsync(stream);
 
         expect(events).toContainEqual({
-          type: GeminiEventType.AgentExecutionBlocked,
-          value: {
-            reason: 'Blocked and clearing context',
-            systemMessage: undefined,
-            contextCleared: true,
-          },
+          type: LlmEventType.AgentBlocked,
+          reason: 'Blocked and clearing context',
+          systemMessage: undefined,
+          contextCleared: true,
         });
         expect(resetChatSpy).toHaveBeenCalledTimes(1);
 

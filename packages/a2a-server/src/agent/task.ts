@@ -7,7 +7,7 @@
 import {
   CoreToolScheduler,
   type GeminiClient,
-  GeminiEventType,
+  LlmEventType,
   ToolConfirmationOutcome,
   ApprovalMode,
   getAllMCPServerStatuses,
@@ -21,8 +21,7 @@ import {
   type ToolConfirmationPayload,
   type CompletedToolCall,
   type ToolCallRequestInfo,
-  type ServerGeminiErrorEvent,
-  type ServerGeminiStreamEvent,
+  type LlmEvent,
   type ToolCallConfirmationDetails,
   type Config,
   type UserTierId,
@@ -643,47 +642,41 @@ export class Task {
     await this.scheduler.schedule(updatedRequests, abortSignal);
   }
 
-  async acceptAgentMessage(event: ServerGeminiStreamEvent): Promise<void> {
+  async acceptAgentMessage(event: LlmEvent): Promise<void> {
     const stateChange: StateChange = {
       kind: CoderAgentEvent.StateChangeEvent,
     };
-    const traceId =
-      'traceId' in event && event.traceId ? event.traceId : undefined;
+    const traceId = event.traceId;
 
     switch (event.type) {
-      case GeminiEventType.Content:
+      case LlmEventType.TextDelta:
         logger.info('[Task] Sending agent message content...');
-        this._sendTextContent(event.value, traceId);
+        this._sendTextContent(event.text, traceId);
         break;
-      case GeminiEventType.ToolCallRequest:
+      case LlmEventType.ToolCallRequest:
         // This is now handled by the agent loop, which collects all requests
         // and calls scheduleToolCalls once.
         logger.warn(
           '[Task] A single tool call request was passed to acceptAgentMessage. This should be handled in a batch by the agent. Ignoring.',
         );
         break;
-      case GeminiEventType.ToolCallResponse:
-        // This event type from ServerGeminiStreamEvent might be for when LLM *generates* a tool response part.
+      case LlmEventType.ToolCallResponse:
+        // This event type might be for when LLM *generates* a tool response part.
         // The actual execution result comes via user message.
         logger.info(
           '[Task] Received tool call response from LLM (part of generation):',
-          event.value,
+          event.result,
         );
         break;
-      case GeminiEventType.ToolCallConfirmation:
-        // This is when LLM requests confirmation, not when user provides it.
+      case LlmEventType.ToolCallConfirmation:
+        // ToolCallConfirmation events through the LLM stream carry only callId and confirmed.
+        // The full confirmation details are managed by the scheduler flow.
         logger.info(
-          '[Task] Received tool call confirmation request from LLM:',
-          event.value.request.callId,
+          '[Task] Received tool call confirmation from LLM:',
+          event.callId,
         );
-        this.pendingToolConfirmationDetails.set(
-          event.value.request.callId,
-          event.value.details,
-        );
-        // This will be handled by the scheduler and _schedulerToolCallsUpdate will set InputRequired if needed.
-        // No direct state change here, scheduler drives it.
         break;
-      case GeminiEventType.UserCancelled:
+      case LlmEventType.UserCancelled:
         logger.info('[Task] Received user cancelled event from LLM stream.');
         this.cancelPendingTools('User cancelled via LLM stream event');
         this.setTaskStateAndPublishUpdate(
@@ -696,40 +689,51 @@ export class Task {
           traceId,
         );
         break;
-      case GeminiEventType.Thought:
+      case LlmEventType.ThoughtDelta:
         logger.info('[Task] Sending agent thought...');
-        this._sendThought(event.value, traceId);
+        this._sendThought(
+          {
+            description: event.thought,
+            subject: (event.metadata as { subject?: string })?.subject ?? '',
+          },
+          traceId,
+        );
         break;
-      case GeminiEventType.Citation:
+      case LlmEventType.Citation:
         logger.info('[Task] Received citation from LLM stream.');
-        this._sendCitation(event.value);
+        this._sendCitation(
+          event.citations.map((c) => c.url ?? c.title ?? '').join('\n'),
+        );
         break;
-      case GeminiEventType.ChatCompressed:
+      case LlmEventType.ChatCompressed:
         break;
-      case GeminiEventType.Finished:
+      case LlmEventType.Finished:
         logger.info(`[Task ${this.id}] Agent finished its turn.`);
         break;
-      case GeminiEventType.ModelInfo:
-        this.modelInfo = event.value;
+      case LlmEventType.ModelInfo:
+        this.modelInfo = event.modelName;
         break;
-      case GeminiEventType.Retry:
-      case GeminiEventType.InvalidStream:
+      case LlmEventType.Retry:
+      case LlmEventType.InvalidStream:
         // An invalid stream should trigger a retry, which requires no action from the user.
         break;
-      case GeminiEventType.Error:
+      case LlmEventType.Error:
       default: {
         // Block scope for lexical declaration
-        const errorEvent = event as ServerGeminiErrorEvent; // Type assertion
         const errorMessage =
-          errorEvent.value?.error.message ?? 'Unknown error from LLM stream';
+          event.type === LlmEventType.Error
+            ? event.error instanceof Error
+              ? event.error.message
+              : String(event.error)
+            : `Unknown event type: ${event.type}`;
         logger.error(
           '[Task] Received error event from LLM stream:',
           errorMessage,
         );
 
         let errMessage = `Unknown error from LLM stream: ${JSON.stringify(event)}`;
-        if (errorEvent.value) {
-          errMessage = parseAndFormatApiError(errorEvent.value);
+        if (event.type === LlmEventType.Error) {
+          errMessage = parseAndFormatApiError(event.error);
         }
         this.cancelPendingTools(`LLM stream error: ${errorMessage}`);
         this.setTaskStateAndPublishUpdate(
@@ -901,7 +905,7 @@ export class Task {
   async *sendCompletedToolsToLlm(
     completedToolCalls: CompletedToolCall[],
     aborted: AbortSignal,
-  ): AsyncGenerator<ServerGeminiStreamEvent> {
+  ): AsyncGenerator<LlmEvent> {
     if (completedToolCalls.length === 0) {
       yield* (async function* () {})(); // Yield nothing
       return;
@@ -939,7 +943,7 @@ export class Task {
   async *acceptUserMessage(
     requestContext: RequestContext,
     aborted: AbortSignal,
-  ): AsyncGenerator<ServerGeminiStreamEvent> {
+  ): AsyncGenerator<LlmEvent> {
     const userMessage = requestContext.userMessage;
     const llmParts: PartUnion[] = [];
     let anyConfirmationHandled = false;

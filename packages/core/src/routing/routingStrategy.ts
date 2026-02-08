@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Content, PartListUnion } from '@google/genai';
+import type { LlmContent, LlmMessage } from '../providers/types.js';
 import type { BaseLlmClient } from '../core/baseLlmClient.js';
 import type { Config } from '../config/config.js';
 
@@ -27,12 +27,13 @@ export interface RoutingDecision {
 
 /**
  * The context provided to the router for making a decision.
+ * Provider-independent: uses LlmMessage/LlmContent instead of Gemini SDK types.
  */
 export interface RoutingContext {
-  /** The full history of the conversation. */
-  history: Content[];
-  /** The immediate request parts to be processed. */
-  request: PartListUnion;
+  /** The full history of the conversation (provider-independent). */
+  history: LlmMessage[];
+  /** The immediate request contents to be processed (provider-independent). */
+  request: LlmContent[];
   /** An abort signal to cancel an LLM call during routing. */
   signal: AbortSignal;
   /** The model string requested for this turn, if any. */

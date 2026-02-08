@@ -10,19 +10,19 @@ import type { RoutingContext } from '../routingStrategy.js';
 import type { Config } from '../../config/config.js';
 import type {
   BaseLlmClient,
-  GenerateJsonOptions,
+  LlmGenerateJsonOptions,
 } from '../../core/baseLlmClient.js';
 import {
-  isFunctionCall,
-  isFunctionResponse,
-} from '../../utils/messageInspectors.js';
+  isToolCallMessage,
+  isToolResultMessage,
+} from '../../utils/llmUtils.js';
 import {
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
 } from '../../config/models.js';
 import { promptIdContext } from '../../utils/promptIdContext.js';
-import type { Content } from '@google/genai';
+import type { LlmMessage } from '../../providers/types.js';
 import type { ResolvedModelConfig } from '../../services/modelConfigService.js';
 import { debugLogger } from '../../utils/debugLogger.js';
 
@@ -41,7 +41,7 @@ describe('ClassifierStrategy', () => {
     strategy = new ClassifierStrategy();
     mockContext = {
       history: [],
-      request: [{ text: 'simple task' }],
+      request: [{ type: 'text', text: 'simple task' }],
       signal: new AbortController().signal,
     };
 
@@ -130,7 +130,9 @@ describe('ClassifierStrategy', () => {
     vi.mocked(mockBaseLlmClient.generateJson).mockResolvedValue(
       mockApiResponse,
     );
-    mockContext.request = [{ text: 'how do I build a spaceship?' }];
+    mockContext.request = [
+      { type: 'text', text: 'how do I build a spaceship?' },
+    ];
 
     const decision = await strategy.route(
       mockContext,
@@ -192,15 +194,30 @@ describe('ClassifierStrategy', () => {
 
   it('should filter out tool-related history before sending to classifier', async () => {
     mockContext.history = [
-      { role: 'user', parts: [{ text: 'call a tool' }] },
-      { role: 'model', parts: [{ functionCall: { name: 'test_tool' } }] },
+      { role: 'user', content: [{ type: 'text', text: 'call a tool' }] },
       {
-        role: 'user',
-        parts: [
-          { functionResponse: { name: 'test_tool', response: { ok: true } } },
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_call',
+            id: 'call-1',
+            name: 'test_tool',
+            arguments: {},
+          },
         ],
       },
-      { role: 'user', parts: [{ text: 'another user turn' }] },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            toolCallId: 'call-1',
+            name: 'test_tool',
+            content: { ok: true },
+          },
+        ],
+      },
+      { role: 'user', content: [{ type: 'text', text: 'another user turn' }] },
     ];
     const mockApiResponse = {
       reasoning: 'Simple.',
@@ -213,27 +230,40 @@ describe('ClassifierStrategy', () => {
     await strategy.route(mockContext, mockConfig, mockBaseLlmClient);
 
     const generateJsonCall = vi.mocked(mockBaseLlmClient.generateJson).mock
-      .calls[0][0] as GenerateJsonOptions;
-    const contents = generateJsonCall.contents;
+      .calls[0][0] as LlmGenerateJsonOptions;
+    const messages = generateJsonCall.messages;
 
-    const expectedContents = [
-      { role: 'user', parts: [{ text: 'call a tool' }] },
-      { role: 'user', parts: [{ text: 'another user turn' }] },
-      { role: 'user', parts: [{ text: 'simple task' }] },
+    const expectedMessages = [
+      { role: 'user', content: [{ type: 'text', text: 'call a tool' }] },
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'another user turn' }],
+      },
+      { role: 'user', content: [{ type: 'text', text: 'simple task' }] },
     ];
 
-    expect(contents).toEqual(expectedContents);
+    expect(messages).toEqual(expectedMessages);
   });
 
   it('should respect HISTORY_SEARCH_WINDOW and HISTORY_TURNS_FOR_CONTEXT', async () => {
-    const longHistory: Content[] = [];
+    const longHistory: LlmMessage[] = [];
     for (let i = 0; i < 30; i++) {
-      longHistory.push({ role: 'user', parts: [{ text: `Message ${i}` }] });
+      longHistory.push({
+        role: 'user',
+        content: [{ type: 'text', text: `Message ${i}` }],
+      });
       // Add noise that should be filtered
       if (i % 2 === 0) {
         longHistory.push({
-          role: 'model',
-          parts: [{ functionCall: { name: 'noise', args: {} } }],
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_call',
+              id: `call-${i}`,
+              name: 'noise',
+              arguments: {},
+            },
+          ],
         });
       }
     }
@@ -249,24 +279,24 @@ describe('ClassifierStrategy', () => {
     await strategy.route(mockContext, mockConfig, mockBaseLlmClient);
 
     const generateJsonCall = vi.mocked(mockBaseLlmClient.generateJson).mock
-      .calls[0][0] as GenerateJsonOptions;
-    const contents = generateJsonCall.contents;
+      .calls[0][0] as LlmGenerateJsonOptions;
+    const messages = generateJsonCall.messages;
 
     // Manually calculate what the history should be
     const HISTORY_SEARCH_WINDOW = 20;
     const HISTORY_TURNS_FOR_CONTEXT = 4;
     const historySlice = longHistory.slice(-HISTORY_SEARCH_WINDOW);
     const cleanHistory = historySlice.filter(
-      (content) => !isFunctionCall(content) && !isFunctionResponse(content),
+      (message) => !isToolCallMessage(message) && !isToolResultMessage(message),
     );
     const finalHistory = cleanHistory.slice(-HISTORY_TURNS_FOR_CONTEXT);
 
-    expect(contents).toEqual([
+    expect(messages).toEqual([
       ...finalHistory,
-      { role: 'user', parts: mockContext.request },
+      { role: 'user', content: [{ type: 'text', text: 'simple task' }] },
     ]);
     // There should be 4 history items + the current request
-    expect(contents).toHaveLength(5);
+    expect(messages).toHaveLength(5);
   });
 
   it('should use a fallback promptId if not found in context', async () => {

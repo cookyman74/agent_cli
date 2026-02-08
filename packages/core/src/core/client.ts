@@ -52,6 +52,10 @@ import { uiTelemetryService } from '../telemetry/uiTelemetry.js';
 import type { IdeContext, File } from '../ide/types.js';
 import { handleFallback } from '../fallback/handler.js';
 import type { RoutingContext } from '../routing/routingStrategy.js';
+import {
+  convertContentsToLlmMessages,
+  convertPartListUnionToLlmContents,
+} from '../utils/geminiTypeConversion.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
@@ -617,8 +621,10 @@ export class GeminiClient {
     }
 
     const routingContext: RoutingContext = {
-      history: this.getChat().getHistory(/*curated=*/ true),
-      request,
+      history: convertContentsToLlmMessages(
+        this.getChat().getHistory(/*curated=*/ true),
+      ),
+      request: convertPartListUnionToLlmContents(request),
       signal,
       requestedModel: this.config.getModel(),
     };

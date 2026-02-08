@@ -19,6 +19,7 @@ import type {
   LlmToolResultContent,
   LlmThoughtContent,
 } from '../providers/types.js';
+import type { LlmMessage } from '../providers/types.js';
 import {
   isTextContent,
   isImageContent,
@@ -27,6 +28,8 @@ import {
   isThoughtContent,
   extractText,
   createTextContent,
+  isToolCallMessage,
+  isToolResultMessage,
 } from './llmUtils.js';
 
 // =================================================================
@@ -154,6 +157,75 @@ describe('llmUtils', () => {
 
       expect(content.type).toBe('text');
       expect(content.text).toBe('');
+    });
+  });
+
+  // =================================================================
+  // 2.6.2 LlmMessage-level Inspectors
+  // =================================================================
+
+  describe('isToolCallMessage', () => {
+    it('should return true for assistant message with tool_call content', () => {
+      const message: LlmMessage = {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_call',
+            id: 'call-1',
+            name: 'read_file',
+            arguments: { path: '/test.txt' },
+          },
+        ],
+      };
+      expect(isToolCallMessage(message)).toBe(true);
+    });
+
+    it('should return false for user message', () => {
+      const message: LlmMessage = {
+        role: 'user',
+        content: [{ type: 'text', text: 'hello' }],
+      };
+      expect(isToolCallMessage(message)).toBe(false);
+    });
+
+    it('should return false for assistant message with only text', () => {
+      const message: LlmMessage = {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'response' }],
+      };
+      expect(isToolCallMessage(message)).toBe(false);
+    });
+  });
+
+  describe('isToolResultMessage', () => {
+    it('should return true for message with tool_result content', () => {
+      const message: LlmMessage = {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            toolCallId: 'call-1',
+            content: 'result data',
+          },
+        ],
+      };
+      expect(isToolResultMessage(message)).toBe(true);
+    });
+
+    it('should return false for user message with text', () => {
+      const message: LlmMessage = {
+        role: 'user',
+        content: [{ type: 'text', text: 'hello' }],
+      };
+      expect(isToolResultMessage(message)).toBe(false);
+    });
+
+    it('should return false for assistant message', () => {
+      const message: LlmMessage = {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'response' }],
+      };
+      expect(isToolResultMessage(message)).toBe(false);
     });
   });
 });

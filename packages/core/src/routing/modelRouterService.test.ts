@@ -64,7 +64,7 @@ describe('ModelRouterService', () => {
 
     mockContext = {
       history: [],
-      request: [{ text: 'test prompt' }],
+      request: [{ type: 'text', text: 'test prompt' }],
       signal: new AbortController().signal,
     };
   });

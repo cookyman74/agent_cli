@@ -13,9 +13,10 @@ import type {
   RoutingStrategy,
 } from '../routingStrategy.js';
 import { resolveClassifierModel } from '../../config/models.js';
-import { createUserContent, Type } from '@google/genai';
 import type { Config } from '../../config/config.js';
 import { debugLogger } from '../../utils/debugLogger.js';
+import type { LlmRole } from '../../providers/types.js';
+import { extractText } from '../../utils/llmUtils.js';
 
 // The number of recent history turns to provide to the router for context.
 const HISTORY_TURNS_FOR_CONTEXT = 8;
@@ -24,14 +25,14 @@ const FLASH_MODEL = 'flash';
 const PRO_MODEL = 'pro';
 
 const RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
+  type: 'OBJECT',
   properties: {
     complexity_reasoning: {
-      type: Type.STRING,
+      type: 'STRING',
       description: 'Brief explanation for the score.',
     },
     complexity_score: {
-      type: Type.INTEGER,
+      type: 'INTEGER',
       description: 'Complexity score from 1-100.',
     },
   },
@@ -142,24 +143,16 @@ export class NumericalClassifierStrategy implements RoutingStrategy {
 
       const finalHistory = context.history.slice(-HISTORY_TURNS_FOR_CONTEXT);
 
-      // Wrap the user's request in tags to prevent prompt injection
-      const requestParts = Array.isArray(context.request)
-        ? context.request
-        : [context.request];
-
-      const sanitizedRequest = requestParts.map((part) => {
-        if (typeof part === 'string') {
-          return { text: part };
-        }
-        if (part.text) {
-          return { text: part.text };
-        }
-        return part;
-      });
+      // Sanitize request: extract only text content to prevent prompt injection
+      const sanitizedText = extractText(context.request);
+      const userMessage = {
+        role: 'user' as LlmRole,
+        content: [{ type: 'text' as const, text: sanitizedText }],
+      };
 
       const jsonResponse = await baseLlmClient.generateJson({
         modelConfigKey: { model: 'classifier' },
-        contents: [...finalHistory, createUserContent(sanitizedRequest)],
+        messages: [...finalHistory, userMessage],
         schema: RESPONSE_SCHEMA,
         systemInstruction: CLASSIFIER_SYSTEM_PROMPT,
         abortSignal: context.signal,

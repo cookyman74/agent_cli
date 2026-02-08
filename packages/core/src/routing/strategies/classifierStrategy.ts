@@ -13,13 +13,13 @@ import type {
   RoutingStrategy,
 } from '../routingStrategy.js';
 import { resolveClassifierModel } from '../../config/models.js';
-import { createUserContent, Type } from '@google/genai';
 import type { Config } from '../../config/config.js';
 import {
-  isFunctionCall,
-  isFunctionResponse,
-} from '../../utils/messageInspectors.js';
+  isToolCallMessage,
+  isToolResultMessage,
+} from '../../utils/llmUtils.js';
 import { debugLogger } from '../../utils/debugLogger.js';
+import type { LlmRole } from '../../providers/types.js';
 
 // The number of recent history turns to provide to the router for context.
 const HISTORY_TURNS_FOR_CONTEXT = 4;
@@ -103,15 +103,15 @@ Respond *only* in JSON format according to the following schema. Do not include 
 `;
 
 const RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
+  type: 'OBJECT',
   properties: {
     reasoning: {
-      type: Type.STRING,
+      type: 'STRING',
       description:
         'A brief, step-by-step explanation for the model choice, referencing the rubric.',
     },
     model_choice: {
-      type: Type.STRING,
+      type: 'STRING',
       enum: [FLASH_MODEL, PRO_MODEL],
     },
   },
@@ -144,15 +144,22 @@ export class ClassifierStrategy implements RoutingStrategy {
       // Filter out tool-related turns.
       // TODO - Consider using function req/res if they help accuracy.
       const cleanHistory = historySlice.filter(
-        (content) => !isFunctionCall(content) && !isFunctionResponse(content),
+        (message) =>
+          !isToolCallMessage(message) && !isToolResultMessage(message),
       );
 
       // Take the last N turns from the *cleaned* history.
       const finalHistory = cleanHistory.slice(-HISTORY_TURNS_FOR_CONTEXT);
 
+      // Build user message from request contents
+      const userMessage = {
+        role: 'user' as LlmRole,
+        content: context.request,
+      };
+
       const jsonResponse = await baseLlmClient.generateJson({
         modelConfigKey: { model: 'classifier' },
-        contents: [...finalHistory, createUserContent(context.request)],
+        messages: [...finalHistory, userMessage],
         schema: RESPONSE_SCHEMA,
         systemInstruction: CLASSIFIER_SYSTEM_PROMPT,
         abortSignal: context.signal,

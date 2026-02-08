@@ -15,6 +15,7 @@
 
 import type {
   LlmContent,
+  LlmMessage,
   LlmTextContent,
   LlmImageContent,
   LlmToolCallContent,
@@ -66,4 +67,30 @@ export function extractText(contents: LlmContent[]): string {
  */
 export function createTextContent(text: string): LlmTextContent {
   return { type: 'text', text };
+}
+
+// ============================================================================
+// LlmMessage-level Inspectors
+// ============================================================================
+
+/**
+ * Check if an LlmMessage represents a tool call (function call).
+ * Equivalent of Content-based isFunctionCall for provider-independent types.
+ */
+export function isToolCallMessage(message: LlmMessage): boolean {
+  return (
+    message.role === 'assistant' &&
+    message.content.every((c) => isToolCallContent(c))
+  );
+}
+
+/**
+ * Check if an LlmMessage represents a tool result (function response).
+ * Equivalent of Content-based isFunctionResponse for provider-independent types.
+ */
+export function isToolResultMessage(message: LlmMessage): boolean {
+  return (
+    message.role === 'user' &&
+    message.content.every((c) => isToolResultContent(c))
+  );
 }

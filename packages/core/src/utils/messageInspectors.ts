@@ -6,6 +6,10 @@
 
 import type { Content } from '@google/genai';
 
+/**
+ * @deprecated Use {@link isToolResultMessage} from './llmUtils.js' for provider-independent code.
+ * This Content-based helper will be removed after full migration to LlmMessage types.
+ */
 export function isFunctionResponse(content: Content): boolean {
   return (
     content.role === 'user' &&
@@ -14,6 +18,10 @@ export function isFunctionResponse(content: Content): boolean {
   );
 }
 
+/**
+ * @deprecated Use {@link isToolCallMessage} from './llmUtils.js' for provider-independent code.
+ * This Content-based helper will be removed after full migration to LlmMessage types.
+ */
 export function isFunctionCall(content: Content): boolean {
   return (
     content.role === 'model' &&

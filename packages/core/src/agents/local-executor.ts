@@ -45,6 +45,10 @@ import { AgentTerminateMode, DEFAULT_QUERY_STRING } from './types.js';
 import { templateString } from './utils.js';
 import { DEFAULT_GEMINI_MODEL, isAutoModel } from '../config/models.js';
 import type { RoutingContext } from '../routing/routingStrategy.js';
+import {
+  convertContentsToLlmMessages,
+  convertPartListUnionToLlmContents,
+} from '../utils/geminiTypeConversion.js';
 import { parseThought } from '../utils/thoughtUtils.js';
 import { type z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -655,8 +659,10 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
       // other places we use model routing.
       try {
         const routingContext: RoutingContext = {
-          history: chat.getHistory(/*curated=*/ true),
-          request: message.parts || [],
+          history: convertContentsToLlmMessages(
+            chat.getHistory(/*curated=*/ true),
+          ),
+          request: convertPartListUnionToLlmContents(message.parts || []),
           signal,
           requestedModel,
         };

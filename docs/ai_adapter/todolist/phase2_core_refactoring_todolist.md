@@ -45,24 +45,45 @@ tests after each change.
 ```
 packages/core/src/
 ├── core/
-│   ├── contentGenerator.ts  [수정]
-│   ├── baseLlmClient.ts     [수정]
-│   ├── turn.ts              [분리 - 공통 인터페이스]
-│   └── client.ts            [수정]
+│   ├── contentGenerator.ts        [수정]
+│   ├── baseLlmClient.ts           [수정]
+│   ├── loggingContentGenerator.ts [수정 - 래퍼 타입 전환]
+│   ├── recordingContentGenerator.ts [수정 - 래퍼 타입 전환]
+│   ├── fakeContentGenerator.ts    [수정 - 래퍼 타입 전환]
+│   ├── turn.ts                    [수정 - re-export 추가]
+│   └── client.ts                  [수정 - 변환 브릿지 적용]
 │
 ├── providers/
-│   ├── configAdapter.ts     [수정]
+│   ├── streamAssembler.ts         [신규 - 스트림 합성기]
+│   ├── telemetryBridge.ts         [신규 - 텔레메트리 브릿지]
 │   └── gemini/
-│       ├── adapter.ts       [신규]
-│       ├── converter.ts     [신규]
-│       ├── eventMapper.ts   [신규 - 18개 이벤트 매핑]
-│       ├── chat.ts          [이동 - geminiChat.ts]
-│       └── turn.ts          [이동 - Gemini 특화]
+│       ├── types.ts               [신규 - GeminiEventType 18개]
+│       ├── index.ts               [신규 - 모듈 인덱스]
+│       ├── adapter.ts             [신규 - GeminiAdapter]
+│       ├── converter.ts           [신규 - 타입 변환기]
+│       ├── eventMapper.ts         [신규 - 18개 이벤트 매핑]
+│       ├── adapterBridge.ts       [신규 - 기존 경로 브릿지]
+│       ├── configConverter.ts     [신규 - 설정 변환]
+│       ├── errorClassifier.ts     [신규 - 에러 분류]
+│       ├── featureFlag.ts         [신규 - 기능 플래그]
+│       ├── geminiStream.ts        [신규 - 스트림 파이프라인]
+│       ├── streamConverter.ts     [신규 - 스트림 변환]
+│       ├── chat.ts                [이동 - geminiChat.ts] → Phase 3
+│       └── turn.ts                [이동 - Gemini 특화] → Phase 3
+│
+├── services/
+│   └── modelConfigBridge.ts       [신규 - 설정 호환 레이어]
+│
+├── routing/
+│   ├── routingStrategy.ts         [수정 - 타입 독립화]
+│   └── strategies/*.ts            [수정 - 6개 전략 타입 전환]
 │
 └── utils/
-    ├── tokenCalculation.ts  [수정]
-    ├── partUtils.ts         [수정]
-    └── llmUtils.ts          [신규]
+    ├── retry.ts                   [수정 - LlmError 재시도]
+    ├── tokenCalculation.ts        [수정 - LlmContent 추정]
+    ├── partUtils.ts               [수정 - LlmMessage 유틸]
+    ├── llmUtils.ts                [신규 - 타입 가드/인스펙터]
+    └── geminiTypeConversion.ts    [신규 - 변환 브릿지]
 ```
 
 ## Phase 2 작업 결과서 링크 (추적용)
@@ -834,24 +855,51 @@ packages/core/src/routing/
 
 ## 산출물 확인
 
-- [x] `packages/core/src/providers/gemini/adapter.ts` 생성
-- [x] `packages/core/src/providers/gemini/converter.ts` 생성
-- [x] `packages/core/src/providers/gemini/eventMapper.ts` 생성 🆕
-- [ ] `packages/core/src/providers/gemini/chat.ts` 이동 🆕 — → Phase 3 (병행
-      경로 전략)
-- [ ] `packages/core/src/providers/gemini/turn.ts` 이동 🆕 — → Phase 3 (병행
-      경로 전략)
-- [x] `packages/core/src/core/contentGenerator.ts` 수정
-- [x] `packages/core/src/core/baseLlmClient.ts` 수정
-- [x] `packages/core/src/core/loggingContentGenerator.ts` 수정 🆕
-- [x] `packages/core/src/core/recordingContentGenerator.ts` 수정 🆕
-- [x] `packages/core/src/core/fakeContentGenerator.ts` 수정 🆕
-- [x] `packages/core/src/utils/retry.ts` 수정
-- [x] `packages/core/src/utils/tokenCalculation.ts` 수정 🆕
-- [x] `packages/core/src/utils/partUtils.ts` 수정 🆕
-- [x] `packages/core/src/utils/llmUtils.ts` 생성 🆕
-- [x] `packages/core/src/routing/routingStrategy.ts` 수정 🆕 [Critical]
-- [x] `packages/core/src/routing/strategies/*.ts` 수정 🆕
+### providers/gemini/ (신규 11개, 미완 2개)
+
+- [x] `providers/gemini/types.ts` 생성 (M2.0 — GeminiEventType 18개)
+- [x] `providers/gemini/index.ts` 생성 (M2.0 — 모듈 인덱스)
+- [x] `providers/gemini/adapter.ts` 생성 (M2.3 — GeminiAdapter)
+- [x] `providers/gemini/converter.ts` 생성 (M2.3 — 타입 변환기)
+- [x] `providers/gemini/eventMapper.ts` 생성 (M2.2 — 18개 이벤트 매핑)
+- [x] `providers/gemini/adapterBridge.ts` 생성 (M2.3 — 기존 경로 브릿지)
+- [x] `providers/gemini/configConverter.ts` 생성 (M2.4 — 설정 변환)
+- [x] `providers/gemini/errorClassifier.ts` 생성 (M2.2 — 에러 분류)
+- [x] `providers/gemini/featureFlag.ts` 생성 (M2.3 — 기능 플래그)
+- [x] `providers/gemini/geminiStream.ts` 생성 (M2.2 — 스트림 파이프라인)
+- [x] `providers/gemini/streamConverter.ts` 생성 (M2.2 — 스트림 변환)
+- [ ] `providers/gemini/chat.ts` 이동 — → Phase 3 (병행 경로 전략)
+- [ ] `providers/gemini/turn.ts` 이동 — → Phase 3 (병행 경로 전략)
+
+### providers/ (신규 2개)
+
+- [x] `providers/streamAssembler.ts` 생성 (M2.2 — 스트림 합성기)
+- [x] `providers/telemetryBridge.ts` 생성 (M2.2 — 텔레메트리 브릿지)
+
+### services/ (신규 1개)
+
+- [x] `services/modelConfigBridge.ts` 생성 (M2.4 — 설정 호환 레이어)
+
+### core/ (수정 5개)
+
+- [x] `core/contentGenerator.ts` 수정 (M2.1 — GeminiContentGenerator rename)
+- [x] `core/baseLlmClient.ts` 수정 (M2.1 — LlmGenerate\*Options)
+- [x] `core/loggingContentGenerator.ts` 수정 (M2.1 — llm\* 메서드 추가)
+- [x] `core/recordingContentGenerator.ts` 수정 (M2.1 — llm\* 메서드 추가)
+- [x] `core/fakeContentGenerator.ts` 수정 (M2.1 — llm\* 메서드 추가)
+
+### utils/ (수정 3개, 신규 2개)
+
+- [x] `utils/retry.ts` 수정 (M2.1 — LlmError 재시도)
+- [x] `utils/tokenCalculation.ts` 수정 (M2.5 — estimateLlmTokenCount)
+- [x] `utils/partUtils.ts` 수정 (M2.5 — LlmMessage 유틸)
+- [x] `utils/llmUtils.ts` 생성 (M2.5 — 타입 가드 5개 + 인스펙터 2개)
+- [x] `utils/geminiTypeConversion.ts` 생성 (M2.6 — 변환 브릿지)
+
+### routing/ (수정 7개)
+
+- [x] `routing/routingStrategy.ts` 수정 (M2.6 — @google/genai 제거) [Critical]
+- [x] `routing/strategies/*.ts` 수정 (M2.6 — 6개 전략 타입 전환)
 
 ## 다음 Phase 진행 조건
 

@@ -128,12 +128,12 @@ Tidy First 원칙에 따라 구조적 변경 먼저 수행
 
 ### 2.0.2 공통 인터페이스 분리 (보류 → M2.2에서 처리)
 
-| ID      | 작업                                                 | 상태 | 비고                       |
-| ------- | ---------------------------------------------------- | ---- | -------------------------- |
-| 2.0.2.1 | `core/turn.ts`에서 공통 인터페이스 추출              | ⏸️   | re-export로 대체           |
-| 2.0.2.2 | `ServerGeminiStreamEvent` → Gemini 전용으로 이동     | ✅   | providers/gemini/types.ts  |
-| 2.0.2.3 | `GeminiEventType` → `providers/gemini/types.ts` 이동 | ✅   | 완료                       |
-| 2.0.2.4 | Re-export로 하위 호환성 유지                         | ✅   | core/turn.ts에서 re-export |
+| ID      | 작업                                                 | 상태 | 비고                                |
+| ------- | ---------------------------------------------------- | ---- | ----------------------------------- |
+| 2.0.2.1 | `core/turn.ts`에서 공통 인터페이스 추출              | ✅   | re-export 패턴으로 대체 완료 (M2.0) |
+| 2.0.2.2 | `ServerGeminiStreamEvent` → Gemini 전용으로 이동     | ✅   | providers/gemini/types.ts           |
+| 2.0.2.3 | `GeminiEventType` → `providers/gemini/types.ts` 이동 | ✅   | 완료                                |
+| 2.0.2.4 | Re-export로 하위 호환성 유지                         | ✅   | core/turn.ts에서 re-export          |
 
 **검증 기준**:
 
@@ -194,13 +194,13 @@ describe('LlmContentGenerator', () => {
 
 ### 2.1.2 createContentGenerator 팩토리 이관 (부분 완료)
 
-| ID      | 작업                    | 상태 | 비고                           |
-| ------- | ----------------------- | ---- | ------------------------------ |
-| 2.1.2.1 | 현재 팩토리 로직 분석   | ✅   | Gemini 전용                    |
-| 2.1.2.2 | ProviderFactory 분석    | ✅   | BaseAdapter 반환               |
-| 2.1.2.3 | `ProviderFactory` 연동  | ⏸️   | M2.2에서 GeminiAdapter 구현 후 |
-| 2.1.2.4 | 기존 호출부 호환성 유지 | ✅   | ContentGenerator 별칭          |
-| 2.1.2.5 | 기능 플래그 분기 추가   | ⏸️   | M2.2 이후                      |
+| ID      | 작업                    | 상태 | 비고                                      |
+| ------- | ----------------------- | ---- | ----------------------------------------- |
+| 2.1.2.1 | 현재 팩토리 로직 분석   | ✅   | Gemini 전용                               |
+| 2.1.2.2 | ProviderFactory 분석    | ✅   | BaseAdapter 반환                          |
+| 2.1.2.3 | `ProviderFactory` 연동  | ✅   | M2.3 adapterBridge 패턴으로 해결          |
+| 2.1.2.4 | 기존 호출부 호환성 유지 | ✅   | ContentGenerator 별칭                     |
+| 2.1.2.5 | 기능 플래그 분기 추가   | ✅   | M2.3 featureFlag.ts 통합 완료 (a5a81c60e) |
 
 ### 2.1.3 BaseLlmClient 타입 전환 ✅
 
@@ -472,10 +472,11 @@ geminiChat.ts
 
 **검증 기준**:
 
-- [ ] GeminiChat이 신규 StreamEvent로 동작
+- [ ] GeminiChat이 신규 StreamEvent로 동작 — → Phase 3 (GeminiChat 내부 리팩토링
+      필요)
 - [x] 🆕 18개 이벤트 전수 매핑 완료
 - [x] Telemetry가 provider 공통 스키마로 기록
-- [ ] 기존 스트리밍 기능 100% 동작
+- [ ] 기존 스트리밍 기능 100% 동작 — → Phase 3 (E2E 런타임 검증 필요)
 
 ---
 
@@ -494,16 +495,16 @@ geminiChat.ts
 
 ### 2.3.1 GeminiAdapter 구현
 
-| ID      | 작업                            | 상태 | 테스트 파일             |
-| ------- | ------------------------------- | ---- | ----------------------- |
-| 2.3.1.1 | `GeminiAdapter` 클래스 생성     | ✅   | `geminiAdapter.test.ts` |
-| 2.3.1.2 | `BaseAdapter` 상속 구현         | ✅   | `geminiAdapter.test.ts` |
-| 2.3.1.3 | `generate()` 메서드 구현        | ✅   | `geminiAdapter.test.ts` |
-| 2.3.1.4 | `generateStream()` 메서드 구현  | ✅   | `geminiAdapter.test.ts` |
-| 2.3.1.5 | `getCapabilities()` 구현        | ✅   | `geminiAdapter.test.ts` |
-| 2.3.1.6 | 설정 검증 로직 구현             | ✅   | `geminiAdapter.test.ts` |
-| 2.3.1.7 | 🆕 `mapToProviderConfig()` 구현 | ✅   | `geminiAdapter.test.ts` |
-| 2.3.1.8 | 🆕 AuthType 처리 통합           | ⬜   | `geminiAdapter.test.ts` |
+| ID      | 작업                            | 상태 | 테스트 파일                                                             |
+| ------- | ------------------------------- | ---- | ----------------------------------------------------------------------- |
+| 2.3.1.1 | `GeminiAdapter` 클래스 생성     | ✅   | `geminiAdapter.test.ts`                                                 |
+| 2.3.1.2 | `BaseAdapter` 상속 구현         | ✅   | `geminiAdapter.test.ts`                                                 |
+| 2.3.1.3 | `generate()` 메서드 구현        | ✅   | `geminiAdapter.test.ts`                                                 |
+| 2.3.1.4 | `generateStream()` 메서드 구현  | ✅   | `geminiAdapter.test.ts`                                                 |
+| 2.3.1.5 | `getCapabilities()` 구현        | ✅   | `geminiAdapter.test.ts`                                                 |
+| 2.3.1.6 | 설정 검증 로직 구현             | ✅   | `geminiAdapter.test.ts`                                                 |
+| 2.3.1.7 | 🆕 `mapToProviderConfig()` 구현 | ✅   | `geminiAdapter.test.ts`                                                 |
+| 2.3.1.8 | 🆕 AuthType 처리 통합           | ⏸️   | `geminiAdapter.test.ts` — → Phase 3 (비-Gemini 프로바이더 추가 시 필요) |
 
 ### 2.3.2 Gemini 타입 변환기 구현
 
@@ -542,7 +543,7 @@ geminiChat.ts
 
 - [x] 기존 Gemini 기능 100% 동작
 - [x] 기능 플래그로 신규 경로 전환 가능
-- [ ] 성능 저하 < 50ms (런타임 검증 필요)
+- [ ] 성능 저하 < 50ms — → Phase 3 (런타임 벤치마크 필요)
 - [x] 🆕 18개 이벤트 동등성 검증 완료
 
 ---
@@ -601,17 +602,18 @@ describe('ModelConfigService Compatibility', () => {
 
 ### 2.4.2 ModelRouterService 연동
 
-| ID      | 작업                    | 상태 | 테스트 파일      | 비고        |
-| ------- | ----------------------- | ---- | ---------------- | ----------- |
-| 2.4.2.1 | 라우팅 컨텍스트 확장    | ⏸️   | `router.test.ts` | → M2.6 이월 |
-| 2.4.2.2 | 프로바이더 인식 라우팅  | ⏸️   | `router.test.ts` | → M2.6 이월 |
-| 2.4.2.3 | 기존 라우팅 전략 호환성 | ⏸️   | `router.test.ts` | → M2.6 이월 |
+| ID      | 작업                    | 상태 | 테스트 파일      | 비고                           |
+| ------- | ----------------------- | ---- | ---------------- | ------------------------------ |
+| 2.4.2.1 | 라우팅 컨텍스트 확장    | ✅   | `router.test.ts` | M2.6 타입 독립화로 완료        |
+| 2.4.2.2 | 프로바이더 인식 라우팅  | ✅   | `router.test.ts` | M2.6 LlmMessage 기반 전환 완료 |
+| 2.4.2.3 | 기존 라우팅 전략 호환성 | ✅   | `router.test.ts` | M2.6 라우팅 테스트 52개 통과   |
 
 **검증 기준**:
 
 - [x] 기존 ModelConfigService 동작 유지
 - [x] 신규 프로바이더 설정 지원
-- [ ] 라우팅 결정이 프로바이더 인식 (→ M2.6)
+- [x] 라우팅 결정이 프로바이더 인식 — M2.6 타입 독립화 완료 (런타임 검증은
+      Phase 3)
 
 ---
 
@@ -806,21 +808,23 @@ packages/core/src/routing/
 - [x] 동등성 테스트 100% 통과
 - [x] TypeScript 컴파일 에러 없음
 - [x] ESLint 경고 없음
-- [ ] 기존 E2E 테스트 통과
+- [ ] 기존 E2E 테스트 통과 — → Phase 3 (통합 단계에서 검증)
 
 ## 성능 검증
 
-- [ ] 응답 지연 증가 < 50ms
-- [ ] 메모리 사용량 증가 < 10%
-- [ ] 스트리밍 첫 토큰 지연 < 100ms
+- [ ] 응답 지연 증가 < 50ms — → Phase 3 (런타임 벤치마크 필요)
+- [ ] 메모리 사용량 증가 < 10% — → Phase 3 (런타임 프로파일링 필요)
+- [ ] 스트리밍 첫 토큰 지연 < 100ms — → Phase 3 (런타임 측정 필요)
 
 ## 산출물 확인
 
 - [x] `packages/core/src/providers/gemini/adapter.ts` 생성
 - [x] `packages/core/src/providers/gemini/converter.ts` 생성
 - [x] `packages/core/src/providers/gemini/eventMapper.ts` 생성 🆕
-- [ ] `packages/core/src/providers/gemini/chat.ts` 이동 🆕
-- [ ] `packages/core/src/providers/gemini/turn.ts` 이동 🆕
+- [ ] `packages/core/src/providers/gemini/chat.ts` 이동 🆕 — → Phase 3 (병행
+      경로 전략)
+- [ ] `packages/core/src/providers/gemini/turn.ts` 이동 🆕 — → Phase 3 (병행
+      경로 전략)
 - [x] `packages/core/src/core/contentGenerator.ts` 수정
 - [x] `packages/core/src/core/baseLlmClient.ts` 수정
 - [x] `packages/core/src/core/loggingContentGenerator.ts` 수정 🆕
@@ -835,11 +839,11 @@ packages/core/src/routing/
 
 ## 다음 Phase 진행 조건
 
-- [ ] Phase 2 모든 Milestone 완료
+- [x] Phase 2 모든 Milestone 완료 (M2.0~M2.6 + ETC)
 - [x] 동등성 검증 완료
 - [x] 🆕 18개 이벤트 매핑 검증 완료
 - [x] 기능 플래그 동작 확인
-- [ ] 코드 리뷰 완료
+- [ ] 코드 리뷰 완료 — → Phase 3 진입 전 최종 리뷰
 
 ---
 

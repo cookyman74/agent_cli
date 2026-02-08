@@ -6,7 +6,9 @@
 
 import type { PartListUnion, Part } from '@google/genai';
 import type { ContentGenerator } from '../core/contentGenerator.js';
+import type { LlmContent } from '../providers/types.js';
 import { debugLogger } from './debugLogger.js';
+import { isTextContent, isImageContent } from './llmUtils.js';
 
 // Token estimation constants
 // ASCII characters (0-127) are roughly 4 chars per token
@@ -28,22 +30,14 @@ const MAX_CHARS_FOR_FULL_HEURISTIC = 100_000;
  * Estimates token count for parts synchronously using a heuristic.
  * - Text: character-based heuristic (ASCII vs CJK) for small strings, length/4 for massive ones.
  * - Non-text (Tools, etc): JSON string length / 4.
+ *
+ * @deprecated Use {@link estimateLlmTokenCount} for provider-independent estimation.
  */
 export function estimateTokenCountSync(parts: Part[]): number {
   let totalTokens = 0;
   for (const part of parts) {
     if (typeof part.text === 'string') {
-      if (part.text.length > MAX_CHARS_FOR_FULL_HEURISTIC) {
-        totalTokens += part.text.length / 4;
-      } else {
-        for (const char of part.text) {
-          if (char.codePointAt(0)! <= 127) {
-            totalTokens += ASCII_TOKENS_PER_CHAR;
-          } else {
-            totalTokens += NON_ASCII_TOKENS_PER_CHAR;
-          }
-        }
-      }
+      totalTokens += estimateTextTokens(part.text);
     } else {
       // For images and PDFs, we use fixed safe estimates:
       // - Images: 3,000 tokens (covers up to 4K resolution on Gemini 3)
@@ -73,6 +67,8 @@ export function estimateTokenCountSync(parts: Part[]): number {
  * Calculates the token count of the request.
  * If the request contains only text or tools, it estimates the token count locally.
  * If the request contains media (images, files), it uses the countTokens API.
+ *
+ * @deprecated Gemini SDK-specific. Use {@link estimateLlmTokenCount} for provider-independent estimation.
  */
 export async function calculateRequestTokenCount(
   request: PartListUnion,
@@ -106,4 +102,56 @@ export async function calculateRequestTokenCount(
   }
 
   return estimateTokenCountSync(parts);
+}
+
+// ============================================================================
+// Provider-independent token estimation (LlmContent)
+// ============================================================================
+
+/**
+ * Estimates token count for LlmContent[] synchronously using heuristics.
+ * Provider-independent version of estimateTokenCountSync.
+ *
+ * - text: character-based heuristic (ASCII vs CJK)
+ * - image: fixed estimates based on mediaType
+ * - tool_call/tool_result/thought: JSON string length / 4
+ */
+export function estimateLlmTokenCount(contents: LlmContent[]): number {
+  let totalTokens = 0;
+
+  for (const content of contents) {
+    if (isTextContent(content)) {
+      totalTokens += estimateTextTokens(content.text);
+    } else if (isImageContent(content)) {
+      const mediaType = content.source.mediaType;
+      if (mediaType?.startsWith('application/pdf')) {
+        totalTokens += PDF_TOKEN_ESTIMATE;
+      } else {
+        totalTokens += IMAGE_TOKEN_ESTIMATE;
+      }
+    } else {
+      // tool_call, tool_result, thought → JSON heuristic
+      totalTokens += JSON.stringify(content).length / 4;
+    }
+  }
+
+  return Math.floor(totalTokens);
+}
+
+/**
+ * Estimate tokens for a text string using character-based heuristics.
+ */
+function estimateTextTokens(text: string): number {
+  if (text.length > MAX_CHARS_FOR_FULL_HEURISTIC) {
+    return text.length / 4;
+  }
+  let tokens = 0;
+  for (const char of text) {
+    if (char.codePointAt(0)! <= 127) {
+      tokens += ASCII_TOKENS_PER_CHAR;
+    } else {
+      tokens += NON_ASCII_TOKENS_PER_CHAR;
+    }
+  }
+  return tokens;
 }

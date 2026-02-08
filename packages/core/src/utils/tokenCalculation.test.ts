@@ -5,8 +5,12 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { calculateRequestTokenCount } from './tokenCalculation.js';
+import {
+  calculateRequestTokenCount,
+  estimateLlmTokenCount,
+} from './tokenCalculation.js';
 import type { ContentGenerator } from '../core/contentGenerator.js';
+import type { LlmContent } from '../providers/types.js';
 
 describe('calculateRequestTokenCount', () => {
   const mockContentGenerator = {
@@ -180,5 +184,100 @@ describe('calculateRequestTokenCount', () => {
 
     // PDF estimate: 25800 tokens (~100 pages at 258 tokens/page)
     expect(count).toBe(25800);
+  });
+});
+
+// =================================================================
+// 2.5.1 Provider-independent token estimation (LlmContent)
+// =================================================================
+
+describe('estimateLlmTokenCount', () => {
+  it('should estimate tokens for text content', () => {
+    const contents: LlmContent[] = [{ type: 'text', text: 'Hello world!' }];
+
+    // 12 ASCII chars * 0.25 = 3
+    expect(estimateLlmTokenCount(contents)).toBe(3);
+  });
+
+  it('should estimate tokens for CJK text', () => {
+    const contents: LlmContent[] = [{ type: 'text', text: '你好' }];
+
+    // 2 non-ASCII chars * 1.3 = 2.6 → floor = 2
+    expect(estimateLlmTokenCount(contents)).toBeGreaterThanOrEqual(2);
+  });
+
+  it('should estimate tokens for image content', () => {
+    const contents: LlmContent[] = [
+      {
+        type: 'image',
+        source: { type: 'base64', mediaType: 'image/png', data: 'abc123' },
+      },
+    ];
+
+    expect(estimateLlmTokenCount(contents)).toBe(3000);
+  });
+
+  it('should estimate tokens for PDF image content', () => {
+    const contents: LlmContent[] = [
+      {
+        type: 'image',
+        source: {
+          type: 'base64',
+          mediaType: 'application/pdf',
+          data: 'pdf_data',
+        },
+      },
+    ];
+
+    expect(estimateLlmTokenCount(contents)).toBe(25800);
+  });
+
+  it('should estimate tokens for tool_call content', () => {
+    const contents: LlmContent[] = [
+      {
+        type: 'tool_call',
+        id: 'call-1',
+        name: 'read_file',
+        arguments: { path: '/tmp/test.txt' },
+      },
+    ];
+
+    // JSON.stringify length / 4
+    expect(estimateLlmTokenCount(contents)).toBeGreaterThan(0);
+  });
+
+  it('should estimate tokens for tool_result content', () => {
+    const contents: LlmContent[] = [
+      {
+        type: 'tool_result',
+        toolCallId: 'call-1',
+        content: 'file contents here',
+      },
+    ];
+
+    expect(estimateLlmTokenCount(contents)).toBeGreaterThan(0);
+  });
+
+  it('should estimate tokens for thought content', () => {
+    const contents: LlmContent[] = [
+      { type: 'thought', thought: 'I should think about this carefully' },
+    ];
+
+    expect(estimateLlmTokenCount(contents)).toBeGreaterThan(0);
+  });
+
+  it('should sum tokens across multiple contents', () => {
+    const contents: LlmContent[] = [
+      { type: 'text', text: 'Hello' },
+      { type: 'text', text: 'World' },
+    ];
+
+    // 5 + 5 = 10 ASCII chars * 0.25 = 2.5 → floor = 2
+    const result = estimateLlmTokenCount(contents);
+    expect(result).toBe(2);
+  });
+
+  it('should return 0 for empty array', () => {
+    expect(estimateLlmTokenCount([])).toBe(0);
   });
 });

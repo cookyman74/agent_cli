@@ -10,8 +10,13 @@ import {
   getResponseText,
   flatMapTextParts,
   appendToLastTextPart,
+  contentToString,
+  getMessageText,
+  flatMapLlmTextContents,
+  appendToLastLlmTextContent,
 } from './partUtils.js';
 import type { GenerateContentResponse, Part, PartUnion } from '@google/genai';
+import type { LlmContent, LlmMessage } from '../providers/types.js';
 
 const mockResponse = (
   parts?: Array<{ text?: string; functionCall?: unknown }>,
@@ -296,6 +301,186 @@ describe('partUtils', () => {
       const prompt: PartUnion[] = ['first part'];
       const result = appendToLastTextPart(prompt, 'new text', '---');
       expect(result).toEqual(['first part---new text']);
+    });
+  });
+
+  // =================================================================
+  // 2.5.2 Provider-independent content utilities (LlmContent)
+  // =================================================================
+
+  describe('contentToString', () => {
+    it('should convert text content to string', () => {
+      const content: LlmContent = { type: 'text', text: 'hello' };
+      expect(contentToString(content)).toBe('hello');
+    });
+
+    it('should concatenate text from array of contents', () => {
+      const contents: LlmContent[] = [
+        { type: 'text', text: 'Hello ' },
+        { type: 'text', text: 'world' },
+      ];
+      expect(contentToString(contents)).toBe('Hello world');
+    });
+
+    it('should return empty string for non-text content', () => {
+      const content: LlmContent = {
+        type: 'image',
+        source: { type: 'base64', mediaType: 'image/png', data: 'abc' },
+      };
+      expect(contentToString(content)).toBe('');
+    });
+
+    it('should return descriptive string in verbose mode', () => {
+      const contents: LlmContent[] = [
+        { type: 'text', text: 'Hello ' },
+        {
+          type: 'image',
+          source: { type: 'base64', mediaType: 'image/png', data: 'abc' },
+        },
+        {
+          type: 'tool_call',
+          id: 'c1',
+          name: 'read_file',
+          arguments: { path: '/tmp' },
+        },
+        { type: 'thought', thought: 'thinking...' },
+      ];
+
+      const result = contentToString(contents, { verbose: true });
+      expect(result).toContain('Hello ');
+      expect(result).toContain('[Image: image/png]');
+      expect(result).toContain('[Tool Call: read_file]');
+      expect(result).toContain('[Thought: thinking...]');
+    });
+
+    it('should handle tool_result content in verbose mode', () => {
+      const content: LlmContent = {
+        type: 'tool_result',
+        toolCallId: 'c1',
+        content: 'result data',
+      };
+      expect(contentToString(content, { verbose: true })).toContain(
+        '[Tool Result]',
+      );
+    });
+
+    it('should return empty string for empty array', () => {
+      expect(contentToString([])).toBe('');
+    });
+  });
+
+  describe('getMessageText', () => {
+    it('should extract text from message', () => {
+      const message: LlmMessage = {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Hello ' },
+          { type: 'text', text: 'world' },
+        ],
+      };
+      expect(getMessageText(message)).toBe('Hello world');
+    });
+
+    it('should skip non-text and thought contents', () => {
+      const message: LlmMessage = {
+        role: 'assistant',
+        content: [
+          { type: 'thought', thought: 'thinking...' },
+          { type: 'text', text: 'Answer' },
+        ],
+      };
+      expect(getMessageText(message)).toBe('Answer');
+    });
+
+    it('should return null for empty content', () => {
+      const message: LlmMessage = { role: 'assistant', content: [] };
+      expect(getMessageText(message)).toBeNull();
+    });
+
+    it('should return null for no text contents', () => {
+      const message: LlmMessage = {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_call',
+            id: 'c1',
+            name: 'test',
+            arguments: {},
+          },
+        ],
+      };
+      expect(getMessageText(message)).toBeNull();
+    });
+  });
+
+  describe('flatMapLlmTextContents', () => {
+    const splitChars = async (text: string): Promise<LlmContent[]> =>
+      text.split('').map((c) => ({ type: 'text' as const, text: c }));
+
+    it('should return empty array for empty input', async () => {
+      expect(await flatMapLlmTextContents([], splitChars)).toEqual([]);
+    });
+
+    it('should transform text contents', async () => {
+      const contents: LlmContent[] = [{ type: 'text', text: 'hi' }];
+      const result = await flatMapLlmTextContents(contents, splitChars);
+      expect(result).toEqual([
+        { type: 'text', text: 'h' },
+        { type: 'text', text: 'i' },
+      ]);
+    });
+
+    it('should pass through non-text contents', async () => {
+      const toolCall: LlmContent = {
+        type: 'tool_call',
+        id: 'c1',
+        name: 'test',
+        arguments: {},
+      };
+      const contents: LlmContent[] = [{ type: 'text', text: 'go' }, toolCall];
+      const result = await flatMapLlmTextContents(contents, splitChars);
+      expect(result).toEqual([
+        { type: 'text', text: 'g' },
+        { type: 'text', text: 'o' },
+        toolCall,
+      ]);
+    });
+  });
+
+  describe('appendToLastLlmTextContent', () => {
+    it('should append to empty array', () => {
+      const result = appendToLastLlmTextContent([], 'new text');
+      expect(result).toEqual([{ type: 'text', text: 'new text' }]);
+    });
+
+    it('should append to last text content', () => {
+      const contents: LlmContent[] = [{ type: 'text', text: 'first' }];
+      const result = appendToLastLlmTextContent(contents, 'second');
+      expect(result).toEqual([{ type: 'text', text: 'first\n\nsecond' }]);
+    });
+
+    it('should add new text content if last is not text', () => {
+      const toolCall: LlmContent = {
+        type: 'tool_call',
+        id: 'c1',
+        name: 'test',
+        arguments: {},
+      };
+      const contents: LlmContent[] = [toolCall];
+      const result = appendToLastLlmTextContent(contents, 'new');
+      expect(result).toEqual([toolCall, { type: 'text', text: '\n\nnew' }]);
+    });
+
+    it('should not append empty text', () => {
+      const contents: LlmContent[] = [{ type: 'text', text: 'keep' }];
+      const result = appendToLastLlmTextContent(contents, '');
+      expect(result).toEqual([{ type: 'text', text: 'keep' }]);
+    });
+
+    it('should use custom separator', () => {
+      const contents: LlmContent[] = [{ type: 'text', text: 'first' }];
+      const result = appendToLastLlmTextContent(contents, 'second', '---');
+      expect(result).toEqual([{ type: 'text', text: 'first---second' }]);
     });
   });
 });

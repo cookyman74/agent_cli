@@ -10,7 +10,11 @@ import type {
   Part,
   PartUnion,
 } from '@google/genai';
-import type { LlmContent, LlmMessage } from '../providers/types.js';
+import type {
+  LlmContent,
+  LlmTextContent,
+  LlmMessage,
+} from '../providers/types.js';
 import { isTextContent } from './llmUtils.js';
 
 /**
@@ -233,9 +237,7 @@ export function getMessageText(message: LlmMessage): string | null {
   }
 
   const textParts = message.content
-    .filter((c): c is import('../providers/types.js').LlmTextContent =>
-      isTextContent(c),
-    )
+    .filter((c): c is LlmTextContent => isTextContent(c))
     .map((c) => c.text);
 
   return textParts.length > 0 ? textParts.join('') : null;

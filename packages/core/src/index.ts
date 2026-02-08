@@ -82,6 +82,7 @@ export * from './utils/errorParsing.js';
 export * from './utils/workspaceContext.js';
 export * from './utils/environmentContext.js';
 export * from './utils/ignorePatterns.js';
+export * from './utils/llmUtils.js';
 export * from './utils/partUtils.js';
 export * from './utils/promptIdContext.js';
 export * from './utils/thoughtUtils.js';

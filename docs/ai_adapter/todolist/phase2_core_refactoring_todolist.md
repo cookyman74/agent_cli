@@ -628,14 +628,14 @@ describe('ModelConfigService Compatibility', () => {
 
 ## 작업 항목
 
-### 2.5.1 tokenCalculation.ts 리팩토링
+### 2.5.1 tokenCalculation.ts 리팩토링 ✅
 
-| ID      | 작업                                       | 상태 | 테스트 파일                |
-| ------- | ------------------------------------------ | ---- | -------------------------- |
-| 2.5.1.1 | `LlmPart` 타입으로 전환                    | ⬜   | `tokenCalculation.test.ts` |
-| 2.5.1.2 | `estimateTokenCountSync` 시그니처 변경     | ⬜   | `tokenCalculation.test.ts` |
-| 2.5.1.3 | `calculateRequestTokenCount` 시그니처 변경 | ⬜   | `tokenCalculation.test.ts` |
-| 2.5.1.4 | 레거시 호환 래퍼 추가                      | ⬜   | `tokenCalculation.test.ts` |
+| ID      | 작업                                                                | 상태 | 테스트 파일                |
+| ------- | ------------------------------------------------------------------- | ---- | -------------------------- |
+| 2.5.1.1 | `estimateLlmTokenCount(LlmContent[])` 추가                          | ✅   | `tokenCalculation.test.ts` |
+| 2.5.1.2 | `estimateTextTokens(text)` 내부 헬퍼 추출                           | ✅   | `tokenCalculation.test.ts` |
+| 2.5.1.3 | `estimateTokenCountSync` → `estimateTextTokens` 위임                | ✅   | `tokenCalculation.test.ts` |
+| 2.5.1.4 | `estimateTokenCountSync` + `calculateRequestTokenCount` @deprecated | ✅   | `tokenCalculation.test.ts` |
 
 **TDD 시나리오**:
 
@@ -656,28 +656,29 @@ describe('tokenCalculation', () => {
 });
 ```
 
-### 2.5.2 partUtils.ts 리팩토링
+### 2.5.2 partUtils.ts 리팩토링 ✅
 
-| ID      | 작업                                 | 상태 | 테스트 파일         |
-| ------- | ------------------------------------ | ---- | ------------------- |
-| 2.5.2.1 | `partToString` → `contentToString`   | ⬜   | `partUtils.test.ts` |
-| 2.5.2.2 | `getResponseText` → `getMessageText` | ⬜   | `partUtils.test.ts` |
-| 2.5.2.3 | `flatMapTextParts` 시그니처 변경     | ⬜   | `partUtils.test.ts` |
-| 2.5.2.4 | 레거시 호환 래퍼 추가                | ⬜   | `partUtils.test.ts` |
+| ID      | 작업                                            | 상태 | 테스트 파일         |
+| ------- | ----------------------------------------------- | ---- | ------------------- |
+| 2.5.2.1 | `contentToString(LlmContent)` 추가              | ✅   | `partUtils.test.ts` |
+| 2.5.2.2 | `getMessageText(LlmMessage)` 추가               | ✅   | `partUtils.test.ts` |
+| 2.5.2.3 | `flatMapLlmTextContents(LlmContent[])` 추가     | ✅   | `partUtils.test.ts` |
+| 2.5.2.4 | `appendToLastLlmTextContent(LlmContent[])` 추가 | ✅   | `partUtils.test.ts` |
+| 2.5.2.5 | 기존 4개 함수 `@deprecated` 추가                | ✅   | `partUtils.test.ts` |
 
-### 2.5.3 llmUtils.ts 생성
+### 2.5.3 llmUtils.ts 생성 ✅
 
-| ID      | 작업                   | 상태 | 테스트 파일        |
-| ------- | ---------------------- | ---- | ------------------ |
-| 2.5.3.1 | 공통 LLM 유틸리티 정의 | ⬜   | `llmUtils.test.ts` |
-| 2.5.3.2 | 메시지 변환 헬퍼       | ⬜   | `llmUtils.test.ts` |
-| 2.5.3.3 | 콘텐츠 타입 체크 헬퍼  | ⬜   | `llmUtils.test.ts` |
+| ID      | 작업                               | 상태 | 테스트 파일        |
+| ------- | ---------------------------------- | ---- | ------------------ |
+| 2.5.3.1 | Type guards 5개 (isTextContent 등) | ✅   | `llmUtils.test.ts` |
+| 2.5.3.2 | `extractText(LlmContent[])` 헬퍼   | ✅   | `llmUtils.test.ts` |
+| 2.5.3.3 | `createTextContent(text)` 팩토리   | ✅   | `llmUtils.test.ts` |
 
 **검증 기준**:
 
-- [ ] 모든 유틸리티 프로바이더 독립
-- [ ] 레거시 호환성 유지
-- [ ] 기존 테스트 100% 통과
+- [x] 모든 유틸리티 프로바이더 독립
+- [x] 레거시 호환성 유지 (기존 함수 무변경 + @deprecated)
+- [x] 기존 테스트 100% 통과 (4803/4803)
 
 ---
 

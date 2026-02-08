@@ -30,7 +30,7 @@ nonInteractiveCli.ts → useGeminiStream.ts (각 파일의 소스 + 테스트 �
 
 ## ✅ 변경 사항
 
-### 변경 파일 목록 (16 files — 초기 11 + 리뷰 후 5)
+### 변경 파일 목록 (16 files — 초기 11 + 리뷰 후 5 + 3차 리뷰 1 중복 수정)
 
 | #   | 파일                                                      | 변경 내용                                                                                                                                            |
 | --- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -237,3 +237,50 @@ typecheck ✅ 0 errors")과 일치함. 추가 수정 불필요.
 | `ui/types.ts`의 로컬 `GeminiEventType` | ⏸️ 유지 | UI 상태 관리용 로컬 enum, core enum과 무관 |
 | `turn.ts` @deprecated re-exports       | ⏸️ 유지 | Phase 3에서 제거 예정                      |
 | `core/index.ts` dual export            | ⏸️ 유지 | 하위 호환 보장, Phase 3 최종 정리 시 제거  |
+
+---
+
+## 🔄 3차 리뷰 반영 — Low 이슈 수정
+
+### Low #1: `listen EPERM` (a2a-server HTTP E2E tests)
+
+- **파일**: `packages/a2a-server/src/http/app.test.ts:111`
+- **현상**: `listen EPERM: operation not permitted` — 테스트에서 실제 포트
+  바인딩 시도
+- **원인**: macOS Seatbelt sandbox 환경의 포트 바인딩 제한 (코드 회귀 아님)
+- **조치**: 코드 수정 불필요 — sandbox 미적용 환경에서 정상 동작 확인 필요
+
+### Low #2: `config.getContentGenerator is not a function` (useGeminiStream tests)
+
+- **파일**: `packages/cli/src/ui/hooks/useGeminiStream.test.tsx`
+- **현상**: 58/58 테스트 통과했으나 7건의 경고 반복 출력
+- **원인 경로**: `useGeminiStream` → tool call recording →
+  `code_assist/telemetry.ts:recordToolCallInteractions()` →
+  `getCodeAssistServer(config)` → `config.getContentGenerator()` — mockConfig에
+  해당 메서드 미존재
+- **수정**: `mockConfig`에
+  `getContentGenerator: vi.fn().mockReturnValue(undefined)` 추가
+- **결과**: 경고 0건, 58/58 테스트 통과 ✅
+
+### Low #3: `MaxListenersExceededWarning` (useGeminiStream tests)
+
+- **파일**: `packages/cli/src/ui/hooks/useGeminiStream.test.tsx`
+- **현상**:
+  `Possible EventEmitter memory leak detected. 11 retry-attempt listeners added to [CoreEventEmitter]`
+- **원인**: `coreEvents`는 모듈 레벨 싱글톤이며, 각 테스트에서 `renderHook` →
+  `useEffect` → `coreEvents.on(CoreEvent.RetryAttempt, ...)` 호출.
+  `afterEach`에서 cleanup이 없어 React의 `useEffect` cleanup
+  (`coreEvents.off`)이 실행되지 않고 리스너 누적
+- **수정**:
+  `afterEach(() => { coreEvents.removeAllListeners(CoreEvent.RetryAttempt); })`
+  추가 + `afterEach` import 추가
+- **결과**: 경고 0건, 58/58 테스트 통과 ✅
+
+### Lessons Learned
+
+7. **Mock 정합성 검증**: 테스트 통과만으로 mock 완전성을 판단하면 안 됨.
+   try-catch로 감싸진 호출 경로에서 경고가 발생할 수 있으므로, 테스트 실행 시
+   콘솔 경고/에러 출력도 반드시 확인
+8. **싱글톤 EventEmitter 리스너 누적**: 모듈 레벨 싱글톤 EventEmitter에 대해
+   `useEffect`로 리스너를 등록하는 테스트는 반드시 `afterEach`에서 리스너를
+   제거해야 함. React cleanup은 테스트 환경에서 보장되지 않을 수 있음

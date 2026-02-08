@@ -86,6 +86,32 @@ describe('GeminiConfigConverter', () => {
       expect(result.systemInstruction).toBe('Be concise');
     });
 
+    it('should convert Content object systemInstruction', () => {
+      const gc: GenerateContentConfig = {
+        systemInstruction: {
+          role: 'system',
+          parts: [{ text: 'Be helpful' }],
+        } as never,
+      };
+
+      const result = fromGenerateContentConfig(gc, 'gemini-2.0-flash');
+
+      expect(result.systemInstruction).toBe('Be helpful');
+    });
+
+    it('should convert Part[] systemInstruction', () => {
+      const gc: GenerateContentConfig = {
+        systemInstruction: [
+          { text: 'Be concise. ' },
+          { text: 'Be helpful.' },
+        ] as never,
+      };
+
+      const result = fromGenerateContentConfig(gc, 'gemini-2.0-flash');
+
+      expect(result.systemInstruction).toBe('Be concise. Be helpful.');
+    });
+
     it('should store Gemini-specific fields in providerOptions', () => {
       const gc: GenerateContentConfig = {
         temperature: 0.5,

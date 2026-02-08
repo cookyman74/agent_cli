@@ -182,6 +182,13 @@ function extractSystemInstructionText(instruction: unknown): string {
   if (typeof instruction === 'string') {
     return instruction;
   }
+  // Part[] array: [{ text: '...' }, { text: '...' }]
+  if (Array.isArray(instruction)) {
+    return (instruction as Array<{ text?: string }>)
+      .map((p) => p.text || '')
+      .filter(Boolean)
+      .join('');
+  }
   // Content object: { role, parts: [{ text }] }
   if (
     instruction &&

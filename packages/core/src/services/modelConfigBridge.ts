@@ -16,8 +16,7 @@
 
 import type { GenerateContentConfig } from '@google/genai';
 import type { LlmGenerateConfig } from '../providers/types.js';
-import type {
-  ModelConfigService} from './modelConfigService.js';
+import type { ModelConfigService } from './modelConfigService.js';
 import {
   type ModelConfigKey,
   type ResolvedModelConfig,
@@ -121,6 +120,21 @@ export class ModelConfigBridge {
           ),
         ),
       };
+
+      // Deep merge providerOptions (Record<string, unknown>)
+      if (
+        base.llmConfig?.providerOptions ||
+        override.llmConfig?.providerOptions
+      ) {
+        result.llmConfig.providerOptions = {
+          ...base.llmConfig?.providerOptions,
+          ...Object.fromEntries(
+            Object.entries(override.llmConfig?.providerOptions ?? {}).filter(
+              ([, v]) => v !== undefined,
+            ),
+          ),
+        };
+      }
     }
 
     return result;

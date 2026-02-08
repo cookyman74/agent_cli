@@ -329,6 +329,58 @@ describe('ModelConfigBridge', () => {
       expect(merged.model).toBe('test-model');
       expect(merged.llmConfig?.temperature).toBe(0.7);
     });
+
+    it('should deep merge nested providerOptions', () => {
+      const base: LlmModelConfig = {
+        model: 'test-model',
+        llmConfig: {
+          temperature: 0.5,
+          providerOptions: {
+            presencePenalty: 0.3,
+            seed: 42,
+          },
+        },
+      };
+
+      const override: LlmModelConfig = {
+        llmConfig: {
+          providerOptions: {
+            presencePenalty: 0.8,
+            frequencyPenalty: 0.2,
+          },
+        },
+      };
+
+      const merged = ModelConfigBridge.mergeLlmModelConfig(base, override);
+
+      // override 값이 우선
+      expect(merged.llmConfig?.providerOptions?.['presencePenalty']).toBe(0.8);
+      // override에만 있는 값 추가
+      expect(merged.llmConfig?.providerOptions?.['frequencyPenalty']).toBe(0.2);
+      // base에만 있는 값 보존
+      expect(merged.llmConfig?.providerOptions?.['seed']).toBe(42);
+      // 기존 1단계 필드도 보존
+      expect(merged.llmConfig?.temperature).toBe(0.5);
+    });
+
+    it('should deep merge nested stopSequences arrays by replacement', () => {
+      const base: LlmModelConfig = {
+        llmConfig: {
+          stopSequences: ['STOP'],
+        },
+      };
+
+      const override: LlmModelConfig = {
+        llmConfig: {
+          stopSequences: ['END', 'DONE'],
+        },
+      };
+
+      const merged = ModelConfigBridge.mergeLlmModelConfig(base, override);
+
+      // 배열은 통째로 교체 (deep merge 대상 아님)
+      expect(merged.llmConfig?.stopSequences).toEqual(['END', 'DONE']);
+    });
   });
 
   describe('backward compatibility', () => {

@@ -6,7 +6,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Mock, MockInstance } from 'vitest';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { renderHook } from '../../test-utils/render.js';
 import { waitFor } from '../../test-utils/async.js';
@@ -229,6 +229,7 @@ describe('useGeminiStream', () => {
       setQuotaErrorOccurred: vi.fn(),
       getQuotaErrorOccurred: vi.fn(() => false),
       getModel: vi.fn(() => 'gemini-2.5-pro'),
+      getContentGenerator: vi.fn().mockReturnValue(undefined),
       getContentGeneratorConfig: vi
         .fn()
         .mockReturnValue(contentGeneratorConfig),
@@ -263,6 +264,10 @@ describe('useGeminiStream', () => {
       .mockReturnValue((async function* () {})());
     handleAtCommandSpy = vi.spyOn(atCommandProcessor, 'handleAtCommand');
     vi.spyOn(coreEvents, 'emitFeedback');
+  });
+
+  afterEach(() => {
+    coreEvents.removeAllListeners(CoreEvent.RetryAttempt);
   });
 
   const mockLoadedSettings: LoadedSettings = {

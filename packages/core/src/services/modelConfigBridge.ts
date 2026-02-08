@@ -70,9 +70,16 @@ export class ModelConfigBridge {
 
   /**
    * Register a provider-independent model config for non-Gemini providers.
+   * Uses provider:name composite key to prevent cross-provider collision.
    */
-  registerLlmConfig(name: string, config: LlmModelConfig): void {
-    this.llmConfigs.set(name, config);
+  registerLlmConfig(
+    name: string,
+    config: LlmModelConfig,
+    provider?: string,
+  ): void {
+    const resolvedProvider = provider ?? config.provider;
+    const key = resolvedProvider ? `${resolvedProvider}:${name}` : name;
+    this.llmConfigs.set(key, config);
   }
 
   /**
@@ -169,7 +176,10 @@ export class ModelConfigBridge {
     key: LlmModelConfigKey,
     provider: string,
   ): ResolvedLlmModelConfig {
-    const registered = this.llmConfigs.get(key.model);
+    // Try provider-qualified key first, then fall back to plain model name
+    const registered =
+      this.llmConfigs.get(`${provider}:${key.model}`) ??
+      this.llmConfigs.get(key.model);
 
     if (registered) {
       const model = registered.model ?? key.model;

@@ -244,6 +244,57 @@ describe('ModelConfigBridge', () => {
       expect(result.llmConfig.maxTokens).toBe(4096);
     });
 
+    it('should isolate configs when same model name registered under different providers', () => {
+      const service = new ModelConfigService({});
+      const bridge = new ModelConfigBridge(service);
+
+      bridge.registerLlmConfig('gpt-4', {
+        model: 'gpt-4',
+        provider: 'openai',
+        llmConfig: { temperature: 0.7 },
+      });
+
+      bridge.registerLlmConfig('gpt-4', {
+        model: 'gpt-4',
+        provider: 'azure',
+        llmConfig: { temperature: 0.3 },
+      });
+
+      const openaiResult = bridge.getResolvedLlmConfig({
+        model: 'gpt-4',
+        provider: 'openai',
+      });
+      const azureResult = bridge.getResolvedLlmConfig({
+        model: 'gpt-4',
+        provider: 'azure',
+      });
+
+      expect(openaiResult.provider).toBe('openai');
+      expect(openaiResult.llmConfig.temperature).toBe(0.7);
+      expect(azureResult.provider).toBe('azure');
+      expect(azureResult.llmConfig.temperature).toBe(0.3);
+    });
+
+    it('should not return wrong provider config for provider mismatch', () => {
+      const service = new ModelConfigService({});
+      const bridge = new ModelConfigBridge(service);
+
+      bridge.registerLlmConfig('my-model', {
+        model: 'actual-model',
+        provider: 'openai',
+        llmConfig: { temperature: 0.9 },
+      });
+
+      // Request with different provider should NOT get openai config
+      const result = bridge.getResolvedLlmConfig({
+        model: 'my-model',
+        provider: 'azure',
+      });
+
+      // Should return default (not openai's registered config)
+      expect(result.provider).toBe('azure');
+    });
+
     it('should merge registered LlmModelConfig with defaults', () => {
       const service = new ModelConfigService({});
       const bridge = new ModelConfigBridge(service);

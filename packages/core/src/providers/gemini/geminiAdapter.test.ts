@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiAdapter } from './adapter.js';
 import type { LlmGenerateRequest, AdapterConfig } from '../types.js';
 import { LlmEventType } from '../events.js';
+import { LlmError } from '../errors.js';
 
 // =================================================================
 // Test helpers
@@ -250,6 +251,43 @@ describe('GeminiAdapter', () => {
         (e) => e.type === LlmEventType.TextDelta,
       );
       expect(textEvents.length).toBeGreaterThan(0);
+    });
+
+    it('should normalize stream creation errors to LlmError', async () => {
+      mockModels.generateContentStream.mockRejectedValue(
+        new Error('Network timeout'),
+      );
+
+      const request = createBasicRequest();
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+
+      await expect(async () => {
+        for await (const _event of stream) {
+          // consume
+        }
+      }).rejects.toThrow(LlmError);
+    });
+
+    it('should normalize stream iteration errors to LlmError', async () => {
+      async function* failingStream() {
+        yield {
+          candidates: [
+            { content: { role: 'model', parts: [{ text: 'partial' }] } },
+          ],
+        };
+        throw new Error('Stream interrupted');
+      }
+
+      mockModels.generateContentStream.mockResolvedValue(failingStream());
+
+      const request = createBasicRequest();
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+
+      await expect(async () => {
+        for await (const _event of stream) {
+          // consume
+        }
+      }).rejects.toThrow(LlmError);
     });
 
     it('should validate request before streaming', () => {

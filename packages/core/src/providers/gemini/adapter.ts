@@ -112,18 +112,23 @@ export class GeminiAdapter extends BaseAdapter {
     const models = this.models;
     const converter = this.converter;
     const convertChunk = this.convertChunkToEvents.bind(this);
+    const handleErr = this.handleError.bind(this);
     const geminiParams = converter.toGeminiRequest(request);
 
     async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
-      const stream = await models.generateContentStream(
-        geminiParams as unknown as Record<string, unknown>,
-      );
+      try {
+        const stream = await models.generateContentStream(
+          geminiParams as unknown as Record<string, unknown>,
+        );
 
-      for await (const chunk of stream) {
-        const events = convertChunk(chunk);
-        for (const event of events) {
-          yield event;
+        for await (const chunk of stream) {
+          const events = convertChunk(chunk);
+          for (const event of events) {
+            yield event;
+          }
         }
+      } catch (error) {
+        handleErr(error);
       }
     }
 
@@ -179,7 +184,7 @@ export class GeminiAdapter extends BaseAdapter {
           type: LlmEventType.ToolCallRequest,
           callId: crypto.randomUUID(),
           name: part.functionCall.name!,
-          args: (part.functionCall.args ?? {}),
+          args: part.functionCall.args ?? {},
         });
       }
     }

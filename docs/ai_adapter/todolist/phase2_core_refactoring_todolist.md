@@ -1,6 +1,6 @@
 # Phase 2: 코어 리팩토링 및 Gemini 분리
 
-> 기간: 3-4주 | 상태: ⏳ 대기 | 의존성: Phase 1 완료 **v0.3** - 2차 리뷰 반영
+> 기간: 3-4주 | 상태: ✅ 완료 | 의존성: Phase 1 완료 **v0.3** - 2차 리뷰 반영
 > (라우팅 레이어, 래퍼 클래스, 테스트 파일 정정)
 
 ## System Prompt
@@ -64,6 +64,22 @@ packages/core/src/
     ├── partUtils.ts         [수정]
     └── llmUtils.ts          [신규]
 ```
+
+## Phase 2 작업 결과서 링크 (추적용)
+
+아래 링크를 통해 각 마일스톤의 실제 작업 결과(코드 변경/테스트/이슈 대응)를 바로
+확인할 수 있습니다.
+
+| 마일스톤 | 작업 결과서                                                                                                                              | 핵심 작업 내용                                                                |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| M2.0     | [Phase2*M2.0*디렉토리재구성\_20260207.md](../working_history/Phase2_M2.0_디렉토리재구성_20260207.md)                                     | `providers/gemini` 구조 분리, `turn.ts` re-export 기반 하위 호환              |
+| M2.1     | [Phase2_M2.1_ContentGenerator인터페이스재정의\_20260207.md](../working_history/Phase2_M2.1_ContentGenerator인터페이스재정의_20260207.md) | ContentGenerator/Retry/Hook/BaseLlmClient 타입 전환, 래퍼 클래스 마이그레이션 |
+| M2.2     | [Phase2_M2.2_EventMapper구현\_20260207.md](../working_history/Phase2_M2.2_EventMapper구현_20260207.md)                                   | EventMapper(18개), StreamAssembler, Gemini 에러/Telemetry 매핑                |
+| M2.3     | [Phase2_M2.3_GeminiAdapter구현\_20260208.md](../working_history/Phase2_M2.3_GeminiAdapter구현_20260208.md)                               | GeminiAdapter/AdapterBridge 구현, 기능 플래그 통합                            |
+| M2.4     | [Phase2_M2.4_ModelConfigService호환레이어\_20260208.md](../working_history/Phase2_M2.4_ModelConfigService호환레이어_20260208.md)         | ConfigConverter + ModelConfigBridge 기반 호환 레이어                          |
+| M2.5     | [Phase2*M2.5*유틸리티레이어리팩토링\_20260208.md](../working_history/Phase2_M2.5_유틸리티레이어리팩토링_20260208.md)                     | `llmUtils`, `partUtils`, `tokenCalculation` provider-independent 유틸 추가    |
+| M2.6     | [Phase2*M2.6*라우팅레이어타입독립화\_20260208.md](../working_history/Phase2_M2.6_라우팅레이어타입독립화_20260208.md)                     | RoutingContext 타입 독립화, 변환 브릿지, 라우팅 전략 전환                     |
+| ETC      | [Phase2*ETC*연기작업정리\_20260208.md](../working_history/Phase2_ETC_연기작업정리_20260208.md)                                           | 연기 항목 정리(A/B 분류), Phase 3 핸드오프 정리                               |
 
 ---
 

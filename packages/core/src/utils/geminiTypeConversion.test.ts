@@ -129,6 +129,51 @@ describe('geminiTypeConversion', () => {
       const result = convertContentToLlmMessage(content);
       expect(result.content).toEqual([]);
     });
+
+    it('should convert fileData parts to image content with url source', () => {
+      const content: Content = {
+        role: 'user',
+        parts: [
+          {
+            fileData: {
+              fileUri: 'gs://bucket/image.png',
+              mimeType: 'image/png',
+            },
+          },
+        ],
+      };
+      const result = convertContentToLlmMessage(content);
+      expect(result.content).toEqual([
+        {
+          type: 'image',
+          source: {
+            type: 'url',
+            mediaType: 'image/png',
+            url: 'gs://bucket/image.png',
+          },
+        },
+      ]);
+    });
+
+    it('should treat thought:false text as regular text, not thought', () => {
+      const content: Content = {
+        role: 'model',
+        parts: [{ text: 'regular text', thought: false }],
+      };
+      const result = convertContentToLlmMessage(content);
+      expect(result.content).toEqual([{ type: 'text', text: 'regular text' }]);
+    });
+
+    it('should treat thought:true as thought content', () => {
+      const content: Content = {
+        role: 'model',
+        parts: [{ text: 'thinking...', thought: true }],
+      };
+      const result = convertContentToLlmMessage(content);
+      expect(result.content).toEqual([
+        { type: 'thought', thought: 'thinking...' },
+      ]);
+    });
   });
 
   describe('convertContentsToLlmMessages', () => {

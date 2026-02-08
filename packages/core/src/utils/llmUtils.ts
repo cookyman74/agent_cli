@@ -80,6 +80,7 @@ export function createTextContent(text: string): LlmTextContent {
 export function isToolCallMessage(message: LlmMessage): boolean {
   return (
     message.role === 'assistant' &&
+    message.content.length > 0 &&
     message.content.every((c) => isToolCallContent(c))
   );
 }
@@ -91,6 +92,7 @@ export function isToolCallMessage(message: LlmMessage): boolean {
 export function isToolResultMessage(message: LlmMessage): boolean {
   return (
     message.role === 'user' &&
+    message.content.length > 0 &&
     message.content.every((c) => isToolResultContent(c))
   );
 }

@@ -19,17 +19,15 @@ import type { LlmContent, LlmMessage, LlmRole } from '../providers/types.js';
 
 /**
  * Convert a single Gemini Part to LlmContent.
- * Handles text, functionCall, functionResponse, inlineData, and thought.
+ * Handles text, functionCall, functionResponse, inlineData, fileData, and thought.
  */
 function convertPartToLlmContent(part: Part): LlmContent | null {
   // Handle thought parts (must check before text since thought parts may also have text)
-  const thoughtPart = part as Part & { thought?: string | boolean };
-  if ('thought' in part && thoughtPart.thought !== undefined) {
-    const thoughtText =
-      typeof thoughtPart.thought === 'string'
-        ? thoughtPart.thought
-        : (part.text ?? '');
-    return { type: 'thought', thought: thoughtText };
+  // thought field is boolean in Gemini SDK — only treat as thought when truthy (true),
+  // not when explicitly set to false.
+  const thoughtPart = part as Part & { thought?: boolean };
+  if ('thought' in part && thoughtPart.thought) {
+    return { type: 'thought', thought: part.text ?? '' };
   }
 
   if ('text' in part && part.text !== undefined) {
@@ -63,6 +61,17 @@ function convertPartToLlmContent(part: Part): LlmContent | null {
         type: 'base64',
         mediaType: part.inlineData.mimeType!,
         data: part.inlineData.data!,
+      },
+    };
+  }
+
+  if ('fileData' in part && part.fileData) {
+    return {
+      type: 'image',
+      source: {
+        type: 'url',
+        mediaType: part.fileData.mimeType!,
+        url: part.fileData.fileUri!,
       },
     };
   }

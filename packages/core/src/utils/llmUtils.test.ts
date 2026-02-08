@@ -195,6 +195,14 @@ describe('llmUtils', () => {
       };
       expect(isToolCallMessage(message)).toBe(false);
     });
+
+    it('should return false for assistant message with empty content', () => {
+      const message: LlmMessage = {
+        role: 'assistant',
+        content: [],
+      };
+      expect(isToolCallMessage(message)).toBe(false);
+    });
   });
 
   describe('isToolResultMessage', () => {
@@ -224,6 +232,14 @@ describe('llmUtils', () => {
       const message: LlmMessage = {
         role: 'assistant',
         content: [{ type: 'text', text: 'response' }],
+      };
+      expect(isToolResultMessage(message)).toBe(false);
+    });
+
+    it('should return false for user message with empty content', () => {
+      const message: LlmMessage = {
+        role: 'user',
+        content: [],
       };
       expect(isToolResultMessage(message)).toBe(false);
     });

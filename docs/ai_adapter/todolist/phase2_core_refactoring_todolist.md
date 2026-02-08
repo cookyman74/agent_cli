@@ -562,12 +562,12 @@ ModelConfigService의 GenerateContentConfig 의존성 해결
 
 ### 2.4.1 호환 레이어 구현
 
-| ID      | 작업                              | 상태 | 테스트 파일           |
-| ------- | --------------------------------- | ---- | --------------------- |
-| 2.4.1.1 | `LlmModelConfig` 인터페이스 정의  | ⬜   | `modelConfig.test.ts` |
-| 2.4.1.2 | `GenerateContentConfig` 래퍼 구현 | ⬜   | `modelConfig.test.ts` |
-| 2.4.1.3 | 설정 머지 로직 확장               | ⬜   | `modelConfig.test.ts` |
-| 2.4.1.4 | 프로바이더별 설정 분기            | ⬜   | `modelConfig.test.ts` |
+| ID      | 작업                              | 상태 | 테스트 파일                                            |
+| ------- | --------------------------------- | ---- | ------------------------------------------------------ |
+| 2.4.1.1 | `LlmModelConfig` 인터페이스 정의  | ✅   | `modelConfigBridge.test.ts`                            |
+| 2.4.1.2 | `GenerateContentConfig` 래퍼 구현 | ✅   | `configConverter.test.ts`                              |
+| 2.4.1.3 | 설정 머지 로직 확장               | ✅   | `modelConfigBridge.test.ts`                            |
+| 2.4.1.4 | 프로바이더별 설정 분기            | ✅   | `modelConfigBridge.test.ts`, `configConverter.test.ts` |
 
 **TDD 시나리오**:
 
@@ -601,17 +601,17 @@ describe('ModelConfigService Compatibility', () => {
 
 ### 2.4.2 ModelRouterService 연동
 
-| ID      | 작업                    | 상태 | 테스트 파일      |
-| ------- | ----------------------- | ---- | ---------------- |
-| 2.4.2.1 | 라우팅 컨텍스트 확장    | ⬜   | `router.test.ts` |
-| 2.4.2.2 | 프로바이더 인식 라우팅  | ⬜   | `router.test.ts` |
-| 2.4.2.3 | 기존 라우팅 전략 호환성 | ⬜   | `router.test.ts` |
+| ID      | 작업                    | 상태 | 테스트 파일      | 비고        |
+| ------- | ----------------------- | ---- | ---------------- | ----------- |
+| 2.4.2.1 | 라우팅 컨텍스트 확장    | ⏸️   | `router.test.ts` | → M2.6 이월 |
+| 2.4.2.2 | 프로바이더 인식 라우팅  | ⏸️   | `router.test.ts` | → M2.6 이월 |
+| 2.4.2.3 | 기존 라우팅 전략 호환성 | ⏸️   | `router.test.ts` | → M2.6 이월 |
 
 **검증 기준**:
 
-- [ ] 기존 ModelConfigService 동작 유지
-- [ ] 신규 프로바이더 설정 지원
-- [ ] 라우팅 결정이 프로바이더 인식
+- [x] 기존 ModelConfigService 동작 유지
+- [x] 신규 프로바이더 설정 지원
+- [ ] 라우팅 결정이 프로바이더 인식 (→ M2.6)
 
 ---
 

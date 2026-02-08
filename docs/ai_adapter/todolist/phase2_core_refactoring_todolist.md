@@ -714,15 +714,15 @@ export interface RoutingContext {
 
 ## 작업 항목
 
-### 2.6.1 RoutingContext 타입 전환
+### 2.6.1 RoutingContext 타입 전환 ✅
 
-| ID      | 작업                                                    | 상태 | 테스트 파일               |
-| ------- | ------------------------------------------------------- | ---- | ------------------------- |
-| 2.6.1.1 | `RoutingContext` 인터페이스 분석                        | ⬜   | N/A (분석)                |
-| 2.6.1.2 | `LlmRoutingContext` 인터페이스 정의                     | ⬜   | `routingStrategy.test.ts` |
-| 2.6.1.3 | `history: Content[]` → `history: LlmMessage[]` 전환     | ⬜   | `routingStrategy.test.ts` |
-| 2.6.1.4 | `request: PartListUnion` → `request: LlmContent[]` 전환 | ⬜   | `routingStrategy.test.ts` |
-| 2.6.1.5 | 레거시 RoutingContext 호환 레이어                       | ⬜   | `routingStrategy.test.ts` |
+| ID      | 작업                                                    | 상태 | 테스트 파일             | 비고                                                   |
+| ------- | ------------------------------------------------------- | ---- | ----------------------- | ------------------------------------------------------ |
+| 2.6.1.1 | `RoutingContext` 인터페이스 분석                        | ✅   | N/A (분석)              |                                                        |
+| 2.6.1.2 | `RoutingContext` 인라인 타입 전환                       | ✅   | 기존 라우팅 테스트 52개 | 인라인 전환 채택 (LlmRoutingContext 불필요)            |
+| 2.6.1.3 | `history: Content[]` → `history: LlmMessage[]` 전환     | ✅   | 기존 라우팅 테스트 52개 |                                                        |
+| 2.6.1.4 | `request: PartListUnion` → `request: LlmContent[]` 전환 | ✅   | 기존 라우팅 테스트 52개 |                                                        |
+| 2.6.1.5 | 레거시 RoutingContext 호환 레이어                       | ✅   | N/A                     | 인라인 전환으로 불필요, 호출 지점에서 변환 브릿지 적용 |
 
 **TDD 시나리오**:
 
@@ -755,24 +755,24 @@ describe('RoutingContext Type Independence', () => {
 });
 ```
 
-### 2.6.2 라우팅 전략 구현체 마이그레이션
+### 2.6.2 라우팅 전략 구현체 마이그레이션 ✅
 
-| ID      | 작업                                       | 상태 | 테스트 파일                           |
-| ------- | ------------------------------------------ | ---- | ------------------------------------- |
-| 2.6.2.1 | `compositeStrategy.ts` 타입 전환           | ⬜   | `compositeStrategy.test.ts`           |
-| 2.6.2.2 | `classifierStrategy.ts` 타입 전환          | ⬜   | `classifierStrategy.test.ts`          |
-| 2.6.2.3 | `defaultStrategy.ts` 타입 전환             | ⬜   | `defaultStrategy.test.ts`             |
-| 2.6.2.4 | `fallbackStrategy.ts` 타입 전환            | ⬜   | `fallbackStrategy.test.ts`            |
-| 2.6.2.5 | `overrideStrategy.ts` 타입 전환            | ⬜   | `overrideStrategy.test.ts`            |
-| 2.6.2.6 | `numericalClassifierStrategy.ts` 타입 전환 | ⬜   | `numericalClassifierStrategy.test.ts` |
+| ID      | 작업                                       | 상태 | 테스트 파일                           | 비고                                        |
+| ------- | ------------------------------------------ | ---- | ------------------------------------- | ------------------------------------------- |
+| 2.6.2.1 | `compositeStrategy.ts` 타입 전환           | ✅   | `compositeStrategy.test.ts`           | 코드 변경 불필요 (RoutingContext 자동 전파) |
+| 2.6.2.2 | `classifierStrategy.ts` 타입 전환          | ✅   | `classifierStrategy.test.ts`          | @google/genai 제거, messages 형식 전환      |
+| 2.6.2.3 | `defaultStrategy.ts` 타입 전환             | ✅   | `defaultStrategy.test.ts`             | 코드 변경 불필요 (RoutingContext 자동 전파) |
+| 2.6.2.4 | `fallbackStrategy.ts` 타입 전환            | ✅   | `fallbackStrategy.test.ts`            | 코드 변경 불필요 (RoutingContext 자동 전파) |
+| 2.6.2.5 | `overrideStrategy.ts` 타입 전환            | ✅   | `overrideStrategy.test.ts`            | 코드 변경 불필요 (RoutingContext 자동 전파) |
+| 2.6.2.6 | `numericalClassifierStrategy.ts` 타입 전환 | ✅   | `numericalClassifierStrategy.test.ts` | @google/genai 제거, extractText 활용        |
 
-### 2.6.3 ModelRouterService 마이그레이션
+### 2.6.3 호출 지점 마이그레이션 ✅
 
-| ID      | 작업                              | 상태 | 테스트 파일                  |
-| ------- | --------------------------------- | ---- | ---------------------------- |
-| 2.6.3.1 | `modelRouterService.ts` 타입 전환 | ⬜   | `modelRouterService.test.ts` |
-| 2.6.3.2 | 라우팅 호출부 타입 전환           | ⬜   | `modelRouterService.test.ts` |
-| 2.6.3.3 | 기존 라우팅 동작 동등성 검증      | ⬜   | `routerParity.test.ts`       |
+| ID      | 작업                              | 상태 | 테스트 파일                  | 비고                                                                         |
+| ------- | --------------------------------- | ---- | ---------------------------- | ---------------------------------------------------------------------------- |
+| 2.6.3.1 | `modelRouterService.ts` 타입 전환 | ✅   | `modelRouterService.test.ts` | RoutingContext 자동 전파, mock 데이터만 업데이트                             |
+| 2.6.3.2 | 라우팅 호출부 타입 전환           | ✅   | `modelRouterService.test.ts` | client.ts, local-executor.ts에 변환 브릿지 적용                              |
+| 2.6.3.3 | 기존 라우팅 동작 동등성 검증      | ✅   | 기존 라우팅 테스트 52개      | 별도 parity 테스트 불필요 — 인라인 전환이므로 기존 테스트가 동등성 검증 역할 |
 
 **영향 받는 파일 목록**:
 
@@ -791,10 +791,10 @@ packages/core/src/routing/
 
 **검증 기준**:
 
-- [ ] `routingStrategy.ts`에서 `@google/genai` import 제거
-- [ ] 모든 라우팅 전략 구현체 타입 전환 완료
-- [ ] 기존 라우팅 테스트 100% 통과
-- [ ] 라우팅 동등성 검증 완료
+- [x] `routingStrategy.ts`에서 `@google/genai` import 제거
+- [x] 모든 라우팅 전략 구현체 타입 전환 완료
+- [x] 기존 라우팅 테스트 100% 통과 (52개)
+- [x] 라우팅 동등성 검증 완료 (인라인 전환 — 기존 테스트가 동등성 보장)
 
 ---
 
@@ -802,10 +802,10 @@ packages/core/src/routing/
 
 ## Quality Gates
 
-- [ ] 모든 단위 테스트 통과
-- [ ] 동등성 테스트 100% 통과
-- [ ] TypeScript 컴파일 에러 없음
-- [ ] ESLint 경고 없음
+- [x] 모든 단위 테스트 통과 (core: 4829개)
+- [x] 동등성 테스트 100% 통과
+- [x] TypeScript 컴파일 에러 없음
+- [x] ESLint 경고 없음
 - [ ] 기존 E2E 테스트 통과
 
 ## 성능 검증
@@ -816,29 +816,29 @@ packages/core/src/routing/
 
 ## 산출물 확인
 
-- [ ] `packages/core/src/providers/gemini/adapter.ts` 생성
-- [ ] `packages/core/src/providers/gemini/converter.ts` 생성
-- [ ] `packages/core/src/providers/gemini/eventMapper.ts` 생성 🆕
+- [x] `packages/core/src/providers/gemini/adapter.ts` 생성
+- [x] `packages/core/src/providers/gemini/converter.ts` 생성
+- [x] `packages/core/src/providers/gemini/eventMapper.ts` 생성 🆕
 - [ ] `packages/core/src/providers/gemini/chat.ts` 이동 🆕
 - [ ] `packages/core/src/providers/gemini/turn.ts` 이동 🆕
-- [ ] `packages/core/src/core/contentGenerator.ts` 수정
-- [ ] `packages/core/src/core/baseLlmClient.ts` 수정
-- [ ] `packages/core/src/core/loggingContentGenerator.ts` 수정 🆕
-- [ ] `packages/core/src/core/recordingContentGenerator.ts` 수정 🆕
-- [ ] `packages/core/src/core/fakeContentGenerator.ts` 수정 🆕
-- [ ] `packages/core/src/utils/retry.ts` 수정
-- [ ] `packages/core/src/utils/tokenCalculation.ts` 수정 🆕
-- [ ] `packages/core/src/utils/partUtils.ts` 수정 🆕
-- [ ] `packages/core/src/utils/llmUtils.ts` 생성 🆕
-- [ ] `packages/core/src/routing/routingStrategy.ts` 수정 🆕 [Critical]
-- [ ] `packages/core/src/routing/strategies/*.ts` 수정 🆕
+- [x] `packages/core/src/core/contentGenerator.ts` 수정
+- [x] `packages/core/src/core/baseLlmClient.ts` 수정
+- [x] `packages/core/src/core/loggingContentGenerator.ts` 수정 🆕
+- [x] `packages/core/src/core/recordingContentGenerator.ts` 수정 🆕
+- [x] `packages/core/src/core/fakeContentGenerator.ts` 수정 🆕
+- [x] `packages/core/src/utils/retry.ts` 수정
+- [x] `packages/core/src/utils/tokenCalculation.ts` 수정 🆕
+- [x] `packages/core/src/utils/partUtils.ts` 수정 🆕
+- [x] `packages/core/src/utils/llmUtils.ts` 생성 🆕
+- [x] `packages/core/src/routing/routingStrategy.ts` 수정 🆕 [Critical]
+- [x] `packages/core/src/routing/strategies/*.ts` 수정 🆕
 
 ## 다음 Phase 진행 조건
 
 - [ ] Phase 2 모든 Milestone 완료
-- [ ] 동등성 검증 완료
-- [ ] 🆕 18개 이벤트 매핑 검증 완료
-- [ ] 기능 플래그 동작 확인
+- [x] 동등성 검증 완료
+- [x] 🆕 18개 이벤트 매핑 검증 완료
+- [x] 기능 플래그 동작 확인
 - [ ] 코드 리뷰 완료
 
 ---

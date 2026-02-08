@@ -199,6 +199,37 @@ case를 `event.callId` 로깅만 수행하는 간소화된 형태로 전환.
 
 ---
 
+## 🔄 2차 리뷰 검증 결과
+
+> 📅 **검증일**: 2026-02-08 🔍 **트리거**: 2차 코드 리뷰 피드백 (3건 — return
+> type 미전환 지적)
+
+### 제시된 이슈
+
+| #   | 심각도   | 이슈                                                                            | 지적 라인               |
+| --- | -------- | ------------------------------------------------------------------------------- | ----------------------- |
+| 1   | **High** | `sendCompletedToolsToLlm` return type `AsyncGenerator<ServerGeminiStreamEvent>` | task.ts:904 (원본 기준) |
+| 2   | **High** | TS2322: `LlmEvent` not assignable to `ServerGeminiStreamEvent`                  | task.ts:932 (원본 기준) |
+| 3   | **High** | 동일 TS2322                                                                     | task.ts:973 (원본 기준) |
+
+### 검증 결과: 이미 수정 완료
+
+리뷰어가 참조한 코드 스냅샷은 **커밋 `0102b2c` 이전(수정 전)** 상태. 해당
+커밋에서 `replace_all`로 `AsyncGenerator<ServerGeminiStreamEvent>` →
+`AsyncGenerator<LlmEvent>` 전환이 이미 포함됨.
+
+| 검증 항목                                  | 결과                                                                 |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| `ServerGeminiStreamEvent` 잔존 (task.ts)   | ✅ **0건** — `grep` 확인                                             |
+| `AsyncGenerator<LlmEvent>` 선언 위치       | line 908 (`sendCompletedToolsToLlm`), line 946 (`acceptUserMessage`) |
+| `tsc --noEmit -p a2a-server/tsconfig.json` | ✅ **0 errors**                                                      |
+| 라인 번호 차이                             | import 블록 변경(-1 line)으로 원본 904→908, 932→937, 973→978 shift   |
+
+**결론**: 3건 모두 코드 변경 및 typecheck 통과 상태이며, 문서 기술("a2a-server
+typecheck ✅ 0 errors")과 일치함. 추가 수정 불필요.
+
+---
+
 ## 📌 잔여 사항
 
 | 항목                                   | 상태    | 비고                                       |

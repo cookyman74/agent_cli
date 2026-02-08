@@ -28,10 +28,10 @@ Phase 2 (M2.0~M2.6)에서 달성한 핵심 성과:
 
 | #   | 항목                                        | 위치                               | 사유                                               | 의존성                         | 예상 규모 |
 | --- | ------------------------------------------- | ---------------------------------- | -------------------------------------------------- | ------------------------------ | --------- |
-| 1   | `client.ts` GeminiEventType 참조 정리       | `src/core/client.ts` (24곳)        | 대규모 동작 변경, UI 이벤트 흐름 전체 영향         | EventMapper 완료 (M2.2)        | 대        |
-| 2   | `turn.ts` 이벤트 생성점 전환                | `src/core/turn.ts` (12곳)          | GeminiEventType → LlmStreamEventType 전환          | client.ts 전환과 병행          | 대        |
+| 1   | `client.ts` GeminiEventType 참조 정리       | `src/core/client.ts` (17곳)        | 대규모 동작 변경, UI 이벤트 흐름 전체 영향         | EventMapper 완료 (M2.2)        | 대        |
+| 2   | `turn.ts` 이벤트 생성점 전환                | `src/core/turn.ts` (14곳)          | GeminiEventType → LlmStreamEventType 전환          | client.ts 전환과 병행          | 대        |
 | 3   | `chat.ts` → `providers/gemini/chat.ts` 이동 | `src/core/geminiChat.ts` (988라인) | 병행 경로 전략, 물리적 이동은 스트리밍 리팩토링 후 | client.ts/turn.ts 전환 완료 후 | 대        |
-| 4   | `turn.ts` → `providers/gemini/turn.ts` 이동 | `src/core/turn.ts`                 | 동상                                               | chat.ts 이동과 병행            | 중        |
+| 4   | `turn.ts` → `providers/gemini/turn.ts` 이동 | `src/core/turn.ts`                 | 병행 경로 전략, 물리적 이동은 스트리밍 리팩토링 후 | chat.ts 이동과 병행            | 중        |
 
 ### Priority: High
 
@@ -82,7 +82,7 @@ Phase 2 완료 후 `packages/core/src/`에서 `@google/genai`를 import하는 �
 
 **분류**:
 
-- **providers/gemini/** (21개): Gemini 프로바이더 전용 — 유지
+- **providers/gemini/** (12개): Gemini 프로바이더 전용 — 유지
   (provider-specific)
 - **core/ 핵심 파일** (5개): client.ts, turn.ts 등 — Phase 3 Critical 항목
 - **utils/services** (20+개): 유틸리티, 텔레메트리, 훅 등 — 점진적 마이그레이션

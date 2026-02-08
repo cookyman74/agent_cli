@@ -32,8 +32,8 @@ RoutingContext 인터페이스를 직접 변경하는 방식을 채택. 이유: 
 - `Type.OBJECT`/`Type.STRING`/`Type.INTEGER` 등 `@google/genai`의 Type enum 값은
   단순 문자열 리터럴(`'OBJECT'`, `'STRING'`, `'INTEGER'`)로 대체 가능
 - 라우팅 전략 중 `compositeStrategy`, `defaultStrategy`, `overrideStrategy`,
-  `fallbackStrategy`는 `@google/genai`를 직접 import하지 않아 코드 변경 불필요
-  (테스트 mock만 업데이트)
+  `fallbackStrategy`는 `@google/genai`를 직접 import하지 않아 구현·테스트 모두
+  코드 변경 불필요 (`{} as RoutingContext` 캐스팅으로 타입 변경에 영향 없음)
 
 ---
 
@@ -133,7 +133,7 @@ RoutingContext 인터페이스를 직접 변경하는 방식을 채택. 이유: 
 | -------------------------------- | ---------------------------------- |
 | `src/utils/messageInspectors.ts` | Modified — `@deprecated` 주석 추가 |
 
-### 테스트 파일 (4개)
+### 테스트 파일 (5개)
 
 | 파일                                                         | 변경 유형                                    |
 | ------------------------------------------------------------ | -------------------------------------------- |

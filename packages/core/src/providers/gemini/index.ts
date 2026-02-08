@@ -35,3 +35,7 @@ export {
   createAdapterBridge,
   type BridgeableGenerator,
 } from './adapterBridge.js';
+export {
+  fromGenerateContentConfig,
+  toGenerateContentConfig,
+} from './configConverter.js';

@@ -493,5 +493,30 @@ describe('Telemetry SDK', () => {
         expect.any(Error),
       );
     });
+
+    it('should clean up post_auth listener on shutdown even when SDK was never started (deferred init path)', async () => {
+      // Simulate deferred initialization: useCliAuth=true, no credentials
+      vi.spyOn(mockConfig, 'getTelemetryUseCliAuth').mockReturnValue(true);
+      vi.spyOn(mockConfig, 'getTelemetryTarget').mockReturnValue(
+        TelemetryTarget.GCP,
+      );
+      vi.spyOn(mockConfig, 'getTelemetryOtlpEndpoint').mockReturnValue('');
+
+      const authEventsOffSpy = vi.spyOn(authEvents, 'off');
+
+      await initializeTelemetry(mockConfig);
+
+      // post_auth listener should be registered
+      expect(authEvents.listenerCount('post_auth')).toBeGreaterThanOrEqual(1);
+
+      // shutdown should clean up even though telemetryInitialized is false
+      await shutdownTelemetry(mockConfig);
+
+      // Verify authListener was removed
+      expect(authEventsOffSpy).toHaveBeenCalledWith(
+        'post_auth',
+        expect.any(Function),
+      );
+    });
   });
 });

@@ -13,7 +13,7 @@
 
 | 순서 | Sub-task | 작업 내용                                                                    | 테스트 결과           |
 | ---- | -------- | ---------------------------------------------------------------------------- | --------------------- |
-| 1    | 3.0.3.5  | `sdk.ts` SIGTERM/SIGINT 핸들러 누수 수정                                     | 19/19 PASS (신규 3건) |
+| 1    | 3.0.3.5  | `sdk.ts` SIGTERM/SIGINT 핸들러 누수 수정                                     | 20/20 PASS (신규 4건) |
 | 2    | 3.0.3.4  | `types.ts` `GenerateContentResponseUsageMetadata` → `TelemetryUsageMetadata` | 36/36 PASS            |
 | 3    | 3.0.3.2  | `semantic.ts` Part/Content/Candidate/FinishReason 독립화 (7 types + enum)    | 21/21 PASS            |
 | 4    | 3.0.3.1  | `loggingContentGenerator.ts` + `types.ts` @google/genai import 완전 제거     | 11/11 + 36/36 PASS    |
@@ -124,11 +124,11 @@ export type ChatSessionFactory = (
 
 ## Quality Gate
 
-| 항목       | 결과                                                         |
-| ---------- | ------------------------------------------------------------ |
-| TypeCheck  | ✅ PASS                                                      |
-| ESLint     | ✅ PASS                                                      |
-| Core Tests | ✅ 260 files / 4853 passed (baseline 4849 + 신규 2 + 리뷰 2) |
+| 항목       | 결과                                                              |
+| ---------- | ----------------------------------------------------------------- |
+| TypeCheck  | ✅ PASS                                                           |
+| ESLint     | ✅ PASS                                                           |
+| Core Tests | ✅ 260 files / 4854 passed (baseline 4849 + 신규 2 + 리뷰 반영 3) |
 
 ## @google/genai 제거 현황
 
@@ -206,7 +206,7 @@ export type ChatSessionFactory = (
   프로바이더 구현 시) 범위로 명시.
 - **조치**: 작업 결과서 Note 섹션에 달성/미달성 범위 및 향후 전환 계획 명확화.
 
-### 리뷰 반영 Quality Gate
+### 리뷰 반영 Quality Gate (1차)
 
 | 항목       | 결과                                              |
 | ---------- | ------------------------------------------------- |
@@ -214,3 +214,38 @@ export type ChatSessionFactory = (
 | ESLint     | ✅ PASS                                           |
 | Core Tests | ✅ 260 files / 4853 passed (신규 2건)             |
 | 변경 파일  | `sdk.ts`, `sdk.test.ts`, `local-executor.test.ts` |
+
+## 2차 리뷰 반영 (2026-02-09)
+
+### 이슈 #4 [Low]: 지연 초기화(useCliAuth) 경로의 post_auth 리스너 미정리
+
+- **현상**: `useCliAuth=true` + 무자격증명 경로에서 `authListener`가
+  `authEvents.on('post_auth', ...)` 에 등록되지만, `telemetryInitialized`는
+  `false` 유지. `shutdownTelemetry()` 호출 시 `!telemetryInitialized` 가드에서
+  조기 반환하여 리스너 정리(finally 블록)에 도달 불가. 프로세스 수명 동안 리스너
+  잔존 및 테스트 격리 시 상태 오염 가능.
+- **수정**: 리스너 정리(`sigTermHandler`, `sigIntHandler`, `authListener`,
+  `callbackRegistered`, `activeTelemetryEmail`) 를 조기 반환 가드 **이전**으로
+  이동하여 무조건 실행. SDK 전용 정리(`sdk.shutdown()`, trace/context/metrics
+  disable)만 가드 후 실행.
+- **테스트**:
+  `should clean up post_auth listener on shutdown even when SDK was never started (deferred init path)`
+  신규 추가 (20/20 PASS)
+
+### 이슈 #5 [Low]: CoreEventEmitter MaxListenersExceededWarning
+
+- **현상**: 테스트 실행 중 `CoreEventEmitter` 관련 MaxListenersExceededWarning
+  관찰. 싱글턴 emitter (`utils/events.ts:303`) 에서 `model-changed` 리스너 누적.
+- **판정**: M3.0.3 범위 밖 — telemetry signal handler 이슈와는 별개.
+  `makeFakeConfig()` 가 테스트마다 신규 리스너를 등록하되 싱글턴 emitter에서
+  제거하지 않는 구조로 추정. 별도 정리 이슈로 추적 필요.
+- **조치**: 문서 기록만 수행. M3.0 범위 내 추가 수정 불요.
+
+### 2차 리뷰 반영 Quality Gate
+
+| 항목       | 결과                                |
+| ---------- | ----------------------------------- |
+| TypeCheck  | ✅ PASS                             |
+| ESLint     | ✅ PASS                             |
+| Core Tests | ✅ 260 files / 4854 passed (신규 1) |
+| 변경 파일  | `sdk.ts`, `sdk.test.ts`             |

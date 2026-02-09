@@ -355,6 +355,25 @@ export async function shutdownTelemetry(
   config: Config,
   fromProcessExit = true,
 ): Promise<void> {
+  // Clean up event listeners unconditionally.
+  // The deferred initialization path (useCliAuth + no credentials) registers
+  // a post_auth listener without setting telemetryInitialized, so we must
+  // clean it up even when the SDK was never fully started.
+  if (sigTermHandler) {
+    process.removeListener('SIGTERM', sigTermHandler);
+    sigTermHandler = undefined;
+  }
+  if (sigIntHandler) {
+    process.removeListener('SIGINT', sigIntHandler);
+    sigIntHandler = undefined;
+  }
+  if (authListener) {
+    authEvents.off('post_auth', authListener);
+    authListener = undefined;
+  }
+  callbackRegistered = false;
+  activeTelemetryEmail = undefined;
+
   if (!telemetryInitialized || !sdk) {
     return;
   }
@@ -377,19 +396,5 @@ export async function shutdownTelemetry(
     metrics.disable();
     propagation.disable();
     diag.disable();
-    if (sigTermHandler) {
-      process.removeListener('SIGTERM', sigTermHandler);
-      sigTermHandler = undefined;
-    }
-    if (sigIntHandler) {
-      process.removeListener('SIGINT', sigIntHandler);
-      sigIntHandler = undefined;
-    }
-    if (authListener) {
-      authEvents.off('post_auth', authListener);
-      authListener = undefined;
-    }
-    callbackRegistered = false;
-    activeTelemetryEmail = undefined;
   }
 }

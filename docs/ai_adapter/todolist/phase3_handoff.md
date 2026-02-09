@@ -30,16 +30,16 @@ Phase 2 (M2.0~M2.6)에서 달성한 핵심 성과:
 | --- | ------------------------------------------- | ---------------------------------- | -------------------------------------------------- | ------------------------------ | --------- |
 | 1   | `client.ts` GeminiEventType 참조 정리       | `src/core/client.ts` (17곳)        | 대규모 동작 변경, UI 이벤트 흐름 전체 영향         | EventMapper 완료 (M2.2)        | 대        |
 | 2   | `turn.ts` 이벤트 생성점 전환                | `src/core/turn.ts` (14곳)          | GeminiEventType → LlmStreamEventType 전환          | client.ts 전환과 병행          | 대        |
-| 3   | `chat.ts` → `providers/gemini/chat.ts` 이동 | `src/core/geminiChat.ts` (988라인) | 병행 경로 전략, 물리적 이동은 스트리밍 리팩토링 후 | client.ts/turn.ts 전환 완료 후 | 대        |
+| 3   | `chat.ts` → `providers/gemini/chat.ts` 이동 | `src/core/geminiChat.ts` (999라인) | 병행 경로 전략, 물리적 이동은 스트리밍 리팩토링 후 | client.ts/turn.ts 전환 완료 후 | 대        |
 | 4   | `turn.ts` → `providers/gemini/turn.ts` 이동 | `src/core/turn.ts`                 | 병행 경로 전략, 물리적 이동은 스트리밍 리팩토링 후 | chat.ts 이동과 병행            | 중        |
 
 ### Priority: High
 
-| #   | 항목                                      | 위치                                  | 사유                                                     | 의존성                                 | 예상 규모 |
-| --- | ----------------------------------------- | ------------------------------------- | -------------------------------------------------------- | -------------------------------------- | --------- |
-| 5   | `messageInspectors` 마이그레이션 (4파일)  | 아래 상세 참조                        | 사용처가 `Content` 타입 기반, `LlmMessage` 전환 필요     | 각 파일의 Content→LlmMessage 전환 선행 | 중        |
-| 6   | `loggingContentGenerator` 텔레메트리 변환 | `src/core/loggingContentGenerator.ts` | 8+ @google/genai import, 텔레메트리 파이프라인 전체 변경 | telemetry 타입 전환                    | 중        |
-| 7   | `telemetry/semantic.ts` Gemini 결합 해소  | `src/telemetry/semantic.ts`           | Part/Content/Candidate 타입 직접 사용                    | loggingContentGenerator 전환과 연계    | 중        |
+| #   | 항목                                      | 위치                                  | 사유                                                                    | 의존성                                 | 예상 규모 |
+| --- | ----------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------- | --------- |
+| 5   | `messageInspectors` 마이그레이션 (4파일)  | 아래 상세 참조                        | 사용처가 `Content` 타입 기반, `LlmMessage` 전환 필요                    | 각 파일의 Content→LlmMessage 전환 선행 | 중        |
+| 6   | `loggingContentGenerator` 텔레메트리 변환 | `src/core/loggingContentGenerator.ts` | 11개 @google/genai 타입 import (L7-18), 텔레메트리 파이프라인 전체 변경 | telemetry 타입 전환                    | 중        |
+| 7   | `telemetry/semantic.ts` Gemini 결합 해소  | `src/telemetry/semantic.ts`           | Part/Content/Candidate 타입 직접 사용                                   | loggingContentGenerator 전환과 연계    | 중        |
 
 ### Priority: Medium
 
@@ -60,8 +60,8 @@ Phase 2 (M2.0~M2.6)에서 달성한 핵심 성과:
 
 | 파일                                   | 사용 함수            | 사용 위치        | 마이그레이션 난이도                    |
 | -------------------------------------- | -------------------- | ---------------- | -------------------------------------- |
-| `src/services/loopDetectionService.ts` | 둘 다                | L444, L452, L473 | 중 — `Content[]` 기반 로직 전환 필요   |
-| `src/core/geminiChat.ts`               | `isFunctionResponse` | L316             | 대 — 988라인 파일, chat.ts 이동과 연계 |
+| `src/services/loopDetectionService.ts` | 둘 다                | L408, L416, L437 | 중 — `Content[]` 기반 로직 전환 필요   |
+| `src/core/geminiChat.ts`               | `isFunctionResponse` | L316             | 대 — 999라인 파일, chat.ts 이동과 연계 |
 | `src/utils/editCorrector.ts`           | 둘 다                | L116, L125       | 소 — 독립적 유틸리티                   |
 | `src/utils/nextSpeakerChecker.ts`      | `isFunctionResponse` | L74              | 소 — 독립적 유틸리티                   |
 
@@ -141,26 +141,33 @@ Phase 2 완료 후 `packages/core/src/`에서 `@google/genai`를 import하는 �
 
 ## 7. Phase 3 권장 작업 순서
 
+> ⚠️ **주의**: 아래 번호는 핸드오프 작성 시점(Phase 2 완료 직후)의 권장
+> 순서입니다. 최신
+> 작업계획서(`phase3_provider_extension_todolist.md v0.5`)에서는 마일스톤 번호가
+> 재배정되었으므로, **반드시 최신 계획서를 기준으로 참조**하시기 바랍니다.
+>
+> **매핑**: 아래 H-1~H-4 → 최신 M3.0 (3.0.1~3.0.5), H-5 → M3.1~M3.3
+
 ```
-Phase 3 Suggested Order:
+Phase 3 Suggested Order (핸드오프 시점 권장 — 최신 계획서와 번호 상이):
 │
-├─ M3.1: client.ts/turn.ts GeminiEventType → LlmStreamEventType 전환
-│   ├─ client.ts 24개 참조 정리
-│   └─ turn.ts 12개 이벤트 생성점 전환
+├─ [H-1] client.ts/turn.ts GeminiEventType → LlmStreamEventType 전환
+│   ├─ client.ts 24개 참조 정리   → ✅ M2.연기에서 해소됨
+│   └─ turn.ts 12개 이벤트 생성점 전환 → ✅ M2.연기에서 해소됨
 │
-├─ M3.2: geminiChat.ts → providers/gemini/chat.ts 이동
-│   ├─ 988라인 파일 물리적 이동
-│   └─ messageInspectors 마이그레이션 (4파일)
+├─ [H-2] geminiChat.ts → providers/gemini/chat.ts 이동
+│   ├─ 988라인 파일 물리적 이동   → 최신 M3.0.1
+│   └─ messageInspectors 마이그레이션 (4파일) → 최신 M3.0.2
 │
-├─ M3.3: 텔레메트리 레이어 독립화
-│   ├─ telemetry/semantic.ts Gemini 결합 해소
-│   └─ loggingContentGenerator 전환
+├─ [H-3] 텔레메트리 레이어 독립화
+│   ├─ telemetry/semantic.ts Gemini 결합 해소 → 최신 M3.0.3
+│   └─ loggingContentGenerator 전환 → 최신 M3.0.3
 │
-├─ M3.4: 정리 및 통합 검증
-│   ├─ geminiTypeConversion.ts 브릿지 제거
-│   ├─ E2E 테스트 검증
-│   └─ 성능 벤치마크
+├─ [H-4] 정리 및 통합 검증
+│   ├─ geminiTypeConversion.ts 브릿지 제거 → 최신 M3.0.4
+│   ├─ E2E 테스트 검증 → 최신 M3.4
+│   └─ 성능 벤치마크 → 최신 M3.4
 │
-└─ M3.5: 신규 프로바이더 추가 (Optional)
-    └─ AuthType 통합 (2.3.1.8)
+└─ [H-5] 신규 프로바이더 추가
+    └─ AuthType 통합 (2.3.1.8) → 최신 M3.1+ (프로바이더 구현 시)
 ```

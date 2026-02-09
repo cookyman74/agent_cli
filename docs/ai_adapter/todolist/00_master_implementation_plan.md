@@ -1,7 +1,7 @@
 # Multi-LLM Provider Adapter - Master Implementation Plan
 
-> 총괄 작업계획서: Gemini CLI Multi-LLM Provider Adapter 구현 **v0.3** - 2차
-> 리뷰 반영 (Critical 이슈 해결)
+> 총괄 작업계획서: Gemini CLI Multi-LLM Provider Adapter 구현 **v0.6** - Phase 3
+> 리뷰 반영 (일정 정정, 런타임 경로 연결)
 
 ## System Prompt
 
@@ -45,7 +45,7 @@ OpenAI, vLLM 등)를 지원
 | DidimAIStudio 연동 | 04-integration-design.md §4.2, §4.3                             |
 | 테스트 전략        | 05-implementation-plan.md §5.5                                  |
 
-## 전체 일정: 8-10주 (리스크 반영 조정)
+## 전체 일정: 9-12주 (리스크 반영 조정, Phase 3 M3.0 추가 반영)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -57,8 +57,8 @@ OpenAI, vLLM 등)를 지원
 │  ├── 확장: GeminiEventType → LlmStreamEvent 매핑                         │
 │  └── 신규: ModelConfigService 호환 레이어, 디렉토리 재구성               │
 │                                                                          │
-│  Phase 3: 프로바이더 확장 및 통합 (3-4주)                                │
-│  └── 기존 계획 유지 + 테스트 마이그레이션                                │
+│  Phase 3: 프로바이더 확장 및 통합 (4-6주)                                │
+│  └── Phase 2 연기 해소(M3.0) + 신규 프로바이더 + 테스트 마이그레이션    │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -179,8 +179,8 @@ packages/core/src/core/turn.ts → providers/gemini/turn.ts (Gemini 특화 부�
 | Phase | 문서                                                                             | 기간  | 상태    |
 | ----- | -------------------------------------------------------------------------------- | ----- | ------- |
 | 1     | [phase1_foundation_todolist.md](./phase1_foundation_todolist.md)                 | 2-3주 | ✅ 완료 |
-| 2     | [phase2_core_refactoring_todolist.md](./phase2_core_refactoring_todolist.md)     | 3-4주 | ⏳ 대기 |
-| 3     | [phase3_provider_extension_todolist.md](./phase3_provider_extension_todolist.md) | 3-4주 | ⏳ 대기 |
+| 2     | [phase2_core_refactoring_todolist.md](./phase2_core_refactoring_todolist.md)     | 3-4주 | ✅ 완료 |
+| 3     | [phase3_provider_extension_todolist.md](./phase3_provider_extension_todolist.md) | 4-6주 | ⏳ 대기 |
 
 ---
 
@@ -198,26 +198,29 @@ packages/core/src/core/turn.ts → providers/gemini/turn.ts (Gemini 특화 부�
 
 ## Phase 2: 코어 리팩토링 (3-4주)
 
-| Milestone | 작업                                   | 기간      | 상태 | 리뷰 반영                                     |
-| --------- | -------------------------------------- | --------- | ---- | --------------------------------------------- |
-| **M2.0**  | **디렉토리 재구성 (Tidy First)**       | **2-3일** | ⬜   | 🆕 신규                                       |
-| M2.1      | ContentGenerator/StreamEvent 타입 전환 | 5-7일     | ⬜   | ✅ 확대 + 래퍼                                |
-| M2.2      | GeminiChat 스트리밍 분해/합성기 적용   | 5-7일     | ⬜   | ✅ 이벤트 매핑 + StreamEventType + Agent 연동 |
-| M2.3      | GeminiAdapter 구현/동등성 검증         | 4-5일     | ⬜   | ✅ 확대                                       |
-| **M2.4**  | **ModelConfigService 호환 레이어**     | **2-3일** | ⬜   | 🆕 신규                                       |
-| **M2.5**  | **유틸리티 레이어 리팩토링**           | **2-3일** | ⬜   | 🆕 신규                                       |
-| **M2.6**  | **라우팅 레이어 타입 독립화**          | **2-3일** | ⬜   | 🆕 Critical                                   |
-| **M2.7**  | **Agent/Telemetry 결합 해소**          | **2-3일** | ⬜   | 🆕 Watch Items                                |
+| Milestone   | 작업                                              | 기간      | 상태 | 리뷰 반영                                     |
+| ----------- | ------------------------------------------------- | --------- | ---- | --------------------------------------------- |
+| **M2.0**    | **디렉토리 재구성 (Tidy First)**                  | **2-3일** | ✅   | 🆕 신규                                       |
+| M2.1        | ContentGenerator/StreamEvent 타입 전환            | 5-7일     | ✅   | ✅ 확대 + 래퍼                                |
+| M2.2        | GeminiChat 스트리밍 분해/합성기 적용              | 5-7일     | ✅   | ✅ 이벤트 매핑 + StreamEventType + Agent 연동 |
+| M2.3        | GeminiAdapter 구현/동등성 검증                    | 4-5일     | ✅   | ✅ 확대                                       |
+| **M2.4**    | **ModelConfigService 호환 레이어**                | **2-3일** | ✅   | 🆕 신규                                       |
+| **M2.5**    | **유틸리티 레이어 리팩토링**                      | **2-3일** | ✅   | 🆕 신규                                       |
+| **M2.6**    | **라우팅 레이어 타입 독립화**                     | **2-3일** | ✅   | 🆕 Critical                                   |
+| **M2.7**    | **Agent/Telemetry 결합 해소**                     | **2-3일** | ⏸️   | 🆕 Watch Items → Phase 3 연기                 |
+| **M2.ETC**  | **연기 항목 정리 + Phase 3 핸드오프**             | **1일**   | ✅   | 🆕 클로저                                     |
+| **M2.연기** | **EventType 전환 (GeminiEventType→LlmEventType)** | **1일**   | ✅   | 🆕 Phase 2 연기 항목 해소                     |
 
-## Phase 3: 프로바이더 확장 (3-4주)
+## Phase 3: 프로바이더 확장 (4-6주)
 
-| Milestone | 작업                            | 기간      | 상태 | 리뷰 반영 |
-| --------- | ------------------------------- | --------- | ---- | --------- |
-| M3.1      | Claude 어댑터/변환기 구현       | 4-5일     | ⬜   | -         |
-| M3.2      | OpenAI 어댑터/변환기 구현       | 3-4일     | ⬜   | -         |
-| M3.3      | OpenAI-Compatible 어댑터 템플릿 | 3일       | ⬜   | -         |
-| M3.4      | 통합 테스트/문서/안정화         | 5-7일     | ⬜   | -         |
-| **M3.5**  | **테스트 마이그레이션**         | **3-4일** | ⬜   | 🆕 신규   |
+| Milestone | 작업                                         | 기간      | 상태 | 리뷰 반영               |
+| --------- | -------------------------------------------- | --------- | ---- | ----------------------- |
+| **M3.0**  | **Phase 2 연기 항목 해소 (Gemini 리팩토링)** | **3-5일** | ⬜   | 🆕 핸드오프 + M2.7 통합 |
+| M3.1      | Claude 어댑터/변환기 구현                    | 4-5일     | ⬜   | -                       |
+| M3.2      | OpenAI 어댑터/변환기 구현                    | 3-4일     | ⬜   | -                       |
+| M3.3      | OpenAI-Compatible 어댑터 템플릿              | 3일       | ⬜   | -                       |
+| M3.4      | 통합 테스트/문서/안정화                      | 5-7일     | ⬜   | -                       |
+| **M3.5**  | **테스트 마이그레이션**                      | **3-4일** | ⬜   | 🆕 신규                 |
 
 ---
 
@@ -426,3 +429,5 @@ packages/core/src/
 | 2026-02-01 | 0.2  | 소스코드 기반 리뷰 반영: 일정 조정(8-10주), 신규 마일스톤 추가(M1.4, M2.0, M2.4, M2.5, M3.5), 리스크 R6-R9 추가, 아키텍처 결정 문서화, 디렉토리 구조 상세화                                            |
 | 2026-02-01 | 0.3  | 2차 리뷰 반영: M2.6 라우팅 레이어 신규 [Critical], M2.1 래퍼 클래스 추가, M2.2 StreamEventType 매핑 추가, 리스크 R10 추가, 디렉토리 구조 일관성 확보 (types.ts, eventMapper.ts), 테스트 파일 참조 정정 |
 | 2026-02-01 | 0.4  | 최종 리뷰 반영: Agent/Telemetry Watch Items 추가(M2.7), LocalAgentExecutor 결합 해소 명시, Telemetry usage 타입 전환 명시, 리스크 R11-R12 추가, Open Questions 보강                                    |
+| 2026-02-08 | 0.5  | Phase 2 완료 반영: M2.0~M2.6 상태 ✅ 전환, M2.7 → Phase 3 연기(⏸️), M2.ETC 클로저 + M2.연기(EventType 전환) 추가, Phase 2 문서 상태 ✅ 완료로 갱신                                                     |
+| 2026-02-09 | 0.6  | Phase 3 리뷰 반영: 전체 일정 8-10주→9-12주, Phase 3 기간 3-4주→4-6주 (M3.0 추가분), phase3_handoff.md 마일스톤 매핑 주석 추가                                                                          |

@@ -337,22 +337,22 @@ Claude 메시지/툴/스트림 변환기 구현
 
 ### 3.1.0 사전 준비
 
-| ID      | 작업                                  | 상태 | 테스트 파일        | 비고                                                                |
-| ------- | ------------------------------------- | ---- | ------------------ | ------------------------------------------------------------------- |
-| 3.1.0.1 | `@anthropic-ai/sdk` 의존성 설치       | ⬜   | N/A                | `npm install @anthropic-ai/sdk` — packages/core/package.json에 추가 |
-| 3.1.0.2 | ProviderRegistry에 Claude 팩토리 등록 | ⬜   | `registry.test.ts` | 부트스트랩에 `register('claude', claudeAdapterFactory)` 추가        |
+| ID      | 작업                                  | 상태 | 테스트 파일         | 비고                                                        |
+| ------- | ------------------------------------- | ---- | ------------------- | ----------------------------------------------------------- |
+| 3.1.0.1 | `@anthropic-ai/sdk` 의존성 설치       | ✅   | N/A                 | `^0.74.0` — packages/core/package.json에 추가 완료 (M3.1.0) |
+| 3.1.0.2 | ProviderRegistry에 Claude 팩토리 등록 | ✅   | `bootstrap.test.ts` | `bootstrapClaudeProvider()` + `has()` 가드 패턴 (M3.1.0)    |
 
 ### 3.1.1 ClaudeAdapter 구현
 
-| ID      | 작업                           | 상태 | 테스트 파일             |
-| ------- | ------------------------------ | ---- | ----------------------- |
-| 3.1.1.1 | `ClaudeAdapter` 클래스 생성    | ⬜   | `claudeAdapter.test.ts` |
-| 3.1.1.2 | `BaseAdapter` 상속 구현        | ⬜   | `claudeAdapter.test.ts` |
-| 3.1.1.3 | Anthropic SDK 연동             | ⬜   | `claudeAdapter.test.ts` |
-| 3.1.1.4 | `generate()` 메서드 구현       | ⬜   | `claudeAdapter.test.ts` |
-| 3.1.1.5 | `generateStream()` 메서드 구현 | ⬜   | `claudeAdapter.test.ts` |
-| 3.1.1.6 | `getCapabilities()` 구현       | ⬜   | `claudeAdapter.test.ts` |
-| 3.1.1.7 | 설정 검증 (API Key)            | ⬜   | `claudeAdapter.test.ts` |
+| ID      | 작업                           | 상태 | 테스트 파일       | 비고                                                    |
+| ------- | ------------------------------ | ---- | ----------------- | ------------------------------------------------------- |
+| 3.1.1.1 | `ClaudeAdapter` 클래스 생성    | ✅   | `adapter.test.ts` | ClaudeClient DI 인터페이스 포함 (M3.1.1)                |
+| 3.1.1.2 | `BaseAdapter` 상속 구현        | ✅   | `adapter.test.ts` | validateRequest 상속, mapToProviderConfig 구현 (M3.1.1) |
+| 3.1.1.3 | Anthropic SDK 연동             | ✅   | `adapter.test.ts` | ClaudeClient 인터페이스 통한 DI 패턴 (M3.1.1)           |
+| 3.1.1.4 | `generate()` 메서드 구현       | ✅   | `adapter.test.ts` | generateContent + classifyError (M3.1.1+M3.1.3)         |
+| 3.1.1.5 | `generateStream()` 메서드 구현 | ✅   | `adapter.test.ts` | generateContentStream + yield 패턴 (M3.1.1+M3.1.3)      |
+| 3.1.1.6 | `getCapabilities()` 구현       | ✅   | `adapter.test.ts` | CLAUDE_CAPABILITIES const (M3.1.1)                      |
+| 3.1.1.7 | 설정 검증 (API Key)            | ✅   | `adapter.test.ts` | BaseAdapter.validateRequest 위임 (M3.1.1)               |
 
 **TDD 시나리오**:
 
@@ -395,13 +395,13 @@ describe('ClaudeAdapter', () => {
 
 ### 3.1.2 Claude 메시지 변환기
 
-| ID      | 작업                             | 상태 | 테스트 파일               |
-| ------- | -------------------------------- | ---- | ------------------------- |
-| 3.1.2.1 | `toClaudeMessage()` 변환 함수    | ⬜   | `claudeConverter.test.ts` |
-| 3.1.2.2 | System 메시지 분리 로직          | ⬜   | `claudeConverter.test.ts` |
-| 3.1.2.3 | 이미지 URL → base64 변환         | ⬜   | `claudeConverter.test.ts` |
-| 3.1.2.4 | `toClaudeTool()` 변환 함수       | ⬜   | `claudeConverter.test.ts` |
-| 3.1.2.5 | `fromClaudeResponse()` 변환 함수 | ⬜   | `claudeConverter.test.ts` |
+| ID      | 작업                             | 상태 | 테스트 파일         | 비고                                               |
+| ------- | -------------------------------- | ---- | ------------------- | -------------------------------------------------- |
+| 3.1.2.1 | `toClaudeMessage()` 변환 함수    | ✅   | `converter.test.ts` | toClaudeMessages + toClaudeContent (M3.1.1+M3.1.2) |
+| 3.1.2.2 | System 메시지 분리 로직          | ✅   | `converter.test.ts` | system 추출 + 복수 system 병합 (M3.1.1)            |
+| 3.1.2.3 | 이미지 URL → base64 변환         | ✅   | `converter.test.ts` | base64 지원, URL은 경고 텍스트 (M3.1.2)            |
+| 3.1.2.4 | `toClaudeTool()` 변환 함수       | ✅   | `converter.test.ts` | toClaudeTools + toClaudeToolChoice (M3.1.1)        |
+| 3.1.2.5 | `fromClaudeResponse()` 변환 함수 | ✅   | `converter.test.ts` | thinking/redacted_thinking 포함 (M3.1.1)           |
 
 **TDD 시나리오**:
 
@@ -444,14 +444,14 @@ describe('Claude Message Converter', () => {
 
 ### 3.1.3 Claude 스트림 변환기
 
-| ID      | 작업                           | 상태 | 테스트 파일            |
-| ------- | ------------------------------ | ---- | ---------------------- |
-| 3.1.3.1 | `fromClaudeStreamEvent()` 변환 | ⬜   | `claudeStream.test.ts` |
-| 3.1.3.2 | `content_block_start` 처리     | ⬜   | `claudeStream.test.ts` |
-| 3.1.3.3 | `content_block_delta` 처리     | ⬜   | `claudeStream.test.ts` |
-| 3.1.3.4 | `content_block_stop` 처리      | ⬜   | `claudeStream.test.ts` |
-| 3.1.3.5 | Tool delta 합성 로직           | ⬜   | `claudeStream.test.ts` |
-| 3.1.3.6 | Usage 정보 추출                | ⬜   | `claudeStream.test.ts` |
+| ID      | 작업                           | 상태 | 테스트 파일         | 비고                                                               |
+| ------- | ------------------------------ | ---- | ------------------- | ------------------------------------------------------------------ |
+| 3.1.3.1 | `fromClaudeStreamEvent()` 변환 | ✅   | `converter.test.ts` | convertStreamEvent + createStreamState (M3.1.1)                    |
+| 3.1.3.2 | `content_block_start` 처리     | ✅   | `converter.test.ts` | tool_use 블록 시작 + index 기반 추적 (M3.1.1)                      |
+| 3.1.3.3 | `content_block_delta` 처리     | ✅   | `converter.test.ts` | text_delta, thinking_delta, input_json_delta (M3.1.1)              |
+| 3.1.3.4 | `content_block_stop` 처리      | ✅   | `converter.test.ts` | tool call JSON 파싱 + ToolCallRequest emit (M3.1.1)                |
+| 3.1.3.5 | Tool delta 합성 로직           | ✅   | `converter.test.ts` | parallel tool calls via index-based Map (M3.1.1)                   |
+| 3.1.3.6 | Usage 정보 추출                | ✅   | `converter.test.ts` | message_start input + message_delta output + cache tokens (M3.1.3) |
 
 **TDD 시나리오**:
 
@@ -511,20 +511,25 @@ describe('Claude Stream Converter', () => {
 
 ### 3.1.4 Claude 에러 매핑
 
-| ID      | 작업                    | 상태 | 테스트 파일            |
-| ------- | ----------------------- | ---- | ---------------------- |
-| 3.1.4.1 | Anthropic SDK 에러 분석 | ⬜   | N/A (분석)             |
-| 3.1.4.2 | Rate limit 에러 매핑    | ⬜   | `claudeErrors.test.ts` |
-| 3.1.4.3 | Auth 에러 매핑          | ⬜   | `claudeErrors.test.ts` |
-| 3.1.4.4 | Overloaded 에러 매핑    | ⬜   | `claudeErrors.test.ts` |
-| 3.1.4.5 | 에러 변환 유틸 함수     | ⬜   | `claudeErrors.test.ts` |
+| ID      | 작업                    | 상태 | 테스트 파일       | 비고                                                          |
+| ------- | ----------------------- | ---- | ----------------- | ------------------------------------------------------------- |
+| 3.1.4.1 | Anthropic SDK 에러 분석 | ✅   | N/A (분석)        | M3.1.3에서 구현 완료 — classifyError duck typing 패턴         |
+| 3.1.4.2 | Rate limit 에러 매핑    | ✅   | `adapter.test.ts` | M3.1.3에서 구현 — 429→RateLimitError (retryable)              |
+| 3.1.4.3 | Auth 에러 매핑          | ✅   | `adapter.test.ts` | M3.1.3에서 구현 — 401/403→AuthenticationError (non-retryable) |
+| 3.1.4.4 | Overloaded 에러 매핑    | ✅   | `adapter.test.ts` | M3.1.3에서 구현 — 529→MODEL_OVERLOADED (retryable)            |
+| 3.1.4.5 | 에러 변환 유틸 함수     | ✅   | `adapter.test.ts` | M3.1.3에서 구현 — classifyError + LlmError passthrough        |
+
+⚠️ **참고**: M3.1.4 전체 범위가 M3.1.3 (스트림 에러 고도화) 작업에서 선행
+구현됨. 설계서 §3.3.6 대비 추가 구현: 400/422→INVALID_REQUEST,
+404→ModelNotFoundError, 500+→SERVER_ERROR, timeout/network 휴리스틱, LlmError
+passthrough.
 
 **검증 기준**:
 
-- [ ] Claude 기본 대화 동작
-- [ ] Claude 스트리밍 동작
-- [ ] Claude 도구 호출 동작
-- [ ] Claude 이미지 입력 동작
+- [x] Claude 기본 대화 동작
+- [x] Claude 스트리밍 동작
+- [x] Claude 도구 호출 동작
+- [x] Claude 이미지 입력 동작
 
 ---
 

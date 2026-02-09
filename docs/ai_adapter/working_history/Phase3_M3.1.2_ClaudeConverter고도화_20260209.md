@@ -142,6 +142,8 @@ M3.1.1에서 구현한 ClaudeConverter의 에지 케이스를 보강하고, 코�
 | 1   | 중간   | `cacheCreationTokens`가 `LlmTokenUsage` 타입에 선언되지 않음              | `LlmTokenUsage`에 `cacheCreationTokens?: number` 옵셔널 필드 추가, intersection 제거 |
 | 2   | 낮음   | `if (cacheCreation)` falsy 체크 — `cachedTokens` 처리(항상 설정)와 비일관 | `?? 0` 패턴으로 일관화, 항상 필드 설정                                               |
 | 3   | 낮음   | 빈 텍스트 필터링 + 연속 role 병합 상호작용 테스트 부재                    | `[user("A"), user(""), user("B")]` 시나리오 테스트 추가                              |
+| 4   | 낮음   | `JSON.stringify(content.content)` 순환 참조/BigInt 시 throw 가능          | try/catch 추가, 실패 시 `String()` 폴백                                              |
+| 5   | 낮음   | URL 이미지 경고에 원본 URL(signed token 포함 가능) 그대로 노출            | `new URL()` 파싱 후 `origin+pathname`만 사용, query params 제거                      |
 
 ### 리뷰 후 Quality Gate
 
@@ -149,12 +151,11 @@ M3.1.1에서 구현한 ClaudeConverter의 에지 케이스를 보강하고, 코�
 | ------------- | -------------------------- |
 | TypeCheck     | ✅ PASS                    |
 | ESLint        | ✅ PASS                    |
-| Claude 테스트 | ✅ 60 passed               |
-| Provider 회귀 | ✅ 29 files / 536 passed   |
-| Core 전체     | ✅ 266 files / 4972 passed |
+| Claude 테스트 | ✅ 62 passed               |
+| Provider 회귀 | ✅ 29 files / 538 passed   |
+| Core 전체     | ✅ 266 files / 4974 passed |
 
-**변화**: 리뷰 전 59 tests → 60 tests (+1 상호작용 테스트), Core 4971 → 4972
-(+1)
+**변화**: 리뷰 전 59 tests → 62 tests (+3), Core 4971 → 4974 (+3)
 
 ## 향후 작업
 
@@ -166,3 +167,5 @@ M3.1.1에서 구현한 ClaudeConverter의 에지 케이스를 보강하고, 코�
 - `78b119663` feat(providers): M3.1.2 — Claude 메시지 변환 고도화
 - `09383be13` fix(providers): M3.1.2 리뷰 반영 — cacheCreationTokens 타입 추가,
   falsy 체크 일관화, 상호작용 테스트
+- `f91378a8a` fix(providers): M3.1.2 리뷰 반영 — tool_result 직렬화 안전성, URL
+  쿼리 파라미터 제거

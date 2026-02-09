@@ -25,7 +25,16 @@ import type {
   GenerateOptions,
 } from '../types.js';
 import type { LlmEvent, LlmEventStream } from '../events.js';
-import { LlmError, LlmErrorType, UnsupportedFeatureError } from '../errors.js';
+import {
+  LlmError,
+  LlmErrorType,
+  AuthenticationError,
+  RateLimitError,
+  ModelNotFoundError,
+  NetworkError,
+  TimeoutError,
+  UnsupportedFeatureError,
+} from '../errors.js';
 import { createErrorEvent } from '../events.js';
 import { ClaudeConverter } from './converter.js';
 
@@ -100,7 +109,7 @@ export class ClaudeAdapter extends BaseAdapter {
       const response = await this.client.messages.create(params);
       return this.converter.fromClaudeResponse(response, request.model);
     } catch (error) {
-      this.handleError(error);
+      throw this.classifyError(error);
     }
   }
 
@@ -185,17 +194,20 @@ export class ClaudeAdapter extends BaseAdapter {
     };
 
     if (status !== undefined) {
-      if (status === 401 || status === 403) {
-        return new LlmError(LlmErrorType.AUTHENTICATION, message, {
+      if (status === 400 || status === 422) {
+        return new LlmError(LlmErrorType.INVALID_REQUEST, message, {
           ...opts,
           isRetryable: false,
         });
       }
+      if (status === 401 || status === 403) {
+        return new AuthenticationError(message, opts);
+      }
+      if (status === 404) {
+        return new ModelNotFoundError(message, opts);
+      }
       if (status === 429) {
-        return new LlmError(LlmErrorType.RATE_LIMIT, message, {
-          ...opts,
-          isRetryable: true,
-        });
+        return new RateLimitError(message, opts);
       }
       if (status === 529) {
         return new LlmError(LlmErrorType.MODEL_OVERLOADED, message, {
@@ -213,16 +225,10 @@ export class ClaudeAdapter extends BaseAdapter {
 
     // No status code — heuristic based on message
     if (/timeout/i.test(message)) {
-      return new LlmError(LlmErrorType.TIMEOUT, message, {
-        ...opts,
-        isRetryable: true,
-      });
+      return new TimeoutError(message, opts);
     }
 
-    return new LlmError(LlmErrorType.NETWORK, message, {
-      ...opts,
-      isRetryable: true,
-    });
+    return new NetworkError(message, opts);
   }
 
   /**

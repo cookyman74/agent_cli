@@ -16,7 +16,15 @@ import { ClaudeAdapter } from './adapter.js';
 import type { ClaudeClient } from './adapter.js';
 import type { LlmGenerateRequest, AdapterConfig } from '../types.js';
 import { LlmEventType } from '../events.js';
-import { LlmError, LlmErrorType } from '../errors.js';
+import {
+  LlmError,
+  LlmErrorType,
+  AuthenticationError,
+  RateLimitError,
+  NetworkError,
+  TimeoutError,
+  ModelNotFoundError,
+} from '../errors.js';
 
 // =================================================================
 // Test helpers
@@ -217,6 +225,25 @@ describe('ClaudeAdapter', () => {
         adapter.generateContent(request, 'prompt-1'),
       ).rejects.toThrow();
     });
+
+    it('should throw classified error from generateContent (not UNKNOWN)', async () => {
+      const sdkError = Object.assign(new Error('Rate limited'), {
+        status: 429,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+
+      try {
+        await adapter.generateContent(request, 'prompt-1');
+        expect.unreachable('should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(RateLimitError);
+        const llmError = error as LlmError;
+        expect(llmError.type).toBe(LlmErrorType.RATE_LIMIT);
+        expect(llmError.isRetryable).toBe(true);
+      }
+    });
   });
 
   // ==============================================================
@@ -413,6 +440,7 @@ describe('ClaudeAdapter', () => {
         isRetryable: boolean;
       };
       expect(errorEvent.error).toBeInstanceOf(LlmError);
+      expect(errorEvent.error.type).toBe(LlmErrorType.TIMEOUT);
     });
 
     it('should yield LlmErrorEvent on stream iteration errors', async () => {
@@ -663,6 +691,154 @@ describe('ClaudeAdapter', () => {
         (e) => e.type === LlmEventType.Error,
       ) as unknown as { error: LlmError };
       expect(errorEvent.error.type).toBe(LlmErrorType.NETWORK);
+    });
+
+    // Review #1: 400/404 status code coverage
+    it('should classify 400 as INVALID_REQUEST (non-retryable)', async () => {
+      const sdkError = Object.assign(new Error('Invalid request body'), {
+        status: 400,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError; isRetryable: boolean };
+      expect(errorEvent.error.type).toBe(LlmErrorType.INVALID_REQUEST);
+      expect(errorEvent.isRetryable).toBe(false);
+    });
+
+    it('should classify 404 as MODEL_NOT_FOUND (non-retryable)', async () => {
+      const sdkError = Object.assign(new Error('Model not found'), {
+        status: 404,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError; isRetryable: boolean };
+      expect(errorEvent.error.type).toBe(LlmErrorType.MODEL_NOT_FOUND);
+      expect(errorEvent.isRetryable).toBe(false);
+    });
+
+    // Review #3: subclass instanceof verification
+    it('should return proper error subclass instances', async () => {
+      const sdkError = Object.assign(new Error('Auth failed'), {
+        status: 401,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      expect(errorEvent.error).toBeInstanceOf(AuthenticationError);
+      expect(errorEvent.error.name).toBe('AuthenticationError');
+    });
+
+    it('should return NetworkError subclass for no-status errors', async () => {
+      mockClient.messages.create.mockRejectedValue(new Error('ECONNREFUSED'));
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      expect(errorEvent.error).toBeInstanceOf(NetworkError);
+    });
+
+    it('should return TimeoutError subclass for timeout keyword', async () => {
+      mockClient.messages.create.mockRejectedValue(
+        new Error('Connection timeout'),
+      );
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      expect(errorEvent.error).toBeInstanceOf(TimeoutError);
+    });
+
+    it('should return RateLimitError subclass for 429', async () => {
+      const sdkError = Object.assign(new Error('Rate limited'), {
+        status: 429,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      expect(errorEvent.error).toBeInstanceOf(RateLimitError);
+    });
+
+    it('should return ModelNotFoundError subclass for 404', async () => {
+      const sdkError = Object.assign(new Error('Not found'), {
+        status: 404,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      expect(errorEvent.error).toBeInstanceOf(ModelNotFoundError);
     });
   });
 });

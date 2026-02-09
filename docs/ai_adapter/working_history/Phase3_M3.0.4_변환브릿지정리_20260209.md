@@ -131,4 +131,6 @@ export {
 
 ## 커밋
 
-- (커밋 예정)
+- `4f0eec16a` — refactor(providers): M3.0.4 — 변환 브릿지 정리 (typeConversion
+  이동
+  - dead code 삭제)

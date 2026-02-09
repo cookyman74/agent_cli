@@ -187,5 +187,5 @@ export { Claude };
 
 - `56a0433f9` feat(providers): M3.1.0 — Claude 사전 준비 (SDK + bootstrap +
   skeleton adapter)
-- `(커밋 ID 기록 예정)` fix(providers): M3.1.0 리뷰 반영 — Claude bootstrap
-  런타임 연결 + capability 보정 + barrel export
+- `1244f3dba` fix(providers): M3.1.0 리뷰 반영 — Claude bootstrap 런타임 연결 +
+  capability 보정 + barrel export

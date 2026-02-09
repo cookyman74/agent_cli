@@ -218,3 +218,5 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
 
 - `9f538e0d7` feat(providers): M3.1.1 — ClaudeAdapter 구현 (converter +
   generate + stream + countTokens)
+- `d99be5859` fix(providers): M3.1.1 리뷰 반영 — countTokens 파라미터 분리, 병렬
+  tool call, isError/URL 이미지 처리

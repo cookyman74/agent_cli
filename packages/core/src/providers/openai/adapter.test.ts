@@ -14,6 +14,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OpenAiAdapter, type OpenAiClient } from './adapter.js';
 import type { LlmGenerateRequest, AdapterConfig } from '../types.js';
 import { LlmError, LlmErrorType, UnsupportedFeatureError } from '../errors.js';
+import { LlmEventType } from '../events.js';
+import type { LlmEvent } from '../events.js';
 
 function createMockClient(overrides?: Partial<OpenAiClient>): OpenAiClient {
   return {
@@ -69,8 +71,8 @@ describe('OpenAiAdapter', () => {
       expect(adapter.providerName).toBe('openai');
     });
 
-    it('should NOT support streaming yet (M3.2.B pending)', () => {
-      expect(adapter.capabilities.supportsStreaming).toBe(false);
+    it('should support streaming', () => {
+      expect(adapter.capabilities.supportsStreaming).toBe(true);
     });
 
     it('should support tool calls', () => {
@@ -188,21 +190,80 @@ describe('OpenAiAdapter', () => {
   });
 
   // ==========================================================================
-  // generateContentStream (capability guard)
+  // generateContentStream
   // ==========================================================================
 
   describe('generateContentStream', () => {
-    it('should throw UnsupportedFeatureError when supportsStreaming is false', () => {
-      const request = createBasicRequest();
-      expect(() => adapter.generateContentStream(request, 'prompt-1')).toThrow(
-        UnsupportedFeatureError,
+    it('should call client.chat.completions.create with stream=true and stream_options', async () => {
+      // Mock an async iterable stream
+      const chunks = [
+        {
+          choices: [
+            { index: 0, delta: { role: 'assistant' }, finish_reason: null },
+          ],
+        },
+        {
+          choices: [
+            { index: 0, delta: { content: 'Hello' }, finish_reason: null },
+          ],
+        },
+        { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] },
+        {
+          choices: [],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        },
+      ];
+
+      async function* mockStream(): AsyncGenerator<unknown> {
+        for (const c of chunks) {
+          yield c;
+        }
+      }
+
+      vi.mocked(client.chat.completions.create).mockResolvedValueOnce(
+        mockStream() as unknown,
       );
+
+      const request = createBasicRequest();
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+      const events: LlmEvent[] = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      // Verify SDK was called with stream params
+      const params = vi.mocked(client.chat.completions.create).mock.calls[0][0];
+      expect(params['stream']).toBe(true);
+      expect(params['stream_options']).toEqual({ include_usage: true });
+
+      // Verify events
+      expect(events.map((e) => e.type)).toEqual([
+        LlmEventType.TextDelta,
+        LlmEventType.Finished,
+        LlmEventType.MessageEnd,
+      ]);
     });
 
-    it('should include provider name in error message', () => {
+    it('should yield error event on SDK failure', async () => {
+      const error = new Error('rate limit exceeded');
+      (error as unknown as Record<string, unknown>)['status'] = 429;
+      vi.mocked(client.chat.completions.create).mockRejectedValueOnce(error);
+
       const request = createBasicRequest();
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+      const events: LlmEvent[] = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe(LlmEventType.Error);
+    });
+
+    it('should validate request before streaming', () => {
+      const request = createBasicRequest({ model: '' });
       expect(() => adapter.generateContentStream(request, 'prompt-1')).toThrow(
-        /openai/,
+        LlmError,
       );
     });
   });

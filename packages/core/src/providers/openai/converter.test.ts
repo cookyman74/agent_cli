@@ -11,13 +11,20 @@
  * @see docs/ai_adapter/todolist/phase3_provider_extension_todolist.md §3.2.2
  */
 
-import { describe, it, expect } from 'vitest';
-import { OpenAiConverter } from './converter.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { OpenAiConverter, type OpenAiStreamState } from './converter.js';
 import type {
   LlmGenerateRequest,
   LlmMessage,
   LlmToolDefinition,
 } from '../types.js';
+import { LlmEventType } from '../events.js';
+import type {
+  LlmTextDeltaEvent,
+  LlmToolCallRequestEvent,
+  LlmFinishedEvent,
+  LlmMessageEndEvent,
+} from '../events.js';
 
 describe('OpenAiConverter', () => {
   const converter = new OpenAiConverter();
@@ -626,7 +633,7 @@ describe('OpenAiConverter', () => {
   });
 
   // ==========================================================================
-  // Stream Event Conversion (for M3.2.B, but basic state creation here)
+  // Stream Event Conversion
   // ==========================================================================
 
   describe('createStreamState', () => {
@@ -635,6 +642,569 @@ describe('OpenAiConverter', () => {
       expect(state).toEqual({
         currentToolCalls: {},
         finishedEmitted: false,
+      });
+    });
+  });
+
+  // ==========================================================================
+  // Stream Event Conversion: OpenAI ChatCompletionChunk → LlmEvent[]
+  // ==========================================================================
+
+  describe('convertStreamEvent', () => {
+    let state: OpenAiStreamState;
+
+    function freshState(): OpenAiStreamState {
+      return converter.createStreamState();
+    }
+
+    beforeEach(() => {
+      state = freshState();
+    });
+
+    // --- Text Delta ---
+
+    describe('text delta', () => {
+      it('T1: should emit TextDelta when delta.content is non-null', () => {
+        const chunk = {
+          choices: [
+            { index: 0, delta: { content: 'Hello' }, finish_reason: null },
+          ],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(1);
+        expect(events[0].type).toBe(LlmEventType.TextDelta);
+        expect((events[0] as LlmTextDeltaEvent).text).toBe('Hello');
+      });
+
+      it('T2: should return empty when delta.content is null', () => {
+        const chunk = {
+          choices: [
+            { index: 0, delta: { content: null }, finish_reason: null },
+          ],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(0);
+      });
+
+      it('T3: should return empty when delta.content is empty string', () => {
+        const chunk = {
+          choices: [{ index: 0, delta: { content: '' }, finish_reason: null }],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(0);
+      });
+
+      it('T4: should return empty for role-only delta (first chunk)', () => {
+        const chunk = {
+          choices: [
+            { index: 0, delta: { role: 'assistant' }, finish_reason: null },
+          ],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(0);
+      });
+
+      it('T5: should emit TextDelta when content + role are both present', () => {
+        const chunk = {
+          choices: [
+            {
+              index: 0,
+              delta: { role: 'assistant', content: 'Hi' },
+              finish_reason: null,
+            },
+          ],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(1);
+        expect(events[0].type).toBe(LlmEventType.TextDelta);
+        expect((events[0] as LlmTextDeltaEvent).text).toBe('Hi');
+      });
+    });
+
+    // --- Tool Call Accumulation ---
+
+    describe('tool call accumulation', () => {
+      it('T6: should initialize state for tool_call delta with id+name', () => {
+        const chunk = {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: 'call_1',
+                    function: { name: 'get_weather', arguments: '' },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(0);
+        expect(state.currentToolCalls[0]).toEqual({
+          id: 'call_1',
+          name: 'get_weather',
+          argumentsJson: '',
+        });
+      });
+
+      it('T7: should accumulate arguments delta in state', () => {
+        // First chunk: init
+        state.currentToolCalls[0] = {
+          id: 'call_1',
+          name: 'fn',
+          argumentsJson: '',
+        };
+
+        const chunk = {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [{ index: 0, function: { arguments: '{"ci' } }],
+              },
+              finish_reason: null,
+            },
+          ],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(0);
+        expect(state.currentToolCalls[0].argumentsJson).toBe('{"ci');
+      });
+
+      it('T8: should concatenate multiple argument deltas', () => {
+        state.currentToolCalls[0] = {
+          id: 'call_1',
+          name: 'fn',
+          argumentsJson: '{"ci',
+        };
+
+        const chunk = {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [
+                  { index: 0, function: { arguments: 'ty":"Seoul"}' } },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        };
+        converter.convertStreamEvent(chunk, state);
+        expect(state.currentToolCalls[0].argumentsJson).toBe(
+          '{"city":"Seoul"}',
+        );
+      });
+
+      it('T9: should track parallel tool calls by index', () => {
+        const chunk = {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: 'call_1',
+                    function: { name: 'fn_a', arguments: '{}' },
+                  },
+                  {
+                    index: 1,
+                    id: 'call_2',
+                    function: { name: 'fn_b', arguments: '{}' },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        };
+        converter.convertStreamEvent(chunk, state);
+        expect(state.currentToolCalls[0].name).toBe('fn_a');
+        expect(state.currentToolCalls[1].name).toBe('fn_b');
+      });
+    });
+
+    // --- Tool Call Emission ---
+
+    describe('tool call emission', () => {
+      it('T10: should emit ToolCallRequest + Finished on finish_reason=tool_calls', () => {
+        state.currentToolCalls[0] = {
+          id: 'call_1',
+          name: 'get_weather',
+          argumentsJson: '{"city":"Seoul"}',
+        };
+
+        const chunk = {
+          choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+
+        // ToolCallRequest + Finished
+        expect(events).toHaveLength(2);
+        const tcEvent = events[0] as LlmToolCallRequestEvent;
+        expect(tcEvent.type).toBe(LlmEventType.ToolCallRequest);
+        expect(tcEvent.callId).toBe('call_1');
+        expect(tcEvent.name).toBe('get_weather');
+        expect(tcEvent.args).toEqual({ city: 'Seoul' });
+
+        const finEvent = events[1] as LlmFinishedEvent;
+        expect(finEvent.type).toBe(LlmEventType.Finished);
+        expect(finEvent.finishReason).toBe('tool_use');
+      });
+
+      it('T11: should emit multiple ToolCallRequests for parallel tool calls', () => {
+        state.currentToolCalls[0] = {
+          id: 'call_1',
+          name: 'fn_a',
+          argumentsJson: '{"a":1}',
+        };
+        state.currentToolCalls[1] = {
+          id: 'call_2',
+          name: 'fn_b',
+          argumentsJson: '{"b":2}',
+        };
+
+        const chunk = {
+          choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+
+        // 2 ToolCallRequests + 1 Finished
+        expect(events).toHaveLength(3);
+        expect(events[0].type).toBe(LlmEventType.ToolCallRequest);
+        expect(events[1].type).toBe(LlmEventType.ToolCallRequest);
+        expect(events[2].type).toBe(LlmEventType.Finished);
+      });
+
+      it('T12: should fallback to empty args for invalid JSON', () => {
+        state.currentToolCalls[0] = {
+          id: 'call_1',
+          name: 'fn',
+          argumentsJson: '{invalid',
+        };
+
+        const chunk = {
+          choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        const tcEvent = events[0] as LlmToolCallRequestEvent;
+        expect(tcEvent.args).toEqual({});
+      });
+
+      it('T13: should fallback to empty args for empty arguments', () => {
+        state.currentToolCalls[0] = {
+          id: 'call_1',
+          name: 'fn',
+          argumentsJson: '',
+        };
+
+        const chunk = {
+          choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        const tcEvent = events[0] as LlmToolCallRequestEvent;
+        expect(tcEvent.args).toEqual({});
+      });
+    });
+
+    // --- Finish Reason Mapping ---
+
+    describe('finish reason mapping', () => {
+      it('T14: should emit Finished(end_turn) for stop', () => {
+        const chunk = {
+          choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(1);
+        const finEvent = events[0] as LlmFinishedEvent;
+        expect(finEvent.type).toBe(LlmEventType.Finished);
+        expect(finEvent.finishReason).toBe('end_turn');
+      });
+
+      it('T15: should emit Finished(max_tokens) for length', () => {
+        const chunk = {
+          choices: [{ index: 0, delta: {}, finish_reason: 'length' }],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        const finEvent = events[0] as LlmFinishedEvent;
+        expect(finEvent.finishReason).toBe('max_tokens');
+      });
+
+      it('T16: should emit Finished(content_filter) for content_filter', () => {
+        const chunk = {
+          choices: [{ index: 0, delta: {}, finish_reason: 'content_filter' }],
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        const finEvent = events[0] as LlmFinishedEvent;
+        expect(finEvent.finishReason).toBe('content_filter');
+      });
+
+      it('T17: should set finishedEmitted flag to true', () => {
+        const chunk = {
+          choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+        };
+        converter.convertStreamEvent(chunk, state);
+        expect(state.finishedEmitted).toBe(true);
+      });
+    });
+
+    // --- Usage-only Final Chunk ---
+
+    describe('usage-only final chunk', () => {
+      it('T18: should emit MessageEnd with usage for empty choices + usage', () => {
+        state.finishedEmitted = true;
+
+        const chunk = {
+          choices: [],
+          usage: {
+            prompt_tokens: 100,
+            completion_tokens: 50,
+            total_tokens: 150,
+          },
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(1);
+        const msgEnd = events[0] as LlmMessageEndEvent;
+        expect(msgEnd.type).toBe(LlmEventType.MessageEnd);
+        expect(msgEnd.usage).toEqual({
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+          cachedTokens: 0,
+        });
+      });
+
+      it('T19: should emit Finished + MessageEnd if Finished was not yet emitted', () => {
+        state.finishedEmitted = false;
+
+        const chunk = {
+          choices: [],
+          usage: {
+            prompt_tokens: 100,
+            completion_tokens: 50,
+            total_tokens: 150,
+          },
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(2);
+        expect(events[0].type).toBe(LlmEventType.Finished);
+        expect(events[1].type).toBe(LlmEventType.MessageEnd);
+      });
+
+      it('T20: should extract cached_tokens from prompt_tokens_details', () => {
+        state.finishedEmitted = true;
+
+        const chunk = {
+          choices: [],
+          usage: {
+            prompt_tokens: 200,
+            completion_tokens: 30,
+            total_tokens: 230,
+            prompt_tokens_details: {
+              cached_tokens: 80,
+            },
+          },
+        };
+        const events = converter.convertStreamEvent(chunk, state);
+        const msgEnd = events[0] as LlmMessageEndEvent;
+        expect(msgEnd.usage?.cachedTokens).toBe(80);
+      });
+
+      it('T21: should return empty for empty choices without usage', () => {
+        const chunk = { choices: [] };
+        const events = converter.convertStreamEvent(chunk, state);
+        expect(events).toHaveLength(0);
+      });
+    });
+
+    // --- Integration Sequences ---
+
+    describe('integration sequences', () => {
+      it('T22: should handle full text stream sequence', () => {
+        const allEvents: Array<{ type: string }> = [];
+
+        // Chunk 1: role-only
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            {
+              choices: [
+                { index: 0, delta: { role: 'assistant' }, finish_reason: null },
+              ],
+            },
+            state,
+          ),
+        );
+
+        // Chunk 2-3: text deltas
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            {
+              choices: [
+                { index: 0, delta: { content: 'Hello' }, finish_reason: null },
+              ],
+            },
+            state,
+          ),
+        );
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            {
+              choices: [
+                { index: 0, delta: { content: ' world' }, finish_reason: null },
+              ],
+            },
+            state,
+          ),
+        );
+
+        // Chunk 4: finish
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] },
+            state,
+          ),
+        );
+
+        // Chunk 5: usage
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            {
+              choices: [],
+              usage: {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                total_tokens: 15,
+              },
+            },
+            state,
+          ),
+        );
+
+        expect(allEvents.map((e) => e.type)).toEqual([
+          LlmEventType.TextDelta,
+          LlmEventType.TextDelta,
+          LlmEventType.Finished,
+          LlmEventType.MessageEnd,
+        ]);
+      });
+
+      it('T23: should handle full tool call stream sequence', () => {
+        const allEvents: Array<{ type: string }> = [];
+
+        // Chunk 1: init tool call
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            {
+              choices: [
+                {
+                  index: 0,
+                  delta: {
+                    role: 'assistant',
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: 'call_1',
+                        function: { name: 'get_weather', arguments: '' },
+                      },
+                    ],
+                  },
+                  finish_reason: null,
+                },
+              ],
+            },
+            state,
+          ),
+        );
+
+        // Chunk 2-3: arguments deltas
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            {
+              choices: [
+                {
+                  index: 0,
+                  delta: {
+                    tool_calls: [
+                      { index: 0, function: { arguments: '{"city"' } },
+                    ],
+                  },
+                  finish_reason: null,
+                },
+              ],
+            },
+            state,
+          ),
+        );
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            {
+              choices: [
+                {
+                  index: 0,
+                  delta: {
+                    tool_calls: [
+                      { index: 0, function: { arguments: ':"Seoul"}' } },
+                    ],
+                  },
+                  finish_reason: null,
+                },
+              ],
+            },
+            state,
+          ),
+        );
+
+        // Chunk 4: finish_reason=tool_calls
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] },
+            state,
+          ),
+        );
+
+        // Chunk 5: usage
+        allEvents.push(
+          ...converter.convertStreamEvent(
+            {
+              choices: [],
+              usage: {
+                prompt_tokens: 20,
+                completion_tokens: 15,
+                total_tokens: 35,
+              },
+            },
+            state,
+          ),
+        );
+
+        expect(allEvents.map((e) => e.type)).toEqual([
+          LlmEventType.ToolCallRequest,
+          LlmEventType.Finished,
+          LlmEventType.MessageEnd,
+        ]);
+
+        const tcEvent = allEvents[0] as LlmToolCallRequestEvent;
+        expect(tcEvent.args).toEqual({ city: 'Seoul' });
+      });
+    });
+
+    // --- Edge Cases ---
+
+    describe('edge cases', () => {
+      it('T24: should return empty for completely empty/malformed object', () => {
+        const events = converter.convertStreamEvent({}, state);
+        expect(events).toHaveLength(0);
+      });
+
+      it('T25: should return empty when choices is undefined', () => {
+        const events = converter.convertStreamEvent({ id: 'chunk-1' }, state);
+        expect(events).toHaveLength(0);
       });
     });
   });

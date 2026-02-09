@@ -24,7 +24,8 @@ import type {
   LlmStopReason,
   LlmTokenUsage,
 } from '../types.js';
-import type { LlmEvent } from '../events.js';
+import type { LlmEvent, LlmFinishReason } from '../events.js';
+import { LlmEventType } from '../events.js';
 
 /**
  * Stream processing state — maintained externally by the caller
@@ -254,7 +255,7 @@ export class OpenAiConverter {
   }
 
   // ============================================================================
-  // Stream Event Conversion (M3.2.B — stub for state creation)
+  // Stream Event Conversion
   // ============================================================================
 
   /**
@@ -266,10 +267,156 @@ export class OpenAiConverter {
 
   /**
    * Convert a single OpenAI ChatCompletionChunk to LlmEvent[].
-   * Full implementation in M3.2.B.
+   *
+   * OpenAI stream structure:
+   * - Text: choices[0].delta.content
+   * - Tool calls: choices[0].delta.tool_calls[].index for accumulation
+   * - Finish: choices[0].finish_reason != null
+   * - Usage: final chunk with empty choices[] + usage object
    */
-  convertStreamEvent(_event: unknown, _state: OpenAiStreamState): LlmEvent[] {
-    return [];
+  convertStreamEvent(event: unknown, state: OpenAiStreamState): LlmEvent[] {
+    const chunk = event as Record<string, unknown>;
+    const choices = chunk['choices'] as
+      | Array<Record<string, unknown>>
+      | undefined;
+
+    // Guard: no choices array → check if this is malformed
+    if (!choices) {
+      return [];
+    }
+
+    // Usage-only final chunk: empty choices + usage present
+    if (choices.length === 0) {
+      const usage = chunk['usage'] as Record<string, unknown> | undefined;
+      if (!usage) {
+        return [];
+      }
+      return this.handleUsageOnlyChunk(usage, state);
+    }
+
+    // Normal chunk with choices[0]
+    const choice = choices[0];
+    const delta = (choice['delta'] as Record<string, unknown>) ?? {};
+    const finishReason = choice['finish_reason'] as string | null;
+    const events: LlmEvent[] = [];
+
+    // 1. Text delta
+    const content = delta['content'] as string | null | undefined;
+    if (content) {
+      events.push({ type: LlmEventType.TextDelta, text: content });
+    }
+
+    // 2. Tool call accumulation
+    const toolCalls = delta['tool_calls'] as
+      | Array<Record<string, unknown>>
+      | undefined;
+    if (toolCalls) {
+      this.accumulateToolCalls(toolCalls, state);
+    }
+
+    // 3. Finish reason
+    if (finishReason) {
+      if (finishReason === 'tool_calls' || finishReason === 'function_call') {
+        // Emit all accumulated tool calls
+        events.push(...this.emitToolCalls(state));
+      }
+      events.push({
+        type: LlmEventType.Finished,
+        finishReason: this.mapFinishReason(finishReason) as LlmFinishReason,
+      });
+      state.finishedEmitted = true;
+    }
+
+    return events;
+  }
+
+  // ============================================================================
+  // Stream Private Helpers
+  // ============================================================================
+
+  /**
+   * Handle the usage-only final chunk (empty choices + usage).
+   * Emits Finished (if not yet emitted) + MessageEnd.
+   */
+  private handleUsageOnlyChunk(
+    usage: Record<string, unknown>,
+    state: OpenAiStreamState,
+  ): LlmEvent[] {
+    const tokenUsage = this.extractUsage({ usage });
+    const events: LlmEvent[] = [];
+
+    if (!state.finishedEmitted) {
+      events.push({
+        type: LlmEventType.Finished,
+        finishReason: 'end_turn' as LlmFinishReason,
+      });
+      state.finishedEmitted = true;
+    }
+
+    events.push({
+      type: LlmEventType.MessageEnd,
+      usage: tokenUsage,
+    });
+
+    return events;
+  }
+
+  /**
+   * Accumulate tool call deltas into state by index.
+   */
+  private accumulateToolCalls(
+    toolCalls: Array<Record<string, unknown>>,
+    state: OpenAiStreamState,
+  ): void {
+    for (const tc of toolCalls) {
+      const idx = tc['index'] as number;
+      const fn = (tc['function'] as Record<string, unknown>) ?? {};
+
+      if (tc['id']) {
+        // New tool call: initialize state entry
+        state.currentToolCalls[idx] = {
+          id: tc['id'] as string,
+          name: (fn['name'] as string) ?? '',
+          argumentsJson: (fn['arguments'] as string) ?? '',
+        };
+      } else if (state.currentToolCalls[idx]) {
+        // Continuation: append arguments
+        state.currentToolCalls[idx].argumentsJson +=
+          (fn['arguments'] as string) ?? '';
+      }
+    }
+  }
+
+  /**
+   * Emit all accumulated tool calls as ToolCallRequest events.
+   * Clears tool calls from state after emission.
+   */
+  private emitToolCalls(state: OpenAiStreamState): LlmEvent[] {
+    const events: LlmEvent[] = [];
+    const indices = Object.keys(state.currentToolCalls)
+      .map(Number)
+      .sort((a, b) => a - b);
+
+    for (const idx of indices) {
+      const tc = state.currentToolCalls[idx];
+      let args: Record<string, unknown> = {};
+      try {
+        args = JSON.parse(tc.argumentsJson || '{}');
+      } catch {
+        args = {};
+      }
+
+      events.push({
+        type: LlmEventType.ToolCallRequest,
+        callId: tc.id,
+        name: tc.name,
+        args,
+      });
+    }
+
+    // Clear accumulated tool calls
+    state.currentToolCalls = {};
+    return events;
   }
 
   // ============================================================================

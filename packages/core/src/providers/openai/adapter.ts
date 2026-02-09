@@ -32,6 +32,7 @@ import {
   ModelNotFoundError,
   NetworkError,
   TimeoutError,
+  UnsupportedFeatureError,
 } from '../errors.js';
 import { createErrorEvent } from '../events.js';
 import { OpenAiConverter } from './converter.js';
@@ -52,7 +53,7 @@ export interface OpenAiClient {
  * OpenAI adapter capabilities (M3.2.A).
  *
  * Enabled capabilities:
- *   supportsStreaming: true     — generateContentStream implemented (M3.2.B)
+ *   supportsStreaming: false    — stub until M3.2.B completes stream converter
  *   supportsToolCalls: true     — tool_call/tool_result conversion
  *   supportsImageInput: true    — image_url content part
  *   supportsSystemMessage: true — system role messages
@@ -64,7 +65,8 @@ export interface OpenAiClient {
  *   supportsThought: false         — No extended thinking in standard API
  */
 const OPENAI_CAPABILITIES: LlmProviderCapabilities = {
-  supportsStreaming: true,
+  // TODO(M3.2.B): Flip to true once convertStreamEvent is fully implemented
+  supportsStreaming: false,
   supportsToolCalls: true,
   supportsImageInput: true,
   supportsImageGeneration: false,
@@ -121,6 +123,11 @@ export class OpenAiAdapter extends BaseAdapter {
     _userPromptId: string,
     _options?: GenerateOptions,
   ): LlmEventStream {
+    if (!this.capabilities.supportsStreaming) {
+      throw new UnsupportedFeatureError(
+        `Streaming is not yet supported by ${this.providerName}. Awaiting M3.2.B implementation.`,
+      );
+    }
     this.validateRequest(request);
 
     const client = this.client;

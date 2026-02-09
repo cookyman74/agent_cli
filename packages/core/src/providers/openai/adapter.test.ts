@@ -69,8 +69,8 @@ describe('OpenAiAdapter', () => {
       expect(adapter.providerName).toBe('openai');
     });
 
-    it('should support streaming', () => {
-      expect(adapter.capabilities.supportsStreaming).toBe(true);
+    it('should NOT support streaming yet (M3.2.B pending)', () => {
+      expect(adapter.capabilities.supportsStreaming).toBe(false);
     });
 
     it('should support tool calls', () => {
@@ -183,6 +183,26 @@ describe('OpenAiAdapter', () => {
       const request = createBasicRequest();
       expect(() => adapter.countTokens(request)).toThrow(
         UnsupportedFeatureError,
+      );
+    });
+  });
+
+  // ==========================================================================
+  // generateContentStream (capability guard)
+  // ==========================================================================
+
+  describe('generateContentStream', () => {
+    it('should throw UnsupportedFeatureError when supportsStreaming is false', () => {
+      const request = createBasicRequest();
+      expect(() => adapter.generateContentStream(request, 'prompt-1')).toThrow(
+        UnsupportedFeatureError,
+      );
+    });
+
+    it('should include provider name in error message', () => {
+      const request = createBasicRequest();
+      expect(() => adapter.generateContentStream(request, 'prompt-1')).toThrow(
+        /openai/,
       );
     });
   });

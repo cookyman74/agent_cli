@@ -162,8 +162,103 @@ OpenAI SDK를 래핑하는 어댑터/변환기의 Core 부분(비스트림)을 T
 - **근거**: HTTP status code 기반 분류 로직은 프로바이더 독립적. DI 유지 (duck
   typing).
 
+## 리뷰 반영 사항
+
+### Issue #1 (높음): `bootstrapOpenAiProvider()` 호출 누락
+
+- **문제**: `contentGenerator.ts`의 multi-provider 경로에서
+  `bootstrapGeminiProvider()`와 `bootstrapClaudeProvider()`만 호출되고
+  `bootstrapOpenAiProvider()`가 누락 → OpenAI 선택 시 런타임 "Provider not
+  registered" 오류 발생
+- **수정**:
+  - `contentGenerator.ts`: `import { bootstrapOpenAiProvider }` 추가 +
+    `bootstrapOpenAiProvider()` 호출 추가 (line 286)
+- **검증**: multiProvider 테스트 Scenario 5b 추가로 auto-bootstrap 경로 확인
+
+### Issue #2 (중간): `supportsStreaming: true` + stub 스트림
+
+- **문제**: `OPENAI_CAPABILITIES.supportsStreaming: true`로 선언되었으나
+  `convertStreamEvent`가 빈 배열 `[]`을 반환하는 stub → 스트림 요청 시 이벤트
+  없이 종료
+- **수정**:
+  - `adapter.ts`: `supportsStreaming: false`로 변경, M3.2.B 완료 시 `true`로
+    전환하는 TODO 주석 추가
+  - `adapter.test.ts`: capability 테스트를 `false` 기대값으로 업데이트
+- **근거**: M3.2.B에서 `convertStreamEvent` 구현 전까지 스트림 기능을
+  비활성화하는 것이 안전. 호출자가 `supportsStreaming` 플래그를 확인하여 스트림
+  사용 여부를 결정하므로 false면 비스트림으로 자동 폴백.
+
+### Issue #3 (낮음): auto-bootstrap 통합 테스트 미비
+
+- **문제**: `contentGenerator.multiProvider.test.ts` Scenario 5에서
+  `registry.register('openai', ...)` 수동 등록만 수행 → 실제
+  `bootstrapOpenAiProvider()` 경로 미검증
+- **수정**:
+  - `contentGenerator.multiProvider.test.ts`: `vi.mock('openai', ...)` 모듈 mock
+    추가 + Scenario 5b 테스트 추가 (수동 등록 없이 auto-bootstrap만으로 OpenAI
+    어댑터 생성 확인)
+- **검증**: 14 tests passed (기존 13 + 1)
+
+### 2차 리뷰 Issue #1 (높음): CLI 런타임 경로 legacy Gemini 호출 문제
+
+- **문제**: OpenAI 선택 시 CLI 런타임에서 `GeminiChat.sendMessageStream()` →
+  `getContentGenerator().generateContentStream(legacy Gemini params)` 경로를
+  타서 `Provider "openai" does not support legacy Gemini API` 에러 발생.
+- **분석 결과**: 이것은 **Phase 3 핸드오프 문서에 기록된 알려진 제한사항**임.
+  - "制限 2: Agent 실행 경로 Gemini 고정" — `GeminiChat`, `LocalExecutor`가
+    legacy Gemini 메서드만 호출
+  - 해결을 위해서는 provider-independent `ChatSession` 인터페이스 생성 +
+    `GeminiClient`/`Turn`/`LocalExecutor` DI 리팩토링 필요
+  - 이는 **CLI 통합 마일스톤(M3.4+)** 범위
+- **결정**: M3.2.A 범위에서 수정하지 않음. 작업결과서에 알려진 제한사항으로
+  명시적 기록. Phase 3 후속 마일스톤에서 해결 예정.
+
+### 2차 리뷰 Issue #2 (낮음): `generateContentStream` 스텁 방어 가드 추가
+
+- **문제**: `supportsStreaming: false`이지만 `generateContentStream` 메서드
+  자체는 호출 가능 → 내부 `convertStreamEvent` 스텁이 `[]` 반환 → 빈 스트림 무한
+  소비 위험
+- **수정**:
+  - `adapter.ts`: `generateContentStream` 진입부에 capability 가드 추가
+    (`!this.capabilities.supportsStreaming` → `UnsupportedFeatureError` throw)
+  - `adapter.test.ts`: 가드 테스트 2건 추가 (UnsupportedFeatureError +
+    provider명 포함 확인)
+- **근거**: `countTokens`와 동일한 패턴. capability flag가 false인 기능은 메서드
+  레벨에서도 즉시 에러를 반환하여 빈 스트림보다 명확한 피드백 제공.
+
+### Quality Gate (2차 리뷰 반영 후)
+
+| 항목          | 결과                     |
+| ------------- | ------------------------ |
+| TypeCheck     | ✅ PASS                  |
+| ESLint        | ✅ PASS                  |
+| OpenAI 테스트 | ✅ 3 files / 76 passed   |
+| MultiProvider | ✅ 1 file / 14 passed    |
+| Provider 회귀 | ✅ 33 files / 647 passed |
+
+**변화**: 33 files / 645 → 33 files / 647 (+2 tests: generateContentStream 가드)
+
+## 알려진 제한사항
+
+### CLI 런타임 경로 Gemini 고정 (Phase 3 핸드오프 문서 §制限 2)
+
+현재 CLI의 메인 채팅 루프(`GeminiClient` → `GeminiChat` → `Turn`)는 legacy
+Gemini `generateContentStream(GenerateContentParameters)` 만 호출합니다.
+non-Gemini provider wrapper의 provider-independent 메서드
+(`llmGenerateContentStream`)는 아직 어디서도 호출되지 않습니다.
+
+**영향**: `ENABLE_MULTI_PROVIDER=true` + `LLM_PROVIDER=openai` 설정 시:
+
+- ✅ Content generator 생성, adapter 부트스트랩 정상
+- ❌ 실제 채팅 시 `Provider "openai" does not support legacy Gemini API` 에러
+
+**해결 계획**: CLI 통합 마일스톤(M3.4+)에서 provider-independent `ChatSession`
+인터페이스 도입 및 `GeminiClient`/`LocalExecutor` DI 리팩토링.
+
 ## 향후 작업
 
 - **M3.2.B**: 스트림 변환기 구현 (`convertStreamEvent`), 스트림 에러 처리 고도화
   - text_delta, tool_call delta, finish_reason, usage 추출
   - `stream_options: { include_usage: true }` 활용
+  - `supportsStreaming` → `true` 전환 + capability 가드 제거
+- **M3.4+**: CLI 통합 — ChatSession 인터페이스 + DI로 non-Gemini 런타임 지원

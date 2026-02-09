@@ -40,6 +40,15 @@ vi.mock('@anthropic-ai/sdk', () => ({
     },
   })),
 }));
+vi.mock('openai', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: vi.fn(),
+      },
+    },
+  })),
+}));
 vi.mock('../code_assist/codeAssist.js');
 vi.mock('./apiKeyCredentialStorage.js', () => ({
   loadApiKey: vi.fn(),
@@ -214,6 +223,23 @@ describe('Multi-provider selection in createContentGenerator', () => {
     );
 
     // Should NOT use GoogleGenAI (LLM_PROVIDER=openai overrides authType)
+    expect(GoogleGenAI).not.toHaveBeenCalled();
+    expect(generator).toBeInstanceOf(LoggingContentGenerator);
+    expect(isProviderIndependentGenerator(generator)).toBe(true);
+  });
+
+  // ========================================================================
+  // Scenario 5b: flag=true, LLM_PROVIDER=openai → auto-bootstrap
+  //              (Review fix: OpenAI provider is auto-bootstrapped in contentGenerator)
+  // ========================================================================
+  it('Scenario 5b: flag=true, LLM_PROVIDER=openai → auto-bootstrap without manual registration', async () => {
+    setMultiProviderOverride(true);
+    vi.stubEnv('LLM_PROVIDER', 'openai');
+    vi.stubEnv('OPENAI_API_KEY', 'test-openai-key');
+
+    // Do NOT manually register OpenAI — rely on bootstrapOpenAiProvider() in contentGenerator
+    const generator = await createContentGenerator({}, createMockConfig());
+
     expect(GoogleGenAI).not.toHaveBeenCalled();
     expect(generator).toBeInstanceOf(LoggingContentGenerator);
     expect(isProviderIndependentGenerator(generator)).toBe(true);

@@ -42,8 +42,7 @@ import {
   ContentRetryFailureEvent,
 } from '../../telemetry/types.js';
 import { handleFallback } from '../../fallback/handler.js';
-import { isToolResultMessage } from '../../utils/llmUtils.js';
-import { convertContentToLlmMessage } from '../../utils/geminiTypeConversion.js';
+import { isContentToolResultMessage } from '../../utils/geminiTypeConversion.js';
 import { partListUnionToString } from '../../core/geminiRequest.js';
 import type { ModelConfigKey } from '../../services/modelConfigService.js';
 import { estimateTokenCountSync } from '../../utils/tokenCalculation.js';
@@ -312,7 +311,7 @@ export class GeminiChat {
 
     // Record user input - capture complete message with all parts (text, files, images, etc.)
     // but skip recording function responses (tool call results) as they should be stored in tool call records
-    if (!isToolResultMessage(convertContentToLlmMessage(userContent))) {
+    if (!isContentToolResultMessage(userContent)) {
       const userMessage = Array.isArray(message) ? message : [message];
       const userMessageContent = partListUnionToString(toParts(userMessage));
       this.chatRecordingService.recordMessage({

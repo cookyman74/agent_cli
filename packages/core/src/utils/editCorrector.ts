@@ -15,8 +15,10 @@ import {
   READ_MANY_FILES_TOOL_NAME,
   WRITE_FILE_TOOL_NAME,
 } from '../tools/tool-names.js';
-import { isToolCallMessage, isToolResultMessage } from '../utils/llmUtils.js';
-import { convertContentToLlmMessage } from '../utils/geminiTypeConversion.js';
+import {
+  isContentToolCallMessage,
+  isContentToolResultMessage,
+} from '../utils/geminiTypeConversion.js';
 import * as fs from 'node:fs';
 import { promptIdContext } from './promptIdContext.js';
 import { debugLogger } from './debugLogger.js';
@@ -105,13 +107,18 @@ async function findLastEditTimestamp(
   for (const entry of history.slice().reverse()) {
     if (!entry.parts) continue;
 
+    // Hoist entry-level checks outside the per-part loop to avoid
+    // repeated conversion of the same Content (review fix: issue #3).
+    const entryIsToolCall = isContentToolCallMessage(entry);
+    const entryIsToolResult = isContentToolResultMessage(entry);
+
     for (const part of entry.parts) {
       let id: string | undefined;
       let content: unknown;
 
       // Check for a relevant FunctionCall with the file path in its arguments.
       if (
-        isToolCallMessage(convertContentToLlmMessage(entry)) &&
+        entryIsToolCall &&
         part.functionCall?.name &&
         toolsInCall.has(part.functionCall.name)
       ) {
@@ -120,7 +127,7 @@ async function findLastEditTimestamp(
       }
       // Check for a relevant FunctionResponse with the file path in its output.
       else if (
-        isToolResultMessage(convertContentToLlmMessage(entry)) &&
+        entryIsToolResult &&
         part.functionResponse?.name &&
         toolsInResp.has(part.functionResponse.name)
       ) {

@@ -9,6 +9,8 @@ import {
   convertContentToLlmMessage,
   convertContentsToLlmMessages,
   convertPartListUnionToLlmContents,
+  isContentToolCallMessage,
+  isContentToolResultMessage,
 } from './geminiTypeConversion.js';
 import type { Content } from '@google/genai';
 
@@ -232,6 +234,113 @@ describe('geminiTypeConversion', () => {
     it('should handle empty Part array', () => {
       const result = convertPartListUnionToLlmContents([]);
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('isContentToolCallMessage', () => {
+    it('should return true for pure functionCall content', () => {
+      const content: Content = {
+        role: 'model',
+        parts: [{ functionCall: { name: 'read_file', args: { path: '/a' } } }],
+      };
+      expect(isContentToolCallMessage(content)).toBe(true);
+    });
+
+    it('should return false for user role', () => {
+      const content: Content = {
+        role: 'user',
+        parts: [{ functionCall: { name: 'read_file', args: {} } }],
+      };
+      expect(isContentToolCallMessage(content)).toBe(false);
+    });
+
+    it('should return false for undefined role', () => {
+      const content: Content = {
+        parts: [{ functionCall: { name: 'read_file', args: {} } }],
+      };
+      expect(isContentToolCallMessage(content)).toBe(false);
+    });
+
+    it('should return false for empty parts', () => {
+      const content: Content = { role: 'model', parts: [] };
+      expect(isContentToolCallMessage(content)).toBe(false);
+    });
+
+    it('should return false for mixed functionCall + unconvertible parts', () => {
+      const content: Content = {
+        role: 'model',
+        parts: [
+          { functionCall: { name: 'read_file', args: {} } },
+          { executableCode: { code: 'print(1)' } } as never,
+        ],
+      };
+      expect(isContentToolCallMessage(content)).toBe(false);
+    });
+
+    it('should return false for mixed functionCall + text parts', () => {
+      const content: Content = {
+        role: 'model',
+        parts: [
+          { functionCall: { name: 'read_file', args: {} } },
+          { text: 'some text' },
+        ],
+      };
+      expect(isContentToolCallMessage(content)).toBe(false);
+    });
+  });
+
+  describe('isContentToolResultMessage', () => {
+    it('should return true for pure functionResponse content', () => {
+      const content: Content = {
+        role: 'user',
+        parts: [
+          {
+            functionResponse: { name: 'read_file', response: { output: 'ok' } },
+          },
+        ],
+      };
+      expect(isContentToolResultMessage(content)).toBe(true);
+    });
+
+    it('should return false for model role', () => {
+      const content: Content = {
+        role: 'model',
+        parts: [
+          {
+            functionResponse: { name: 'read_file', response: { output: 'ok' } },
+          },
+        ],
+      };
+      expect(isContentToolResultMessage(content)).toBe(false);
+    });
+
+    it('should return false for undefined role (mapRole default-to-user guard)', () => {
+      const content: Content = {
+        parts: [
+          {
+            functionResponse: { name: 'read_file', response: { output: 'ok' } },
+          },
+        ],
+      };
+      expect(isContentToolResultMessage(content)).toBe(false);
+    });
+
+    it('should return false for empty parts', () => {
+      const content: Content = { role: 'user', parts: [] };
+      expect(isContentToolResultMessage(content)).toBe(false);
+    });
+
+    it('should return false for mixed functionResponse + unconvertible parts', () => {
+      const content: Content = {
+        role: 'user',
+        parts: [
+          {
+            functionResponse: { name: 'read_file', response: { output: 'ok' } },
+          },
+          { executableCode: { code: 'print(1)' } } as never,
+        ],
+      };
+      expect(isContentToolResultMessage(content)).toBe(false);
     });
   });
 });

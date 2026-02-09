@@ -16,6 +16,7 @@
 
 import type { Content, Part, PartListUnion } from '@google/genai';
 import type { LlmContent, LlmMessage, LlmRole } from '../providers/types.js';
+import { isToolCallContent, isToolResultContent } from './llmUtils.js';
 
 /**
  * Convert a single Gemini Part to LlmContent.
@@ -148,4 +149,46 @@ export function convertPartListUnionToLlmContents(
   }
 
   return result;
+}
+
+// ============================================================================
+// Content-safe message inspectors (replacing messageInspectors.ts)
+// ============================================================================
+
+/**
+ * Check if a Gemini Content represents a tool-call (function call) message.
+ *
+ * Semantically equivalent to the deprecated `isFunctionCall(content)` from
+ * messageInspectors.ts, but routes through provider-independent LlmContent
+ * type guards.
+ *
+ * Safety guarantees vs raw `isToolCallMessage(convertContentToLlmMessage(…))`:
+ * - Direct role check — avoids mapRole default-to-user fallback for
+ *   undefined roles.
+ * - Parts-count guard — detects parts dropped during conversion
+ *   (e.g. executableCode) so mixed-part messages return false, matching
+ *   original Content.parts.every() semantics.
+ */
+export function isContentToolCallMessage(content: Content): boolean {
+  if (content.role !== 'model') return false;
+  const parts = content.parts;
+  if (!parts || parts.length === 0) return false;
+  const llmMessage = convertContentToLlmMessage(content);
+  if (llmMessage.content.length !== parts.length) return false;
+  return llmMessage.content.every((c) => isToolCallContent(c));
+}
+
+/**
+ * Check if a Gemini Content represents a tool-result (function response) message.
+ *
+ * Semantically equivalent to the deprecated `isFunctionResponse(content)` from
+ * messageInspectors.ts. See {@link isContentToolCallMessage} for safety details.
+ */
+export function isContentToolResultMessage(content: Content): boolean {
+  if (content.role !== 'user') return false;
+  const parts = content.parts;
+  if (!parts || parts.length === 0) return false;
+  const llmMessage = convertContentToLlmMessage(content);
+  if (llmMessage.content.length !== parts.length) return false;
+  return llmMessage.content.every((c) => isToolResultContent(c));
 }

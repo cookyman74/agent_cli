@@ -20,8 +20,10 @@ import {
   LlmLoopCheckEvent,
 } from '../telemetry/types.js';
 import type { Config } from '../config/config.js';
-import { isToolCallMessage, isToolResultMessage } from '../utils/llmUtils.js';
-import { convertContentToLlmMessage } from '../utils/geminiTypeConversion.js';
+import {
+  isContentToolCallMessage,
+  isContentToolResultMessage,
+} from '../utils/geminiTypeConversion.js';
 import { debugLogger } from '../utils/debugLogger.js';
 
 const TOOL_CALL_LOOP_THRESHOLD = 5;
@@ -403,9 +405,7 @@ export class LoopDetectionService {
     // until the last turn is not a function call.
     while (
       recentHistory.length > 0 &&
-      isToolCallMessage(
-        convertContentToLlmMessage(recentHistory[recentHistory.length - 1]),
-      )
+      isContentToolCallMessage(recentHistory[recentHistory.length - 1])
     ) {
       recentHistory.pop();
     }
@@ -415,7 +415,7 @@ export class LoopDetectionService {
     // until the first turn is not a function response.
     while (
       recentHistory.length > 0 &&
-      isToolResultMessage(convertContentToLlmMessage(recentHistory[0]))
+      isContentToolResultMessage(recentHistory[0])
     ) {
       recentHistory.shift();
     }
@@ -437,10 +437,7 @@ export class LoopDetectionService {
       ...trimmedHistory,
       { role: 'user', parts: [{ text: taskPrompt }] },
     ];
-    if (
-      contents.length > 0 &&
-      isToolCallMessage(convertContentToLlmMessage(contents[0]))
-    ) {
+    if (contents.length > 0 && isContentToolCallMessage(contents[0])) {
       contents.unshift({
         role: 'user',
         parts: [{ text: 'Recent conversation history:' }],

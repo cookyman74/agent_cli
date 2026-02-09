@@ -554,21 +554,21 @@ OpenAI 메시지/툴/스트림 변환기 구현
 
 ### 3.2.0 사전 준비
 
-| ID      | 작업                                  | 상태 | 테스트 파일        | 비고                                                         |
-| ------- | ------------------------------------- | ---- | ------------------ | ------------------------------------------------------------ |
-| 3.2.0.1 | `openai` SDK 의존성 설치              | ⬜   | N/A                | `npm install openai` — packages/core/package.json에 추가     |
-| 3.2.0.2 | ProviderRegistry에 OpenAI 팩토리 등록 | ⬜   | `registry.test.ts` | 부트스트랩에 `register('openai', openaiAdapterFactory)` 추가 |
+| ID      | 작업                                  | 상태 | 테스트 파일         | 비고                                                                    |
+| ------- | ------------------------------------- | ---- | ------------------- | ----------------------------------------------------------------------- |
+| 3.2.0.1 | `openai` SDK 의존성 설치              | ✅   | N/A                 | `openai@^6.18.0` 설치 (설계서 ^4.70.0보다 최신)                         |
+| 3.2.0.2 | ProviderRegistry에 OpenAI 팩토리 등록 | ✅   | `bootstrap.test.ts` | `bootstrapOpenAiProvider()` — has() 가드, singleton 기본값, config 전달 |
 
-### 3.2.1 OpenAIAdapter 구현
+### 3.2.1 OpenAiAdapter 구현
 
-| ID      | 작업                           | 상태 | 테스트 파일             |
-| ------- | ------------------------------ | ---- | ----------------------- |
-| 3.2.1.1 | `OpenAIAdapter` 클래스 생성    | ⬜   | `openaiAdapter.test.ts` |
-| 3.2.1.2 | `BaseAdapter` 상속 구현        | ⬜   | `openaiAdapter.test.ts` |
-| 3.2.1.3 | OpenAI SDK 연동                | ⬜   | `openaiAdapter.test.ts` |
-| 3.2.1.4 | `generate()` 메서드 구현       | ⬜   | `openaiAdapter.test.ts` |
-| 3.2.1.5 | `generateStream()` 메서드 구현 | ⬜   | `openaiAdapter.test.ts` |
-| 3.2.1.6 | `getCapabilities()` 구현       | ⬜   | `openaiAdapter.test.ts` |
+| ID      | 작업                           | 상태 | 테스트 파일       | 비고                                                                |
+| ------- | ------------------------------ | ---- | ----------------- | ------------------------------------------------------------------- |
+| 3.2.1.1 | `OpenAiAdapter` 클래스 생성    | ✅   | `adapter.test.ts` | DI 패턴: `OpenAiClient` 인터페이스                                  |
+| 3.2.1.2 | `BaseAdapter` 상속 구현        | ✅   | `adapter.test.ts` | validateRequest, mapToProviderConfig 구현                           |
+| 3.2.1.3 | OpenAI SDK 연동                | ✅   | `adapter.test.ts` | `client.chat.completions.create()` 호출                             |
+| 3.2.1.4 | `generateContent()` 구현       | ✅   | `adapter.test.ts` | 변환→호출→역변환 패턴, classifyError 에러 분류                      |
+| 3.2.1.5 | `generateContentStream()` 구현 | ⚠️   | `adapter.test.ts` | M3.2.A: 스켈레톤 (stream=true + yield 루프), M3.2.B에서 변환기 완성 |
+| 3.2.1.6 | capabilities 선언              | ✅   | `adapter.test.ts` | `supportsTokenCount: false`, `supportsThought: false`               |
 
 **TDD 시나리오**:
 
@@ -609,14 +609,14 @@ describe('OpenAIAdapter', () => {
 
 ### 3.2.2 OpenAI 메시지 변환기
 
-| ID      | 작업                             | 상태 | 테스트 파일               |
-| ------- | -------------------------------- | ---- | ------------------------- |
-| 3.2.2.1 | `toOpenAIMessage()` 변환 함수    | ⬜   | `openaiConverter.test.ts` |
-| 3.2.2.2 | System 메시지 순서 처리          | ⬜   | `openaiConverter.test.ts` |
-| 3.2.2.3 | 이미지 URL 처리                  | ⬜   | `openaiConverter.test.ts` |
-| 3.2.2.4 | `toOpenAITool()` 변환 함수       | ⬜   | `openaiConverter.test.ts` |
-| 3.2.2.5 | `fromOpenAIResponse()` 변환 함수 | ⬜   | `openaiConverter.test.ts` |
-| 3.2.2.6 | JSON mode 매핑                   | ⬜   | `openaiConverter.test.ts` |
+| ID      | 작업                        | 상태 | 테스트 파일         | 비고                                                    |
+| ------- | --------------------------- | ---- | ------------------- | ------------------------------------------------------- |
+| 3.2.2.1 | `toOpenAiMessages()` 변환   | ✅   | `converter.test.ts` | 4 role (system/user/assistant/tool) + 혼합 content 처리 |
+| 3.2.2.2 | System 메시지 순서 처리     | ✅   | `converter.test.ts` | systemInstruction → 첫 번째 system 메시지로 prepend     |
+| 3.2.2.3 | 이미지 URL/base64 처리      | ✅   | `converter.test.ts` | URL 직접 전달, base64→data URI 변환                     |
+| 3.2.2.4 | `toOpenAiTools()` 변환      | ✅   | `converter.test.ts` | `{ type: 'function', function: {...} }` 래핑            |
+| 3.2.2.5 | `fromOpenAiResponse()` 변환 | ✅   | `converter.test.ts` | text, tool_calls, usage, cached_tokens 추출             |
+| 3.2.2.6 | JSON mode 매핑              | ✅   | `converter.test.ts` | `responseFormat: 'json'` → `{ type: 'json_object' }`    |
 
 **TDD 시나리오**:
 
@@ -657,28 +657,28 @@ describe('OpenAI Message Converter', () => {
 
 ### 3.2.3 OpenAI 스트림 변환기
 
-| ID      | 작업                           | 상태 | 테스트 파일            |
-| ------- | ------------------------------ | ---- | ---------------------- |
-| 3.2.3.1 | `fromOpenAIStreamEvent()` 변환 | ⬜   | `openaiStream.test.ts` |
-| 3.2.3.2 | 텍스트 델타 처리               | ⬜   | `openaiStream.test.ts` |
-| 3.2.3.3 | Tool call 델타 처리            | ⬜   | `openaiStream.test.ts` |
-| 3.2.3.4 | Usage 정보 추출                | ⬜   | `openaiStream.test.ts` |
+| ID      | 작업                        | 상태 | 테스트 파일         | 비고        |
+| ------- | --------------------------- | ---- | ------------------- | ----------- |
+| 3.2.3.1 | `convertStreamEvent()` 변환 | ⬜   | `converter.test.ts` | M3.2.B 범위 |
+| 3.2.3.2 | 텍스트 델타 처리            | ⬜   | `converter.test.ts` | M3.2.B 범위 |
+| 3.2.3.3 | Tool call 델타 처리         | ⬜   | `converter.test.ts` | M3.2.B 범위 |
+| 3.2.3.4 | Usage 정보 추출             | ⬜   | `converter.test.ts` | M3.2.B 범위 |
 
 ### 3.2.4 OpenAI 에러 매핑
 
-| ID      | 작업                 | 상태 | 테스트 파일            |
-| ------- | -------------------- | ---- | ---------------------- |
-| 3.2.4.1 | OpenAI SDK 에러 분석 | ⬜   | N/A (분석)             |
-| 3.2.4.2 | Rate limit 에러 매핑 | ⬜   | `openaiErrors.test.ts` |
-| 3.2.4.3 | Auth 에러 매핑       | ⬜   | `openaiErrors.test.ts` |
-| 3.2.4.4 | 에러 변환 유틸 함수  | ⬜   | `openaiErrors.test.ts` |
+| ID      | 작업                 | 상태 | 테스트 파일       | 비고                                                                  |
+| ------- | -------------------- | ---- | ----------------- | --------------------------------------------------------------------- |
+| 3.2.4.1 | OpenAI SDK 에러 분석 | ✅   | N/A (분석)        | M3.2.A 사전작업에서 SDK d.ts 전수 분석 완료                           |
+| 3.2.4.2 | Rate limit 에러 매핑 | ✅   | `adapter.test.ts` | 429→RateLimitError, Claude와 동일 패턴                                |
+| 3.2.4.3 | Auth 에러 매핑       | ✅   | `adapter.test.ts` | 401/403→AuthenticationError                                           |
+| 3.2.4.4 | 에러 변환 유틸 함수  | ✅   | `adapter.test.ts` | `classifyError()` — 8 status code + message heuristic + LlmError 보존 |
 
 **검증 기준**:
 
-- [ ] OpenAI 기본 대화 동작
-- [ ] OpenAI 스트리밍 동작
-- [ ] OpenAI 도구 호출 동작
-- [ ] OpenAI JSON mode 동작
+- [x] OpenAI 기본 대화 동작
+- [ ] OpenAI 스트리밍 동작 (M3.2.B)
+- [x] OpenAI 도구 호출 동작
+- [x] OpenAI JSON mode 동작
 
 ---
 

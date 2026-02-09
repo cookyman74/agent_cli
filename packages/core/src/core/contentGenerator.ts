@@ -46,6 +46,13 @@ import {
   createAdapterBridge,
   type BridgeableGenerator,
 } from '../providers/gemini/adapterBridge.js';
+import { isMultiProviderEnabled } from '../providers/gemini/featureFlag.js';
+import { selectProvider } from '../providers/providerSelector.js';
+import { ProviderType } from '../providers/providerTypes.js';
+import { ProviderFactory } from '../providers/factory.js';
+import { bootstrapGeminiProvider } from '../providers/gemini/bootstrap.js';
+import type { BaseAdapter } from '../providers/baseAdapter.js';
+import type { AuthType as ProviderAuthType } from '../providers/providerTypes.js';
 
 /**
  * Gemini-specific content generator interface.
@@ -113,6 +120,53 @@ export function isProviderIndependentGenerator(
  * or ContentGenerator from '../providers/types.js' for multi-provider code.
  */
 export type ContentGenerator = GeminiContentGenerator;
+
+/**
+ * Wrap a provider-independent BaseAdapter as a GeminiContentGenerator.
+ *
+ * Legacy methods (generateContent, etc.) throw because non-Gemini providers
+ * do not support Gemini SDK types. Provider-independent llm* methods
+ * delegate to the adapter.
+ *
+ * Callers should use `isProviderIndependentGenerator()` to detect llm*
+ * availability before calling legacy methods.
+ */
+function wrapAdapterAsGenerator(adapter: BaseAdapter): GeminiContentGenerator {
+  return {
+    generateContent: () => {
+      throw new Error(
+        `Provider "${adapter.providerName}" does not support legacy Gemini API. Use llm* methods.`,
+      );
+    },
+    generateContentStream: () => {
+      throw new Error(
+        `Provider "${adapter.providerName}" does not support legacy Gemini API. Use llm* methods.`,
+      );
+    },
+    countTokens: () => {
+      throw new Error(
+        `Provider "${adapter.providerName}" does not support legacy Gemini API. Use llm* methods.`,
+      );
+    },
+    embedContent: () => {
+      throw new Error(
+        `Provider "${adapter.providerName}" does not support legacy Gemini API. Use llm* methods.`,
+      );
+    },
+    llmGenerateContent: (
+      request: LlmGenerateRequest,
+      userPromptId: string,
+      options?: GenerateOptions,
+    ) => adapter.generateContent(request, userPromptId, options),
+    llmGenerateContentStream: (
+      request: LlmGenerateRequest,
+      userPromptId: string,
+      options?: GenerateOptions,
+    ) => adapter.generateContentStream(request, userPromptId, options),
+    llmCountTokens: (request: LlmGenerateRequest) =>
+      adapter.countTokens(request),
+  };
+}
 
 export enum AuthType {
   LOGIN_WITH_GOOGLE = 'oauth-personal',
@@ -212,6 +266,33 @@ export async function createContentGenerator(
     ) {
       baseHeaders['Authorization'] = `Bearer ${config.apiKey}`;
     }
+
+    // ====================================================================
+    // Multi-provider selection (ENABLE_MULTI_PROVIDER=true)
+    // When a non-Gemini provider is selected, route through ProviderFactory
+    // instead of the hardcoded GoogleGenAI path below.
+    // ====================================================================
+    if (isMultiProviderEnabled()) {
+      const selection = selectProvider({
+        authType: config.authType as unknown as ProviderAuthType,
+      });
+
+      if (selection.type !== ProviderType.Gemini) {
+        // Non-Gemini provider: use ProviderFactory
+        bootstrapGeminiProvider();
+        const factory = new ProviderFactory();
+        const adapter = factory.create(selection.type, {
+          apiKey: selection.apiKey,
+          baseUrl: selection.baseUrl,
+        });
+        return new LoggingContentGenerator(
+          wrapAdapterAsGenerator(adapter),
+          gcConfig,
+        );
+      }
+      // Gemini selected: fall through to existing Gemini paths below
+    }
+
     if (
       config.authType === AuthType.LOGIN_WITH_GOOGLE ||
       config.authType === AuthType.COMPUTE_ADC

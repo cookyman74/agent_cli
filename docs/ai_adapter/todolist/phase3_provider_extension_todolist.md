@@ -57,7 +57,7 @@ code to pass. Ensure cross-provider compatibility through integration tests.
 | 11   | `geminiTypeConversion.ts` 브릿지 정리     | Medium   | ✅ 해소됨   | M3.0.4                       |
 | 12   | `telemetry/sdk.ts` 시그널 핸들러 누수     | Medium   | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
 | M2.7 | Agent/Telemetry 결합 해소                 | Watch    | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
-| 신규 | 런타임 실행 경로 연결 (ProviderFactory)   | High     | ⬜ → M3.0   | M3.0.5 (리뷰 #1 반영)        |
+| 신규 | 런타임 실행 경로 연결 (ProviderFactory)   | High     | ✅ 해소됨   | M3.0.5                       |
 | 신규 | root index.ts re-export 회귀 테스트       | Medium   | ✅ 해소됨   | M3.0.1.5 (`f56845dab`)       |
 | 신규 | 프로바이더별 registry.register() 작업     | High     | ⬜ → M3.1~3 | M3.1.0.2/M3.2.0.2/M3.3.0.1   |
 | 신규 | SDK 의존성 설치 (@anthropic-ai, openai)   | Low      | ⬜ → M3.1~2 | M3.1.0.1/M3.2.0.1            |
@@ -208,13 +208,13 @@ M3.0 착수 전 다음 Open Question의 잠정 결정 권장:
 
 ### 3.0.5 런타임 실행 경로 연결 (리뷰 #1 반영)
 
-| ID      | 작업                                                                    | 상태 | 테스트 파일                                                     | 비고                                                                                                                                     |
-| ------- | ----------------------------------------------------------------------- | ---- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 3.0.5.1 | `contentGenerator.ts` — `createContentGenerator()` 프로바이더 분기 추가 | ⬜   | `contentGenerator.test.ts`                                      | 현재 `new GoogleGenAI()` 하드코딩 → ProviderFactory 연결                                                                                 |
-| 3.0.5.2 | `ProviderFactory` → 런타임 CLI 경로 통합                                | ⬜   | `contentGenerator.test.ts`, `providerConfigIntegration.test.ts` | 실제 런타임 분기점은 `createContentGenerator()` (L167). factory.ts 경로가 contentGenerator에서 호출되는지 런타임 wiring 테스트 필수      |
-| 3.0.5.3 | `ENABLE_MULTI_PROVIDER` 플래그 분기 확장 및 검증                        | ⬜   | `contentGenerator.test.ts`                                      | 현재: adapterBridge에서만 제어. 목표: contentGenerator에서 프로바이더 선택 분기점으로 확장. off → 기존 Gemini, on → ProviderFactory 경로 |
-| 3.0.5.4 | `ProviderRegistry`에 Gemini 어댑터 팩토리 등록 부트스트랩 구현          | ⬜   | `registry.test.ts`, `contentGenerator.test.ts`                  | 아래 "레지스트리 부트스트랩 설계" 참조. 중복 등록 안전성 + 초기화 위치 결정 필수                                                         |
-| 3.0.5.5 | 프로바이더 선택 우선순위 통합 및 회귀 테스트                            | ⬜   | `contentGenerator.test.ts`                                      | 아래 우선순위 표 참조. 현재 2개 분리 시스템(contentGenerator authType vs providerSelector LLM_PROVIDER) 통합 필요                        |
+| ID      | 작업                                                                    | 상태 | 테스트 파일                                     | 비고                                                                                                |
+| ------- | ----------------------------------------------------------------------- | ---- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 3.0.5.1 | `contentGenerator.ts` — `createContentGenerator()` 프로바이더 분기 추가 | ✅   | `contentGenerator.multiProvider.test.ts`        | 멀티 프로바이더 분기 + `wrapAdapterAsGenerator()` 추가                                              |
+| 3.0.5.2 | `ProviderFactory` → 런타임 CLI 경로 통합                                | ✅   | `contentGenerator.multiProvider.test.ts`        | `ProviderFactory.create()` 호출이 contentGenerator에서 런타임 도달 확인 (시나리오 4, 5)             |
+| 3.0.5.3 | `ENABLE_MULTI_PROVIDER` 플래그 분기 확장 및 검증                        | ✅   | `contentGenerator.multiProvider.test.ts`        | off→레거시(시나리오 1,2), on+Gemini→fall-through(시나리오 3,6,7), on+비Gemini→Factory(시나리오 4,5) |
+| 3.0.5.4 | `ProviderRegistry`에 Gemini 어댑터 팩토리 등록 부트스트랩 구현          | ✅   | `bootstrap.test.ts` (7개)                       | `has()` 가드 패턴 채택. `bootstrapGeminiProvider()` in `providers/gemini/bootstrap.ts`              |
+| 3.0.5.5 | 프로바이더 선택 우선순위 통합 및 회귀 테스트                            | ✅   | `contentGenerator.multiProvider.test.ts` (10개) | 7개 회귀 시나리오 전수 통과 + 3개 추가 (llm 위임, 레거시 throw, 부트스트랩 멱등)                    |
 
 ⚠️ **주의**: 이 작업 없이는 신규 프로바이더 어댑터(M3.1~M3.3)를 구현해도
 런타임에서 도달 불가. `createContentGenerator()` (contentGenerator.ts:167-259,
@@ -288,29 +288,29 @@ M3.1.0.2/M3.2.0.2/M3.3.0.1 모두 동일한 `has()` 가드 패턴 적용.
 
 | ENABLE_MULTI_PROVIDER | LLM_PROVIDER | authType      | 기대 결과 | 테스트                        |
 | --------------------- | ------------ | ------------- | --------- | ----------------------------- |
-| false                 | (미설정)     | USE_GEMINI    | Gemini    | ⬜                            |
-| false                 | claude       | USE_GEMINI    | Gemini    | ⬜ (플래그 off → 레거시 경로) |
-| true                  | (미설정)     | USE_GEMINI    | Gemini    | ⬜                            |
-| true                  | claude       | (미설정)      | Claude    | ⬜                            |
-| true                  | openai       | USE_VERTEX_AI | OpenAI    | ⬜ (LLM_PROVIDER 우선)        |
-| true                  | (미설정)     | USE_VERTEX_AI | Gemini    | ⬜                            |
-| true                  | (미설정)     | (미설정)      | Gemini    | ⬜ (기본값 폴백)              |
+| false                 | (미설정)     | USE_GEMINI    | Gemini    | ✅                            |
+| false                 | claude       | USE_GEMINI    | Gemini    | ✅ (플래그 off → 레거시 경로) |
+| true                  | (미설정)     | USE_GEMINI    | Gemini    | ✅                            |
+| true                  | claude       | (미설정)      | Claude    | ✅                            |
+| true                  | openai       | USE_VERTEX_AI | OpenAI    | ✅ (LLM_PROVIDER 우선)        |
+| true                  | (미설정)     | USE_VERTEX_AI | Gemini    | ✅                            |
+| true                  | (미설정)     | (미설정)      | Gemini    | ✅ (기본값 폴백)              |
 
 **검증 기준**:
 
-- [ ] `core/geminiChat.ts` → `providers/gemini/chat.ts` 이동 완료
-- [ ] `core/turn.ts` Gemini 특화 분리 완료
-- [ ] root `index.ts` re-export 회귀 테스트 통과 (CLI import 호환성)
-- [ ] messageInspectors 4개 파일 마이그레이션 완료
-- [ ] 텔레메트리 레이어 @google/genai 독립화
-- [ ] LocalAgentExecutor GeminiChat 직접 결합 해소
-- [ ] `createContentGenerator()` → ProviderFactory 런타임 연결 완료
-- [ ] `ENABLE_MULTI_PROVIDER=true` 시 ProviderFactory 경로 도달 검증
-- [ ] `registry.register('gemini', ...)` 부트스트랩 동작 확인
-- [ ] 부트스트랩 중복 호출 시 예외 미발생 (has() 가드 또는 force 정책)
-- [ ] 프로바이더 선택 우선순위 7개 회귀 시나리오 전수 통과
-- [ ] 모든 기존 테스트 100% 통과
-- [ ] TypeScript 컴파일 에러 없음
+- [x] `core/geminiChat.ts` → `providers/gemini/chat.ts` 이동 완료
+- [x] `core/turn.ts` Gemini 특화 분리 완료
+- [x] root `index.ts` re-export 회귀 테스트 통과 (CLI import 호환성)
+- [x] messageInspectors 4개 파일 마이그레이션 완료
+- [x] 텔레메트리 레이어 @google/genai 독립화
+- [x] LocalAgentExecutor GeminiChat 직접 결합 해소
+- [x] `createContentGenerator()` → ProviderFactory 런타임 연결 완료
+- [x] `ENABLE_MULTI_PROVIDER=true` 시 ProviderFactory 경로 도달 검증
+- [x] `registry.register('gemini', ...)` 부트스트랩 동작 확인
+- [x] 부트스트랩 중복 호출 시 예외 미발생 (has() 가드 또는 force 정책)
+- [x] 프로바이더 선택 우선순위 7개 회귀 시나리오 전수 통과
+- [x] 모든 기존 테스트 100% 통과
+- [x] TypeScript 컴파일 에러 없음
 
 ---
 

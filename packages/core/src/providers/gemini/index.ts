@@ -46,3 +46,4 @@ export {
   isContentToolCallMessage,
   isContentToolResultMessage,
 } from './typeConversion.js';
+export { bootstrapGeminiProvider } from './bootstrap.js';

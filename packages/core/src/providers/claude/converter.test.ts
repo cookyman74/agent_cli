@@ -939,4 +939,228 @@ describe('ClaudeConverter', () => {
       expect((result[0]['text'] as string).toLowerCase()).toContain('url');
     });
   });
+
+  // ==============================================================
+  // M3.1.2 — 메시지 변환 고도화
+  // ==============================================================
+
+  describe('M3.1.2: consecutive same-role message merging', () => {
+    it('should merge consecutive user messages into one', () => {
+      const messages: LlmMessage[] = [
+        { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        { role: 'user', content: [{ type: 'text', text: 'How are you?' }] },
+      ];
+
+      const result = converter.toClaudeMessages(messages);
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0]['role']).toBe('user');
+      const content = result.messages[0]['content'] as Array<
+        Record<string, unknown>
+      >;
+      expect(content).toHaveLength(2);
+      expect(content[0]['text']).toBe('Hello');
+      expect(content[1]['text']).toBe('How are you?');
+    });
+
+    it('should merge consecutive tool messages (mapped to user) into one', () => {
+      const messages: LlmMessage[] = [
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool_result',
+              toolCallId: 'call-1',
+              content: 'result-1',
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool_result',
+              toolCallId: 'call-2',
+              content: 'result-2',
+            },
+          ],
+        },
+      ];
+
+      const result = converter.toClaudeMessages(messages);
+
+      // Both tool messages map to 'user' — should be merged
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0]['role']).toBe('user');
+      const content = result.messages[0]['content'] as Array<
+        Record<string, unknown>
+      >;
+      expect(content).toHaveLength(2);
+    });
+
+    it('should merge user followed by tool (both user role) into one', () => {
+      const messages: LlmMessage[] = [
+        { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool_result',
+              toolCallId: 'call-1',
+              content: 'result',
+            },
+          ],
+        },
+      ];
+
+      const result = converter.toClaudeMessages(messages);
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0]['role']).toBe('user');
+    });
+
+    it('should not merge messages with different roles', () => {
+      const messages: LlmMessage[] = [
+        { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Hi there' }],
+        },
+        { role: 'user', content: [{ type: 'text', text: 'Thanks' }] },
+      ];
+
+      const result = converter.toClaudeMessages(messages);
+
+      expect(result.messages).toHaveLength(3);
+    });
+
+    it('should merge consecutive assistant messages into one', () => {
+      const messages: LlmMessage[] = [
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Let me think.' }],
+        },
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_call',
+              id: 'call-1',
+              name: 'read_file',
+              arguments: { path: '/tmp/a.txt' },
+            },
+          ],
+        },
+      ];
+
+      const result = converter.toClaudeMessages(messages);
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0]['role']).toBe('assistant');
+      const content = result.messages[0]['content'] as Array<
+        Record<string, unknown>
+      >;
+      expect(content).toHaveLength(2);
+    });
+  });
+
+  describe('M3.1.2: empty text content filtering', () => {
+    it('should filter out empty text content blocks', () => {
+      const result = converter.toClaudeContent([
+        { type: 'text', text: '' },
+        { type: 'text', text: 'Hello' },
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]['text']).toBe('Hello');
+    });
+
+    it('should return empty array when all text blocks are empty', () => {
+      const result = converter.toClaudeContent([{ type: 'text', text: '' }]);
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('M3.1.2: RedactedThinkingBlock handling', () => {
+    it('should convert redacted_thinking block to thought with redacted marker', () => {
+      const response = {
+        id: 'msg_123',
+        type: 'message',
+        role: 'assistant',
+        content: [
+          { type: 'redacted_thinking', data: 'abc123encoded' },
+          { type: 'text', text: 'The answer is 42.' },
+        ],
+        model: 'claude-3-5-sonnet-20241022',
+        stop_reason: 'end_turn',
+        usage: { input_tokens: 10, output_tokens: 20 },
+      };
+
+      const result = converter.fromClaudeResponse(
+        response,
+        'claude-3-5-sonnet-20241022',
+      );
+
+      expect(result.content).toHaveLength(2);
+      expect(result.content[0].type).toBe('thought');
+      const thought = result.content[0] as {
+        thought: string;
+        metadata?: Record<string, unknown>;
+      };
+      expect(thought.metadata?.['redacted']).toBe(true);
+      expect(result.content[1].type).toBe('text');
+    });
+  });
+
+  describe('M3.1.2: extractUsage cache_creation_input_tokens', () => {
+    it('should include cache_creation_input_tokens in usage', () => {
+      const response = {
+        id: 'msg_cache',
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'ok' }],
+        model: 'claude-3-5-sonnet-20241022',
+        stop_reason: 'end_turn',
+        usage: {
+          input_tokens: 100,
+          output_tokens: 10,
+          cache_read_input_tokens: 50,
+          cache_creation_input_tokens: 80,
+        },
+      };
+
+      const result = converter.fromClaudeResponse(
+        response,
+        'claude-3-5-sonnet-20241022',
+      );
+
+      expect(result.usage!.cachedTokens).toBe(50);
+      expect(
+        (result.usage as Record<string, unknown>)['cacheCreationTokens'],
+      ).toBe(80);
+    });
+  });
+
+  describe('M3.1.2: toClaudeRequest/toCountTokensRequest DRY', () => {
+    it('should produce consistent system handling between both methods', () => {
+      const request: LlmGenerateRequest = {
+        model: 'claude-3-5-sonnet-20241022',
+        messages: [
+          {
+            role: 'system',
+            content: [{ type: 'text', text: 'System from messages' }],
+          },
+          { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        ],
+        systemInstruction: 'Top-level instruction',
+      };
+
+      const createParams = converter.toClaudeRequest(request);
+      const countParams = converter.toCountTokensRequest(request);
+
+      // Both should produce the same system value
+      expect(createParams['system']).toBe(countParams['system']);
+    });
+  });
 });

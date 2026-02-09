@@ -59,27 +59,8 @@ export class ClaudeConverter {
    * Convert LlmGenerateRequest to Anthropic MessageCreateParams.
    */
   toClaudeRequest(request: LlmGenerateRequest): Record<string, unknown> {
-    const { messages, system: msgSystem } = this.toClaudeMessages(
-      request.messages,
-    );
-
-    // Merge systemInstruction from request and messages
-    let finalSystem: string | undefined;
-    if (request.systemInstruction && msgSystem) {
-      finalSystem = `${request.systemInstruction}\n${msgSystem}`;
-    } else {
-      finalSystem = request.systemInstruction || msgSystem || undefined;
-    }
-
-    const params: Record<string, unknown> = {
-      model: request.model,
-      messages,
-      max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
-    };
-
-    if (finalSystem) {
-      params['system'] = finalSystem;
-    }
+    const params = this.buildBaseParams(request);
+    params['max_tokens'] = request.maxTokens ?? DEFAULT_MAX_TOKENS;
 
     // Generation parameters
     if (request.temperature !== undefined) {
@@ -93,16 +74,6 @@ export class ClaudeConverter {
     }
     if (request.stopSequences !== undefined) {
       params['stop_sequences'] = request.stopSequences;
-    }
-
-    // Tools
-    if (request.tools && request.tools.length > 0) {
-      params['tools'] = this.toClaudeTools(request.tools);
-    }
-
-    // Tool choice
-    if (request.toolChoice) {
-      params['tool_choice'] = this.toClaudeToolChoice(request.toolChoice);
     }
 
     return params;
@@ -133,7 +104,16 @@ export class ClaudeConverter {
       const role = msg.role === 'assistant' ? 'assistant' : 'user';
 
       const content = this.toClaudeContent(msg.content);
-      if (content.length > 0) {
+      if (content.length === 0) {
+        continue;
+      }
+
+      // Merge consecutive messages with the same role (Anthropic API requirement)
+      const last = claudeMessages[claudeMessages.length - 1];
+      if (last && last['role'] === role) {
+        const existing = last['content'] as Array<Record<string, unknown>>;
+        existing.push(...content);
+      } else {
         claudeMessages.push({ role, content });
       }
     }
@@ -153,7 +133,9 @@ export class ClaudeConverter {
     for (const content of contents) {
       switch (content.type) {
         case 'text':
-          blocks.push({ type: 'text', text: content.text });
+          if (content.text) {
+            blocks.push({ type: 'text', text: content.text });
+          }
           break;
 
         case 'tool_call':
@@ -252,6 +234,16 @@ export class ClaudeConverter {
    * Only includes fields valid for countTokens (no generation parameters).
    */
   toCountTokensRequest(request: LlmGenerateRequest): Record<string, unknown> {
+    return this.buildBaseParams(request);
+  }
+
+  /**
+   * Build base request params shared between create and countTokens.
+   * Includes: model, messages, system, tools, tool_choice.
+   */
+  private buildBaseParams(
+    request: LlmGenerateRequest,
+  ): Record<string, unknown> {
     const { messages, system: msgSystem } = this.toClaudeMessages(
       request.messages,
     );
@@ -341,6 +333,14 @@ export class ClaudeConverter {
           });
           break;
 
+        case 'redacted_thinking':
+          contents.push({
+            type: 'thought',
+            thought: '[redacted]',
+            metadata: { provider: 'claude', redacted: true },
+          });
+          break;
+
         default:
           break;
       }
@@ -374,12 +374,19 @@ export class ClaudeConverter {
     const usage = response['usage'] as Record<string, number> | undefined;
     const inputTokens = usage?.['input_tokens'] ?? 0;
     const outputTokens = usage?.['output_tokens'] ?? 0;
-    return {
+    const result: LlmTokenUsage & { cacheCreationTokens?: number } = {
       promptTokens: inputTokens,
       completionTokens: outputTokens,
       totalTokens: inputTokens + outputTokens,
       cachedTokens: usage?.['cache_read_input_tokens'] ?? 0,
     };
+
+    const cacheCreation = usage?.['cache_creation_input_tokens'];
+    if (cacheCreation) {
+      result.cacheCreationTokens = cacheCreation;
+    }
+
+    return result;
   }
 
   // ============================================================================

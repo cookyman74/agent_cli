@@ -33,6 +33,13 @@ import { LoggingContentGenerator } from './loggingContentGenerator.js';
 // ============================================================================
 
 vi.mock('@google/genai');
+vi.mock('@anthropic-ai/sdk', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    messages: {
+      create: vi.fn(),
+    },
+  })),
+}));
 vi.mock('../code_assist/codeAssist.js');
 vi.mock('./apiKeyCredentialStorage.js', () => ({
   loadApiKey: vi.fn(),
@@ -277,6 +284,27 @@ describe('Multi-provider selection in createContentGenerator', () => {
 
     expect(GoogleGenAI).toHaveBeenCalled();
     expect(generator).toBeInstanceOf(LoggingContentGenerator);
+  });
+
+  // ========================================================================
+  // Scenario 10: flag=true, LLM_PROVIDER=claude, no manual registration
+  //              → auto-bootstrap via bootstrapClaudeProvider() in contentGenerator
+  //              (Review fix: non-Gemini providers must be bootstrapped at runtime)
+  // ========================================================================
+  it('Scenario 10: flag=true, LLM_PROVIDER=claude → auto-bootstrap without manual registration', async () => {
+    setMultiProviderOverride(true);
+    vi.stubEnv('LLM_PROVIDER', 'claude');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-claude-key');
+
+    // Do NOT manually register Claude — rely on bootstrapClaudeProvider() in contentGenerator
+    const generator = await createContentGenerator({}, createMockConfig());
+
+    // Should NOT use GoogleGenAI
+    expect(GoogleGenAI).not.toHaveBeenCalled();
+    // Should return LoggingContentGenerator wrapping the Claude adapter
+    expect(generator).toBeInstanceOf(LoggingContentGenerator);
+    // The wrapped generator should have llm* methods
+    expect(isProviderIndependentGenerator(generator)).toBe(true);
   });
 
   // ========================================================================

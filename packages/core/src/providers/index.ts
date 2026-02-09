@@ -68,3 +68,9 @@ export * from './legacyAliases.js';
 // Then: Gemini.GeminiEventType, Gemini.ServerGeminiStreamEvent, etc.
 import * as Gemini from './gemini/index.js';
 export { Gemini };
+
+// Claude provider types (Phase 3 - M3.1)
+// Use: import { Claude } from '@google/gemini-cli-core/providers'
+// Then: Claude.ClaudeAdapter, Claude.bootstrapClaudeProvider, etc.
+import * as Claude from './claude/index.js';
+export { Claude };

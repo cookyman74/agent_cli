@@ -122,7 +122,70 @@ Claude 프로바이더의 기초 인프라를 구성한다:
 - M3.1.3: Claude 스트림 변환기 (RawMessageStreamEvent → LlmEvent)
 - M3.1.4: Claude 에러 매핑 (APIError → LlmError)
 
+## 리뷰 반영 (2026-02-09)
+
+### 이슈 1 (중간): Claude bootstrap 런타임 연결
+
+**문제**: `contentGenerator.ts`의 멀티프로바이더 분기에서
+`bootstrapGeminiProvider()`만 호출되고 `bootstrapClaudeProvider()`는 미호출.
+`LLM_PROVIDER=claude` 시 `Provider not registered` 실패.
+
+**수정**: `contentGenerator.ts`에 `bootstrapClaudeProvider()` import 및 호출
+추가. 비-Gemini 분기에서 `bootstrapGeminiProvider()` 직후에 호출.
+
+```typescript
+bootstrapGeminiProvider();
+bootstrapClaudeProvider();
+```
+
+**회귀 테스트 추가** (1개):
+
+| #   | 시나리오                                       | 기대 결과                           | 결과 |
+| --- | ---------------------------------------------- | ----------------------------------- | ---- |
+| 10  | flag=true, LLM_PROVIDER=claude, 수동 등록 없음 | auto-bootstrap로 Claude 어댑터 생성 | ✅   |
+
+### 이슈 2 (낮음): capability 선언과 실제 구현 상태 불일치
+
+**문제**: `supportsTokenCount: true` 선언되었으나 `countTokens` 미구현 →
+`BaseAdapter` 기본 구현이 "countTokens must be implemented" throw. capability
+기반 분기 코드가 "지원됨"으로 판단 후 호출 시 실패 가능.
+
+**수정**: Skeleton 상태를 반영하여 미구현 기능의 capability를 `false`로 변경.
+`supportsSystemMessage: true`만 유지 (passive capability — converter에서 처리).
+
+```typescript
+supportsStreaming: false,      // M3.1.1
+supportsToolCalls: false,      // M3.1.2
+supportsImageInput: false,     // M3.1.2
+supportsTokenCount: false,     // M3.1.1
+supportsThought: false,        // M3.1.3
+supportsSystemMessage: true,   // passive (maintained)
+```
+
+### 이슈 3 (낮음): providers 배럴 export에서 Claude 미노출
+
+**문제**: `providers/index.ts`에서 Gemini namespace만 export.
+`@google/gemini-cli-core/providers` 경로로 Claude API 접근 불가.
+
+**수정**: `providers/index.ts`에 Claude namespace export 추가.
+
+```typescript
+import * as Claude from './claude/index.js';
+export { Claude };
+```
+
+### Quality Gate (리뷰 반영 후)
+
+| 항목        | 결과                                                    |
+| ----------- | ------------------------------------------------------- |
+| TypeCheck   | ✅ PASS                                                 |
+| ESLint      | ✅ PASS                                                 |
+| 관련 테스트 | ✅ 13/13 (multiProvider)                                |
+| 회귀 테스트 | ✅ 29 files / 493 passed (providers + contentGenerator) |
+
 ## 커밋
 
 - `56a0433f9` feat(providers): M3.1.0 — Claude 사전 준비 (SDK + bootstrap +
   skeleton adapter)
+- `(커밋 ID 기록 예정)` fix(providers): M3.1.0 리뷰 반영 — Claude bootstrap
+  런타임 연결 + capability 보정 + barrel export

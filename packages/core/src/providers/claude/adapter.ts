@@ -39,19 +39,27 @@ export interface ClaudeClient {
 }
 
 /**
- * Claude adapter capabilities.
- * Claude supports streaming, tool calls, image input (base64),
- * token counting, system messages, and extended thinking.
+ * Claude adapter capabilities — skeleton state (M3.1.0).
+ *
+ * Active capabilities (requiring method implementation) are set to false
+ * until the corresponding methods are implemented in M3.1.1+.
+ *
+ * Target capabilities when fully implemented:
+ *   supportsStreaming: true    (M3.1.1: generateContentStream)
+ *   supportsToolCalls: true    (M3.1.2: tool message conversion)
+ *   supportsImageInput: true   (M3.1.2: image message conversion)
+ *   supportsTokenCount: true   (M3.1.1: countTokens override)
+ *   supportsThought: true      (M3.1.3: extended thinking)
  */
 const CLAUDE_CAPABILITIES: LlmProviderCapabilities = {
-  supportsStreaming: true,
-  supportsToolCalls: true,
-  supportsImageInput: true,
+  supportsStreaming: false,
+  supportsToolCalls: false,
+  supportsImageInput: false,
   supportsImageGeneration: false,
   supportsEmbedding: false,
-  supportsTokenCount: true,
+  supportsTokenCount: false,
   supportsSystemMessage: true,
-  supportsThought: true,
+  supportsThought: false,
   maxContextLength: 200_000,
   maxOutputTokens: 8_192,
 };

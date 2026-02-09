@@ -51,6 +51,7 @@ import { selectProvider } from '../providers/providerSelector.js';
 import { ProviderType } from '../providers/providerTypes.js';
 import { ProviderFactory } from '../providers/factory.js';
 import { bootstrapGeminiProvider } from '../providers/gemini/bootstrap.js';
+import { bootstrapClaudeProvider } from '../providers/claude/bootstrap.js';
 import type { BaseAdapter } from '../providers/baseAdapter.js';
 import type { AuthType as ProviderAuthType } from '../providers/providerTypes.js';
 
@@ -279,7 +280,9 @@ export async function createContentGenerator(
 
       if (selection.type !== ProviderType.Gemini) {
         // Non-Gemini provider: use ProviderFactory
+        // Bootstrap all known providers so the factory can resolve any selection.
         bootstrapGeminiProvider();
+        bootstrapClaudeProvider();
         const factory = new ProviderFactory();
         const adapter = factory.create(selection.type, {
           apiKey: selection.apiKey,

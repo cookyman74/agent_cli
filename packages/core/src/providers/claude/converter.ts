@@ -123,7 +123,8 @@ export class ClaudeConverter {
         const textParts = msg.content.filter(
           (c): c is { type: 'text'; text: string } => c.type === 'text',
         );
-        system += textParts.map((c) => c.text).join('\n');
+        const joined = textParts.map((c) => c.text).join('\n');
+        system += system && joined ? '\n' + joined : joined;
         continue;
       }
 

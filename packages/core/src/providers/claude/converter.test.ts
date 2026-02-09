@@ -184,6 +184,24 @@ describe('ClaudeConverter', () => {
       expect(result.system).toContain('You are helpful.');
     });
 
+    it('should join multiple system messages with newline separator', () => {
+      const messages: LlmMessage[] = [
+        {
+          role: 'system',
+          content: [{ type: 'text', text: 'You are helpful.' }],
+        },
+        { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        {
+          role: 'system',
+          content: [{ type: 'text', text: 'Be concise.' }],
+        },
+      ];
+
+      const result = converter.toClaudeMessages(messages);
+
+      expect(result.system).toBe('You are helpful.\nBe concise.');
+    });
+
     it('should handle tool role as user role', () => {
       const messages: LlmMessage[] = [
         {

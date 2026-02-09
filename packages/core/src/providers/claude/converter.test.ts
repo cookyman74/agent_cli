@@ -1136,9 +1136,30 @@ describe('ClaudeConverter', () => {
       );
 
       expect(result.usage!.cachedTokens).toBe(50);
-      expect(
-        (result.usage as Record<string, unknown>)['cacheCreationTokens'],
-      ).toBe(80);
+      // Review #1: cacheCreationTokens should be a typed field on LlmTokenUsage
+      expect(result.usage!.cacheCreationTokens).toBe(80);
+    });
+  });
+
+  describe('M3.1.2 review: empty text + consecutive role merge interaction', () => {
+    it('should merge around skipped empty-text messages', () => {
+      const messages: LlmMessage[] = [
+        { role: 'user', content: [{ type: 'text', text: 'A' }] },
+        { role: 'user', content: [{ type: 'text', text: '' }] },
+        { role: 'user', content: [{ type: 'text', text: 'B' }] },
+      ];
+
+      const result = converter.toClaudeMessages(messages);
+
+      // Empty-text user message is skipped, A and B should merge into one user message
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0]['role']).toBe('user');
+      const content = result.messages[0]['content'] as Array<
+        Record<string, unknown>
+      >;
+      expect(content).toHaveLength(2);
+      expect(content[0]['text']).toBe('A');
+      expect(content[1]['text']).toBe('B');
     });
   });
 

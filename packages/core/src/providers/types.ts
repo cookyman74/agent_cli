@@ -181,6 +181,8 @@ export interface LlmTokenUsage {
   completionTokens: number;
   totalTokens: number;
   cachedTokens?: number;
+  /** Tokens used when creating a new cache entry (e.g. Anthropic prompt caching) */
+  cacheCreationTokens?: number;
   /** Tokens used for extended thinking / chain-of-thought (Gemini thoughts, Claude thinking) */
   thoughtTokens?: number;
   /** Tokens used for tool call prompts */

@@ -374,17 +374,13 @@ export class ClaudeConverter {
     const usage = response['usage'] as Record<string, number> | undefined;
     const inputTokens = usage?.['input_tokens'] ?? 0;
     const outputTokens = usage?.['output_tokens'] ?? 0;
-    const result: LlmTokenUsage & { cacheCreationTokens?: number } = {
+    const result: LlmTokenUsage = {
       promptTokens: inputTokens,
       completionTokens: outputTokens,
       totalTokens: inputTokens + outputTokens,
       cachedTokens: usage?.['cache_read_input_tokens'] ?? 0,
+      cacheCreationTokens: usage?.['cache_creation_input_tokens'] ?? 0,
     };
-
-    const cacheCreation = usage?.['cache_creation_input_tokens'];
-    if (cacheCreation) {
-      result.cacheCreationTokens = cacheCreation;
-    }
 
     return result;
   }

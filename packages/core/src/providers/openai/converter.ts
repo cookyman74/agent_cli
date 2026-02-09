@@ -40,6 +40,8 @@ export interface OpenAiStreamState {
       argumentsJson: string;
     }
   >;
+  /** Prevents duplicate Finished event emission on usage-only final chunk. */
+  finishedEmitted: boolean;
 }
 
 /**
@@ -259,7 +261,7 @@ export class OpenAiConverter {
    * Create a new stream state for processing stream events.
    */
   createStreamState(): OpenAiStreamState {
-    return { currentToolCalls: {} };
+    return { currentToolCalls: {}, finishedEmitted: false };
   }
 
   /**

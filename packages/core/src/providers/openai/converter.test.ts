@@ -634,6 +634,7 @@ describe('OpenAiConverter', () => {
       const state = converter.createStreamState();
       expect(state).toEqual({
         currentToolCalls: {},
+        finishedEmitted: false,
       });
     });
   });

@@ -16,7 +16,7 @@ import { ClaudeAdapter } from './adapter.js';
 import type { ClaudeClient } from './adapter.js';
 import type { LlmGenerateRequest, AdapterConfig } from '../types.js';
 import { LlmEventType } from '../events.js';
-import { LlmError } from '../errors.js';
+import { LlmError, LlmErrorType } from '../errors.js';
 
 // =================================================================
 // Test helpers
@@ -393,7 +393,7 @@ describe('ClaudeAdapter', () => {
       expect(callArgs['stream']).toBe(true);
     });
 
-    it('should normalize stream creation errors to LlmError', async () => {
+    it('should yield LlmErrorEvent on stream creation errors', async () => {
       mockClient.messages.create.mockRejectedValue(
         new Error('Network timeout'),
       );
@@ -401,14 +401,21 @@ describe('ClaudeAdapter', () => {
       const request = createBasicRequest();
       const stream = adapter.generateContentStream(request, 'prompt-1');
 
-      await expect(async () => {
-        for await (const _event of stream) {
-          // consume
-        }
-      }).rejects.toThrow(LlmError);
+      const events = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe(LlmEventType.Error);
+      const errorEvent = events[0] as unknown as {
+        error: LlmError;
+        isRetryable: boolean;
+      };
+      expect(errorEvent.error).toBeInstanceOf(LlmError);
     });
 
-    it('should normalize stream iteration errors to LlmError', async () => {
+    it('should yield LlmErrorEvent on stream iteration errors', async () => {
       async function* failingStream() {
         yield {
           type: 'content_block_delta',
@@ -423,11 +430,18 @@ describe('ClaudeAdapter', () => {
       const request = createBasicRequest();
       const stream = adapter.generateContentStream(request, 'prompt-1');
 
-      await expect(async () => {
-        for await (const _event of stream) {
-          // consume
-        }
-      }).rejects.toThrow(LlmError);
+      const events = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      // Should have TextDelta + Error events (not thrown)
+      const errorEvents = events.filter((e) => e.type === LlmEventType.Error);
+      expect(errorEvents).toHaveLength(1);
+      const textEvents = events.filter(
+        (e) => e.type === LlmEventType.TextDelta,
+      );
+      expect(textEvents).toHaveLength(1);
     });
 
     it('should validate request before streaming', () => {
@@ -516,6 +530,139 @@ describe('ClaudeAdapter', () => {
       expect(callArgs['top_p']).toBeUndefined();
       expect(callArgs['top_k']).toBeUndefined();
       expect(callArgs['stop_sequences']).toBeUndefined();
+    });
+  });
+
+  // ==============================================================
+  // M3.1.3 — classifyError: Anthropic SDK error → LlmError
+  // ==============================================================
+
+  describe('classifyError (via stream error events)', () => {
+    it('should classify 401 as AuthenticationError', async () => {
+      const sdkError = Object.assign(new Error('Invalid API key'), {
+        status: 401,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      expect(errorEvent).toBeDefined();
+      expect(errorEvent.error.type).toBe(LlmErrorType.AUTHENTICATION);
+      expect(errorEvent.error.isRetryable).toBe(false);
+    });
+
+    it('should classify 429 as RateLimitError (retryable)', async () => {
+      const sdkError = Object.assign(new Error('Rate limited'), {
+        status: 429,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError; isRetryable: boolean };
+      expect(errorEvent.error.type).toBe(LlmErrorType.RATE_LIMIT);
+      expect(errorEvent.isRetryable).toBe(true);
+    });
+
+    it('should classify 500+ as ServerError (retryable)', async () => {
+      const sdkError = Object.assign(new Error('Internal server error'), {
+        status: 500,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError; isRetryable: boolean };
+      expect(errorEvent.error.type).toBe(LlmErrorType.SERVER_ERROR);
+      expect(errorEvent.isRetryable).toBe(true);
+    });
+
+    it('should classify 529 as ModelOverloaded (retryable)', async () => {
+      const sdkError = Object.assign(new Error('Overloaded'), {
+        status: 529,
+      });
+      mockClient.messages.create.mockRejectedValue(sdkError);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError; isRetryable: boolean };
+      expect(errorEvent.error.type).toBe(LlmErrorType.MODEL_OVERLOADED);
+      expect(errorEvent.isRetryable).toBe(true);
+    });
+
+    it('should classify no-status error with timeout keyword as TimeoutError', async () => {
+      mockClient.messages.create.mockRejectedValue(
+        new Error('Connection timeout'),
+      );
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      expect(errorEvent.error.type).toBe(LlmErrorType.TIMEOUT);
+    });
+
+    it('should classify no-status error as NetworkError', async () => {
+      mockClient.messages.create.mockRejectedValue(new Error('ECONNREFUSED'));
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      expect(errorEvent.error.type).toBe(LlmErrorType.NETWORK);
     });
   });
 });

@@ -370,6 +370,7 @@ export class ClaudeConverter {
   mapStopReason(reason: string | null | undefined): LlmStopReason {
     switch (reason) {
       case 'end_turn':
+      case 'pause_turn':
         return 'end_turn';
       case 'max_tokens':
         return 'max_tokens';
@@ -377,6 +378,8 @@ export class ClaudeConverter {
         return 'stop_sequence';
       case 'tool_use':
         return 'tool_use';
+      case 'refusal':
+        return 'content_filter';
       default:
         return 'end_turn';
     }
@@ -514,6 +517,8 @@ export class ClaudeConverter {
               promptTokens: state.inputTokens,
               completionTokens: outputTokens,
               totalTokens: state.inputTokens + outputTokens,
+              cachedTokens: usage?.['cache_read_input_tokens'] ?? 0,
+              cacheCreationTokens: usage?.['cache_creation_input_tokens'] ?? 0,
             },
           },
         ];

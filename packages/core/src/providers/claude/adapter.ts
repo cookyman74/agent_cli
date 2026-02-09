@@ -25,7 +25,8 @@ import type {
   GenerateOptions,
 } from '../types.js';
 import type { LlmEvent, LlmEventStream } from '../events.js';
-import { UnsupportedFeatureError } from '../errors.js';
+import { LlmError, LlmErrorType, UnsupportedFeatureError } from '../errors.js';
+import { createErrorEvent } from '../events.js';
 import { ClaudeConverter } from './converter.js';
 
 /**
@@ -115,7 +116,7 @@ export class ClaudeAdapter extends BaseAdapter {
 
     const client = this.client;
     const converter = this.converter;
-    const handleErr = this.handleError.bind(this);
+    const classify = this.classifyError.bind(this);
     const params = converter.toClaudeRequest(request);
 
     async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
@@ -133,7 +134,12 @@ export class ClaudeAdapter extends BaseAdapter {
           }
         }
       } catch (error) {
-        handleErr(error);
+        const classified = classify(error);
+        yield createErrorEvent(
+          classified,
+          classified.code,
+          classified.isRetryable,
+        );
       }
     }
 
@@ -160,6 +166,63 @@ export class ClaudeAdapter extends BaseAdapter {
     return {
       totalTokens: result.input_tokens ?? 0,
     };
+  }
+
+  /**
+   * Classify an Anthropic SDK error into a typed LlmError.
+   * Uses HTTP status code when available, falls back to message heuristics.
+   */
+  private classifyError(error: unknown): LlmError {
+    const err = error instanceof Error ? error : new Error(String(error));
+    const status = (error as Record<string, unknown>)?.['status'] as
+      | number
+      | undefined;
+    const message = err.message;
+    const opts = {
+      provider: this.providerName,
+      statusCode: status,
+      cause: err,
+    };
+
+    if (status !== undefined) {
+      if (status === 401 || status === 403) {
+        return new LlmError(LlmErrorType.AUTHENTICATION, message, {
+          ...opts,
+          isRetryable: false,
+        });
+      }
+      if (status === 429) {
+        return new LlmError(LlmErrorType.RATE_LIMIT, message, {
+          ...opts,
+          isRetryable: true,
+        });
+      }
+      if (status === 529) {
+        return new LlmError(LlmErrorType.MODEL_OVERLOADED, message, {
+          ...opts,
+          isRetryable: true,
+        });
+      }
+      if (status >= 500) {
+        return new LlmError(LlmErrorType.SERVER_ERROR, message, {
+          ...opts,
+          isRetryable: true,
+        });
+      }
+    }
+
+    // No status code — heuristic based on message
+    if (/timeout/i.test(message)) {
+      return new LlmError(LlmErrorType.TIMEOUT, message, {
+        ...opts,
+        isRetryable: true,
+      });
+    }
+
+    return new LlmError(LlmErrorType.NETWORK, message, {
+      ...opts,
+      isRetryable: true,
+    });
   }
 
   /**

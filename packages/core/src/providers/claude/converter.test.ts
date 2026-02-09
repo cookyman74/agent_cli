@@ -506,6 +506,8 @@ describe('ClaudeConverter', () => {
       ['max_tokens', 'max_tokens'],
       ['stop_sequence', 'stop_sequence'],
       ['tool_use', 'tool_use'],
+      ['pause_turn', 'end_turn'],
+      ['refusal', 'content_filter'],
       [null, 'end_turn'],
       [undefined, 'end_turn'],
     ];
@@ -1178,6 +1180,55 @@ describe('ClaudeConverter', () => {
       expect(result.usage!.cachedTokens).toBe(50);
       // Review #1: cacheCreationTokens should be a typed field on LlmTokenUsage
       expect(result.usage!.cacheCreationTokens).toBe(80);
+    });
+  });
+
+  describe('M3.1.3: stream Finished event cache tokens', () => {
+    it('should include cache tokens in Finished event usage', () => {
+      const state = converter.createStreamState();
+
+      // Capture input_tokens from message_start
+      converter.convertStreamEvent(
+        {
+          type: 'message_start',
+          message: {
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            content: [],
+            model: 'claude-3-5-sonnet-20241022',
+            usage: { input_tokens: 100, output_tokens: 0 },
+          },
+        },
+        state,
+      );
+
+      // message_delta with cache usage
+      const events = converter.convertStreamEvent(
+        {
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn', stop_sequence: null },
+          usage: {
+            output_tokens: 50,
+            cache_read_input_tokens: 30,
+            cache_creation_input_tokens: 20,
+          },
+        },
+        state,
+      );
+
+      expect(events).toHaveLength(1);
+      const finished = events[0] as {
+        usage: {
+          promptTokens: number;
+          completionTokens: number;
+          totalTokens: number;
+          cachedTokens: number;
+          cacheCreationTokens: number;
+        };
+      };
+      expect(finished.usage.cachedTokens).toBe(30);
+      expect(finished.usage.cacheCreationTokens).toBe(20);
     });
   });
 

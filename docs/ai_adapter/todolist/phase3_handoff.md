@@ -171,3 +171,33 @@ Phase 3 Suggested Order (핸드오프 시점 권장 — 최신 계획서와 번�
 └─ [H-5] 신규 프로바이더 추가
     └─ AuthType 통합 (2.3.1.8) → 최신 M3.1+ (프로바이더 구현 시)
 ```
+
+---
+
+## 8. M3.0 알려진 제한사항
+
+M3.0 (Gemini 내부 리팩토링) 완료 후 리뷰에서 확인된 의도된 제한사항입니다. M3.1+
+진행 시 해소 계획이 수립되어 있습니다.
+
+### 제한 1: 비-Gemini 프로바이더 런타임 미등록 (중간)
+
+- **현상**: `createContentGenerator()` 내 `ProviderFactory.create()` 경로가
+  코드에 연결되었으나, 실제 등록된 팩토리는 `bootstrapGeminiProvider()`
+  하나뿐입니다.
+- **영향**: `LLM_PROVIDER=claude/openai/didim` 설정 시 `Provider not registered`
+  에러로 런타임 실패합니다.
+- **근거**: 테스트에서는 수동 `registry.register()`로 검증하지만, 프로덕션
+  코드에는 해당 등록이 없습니다.
+- **해소 계획**: M3.1 (Claude), M3.2 (OpenAI), M3.3 (Didim) 마일스톤에서 각
+  프로바이더의 어댑터 구현 + `bootstrapXxxProvider()` 함수를 추가하여
+  해소합니다.
+
+### 제한 2: Agent 실행 경로 Gemini 고정 (낮음)
+
+- **현상**: `local-executor.ts`의 `defaultChatSessionFactory`가
+  `new GeminiChat()` 을 직접 생성하며, 호출부(`local-invocation.ts`)에서 커스텀
+  factory를 주입하지 않습니다.
+- **영향**: 메인 생성기 경로(`createContentGenerator`)가 멀티 프로바이더를
+  지원하더라도, subagent/agent 루프는 Gemini 고정입니다.
+- **해소 계획**: Agent 경로의 provider 독립화는 M3.0 범위 외이며, CLI 계층의
+  멀티 프로바이더 통합 단계에서 `ChatSessionFactory` DI를 통해 전환 예정입니다.

@@ -201,6 +201,28 @@ Claude/OpenAI/Didim 어댑터 등록은 M3.1~M3.3 범위에서 구현 예정.
 | 관련 테스트 | ✅ 12/12 (multiProvider)                                             |
 | 회귀 테스트 | ✅ 56/56 (contentGenerator + providerSelector + factory + bootstrap) |
 
+## M3.0 전체 리뷰 — 알려진 제한사항 (2026-02-09)
+
+M3.0 전체 리뷰에서 아래 2건이 의도된 제한사항으로 확인되었습니다. 코드 수정
+불필요, 후속 마일스톤에서 해소 예정.
+
+### 제한 1 (중간): 비-Gemini 프로바이더 런타임 미등록
+
+- `ProviderFactory.create()` 경로는 연결되었으나 등록된 팩토리는 Gemini만 존재
+- `LLM_PROVIDER=claude/openai/didim` → `Provider not registered` 런타임 실패
+- 테스트는 수동 `registry.register()`로 검증 (프로덕션 등록 코드 미존재)
+- **해소**: M3.1 (Claude), M3.2 (OpenAI), M3.3 (Didim) 어댑터 구현 시
+
+### 제한 2 (낮음): Agent 실행 경로 Gemini 고정
+
+- `local-executor.ts`의 `defaultChatSessionFactory`가 `new GeminiChat()` 직접
+  생성
+- `local-invocation.ts`에서 커스텀 factory 미주입
+- 메인 생성기 경로 확장과 무관하게 subagent 루프는 Gemini 고정
+- **해소**: CLI 멀티 프로바이더 통합 시 `ChatSessionFactory` DI 전환
+
+상세 내역은 `docs/ai_adapter/todolist/phase3_handoff.md` §8 참조.
+
 ## 커밋
 
 - `54cf15f0b` feat(providers): M3.0.5 — 런타임 실행 경로 연결 (multi-provider

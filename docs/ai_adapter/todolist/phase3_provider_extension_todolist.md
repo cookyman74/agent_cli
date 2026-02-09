@@ -49,14 +49,14 @@ code to pass. Ensure cross-provider compatibility through integration tests.
 | 3    | `chat.ts` → `providers/gemini/chat.ts`    | Critical | ✅ 해소됨   | M3.0.1 (`f56845dab`)         |
 | 4    | `turn.ts` → `providers/gemini/turn.ts`    | Critical | ✅ 해소됨   | M3.0.1 (`f56845dab`)         |
 | 5    | `messageInspectors` 마이그레이션 (4파일)  | High     | ✅ 해소됨   | M3.0.2                       |
-| 6    | `loggingContentGenerator` 텔레메트리 변환 | High     | ⬜ → M3.0   | M3.0.3                       |
-| 7    | `telemetry/semantic.ts` Gemini 결합 해소  | High     | ⬜ → M3.0   | M3.0.3                       |
+| 6    | `loggingContentGenerator` 텔레메트리 변환 | High     | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
+| 7    | `telemetry/semantic.ts` Gemini 결합 해소  | High     | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
 | 8    | AuthType 처리 통합 (2.3.1.8)              | Medium   | ⬜ → M3.1+  | 신규 프로바이더 구현 시 함께 |
 | 9    | 성능 검증 (응답 지연/메모리/스트리밍)     | Medium   | ⬜ → M3.4   | M3.4.3                       |
 | 10   | E2E 테스트 통과 검증                      | Medium   | ⬜ → M3.4   | M3.4.2                       |
 | 11   | `geminiTypeConversion.ts` 브릿지 제거     | Medium   | ⬜ → M3.0   | M3.0.4                       |
-| 12   | `telemetry/sdk.ts` 시그널 핸들러 누수     | Medium   | ⬜ → M3.0   | M3.0.3                       |
-| M2.7 | Agent/Telemetry 결합 해소                 | Watch    | ⬜ → M3.0   | M3.0.3                       |
+| 12   | `telemetry/sdk.ts` 시그널 핸들러 누수     | Medium   | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
+| M2.7 | Agent/Telemetry 결합 해소                 | Watch    | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
 | 신규 | 런타임 실행 경로 연결 (ProviderFactory)   | High     | ⬜ → M3.0   | M3.0.5 (리뷰 #1 반영)        |
 | 신규 | root index.ts re-export 회귀 테스트       | Medium   | ✅ 해소됨   | M3.0.1.5 (`f56845dab`)       |
 | 신규 | 프로바이더별 registry.register() 작업     | High     | ⬜ → M3.1~3 | M3.1.0.2/M3.2.0.2/M3.3.0.1   |
@@ -190,13 +190,13 @@ M3.0 착수 전 다음 Open Question의 잠정 결정 권장:
 
 ### 3.0.3 텔레메트리/Agent 레이어 독립화 (핸드오프 High #6, #7 + M2.7 + Medium #12)
 
-| ID      | 작업                                                                        | 상태 | 테스트 파일                                        | 비고                                                                                                                                                    |
-| ------- | --------------------------------------------------------------------------- | ---- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 3.0.3.1 | `loggingContentGenerator.ts` — @google/genai import 제거                    | ⬜   | `loggingContentGenerator.test.ts`                  | 11개 SDK 타입 import (L7-18), ContentGenerator 인터페이스 자체 변경 수반                                                                                |
-| 3.0.3.2 | `telemetry/semantic.ts` — Part/Content/Candidate 타입 독립화                | ⬜   | `semantic.test.ts`                                 | loggingContentGenerator 전환과 연계                                                                                                                     |
-| 3.0.3.3 | `LocalAgentExecutor` — GeminiChat 직접 결합 해소 (M2.7)                     | ⬜   | `local-executor.test.ts`                           | ⚠️ Q5 결정 필요. L753: `new GeminiChat()` 직접 생성자 호출 + `sendMessageStream/setHistory/getHistory` 3개 메서드 하드코딩. 인터페이스/팩토리 패턴 전무 |
-| 3.0.3.4 | `telemetry/types.ts` — `GenerateContentResponseUsageMetadata` 독립화 (M2.7) | ⬜   | `telemetry/sdk.test.ts` (types 전용 테스트 미존재) | ⚠️ Q6 결정 필요 (LlmUsage/LlmTokenUsage 스키마). 잠정 결정으로 착수 가능                                                                                |
-| 3.0.3.5 | `telemetry/sdk.ts` — SIGTERM/SIGINT 시그널 핸들러 누수 수정 (핸드오프 #12)  | ⬜   | `telemetry/sdk.test.ts`                            | L317,321 핸들러 미제거, 장시간 세션 리스크                                                                                                              |
+| ID      | 작업                                                                        | 상태 | 테스트 파일                                        | 비고                                                                                      |
+| ------- | --------------------------------------------------------------------------- | ---- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 3.0.3.1 | `loggingContentGenerator.ts` — @google/genai import 제거                    | ✅   | `loggingContentGenerator.test.ts`                  | 11개 SDK 타입 import → 0. contentGenerator.ts re-export 경유 + telemetry 로컬 타입        |
+| 3.0.3.2 | `telemetry/semantic.ts` — Part/Content/Candidate 타입 독립화                | ✅   | `semantic.test.ts`                                 | 6개 로컬 타입 + GeminiFinishReason const 객체. @google/genai 완전 제거                    |
+| 3.0.3.3 | `LocalAgentExecutor` — GeminiChat 직접 결합 해소 (M2.7)                     | ✅   | `local-executor.test.ts`                           | Q5 잠정 방안 적용: AgentChatSession 인터페이스 + ChatSessionFactory 타입 도입             |
+| 3.0.3.4 | `telemetry/types.ts` — `GenerateContentResponseUsageMetadata` 독립화 (M2.7) | ✅   | `telemetry/sdk.test.ts` (types 전용 테스트 미존재) | TelemetryUsageMetadata + TelemetryGenerateConfig 로컬 인터페이스. @google/genai 완전 제거 |
+| 3.0.3.5 | `telemetry/sdk.ts` — SIGTERM/SIGINT 시그널 핸들러 누수 수정 (핸드오프 #12)  | ✅   | `telemetry/sdk.test.ts`                            | named handler + removeListener in shutdown. 신규 테스트 2건                               |
 
 ### 3.0.4 변환 브릿지 정리 (핸드오프 Medium #11)
 
@@ -1032,14 +1032,14 @@ describe.each([
 
 ## Phase 2 연기 항목 해소 (M3.0) [v0.4 추가]
 
-- [ ] `geminiChat.ts` → `providers/gemini/chat.ts` 물리적 이동 완료
-- [ ] `turn.ts` Gemini 특화 로직 분리 완료
-- [ ] root `index.ts` re-export 회귀 테스트 통과 (3.0.1.5)
-- [ ] messageInspectors 4개 파일 마이그레이션 완료
-- [ ] 텔레메트리 레이어 @google/genai 독립화
-- [ ] LocalAgentExecutor GeminiChat 직접 결합 해소 (M2.7)
+- [x] `geminiChat.ts` → `providers/gemini/chat.ts` 물리적 이동 완료 (M3.0.1)
+- [x] `turn.ts` Gemini 특화 로직 분리 완료 (M3.0.1)
+- [x] root `index.ts` re-export 회귀 테스트 통과 (M3.0.1.5)
+- [x] messageInspectors 4개 파일 마이그레이션 완료 (M3.0.2)
+- [x] 텔레메트리 레이어 @google/genai 독립화 (M3.0.3)
+- [x] LocalAgentExecutor GeminiChat 직접 결합 해소 (M3.0.3)
 - [ ] `geminiTypeConversion.ts` 브릿지 정리 완료
-- [ ] `telemetry/sdk.ts` 시그널 핸들러 누수 수정
+- [x] `telemetry/sdk.ts` 시그널 핸들러 누수 수정 (M3.0.3)
 - [ ] `createContentGenerator()` → ProviderFactory 런타임 연결 완료 (3.0.5)
 - [ ] ProviderRegistry Gemini 팩토리 부트스트랩 동작 (3.0.5.4)
 - [ ] 부트스트랩 중복 호출 안전성 검증 (3.0.5.4)

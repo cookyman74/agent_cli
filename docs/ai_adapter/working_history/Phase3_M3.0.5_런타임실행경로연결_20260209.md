@@ -206,3 +206,5 @@ Claude/OpenAI/Didim 어댑터 등록은 M3.1~M3.3 범위에서 구현 예정.
 - `54cf15f0b` feat(providers): M3.0.5 — 런타임 실행 경로 연결 (multi-provider
   runtime wiring)
 - `3c8992f52` docs: M3.0.5 작업 결과서 — 커밋 ID 기록
+- `e3b81db49` fix(providers): M3.0.5 리뷰 반영 — Gemini 선택 시 authType
+  backfill 보정

@@ -127,7 +127,7 @@ isToolResultMessage(convertContentToLlmMessage(entry)); // Content → LlmMessag
 | TypeCheck        | ✅ PASS (전체 프로젝트 — core, cli, a2a-server, test-utils) |
 | Lint             | ✅ PASS (0 errors)                                          |
 | Core Tests       | ✅ 260 files / 4838 passed / 24 skipped / 0 failed          |
-| pre-commit hooks | ⏳ 커밋 시 검증 예정                                        |
+| pre-commit hooks | ✅ PASS (prettier, eslint)                                  |
 
 ### 개별 테스트 결과
 
@@ -179,11 +179,11 @@ LlmMessage 변환을 정확히 수행하여 모든 테스트가 한 번에 통�
 
 ## 📊 커밋 요약
 
-| 순서 | 커밋 ID | 타입       | 설명                                                           | 테스트         |
-| ---- | ------- | ---------- | -------------------------------------------------------------- | -------------- |
-| 1    | 미정    | STRUCTURAL | messageInspectors → llmUtils/geminiTypeConversion 전환 (4파일) | ✅ 4838 passed |
+| 순서 | 커밋 ID     | 타입       | 설명                                                           | 테스트         |
+| ---- | ----------- | ---------- | -------------------------------------------------------------- | -------------- |
+| 1    | `eabc8ec1c` | STRUCTURAL | messageInspectors → llmUtils/geminiTypeConversion 전환 (4파일) | ✅ 4838 passed |
 
-**총 커밋 수**: 1개 (예정)
+**총 커밋 수**: 1개
 
 ---
 
@@ -195,7 +195,7 @@ LlmMessage 변환을 정확히 수행하여 모든 테스트가 한 번에 통�
 - [x] 4개 소비자 파일 전환 완료
 - [x] messageInspectors.ts 의존성 완전 제거 (소비자 0개)
 - [x] Tidy First 원칙 준수 (동작 변경 없는 리팩토링)
-- [ ] pre-commit hooks 통과 (커밋 시 검증)
+- [x] pre-commit hooks 통과
 
 ---
 
@@ -207,4 +207,4 @@ LlmMessage 변환을 정확히 수행하여 모든 테스트가 한 번에 통�
 
 ---
 
-**최종 상태**: ⏳ 커밋 대기
+**작업 완료 시간**: 2026-02-09 13:52 **최종 상태**: ✅ 완료

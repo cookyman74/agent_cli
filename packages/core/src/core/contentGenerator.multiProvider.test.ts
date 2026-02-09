@@ -248,6 +248,38 @@ describe('Multi-provider selection in createContentGenerator', () => {
   });
 
   // ========================================================================
+  // Scenario 8: flag=true, LLM_PROVIDER=gemini, GEMINI_API_KEY, no authType
+  //             → authType backfilled to USE_GEMINI, Gemini via legacy path
+  //             (Review fix: selectProvider returns Gemini + apiKey → backfill)
+  // ========================================================================
+  it('Scenario 8: flag=true, LLM_PROVIDER=gemini, API key, no authType → backfill USE_GEMINI', async () => {
+    setMultiProviderOverride(true);
+    vi.stubEnv('LLM_PROVIDER', 'gemini');
+    vi.stubEnv('GEMINI_API_KEY', 'test-gemini-key');
+
+    const generator = await createContentGenerator({}, createMockConfig());
+
+    // Should use GoogleGenAI (Gemini path, not throw Unsupported authType)
+    expect(GoogleGenAI).toHaveBeenCalled();
+    expect(generator).toBeInstanceOf(LoggingContentGenerator);
+  });
+
+  // ========================================================================
+  // Scenario 9: flag=true, no LLM_PROVIDER, GEMINI_API_KEY, no authType
+  //             → selectProvider detects env key → authType backfilled
+  // ========================================================================
+  it('Scenario 9: flag=true, GEMINI_API_KEY, no authType → backfill USE_GEMINI from env key', async () => {
+    setMultiProviderOverride(true);
+    vi.stubEnv('GEMINI_API_KEY', 'test-gemini-key');
+    // No LLM_PROVIDER, no authType
+
+    const generator = await createContentGenerator({}, createMockConfig());
+
+    expect(GoogleGenAI).toHaveBeenCalled();
+    expect(generator).toBeInstanceOf(LoggingContentGenerator);
+  });
+
+  // ========================================================================
   // Additional: wrapAdapterAsGenerator provides llm* methods
   // ========================================================================
   describe('wrapAdapterAsGenerator', () => {

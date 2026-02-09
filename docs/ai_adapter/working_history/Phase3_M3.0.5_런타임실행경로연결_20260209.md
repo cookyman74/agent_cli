@@ -155,7 +155,54 @@ if (isMultiProviderEnabled()) {
 - CLI 코드: `isProviderIndependentGenerator()` 분기 추가하여 llm\* 메서드 사용
 - `wrapAdapterAsGenerator` 개선: 텔레메트리 통합, 에러 매핑 등
 
+## 리뷰 반영 (2026-02-09)
+
+### 이슈 1 (중간): LLM_PROVIDER=gemini + authType 미설정 시 런타임 실패
+
+**문제**: `ENABLE_MULTI_PROVIDER=true`, `LLM_PROVIDER=gemini` (또는 env key만
+존재), `authType` 미설정 시 `selectProvider()`는 Gemini + apiKey를 정상
+반환하지만, fall-through 후 레거시 분기에서 `authType`이 없어 "Unsupported
+authType" throw.
+
+**수정**: Gemini 선택 + `authType` 미설정 + `selection.apiKey` 존재 시
+`config`을 `{ authType: USE_GEMINI, apiKey: selection.apiKey }`로 보정하여
+레거시 분기에 안전하게 도달하도록 함.
+
+```typescript
+if (!config.authType && selection.apiKey) {
+  config = {
+    ...config,
+    authType: AuthType.USE_GEMINI,
+    apiKey: selection.apiKey,
+  };
+}
+```
+
+**회귀 테스트 추가** (2개):
+
+| #   | ENABLE_MULTI_PROVIDER | LLM_PROVIDER | GEMINI_API_KEY | authType | 기대 결과         | 결과 |
+| --- | --------------------- | ------------ | -------------- | -------- | ----------------- | ---- |
+| 8   | true                  | gemini       | ✅             | (미설정) | Gemini (backfill) | ✅   |
+| 9   | true                  | (미설정)     | ✅             | (미설정) | Gemini (backfill) | ✅   |
+
+### 이슈 2 (낮음): 비-Gemini 프로바이더 팩토리 미등록
+
+**상태**: 의도된 제한. `bootstrapGeminiProvider()`만 프로덕션 코드에 존재하며,
+Claude/OpenAI/Didim 어댑터 등록은 M3.1~M3.3 범위에서 구현 예정.
+`LLM_PROVIDER=claude` 등 사용 시 `Provider not registered` 에러는 현재 정상
+동작.
+
+### Quality Gate (리뷰 반영 후)
+
+| 항목        | 결과                                                                 |
+| ----------- | -------------------------------------------------------------------- |
+| TypeCheck   | ✅ PASS                                                              |
+| ESLint      | ✅ PASS                                                              |
+| 관련 테스트 | ✅ 12/12 (multiProvider)                                             |
+| 회귀 테스트 | ✅ 56/56 (contentGenerator + providerSelector + factory + bootstrap) |
+
 ## 커밋
 
 - `54cf15f0b` feat(providers): M3.0.5 — 런타임 실행 경로 연결 (multi-provider
   runtime wiring)
+- `3c8992f52` docs: M3.0.5 작업 결과서 — 커밋 ID 기록

@@ -290,7 +290,17 @@ export async function createContentGenerator(
           gcConfig,
         );
       }
-      // Gemini selected: fall through to existing Gemini paths below
+      // Gemini selected: backfill authType if missing so the legacy
+      // Gemini path below doesn't throw "Unsupported authType".
+      // selectProvider() already resolved the API key from env vars.
+      if (!config.authType && selection.apiKey) {
+        config = {
+          ...config,
+          authType: AuthType.USE_GEMINI,
+          apiKey: selection.apiKey,
+        };
+      }
+      // fall through to existing Gemini paths below
     }
 
     if (

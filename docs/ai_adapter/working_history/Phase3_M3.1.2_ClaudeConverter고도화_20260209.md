@@ -133,6 +133,29 @@ M3.1.1에서 구현한 ClaudeConverter의 에지 케이스를 보강하고, 코�
 - **근거**: `toClaudeRequest`와 `toCountTokensRequest`에 동일 로직 중복.
   `toCountTokensRequest`는 `buildBaseParams()` 호출만으로 완결.
 
+## 리뷰 반영
+
+### 리뷰 이슈 및 수정 결과
+
+| #   | 심각도 | 이슈                                                                      | 수정 내용                                                                            |
+| --- | ------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 1   | 중간   | `cacheCreationTokens`가 `LlmTokenUsage` 타입에 선언되지 않음              | `LlmTokenUsage`에 `cacheCreationTokens?: number` 옵셔널 필드 추가, intersection 제거 |
+| 2   | 낮음   | `if (cacheCreation)` falsy 체크 — `cachedTokens` 처리(항상 설정)와 비일관 | `?? 0` 패턴으로 일관화, 항상 필드 설정                                               |
+| 3   | 낮음   | 빈 텍스트 필터링 + 연속 role 병합 상호작용 테스트 부재                    | `[user("A"), user(""), user("B")]` 시나리오 테스트 추가                              |
+
+### 리뷰 후 Quality Gate
+
+| 항목          | 결과                       |
+| ------------- | -------------------------- |
+| TypeCheck     | ✅ PASS                    |
+| ESLint        | ✅ PASS                    |
+| Claude 테스트 | ✅ 60 passed               |
+| Provider 회귀 | ✅ 29 files / 536 passed   |
+| Core 전체     | ✅ 266 files / 4972 passed |
+
+**변화**: 리뷰 전 59 tests → 60 tests (+1 상호작용 테스트), Core 4971 → 4972
+(+1)
+
 ## 향후 작업
 
 - M3.1.3: Claude 스트림 변환 고도화 (에러 스트림, 부분 실패, 재시도)
@@ -141,3 +164,5 @@ M3.1.1에서 구현한 ClaudeConverter의 에지 케이스를 보강하고, 코�
 ## 커밋
 
 - `78b119663` feat(providers): M3.1.2 — Claude 메시지 변환 고도화
+- `09383be13` fix(providers): M3.1.2 리뷰 반영 — cacheCreationTokens 타입 추가,
+  falsy 체크 일관화, 상호작용 테스트

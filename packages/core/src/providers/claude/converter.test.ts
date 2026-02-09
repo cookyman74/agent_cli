@@ -899,6 +899,25 @@ describe('ClaudeConverter', () => {
       expect(result[0]['is_error']).toBeUndefined();
     });
 
+    it('should safely handle non-serializable object content for tool_result', () => {
+      // Circular reference — JSON.stringify would throw without try/catch
+      const circular: Record<string, unknown> = { key: 'value' };
+      circular['self'] = circular;
+
+      const result = converter.toClaudeContent([
+        {
+          type: 'tool_result',
+          toolCallId: 'call-1',
+          content: circular,
+        },
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(typeof result[0]['content']).toBe('string');
+      // Should produce a fallback string, not throw
+      expect(result[0]['content']).toBeTruthy();
+    });
+
     it('should stringify object content for tool_result', () => {
       const result = converter.toClaudeContent([
         {
@@ -937,6 +956,27 @@ describe('ClaudeConverter', () => {
       expect(result).toHaveLength(1);
       expect(result[0]['type']).toBe('text');
       expect((result[0]['text'] as string).toLowerCase()).toContain('url');
+    });
+
+    it('should strip query parameters from URL in warning text', () => {
+      const result = converter.toClaudeContent([
+        {
+          type: 'image',
+          source: {
+            type: 'url',
+            mediaType: 'image/jpeg',
+            url: 'https://storage.example.com/img.jpg?token=secret123&expires=9999',
+          },
+        },
+      ]);
+
+      expect(result).toHaveLength(1);
+      const text = result[0]['text'] as string;
+      // Should NOT contain query parameters (potential signed tokens)
+      expect(text).not.toContain('token=secret123');
+      expect(text).not.toContain('expires=9999');
+      // Should still contain the origin+path for debugging
+      expect(text).toContain('storage.example.com');
     });
   });
 

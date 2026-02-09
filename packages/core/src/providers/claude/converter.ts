@@ -148,13 +148,20 @@ export class ClaudeConverter {
           break;
 
         case 'tool_result': {
+          let serialized: string;
+          if (typeof content.content === 'string') {
+            serialized = content.content;
+          } else {
+            try {
+              serialized = JSON.stringify(content.content);
+            } catch {
+              serialized = String(content.content);
+            }
+          }
           const block: Record<string, unknown> = {
             type: 'tool_result',
             tool_use_id: content.toolCallId,
-            content:
-              typeof content.content === 'string'
-                ? content.content
-                : JSON.stringify(content.content),
+            content: serialized,
           };
           if (content.isError) {
             block['is_error'] = true;
@@ -175,10 +182,18 @@ export class ClaudeConverter {
             });
           } else {
             // URL images: Anthropic API does not support URL images directly.
-            // Emit a text block with warning instead of silently dropping.
+            // Emit a text block with warning. Strip query params to avoid
+            // leaking signed tokens or sensitive parameters into the prompt.
+            let safeUrl: string;
+            try {
+              const parsed = new URL(content.source.url);
+              safeUrl = `${parsed.origin}${parsed.pathname}`;
+            } catch {
+              safeUrl = '(invalid URL)';
+            }
             blocks.push({
               type: 'text',
-              text: `[Unsupported: URL image cannot be sent to Claude API: ${content.source.url}]`,
+              text: `[Unsupported: URL image cannot be sent to Claude API: ${safeUrl}]`,
             });
           }
           break;

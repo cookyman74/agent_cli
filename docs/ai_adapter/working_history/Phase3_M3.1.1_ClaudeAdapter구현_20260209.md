@@ -82,12 +82,12 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
   - `message_delta` → Finished (stop_reason + usage)
   - `message_stop` → MessageEnd
 
-#### `providers/claude/converter.test.ts` — 48 tests
+#### `providers/claude/converter.test.ts` — 49 tests
 
 | 카테고리               | 테스트 수 | 검증 내용                                                                                       |
 | ---------------------- | --------- | ----------------------------------------------------------------------------------------------- |
 | toClaudeRequest        | 6         | 기본 변환, system, 파라미터, tools, toolChoice, default max_tokens                              |
-| toClaudeMessages       | 4         | user/assistant/system/tool role 매핑                                                            |
+| toClaudeMessages       | 5         | user/assistant/system/tool role 매핑, **다중 system 줄바꿈 구분**                               |
 | toClaudeContent        | 5         | text, tool_call, tool_result, image, thought                                                    |
 | toClaudeTools          | 2         | 변환, 빈 배열                                                                                   |
 | toClaudeToolChoice     | 4         | auto, none, required→any, specific                                                              |
@@ -182,19 +182,20 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
 
 ### 리뷰 이슈 및 수정 결과
 
-| #   | 심각도 | 이슈                                                                                                | 수정 내용                                                                                              |
-| --- | ------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 1   | 중간   | countTokens()가 toClaudeRequest() 재사용 — MessageCountTokensParams에 없는 generation 파라미터 포함 | `toCountTokensRequest()` 신규 메서드 추가. model, messages, system, tools, tool_choice만 포함          |
-| 2   | 중간   | Stream tool call이 index 무시 — 단일 currentToolCall로 병렬 tool call 시 데이터 손상                | `ClaudeStreamState.currentToolCall` → `currentToolCalls: Record<number, ...>` index 기반 추적으로 변경 |
-| 3   | 낮음   | tool_result 변환에서 isError 누락 + object content 직접 전달                                        | `isError: true`일 때 `is_error` 필드 추가, object content는 `JSON.stringify()` 처리                    |
-| 4   | 낮음   | supportsImageInput: true이나 URL 이미지 무시(silent drop)                                           | URL 이미지 시 경고 텍스트 블록 발행: `[Unsupported: URL image cannot be sent to Claude API: {url}]`    |
+| #   | 심각도 | 이슈                                                                                                | 수정 내용                                                                                                  |
+| --- | ------ | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 1   | 중간   | countTokens()가 toClaudeRequest() 재사용 — MessageCountTokensParams에 없는 generation 파라미터 포함 | `toCountTokensRequest()` 신규 메서드 추가. model, messages, system, tools, tool_choice만 포함              |
+| 2   | 중간   | Stream tool call이 index 무시 — 단일 currentToolCall로 병렬 tool call 시 데이터 손상                | `ClaudeStreamState.currentToolCall` → `currentToolCalls: Record<number, ...>` index 기반 추적으로 변경     |
+| 3   | 낮음   | tool_result 변환에서 isError 누락 + object content 직접 전달                                        | `isError: true`일 때 `is_error` 필드 추가, object content는 `JSON.stringify()` 처리                        |
+| 4   | 낮음   | supportsImageInput: true이나 URL 이미지 무시(silent drop)                                           | URL 이미지 시 경고 텍스트 블록 발행: `[Unsupported: URL image cannot be sent to Claude API: {url}]`        |
+| 5   | 낮음   | 다중 system 메시지 결합 시 구분 줄바꿈 누락 (`"AB"` 형태로 연결)                                    | `toClaudeMessages()`에서 `system +=` 시 `'\n'` 구분자 삽입. toClaudeRequest/toCountTokensRequest 양쪽 해결 |
 
 ### 추가된 테스트
 
-| 파일              | 추가 테스트 수 | 검증 내용                                                                 |
-| ----------------- | -------------- | ------------------------------------------------------------------------- |
-| converter.test.ts | 7              | toCountTokensRequest(3), parallel tool calls(1), isError(2), URL image(1) |
-| adapter.test.ts   | 1              | countTokens에 generation 파라미터 미포함 검증                             |
+| 파일              | 추가 테스트 수 | 검증 내용                                                                                        |
+| ----------------- | -------------- | ------------------------------------------------------------------------------------------------ |
+| converter.test.ts | 8              | toCountTokensRequest(3), parallel tool calls(1), isError(2), URL image(1), 다중 system 줄바꿈(1) |
+| adapter.test.ts   | 1              | countTokens에 generation 파라미터 미포함 검증                                                    |
 
 ### 리뷰 후 Quality Gate
 
@@ -202,11 +203,11 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
 | ------------- | -------------------------- |
 | TypeCheck     | ✅ PASS                    |
 | ESLint        | ✅ PASS                    |
-| Claude 테스트 | ✅ 4 files / 81 passed     |
-| Provider 회귀 | ✅ 29 files / 524 passed   |
-| Core 전체     | ✅ 266 files / 4960 passed |
+| Claude 테스트 | ✅ 4 files / 82 passed     |
+| Provider 회귀 | ✅ 29 files / 525 passed   |
+| Core 전체     | ✅ 266 files / 4961 passed |
 
-**변화**: 리뷰 전 72 tests → 81 tests (+9), Core 4951 → 4960 (+9)
+**변화**: 리뷰 전 72 tests → 82 tests (+10), Core 4951 → 4961 (+10)
 
 ## 향후 작업
 
@@ -220,3 +221,5 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
   generate + stream + countTokens)
 - `d99be5859` fix(providers): M3.1.1 리뷰 반영 — countTokens 파라미터 분리, 병렬
   tool call, isError/URL 이미지 처리
+- `c2332fadf` fix(providers): M3.1.1 리뷰 반영 — 다중 system 메시지 줄바꿈
+  구분자 추가

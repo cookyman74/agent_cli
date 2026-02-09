@@ -29,11 +29,11 @@ export * from './commands/types.js';
 export * from './core/client.js';
 export * from './core/contentGenerator.js';
 export * from './core/loggingContentGenerator.js';
-export * from './core/geminiChat.js';
+export * from './providers/gemini/chat.js'; // moved from core/geminiChat.ts
 export * from './core/logger.js';
 export * from './core/prompts.js';
 export * from './core/tokenLimits.js';
-export * from './core/turn.js';
+export * from './providers/gemini/turn.js'; // moved from core/turn.ts
 export * from './core/geminiRequest.js';
 export * from './core/coreToolScheduler.js';
 export * from './scheduler/scheduler.js';

@@ -156,12 +156,35 @@ stop_reason 매핑과 스트림 cache token 지원을 확장한다:
   이벤트를 수신하므로 yield가 프로토콜에 부합. `StreamAssembler`가
   `LlmErrorEvent`를 처리하도록 설계되어 있음.
 
+## 리뷰 반영
+
+### 리뷰 이슈 및 수정 결과
+
+| #   | 심각도 | 이슈                                                              | 수정 내용                                                                 |
+| --- | ------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | 중간   | classifyError에 400/422→INVALID_REQUEST, 404→MODEL_NOT_FOUND 누락 | 400/422→INVALID_REQUEST (non-retryable), 404→ModelNotFoundError 분기 추가 |
+| 2   | 중간   | generateContent가 handleError(UNKNOWN) 사용 — 스트림과 비대칭     | `this.handleError(error)` → `throw this.classifyError(error)` 로 변경     |
+| 3   | 낮음   | classifyError가 LlmError 직접 생성 — subclass 미활용              | Auth/RateLimit/ModelNotFound/Network/TimeoutError subclass 사용           |
+| 4   | 낮음   | stream creation error 테스트에서 error.type 검증 누락             | `expect(errorEvent.error.type).toBe(LlmErrorType.TIMEOUT)` 추가           |
+
+### 리뷰 후 Quality Gate
+
+| 항목          | 결과                       |
+| ------------- | -------------------------- |
+| TypeCheck     | ✅ PASS                    |
+| ESLint        | ✅ PASS                    |
+| Claude 테스트 | ✅ 4 files / 112 passed    |
+| Provider 회귀 | ✅ 29 files / 555 passed   |
+| Core 전체     | ✅ 265 files / 4989 passed |
+
+**변화**: 리뷰 전 104 tests → 112 tests (+8), Core 4981 → 4989 (+8)
+
 ## 향후 작업
 
-- M3.1.4: Claude 에러 매핑 비스트림 고도화 (generateContent catch 블록도
-  classifyError 적용)
 - 향후: stream retry 로직 (retryable error 시 자동 재시도)
 
 ## 커밋
 
 - `5c5601c7d` feat(providers): M3.1.3 — Claude 스트림 에러 처리 고도화
+- `f47d5dc03` fix(providers): M3.1.3 리뷰 반영 — classifyError 400/404 분기,
+  subclass 활용, generateContent 에러 분류

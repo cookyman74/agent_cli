@@ -15,7 +15,15 @@ import { describe, it, expect } from 'vitest';
 import { Gemini } from '../index.js';
 
 // Test that types can be accessed from providers/gemini/index.ts directly
-import { GeminiEventType, CompressionStatus } from './index.js';
+import {
+  GeminiEventType,
+  CompressionStatus,
+  convertContentToLlmMessage,
+  convertContentsToLlmMessages,
+  convertPartListUnionToLlmContents,
+  isContentToolCallMessage,
+  isContentToolResultMessage,
+} from './index.js';
 
 describe('Gemini Provider Export Surface', () => {
   describe('Namespace export from providers/index.ts', () => {
@@ -45,6 +53,33 @@ describe('Gemini Provider Export Surface', () => {
     it('should export CompressionStatus directly', () => {
       expect(CompressionStatus).toBeDefined();
       expect(CompressionStatus.NOOP).toBe(5);
+    });
+  });
+
+  describe('typeConversion exports from providers/gemini/index.ts', () => {
+    it('should export convertContentToLlmMessage', () => {
+      expect(convertContentToLlmMessage).toBeDefined();
+      expect(typeof convertContentToLlmMessage).toBe('function');
+    });
+
+    it('should export convertContentsToLlmMessages', () => {
+      expect(convertContentsToLlmMessages).toBeDefined();
+      expect(typeof convertContentsToLlmMessages).toBe('function');
+    });
+
+    it('should export convertPartListUnionToLlmContents', () => {
+      expect(convertPartListUnionToLlmContents).toBeDefined();
+      expect(typeof convertPartListUnionToLlmContents).toBe('function');
+    });
+
+    it('should export isContentToolCallMessage', () => {
+      expect(isContentToolCallMessage).toBeDefined();
+      expect(typeof isContentToolCallMessage).toBe('function');
+    });
+
+    it('should export isContentToolResultMessage', () => {
+      expect(isContentToolResultMessage).toBeDefined();
+      expect(typeof isContentToolResultMessage).toBe('function');
     });
   });
 

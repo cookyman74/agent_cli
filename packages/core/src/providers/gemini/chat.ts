@@ -27,7 +27,7 @@ import {
   isPreviewModel,
 } from '../../config/models.js';
 import { hasCycleInSchema } from '../../tools/tools.js';
-import type { StructuredError } from '../../core/turn.js';
+import type { StructuredError } from './types.js';
 import type { CompletedToolCall } from '../../core/coreToolScheduler.js';
 import {
   logContentRetry,
@@ -55,8 +55,7 @@ import { coreEvents } from '../../utils/events.js';
 /**
  * @deprecated Use GeminiEventType from providers/gemini/types.ts and
  * LlmEventType from providers/events.ts instead. StreamEventType is a
- * Gemini-internal transport type that will be moved to providers/gemini/
- * in a future milestone (M2.3+).
+ * Gemini-internal transport type retained for backward compatibility.
  */
 export enum StreamEventType {
   /** A regular content chunk from the API. */
@@ -73,8 +72,7 @@ export enum StreamEventType {
 /**
  * @deprecated Use ServerGeminiStreamEvent from providers/gemini/types.ts and
  * LlmEvent from providers/events.ts instead. StreamEvent is a Gemini-internal
- * transport type that will be moved to providers/gemini/ in a future
- * milestone (M2.3+).
+ * transport type retained for backward compatibility.
  */
 export type StreamEvent =
   | { type: StreamEventType.CHUNK; value: GenerateContentResponse }

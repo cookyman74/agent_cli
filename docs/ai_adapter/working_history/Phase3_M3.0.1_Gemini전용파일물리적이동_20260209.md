@@ -238,3 +238,34 @@ TypeCheck PASS (core + cli 모두)
 ---
 
 **작업 완료 시간**: 2026-02-09 13:12 **최종 상태**: ✅ 완료
+
+---
+
+## 📝 리뷰 반영 (2026-02-09)
+
+### 이슈 1 (중간): Provider 레이어가 legacy core shim에 역의존
+
+- **지적**: `providers/gemini/chat.ts:30`에서 `StructuredError`를
+  `../../core/turn.js` (re-export shim)에서 import. 동일 타입이
+  `./types.ts:182`에 이미 정의되어 있어 역의존 발생.
+- **검증 결과**: ✅ 확인됨. `StructuredError`는 `./types.ts:182`에
+  `{ message: string; status?: number }`로 동일 정의.
+- **수정**: `import type { StructuredError } from '../../core/turn.js'` →
+  `import type { StructuredError } from './types.js'`
+- **검증**: TypeCheck PASS, geminiChat.test.ts 48/48 PASS
+
+### 이슈 2 (낮음): 이동 후 주석 문맥이 구버전 상태
+
+- **지적**: `chat.ts:56,74`의 "will be moved to providers/gemini/ in a future
+  milestone (M2.3+)" 문구가 이미 이동 완료 상태와 불일치.
+- **검증 결과**: ✅ 확인됨. 파일이 이미 `providers/gemini/chat.ts`에 위치.
+- **수정**: 두 주석 모두 "retained for backward compatibility"로 정정.
+  - L56: `StreamEventType` @deprecated 주석
+  - L74: `StreamEvent` @deprecated 주석
+
+### 재검증
+
+| 항목                     | 결과            |
+| ------------------------ | --------------- |
+| TypeCheck                | ✅ PASS         |
+| 관련 테스트 4파일 (84건) | ✅ 84/84 passed |

@@ -46,8 +46,8 @@ code to pass. Ensure cross-provider compatibility through integration tests.
 | ---- | ----------------------------------------- | -------- | ----------- | ---------------------------- |
 | 1    | `client.ts` GeminiEventType 참조 정리     | Critical | ✅ 해소됨   | M2.연기 (EventType 전환)     |
 | 2    | `turn.ts` 이벤트 생성점 전환              | Critical | ✅ 해소됨   | M2.연기 (EventType 전환)     |
-| 3    | `chat.ts` → `providers/gemini/chat.ts`    | Critical | ⬜ → M3.0   | M3.0.1                       |
-| 4    | `turn.ts` → `providers/gemini/turn.ts`    | Critical | ⬜ → M3.0   | M3.0.1                       |
+| 3    | `chat.ts` → `providers/gemini/chat.ts`    | Critical | ✅ 해소됨   | M3.0.1 (`f56845dab`)         |
+| 4    | `turn.ts` → `providers/gemini/turn.ts`    | Critical | ✅ 해소됨   | M3.0.1 (`f56845dab`)         |
 | 5    | `messageInspectors` 마이그레이션 (4파일)  | High     | ⬜ → M3.0   | M3.0.2                       |
 | 6    | `loggingContentGenerator` 텔레메트리 변환 | High     | ⬜ → M3.0   | M3.0.3                       |
 | 7    | `telemetry/semantic.ts` Gemini 결합 해소  | High     | ⬜ → M3.0   | M3.0.3                       |
@@ -58,7 +58,7 @@ code to pass. Ensure cross-provider compatibility through integration tests.
 | 12   | `telemetry/sdk.ts` 시그널 핸들러 누수     | Medium   | ⬜ → M3.0   | M3.0.3                       |
 | M2.7 | Agent/Telemetry 결합 해소                 | Watch    | ⬜ → M3.0   | M3.0.3                       |
 | 신규 | 런타임 실행 경로 연결 (ProviderFactory)   | High     | ⬜ → M3.0   | M3.0.5 (리뷰 #1 반영)        |
-| 신규 | root index.ts re-export 회귀 테스트       | Medium   | ⬜ → M3.0   | M3.0.1.5 (리뷰 #2 반영)      |
+| 신규 | root index.ts re-export 회귀 테스트       | Medium   | ✅ 해소됨   | M3.0.1.5 (`f56845dab`)       |
 | 신규 | 프로바이더별 registry.register() 작업     | High     | ⬜ → M3.1~3 | M3.1.0.2/M3.2.0.2/M3.3.0.1   |
 | 신규 | SDK 의존성 설치 (@anthropic-ai, openai)   | Low      | ⬜ → M3.1~2 | M3.1.0.1/M3.2.0.1            |
 
@@ -156,19 +156,19 @@ M3.0 착수 전 다음 Open Question의 잠정 결정 권장:
 
 ### 3.0.1 Gemini 전용 파일 물리적 이동 (핸드오프 Critical #3, #4)
 
-| ID      | 작업                                                   | 상태 | 테스트 파일                        | 비고                                                                                                                                                                                                                                          |
-| ------- | ------------------------------------------------------ | ---- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 3.0.1.1 | `core/geminiChat.ts` → `providers/gemini/chat.ts` 이동 | ⬜   | 기존 geminiChat.test.ts            | 999라인, re-export로 하위 호환. import 변경 대상 13개 파일                                                                                                                                                                                    |
-| 3.0.1.2 | `core/turn.ts` 전체 → `providers/gemini/turn.ts` 이동  | ⬜   | 기존 turn.test.ts                  | 324라인, Turn 클래스 전체가 Gemini-specific (GeminiChat 생성자 의존). re-export로 하위 호환. import 변경 대상 10개 파일                                                                                                                       |
-| 3.0.1.3 | 기존 import 경로 re-export 하위 호환성 유지            | ⬜   | 기존 테스트 100% 통과              | M2.0 re-export 패턴 재활용                                                                                                                                                                                                                    |
-| 3.0.1.4 | core/index.ts export 정리                              | ⬜   | `providers/gemini/exports.test.ts` | core/exports.test.ts는 미존재, gemini/ 내 파일 참조                                                                                                                                                                                           |
-| 3.0.1.5 | root `index.ts` re-export 회귀 테스트 추가             | ⬜   | `index.test.ts`                    | 현재 placeholder(`expect(true).toBe(true)`). CLI가 `@google/gemini-cli-core`에서 `GeminiChat`, `StreamEventType` 등을 직접 import하므로, 파일 이동 후 root export가 유지되는지 검증 필수. L32(`geminiChat.js`), L36(`turn.js`) re-export 확인 |
+| ID      | 작업                                                   | 상태 | 테스트 파일                        | 비고                                                                                                                                    |
+| ------- | ------------------------------------------------------ | ---- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.0.1.1 | `core/geminiChat.ts` → `providers/gemini/chat.ts` 이동 | ✅   | 기존 geminiChat.test.ts            | 999라인, re-export로 하위 호환. import 변경 대상 13개 파일                                                                              |
+| 3.0.1.2 | `core/turn.ts` 전체 → `providers/gemini/turn.ts` 이동  | ✅   | 기존 turn.test.ts                  | 324라인, Turn 클래스 전체가 Gemini-specific (GeminiChat 생성자 의존). re-export로 하위 호환. import 변경 대상 10개 파일                 |
+| 3.0.1.3 | 기존 import 경로 re-export 하위 호환성 유지            | ✅   | 기존 테스트 100% 통과              | M2.0 re-export 패턴 재활용                                                                                                              |
+| 3.0.1.4 | core/index.ts export 정리                              | ✅   | `providers/gemini/exports.test.ts` | core/exports.test.ts는 미존재, gemini/ 내 파일 참조                                                                                     |
+| 3.0.1.5 | root `index.ts` re-export 회귀 테스트 추가             | ✅   | `index.test.ts`                    | 7개 회귀 테스트 추가 완료. GeminiChat, StreamEventType, InvalidStreamError, Turn, CompressionStatus, LlmEventType, GeminiEventType 검증 |
 
 **Tidy First 체크리스트**:
 
-- [ ] 모든 변경이 순수 구조적 (동작 변경 없음)
-- [ ] 각 이동마다 테스트 실행하여 회귀 확인
-- [ ] 커밋 메시지에 `[STRUCTURAL]` 태그
+- [x] 모든 변경이 순수 구조적 (동작 변경 없음)
+- [x] 각 이동마다 테스트 실행하여 회귀 확인
+- [x] 커밋 메시지에 `[STRUCTURAL]` 태그
 
 ### 3.0.2 messageInspectors 마이그레이션 (핸드오프 High #5)
 

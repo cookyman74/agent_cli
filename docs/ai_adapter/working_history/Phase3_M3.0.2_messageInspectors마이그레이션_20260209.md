@@ -182,7 +182,7 @@ LlmMessage 변환을 정확히 수행하여 모든 테스트가 한 번에 통�
 | 순서 | 커밋 ID     | 타입       | 설명                                                           | 테스트         |
 | ---- | ----------- | ---------- | -------------------------------------------------------------- | -------------- |
 | 1    | `eabc8ec1c` | STRUCTURAL | messageInspectors → llmUtils/geminiTypeConversion 전환 (4파일) | ✅ 4838 passed |
-| 2    | (리뷰반영)  | FIX        | Content-safe 래퍼 도입 — 의미론적 동치 보장 + 오버헤드 해소    | ✅ 4849 passed |
+| 2    | `8246391dd` | FIX        | Content-safe 래퍼 도입 — 의미론적 동치 보장 + 오버헤드 해소    | ✅ 4849 passed |
 
 **총 커밋 수**: 2개
 

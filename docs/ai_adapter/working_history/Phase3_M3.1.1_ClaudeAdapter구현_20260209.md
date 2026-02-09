@@ -43,10 +43,13 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
 - `toClaudeContent(contents)`: LlmContent → Anthropic ContentBlockParam
   - text → `{ type: 'text', text }` (동일)
   - tool_call → `{ type: 'tool_use', id, name, input }`
-  - tool_result → `{ type: 'tool_result', tool_use_id, content }`
+  - tool_result → `{ type: 'tool_result', tool_use_id, content, is_error? }`
+    (object content → JSON.stringify, isError → is_error)
   - image (base64) →
     `{ type: 'image', source: { type: 'base64', media_type, data } }`
+  - image (URL) → `{ type: 'text', text: '[Unsupported: ...]' }` 경고
   - thought → skip (Anthropic에 돌려보내지 않음)
+- `toCountTokensRequest(request)`: countTokens 전용 — generation 파라미터 제외
 - `toClaudeTools(tools)`: `input_schema` 형태로 변환
 - `toClaudeToolChoice(choice)`: auto→auto, none→none, required→any,
   {name}→{type:'tool', name}
@@ -65,7 +68,8 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
 
 **Stream 변환**:
 
-- `ClaudeStreamState` 인터페이스: `{ inputTokens, currentToolCall }`
+- `ClaudeStreamState` 인터페이스: `{ inputTokens, currentToolCalls }` (index
+  기반)
 - `createStreamState()`: 외부 상태 생성 (동시 스트림 안전)
 - `convertStreamEvent(event, state)`: RawMessageStreamEvent → LlmEvent[]
   - `message_start` → 상태에 input_tokens 캡처
@@ -78,20 +82,23 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
   - `message_delta` → Finished (stop_reason + usage)
   - `message_stop` → MessageEnd
 
-#### `providers/claude/converter.test.ts` — 40 tests
+#### `providers/claude/converter.test.ts` — 48 tests
 
-| 카테고리           | 테스트 수 | 검증 내용                                                                                 |
-| ------------------ | --------- | ----------------------------------------------------------------------------------------- |
-| toClaudeRequest    | 6         | 기본 변환, system, 파라미터, tools, toolChoice, default max_tokens                        |
-| toClaudeMessages   | 4         | user/assistant/system/tool role 매핑                                                      |
-| toClaudeContent    | 5         | text, tool_call, tool_result, image, thought                                              |
-| toClaudeTools      | 2         | 변환, 빈 배열                                                                             |
-| toClaudeToolChoice | 4         | auto, none, required→any, specific                                                        |
-| fromClaudeResponse | 5         | text, tool_use, thinking, rawResponse, empty                                              |
-| mapStopReason      | 6         | 6가지 매핑 (it.each)                                                                      |
-| convertStreamEvent | 8         | text_delta, thinking_delta, tool accumulation, finished, messageEnd, message_start, usage |
+| 카테고리               | 테스트 수 | 검증 내용                                                                                       |
+| ---------------------- | --------- | ----------------------------------------------------------------------------------------------- |
+| toClaudeRequest        | 6         | 기본 변환, system, 파라미터, tools, toolChoice, default max_tokens                              |
+| toClaudeMessages       | 4         | user/assistant/system/tool role 매핑                                                            |
+| toClaudeContent        | 5         | text, tool_call, tool_result, image, thought                                                    |
+| toClaudeTools          | 2         | 변환, 빈 배열                                                                                   |
+| toClaudeToolChoice     | 4         | auto, none, required→any, specific                                                              |
+| fromClaudeResponse     | 5         | text, tool_use, thinking, rawResponse, empty                                                    |
+| mapStopReason          | 6         | 6가지 매핑 (it.each)                                                                            |
+| convertStreamEvent     | 9         | text_delta, thinking_delta, tool accumulation, **parallel tool calls**, finished, messageEnd 등 |
+| toCountTokensRequest   | 3         | generation 파라미터 제외, system 포함, tools/tool_choice 포함                                   |
+| tool_result edge cases | 3         | isError 전달, isError 미설정, object content stringify                                          |
+| URL image handling     | 1         | URL 이미지 → 경고 텍스트 블록                                                                   |
 
-#### `providers/claude/adapter.test.ts` — 20 tests
+#### `providers/claude/adapter.test.ts` — 21 tests
 
 | 카테고리              | 테스트 수 | 검증 내용                                                    |
 | --------------------- | --------- | ------------------------------------------------------------ |
@@ -100,7 +107,7 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
 | generateContentStream | 6         | text events, tool streaming, stream:true, errors, validation |
 | capabilities          | 1         | 전체 capability 검증                                         |
 | config validation     | 2         | apiKey 있음/없음                                             |
-| countTokens           | 2         | SDK delegation                                               |
+| countTokens           | 3         | SDK delegation, **generation 파라미터 미포함 검증**          |
 
 ### 수정 파일
 
@@ -118,7 +125,8 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
   fromClaudeResponse
 - `generateContentStream()`: validateRequest → toClaudeRequest →
   create(stream:true) → convertStreamEvent loop
-- `countTokens()`: countTokens가 있으면 호출, 없으면 UnsupportedFeatureError
+- `countTokens()`: toCountTokensRequest → countTokens 호출, 없으면
+  UnsupportedFeatureError
 - `mapToProviderConfig()`: temperature, max_tokens, top_p, top_k, stop_sequences
   매핑
 - Capabilities: streaming, toolCalls, imageInput, tokenCount, systemMessage,
@@ -170,9 +178,39 @@ ClaudeAdapter의 핵심 메서드를 구현하여 Anthropic SDK를 통한 생성
 - **근거**: Claude API는 `max_tokens` 필수 파라미터. adapter의
   `maxOutputTokens: 8192`와 일치. 모델별 최대값은 다를 수 있으나 안전한 기본값.
 
+## 리뷰 반영 (2026-02-09)
+
+### 리뷰 이슈 및 수정 결과
+
+| #   | 심각도 | 이슈                                                                                                | 수정 내용                                                                                              |
+| --- | ------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 1   | 중간   | countTokens()가 toClaudeRequest() 재사용 — MessageCountTokensParams에 없는 generation 파라미터 포함 | `toCountTokensRequest()` 신규 메서드 추가. model, messages, system, tools, tool_choice만 포함          |
+| 2   | 중간   | Stream tool call이 index 무시 — 단일 currentToolCall로 병렬 tool call 시 데이터 손상                | `ClaudeStreamState.currentToolCall` → `currentToolCalls: Record<number, ...>` index 기반 추적으로 변경 |
+| 3   | 낮음   | tool_result 변환에서 isError 누락 + object content 직접 전달                                        | `isError: true`일 때 `is_error` 필드 추가, object content는 `JSON.stringify()` 처리                    |
+| 4   | 낮음   | supportsImageInput: true이나 URL 이미지 무시(silent drop)                                           | URL 이미지 시 경고 텍스트 블록 발행: `[Unsupported: URL image cannot be sent to Claude API: {url}]`    |
+
+### 추가된 테스트
+
+| 파일              | 추가 테스트 수 | 검증 내용                                                                 |
+| ----------------- | -------------- | ------------------------------------------------------------------------- |
+| converter.test.ts | 7              | toCountTokensRequest(3), parallel tool calls(1), isError(2), URL image(1) |
+| adapter.test.ts   | 1              | countTokens에 generation 파라미터 미포함 검증                             |
+
+### 리뷰 후 Quality Gate
+
+| 항목          | 결과                       |
+| ------------- | -------------------------- |
+| TypeCheck     | ✅ PASS                    |
+| ESLint        | ✅ PASS                    |
+| Claude 테스트 | ✅ 4 files / 81 passed     |
+| Provider 회귀 | ✅ 29 files / 524 passed   |
+| Core 전체     | ✅ 266 files / 4960 passed |
+
+**변화**: 리뷰 전 72 tests → 81 tests (+9), Core 4951 → 4960 (+9)
+
 ## 향후 작업
 
-- M3.1.2: Claude 메시지 변환 고도화 (에지 케이스, URL 이미지, 복합 콘텐츠)
+- M3.1.2: Claude 메시지 변환 고도화 (에지 케이스, 복합 콘텐츠)
 - M3.1.3: Claude 스트림 변환 고도화 (에러 스트림, 부분 실패, 재시도)
 - M3.1.4: Claude 에러 매핑 (APIError → LlmError 계층 변환)
 

@@ -676,5 +676,249 @@ describe('ClaudeConverter', () => {
       const events = converter.convertStreamEvent(event, state);
       expect(events).toHaveLength(0);
     });
+
+    // ---- Review Issue #2: parallel tool calls ----
+
+    it('should handle parallel tool calls using index-based tracking', () => {
+      // Start two tool calls at different indices
+      converter.convertStreamEvent(
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: {
+            type: 'tool_use',
+            id: 'toolu_A',
+            name: 'read_file',
+            input: {},
+          },
+        },
+        state,
+      );
+
+      converter.convertStreamEvent(
+        {
+          type: 'content_block_start',
+          index: 1,
+          content_block: {
+            type: 'tool_use',
+            id: 'toolu_B',
+            name: 'write_file',
+            input: {},
+          },
+        },
+        state,
+      );
+
+      // Send deltas to both indices
+      converter.convertStreamEvent(
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: {
+            type: 'input_json_delta',
+            partial_json: '{"path": "/tmp/a.txt"}',
+          },
+        },
+        state,
+      );
+
+      converter.convertStreamEvent(
+        {
+          type: 'content_block_delta',
+          index: 1,
+          delta: {
+            type: 'input_json_delta',
+            partial_json: '{"path": "/tmp/b.txt",',
+          },
+        },
+        state,
+      );
+
+      converter.convertStreamEvent(
+        {
+          type: 'content_block_delta',
+          index: 1,
+          delta: {
+            type: 'input_json_delta',
+            partial_json: ' "content": "hello"}',
+          },
+        },
+        state,
+      );
+
+      // Stop index 0 first
+      const eventsA = converter.convertStreamEvent(
+        { type: 'content_block_stop', index: 0 },
+        state,
+      );
+      expect(eventsA).toHaveLength(1);
+      expect(eventsA[0].type).toBe(LlmEventType.ToolCallRequest);
+      const toolA = eventsA[0] as {
+        callId: string;
+        name: string;
+        args: Record<string, unknown>;
+      };
+      expect(toolA.callId).toBe('toolu_A');
+      expect(toolA.name).toBe('read_file');
+      expect(toolA.args).toEqual({ path: '/tmp/a.txt' });
+
+      // Stop index 1
+      const eventsB = converter.convertStreamEvent(
+        { type: 'content_block_stop', index: 1 },
+        state,
+      );
+      expect(eventsB).toHaveLength(1);
+      expect(eventsB[0].type).toBe(LlmEventType.ToolCallRequest);
+      const toolB = eventsB[0] as {
+        callId: string;
+        name: string;
+        args: Record<string, unknown>;
+      };
+      expect(toolB.callId).toBe('toolu_B');
+      expect(toolB.name).toBe('write_file');
+      expect(toolB.args).toEqual({ path: '/tmp/b.txt', content: 'hello' });
+    });
+  });
+
+  // ==============================================================
+  // Review Issue #1: toCountTokensRequest
+  // ==============================================================
+
+  describe('toCountTokensRequest', () => {
+    it('should only include MessageCountTokensParams fields', () => {
+      const request: LlmGenerateRequest = {
+        model: 'claude-3-5-sonnet-20241022',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        ],
+        temperature: 0.7,
+        maxTokens: 4096,
+        topP: 0.9,
+        topK: 40,
+        stopSequences: ['END'],
+      };
+
+      const result = converter.toCountTokensRequest(request);
+
+      // Should include these fields
+      expect(result['model']).toBe('claude-3-5-sonnet-20241022');
+      expect(result['messages']).toBeDefined();
+
+      // Should NOT include generation parameters
+      expect(result['max_tokens']).toBeUndefined();
+      expect(result['temperature']).toBeUndefined();
+      expect(result['top_p']).toBeUndefined();
+      expect(result['top_k']).toBeUndefined();
+      expect(result['stop_sequences']).toBeUndefined();
+    });
+
+    it('should include system when present', () => {
+      const request: LlmGenerateRequest = {
+        model: 'claude-3-5-sonnet-20241022',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        ],
+        systemInstruction: 'Be helpful.',
+      };
+
+      const result = converter.toCountTokensRequest(request);
+
+      expect(result['system']).toBe('Be helpful.');
+    });
+
+    it('should include tools when present', () => {
+      const request: LlmGenerateRequest = {
+        model: 'claude-3-5-sonnet-20241022',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        ],
+        tools: [
+          {
+            name: 'test_tool',
+            description: 'Test',
+            parameters: { type: 'object', properties: {} },
+          },
+        ],
+        toolChoice: 'auto',
+      };
+
+      const result = converter.toCountTokensRequest(request);
+
+      expect(result['tools']).toBeDefined();
+      expect(result['tool_choice']).toBeDefined();
+    });
+  });
+
+  // ==============================================================
+  // Review Issue #3: tool_result isError + object content
+  // ==============================================================
+
+  describe('toClaudeContent — tool_result edge cases', () => {
+    it('should include is_error when isError is true', () => {
+      const result = converter.toClaudeContent([
+        {
+          type: 'tool_result',
+          toolCallId: 'call-1',
+          content: 'Error: file not found',
+          isError: true,
+        },
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]['is_error']).toBe(true);
+    });
+
+    it('should not include is_error when isError is false or undefined', () => {
+      const result = converter.toClaudeContent([
+        {
+          type: 'tool_result',
+          toolCallId: 'call-1',
+          content: 'success',
+        },
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]['is_error']).toBeUndefined();
+    });
+
+    it('should stringify object content for tool_result', () => {
+      const result = converter.toClaudeContent([
+        {
+          type: 'tool_result',
+          toolCallId: 'call-1',
+          content: { key: 'value', nested: { a: 1 } },
+        },
+      ]);
+
+      expect(result).toHaveLength(1);
+      // Object content should be stringified for Anthropic API
+      expect(typeof result[0]['content']).toBe('string');
+      const parsed = JSON.parse(result[0]['content'] as string);
+      expect(parsed).toEqual({ key: 'value', nested: { a: 1 } });
+    });
+  });
+
+  // ==============================================================
+  // Review Issue #4: URL image handling
+  // ==============================================================
+
+  describe('toClaudeContent — URL image handling', () => {
+    it('should emit warning text block for URL images', () => {
+      const result = converter.toClaudeContent([
+        {
+          type: 'image',
+          source: {
+            type: 'url',
+            mediaType: 'image/png',
+            url: 'https://example.com/image.png',
+          },
+        },
+      ]);
+
+      // URL images should produce a text block with warning rather than being silently dropped
+      expect(result).toHaveLength(1);
+      expect(result[0]['type']).toBe('text');
+      expect((result[0]['text'] as string).toLowerCase()).toContain('url');
+    });
   });
 });

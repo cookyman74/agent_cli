@@ -492,5 +492,30 @@ describe('ClaudeAdapter', () => {
       expect(result.totalTokens).toBe(42);
       expect(mockClient.messages.countTokens).toHaveBeenCalledTimes(1);
     });
+
+    it('should not pass generation parameters to countTokens', async () => {
+      mockClient.messages.countTokens.mockResolvedValue({
+        input_tokens: 42,
+      });
+
+      const request = createBasicRequest({
+        temperature: 0.7,
+        maxTokens: 4096,
+        topP: 0.9,
+        topK: 40,
+        stopSequences: ['END'],
+      });
+
+      await adapter.countTokens(request);
+
+      const callArgs = mockClient.messages.countTokens.mock
+        .calls[0][0] as Record<string, unknown>;
+      // MessageCountTokensParams does NOT include these
+      expect(callArgs['max_tokens']).toBeUndefined();
+      expect(callArgs['temperature']).toBeUndefined();
+      expect(callArgs['top_p']).toBeUndefined();
+      expect(callArgs['top_k']).toBeUndefined();
+      expect(callArgs['stop_sequences']).toBeUndefined();
+    });
   });
 });

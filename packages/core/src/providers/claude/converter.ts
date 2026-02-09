@@ -36,11 +36,15 @@ const DEFAULT_MAX_TOKENS = 8192;
  */
 export interface ClaudeStreamState {
   inputTokens: number;
-  currentToolCall: {
-    id: string;
-    name: string;
-    inputJson: string;
-  } | null;
+  /** Index-based tool call tracking for parallel tool calls. */
+  currentToolCalls: Record<
+    number,
+    {
+      id: string;
+      name: string;
+      inputJson: string;
+    }
+  >;
 }
 
 /**
@@ -160,13 +164,21 @@ export class ClaudeConverter {
           });
           break;
 
-        case 'tool_result':
-          blocks.push({
+        case 'tool_result': {
+          const block: Record<string, unknown> = {
             type: 'tool_result',
             tool_use_id: content.toolCallId,
-            content: content.content,
-          });
+            content:
+              typeof content.content === 'string'
+                ? content.content
+                : JSON.stringify(content.content),
+          };
+          if (content.isError) {
+            block['is_error'] = true;
+          }
+          blocks.push(block);
           break;
+        }
 
         case 'image':
           if (content.source.type === 'base64') {
@@ -178,8 +190,14 @@ export class ClaudeConverter {
                 data: content.source.data,
               },
             });
+          } else {
+            // URL images: Anthropic API does not support URL images directly.
+            // Emit a text block with warning instead of silently dropping.
+            blocks.push({
+              type: 'text',
+              text: `[Unsupported: URL image cannot be sent to Claude API: ${content.source.url}]`,
+            });
           }
-          // URL images: Anthropic requires base64, skip URL type
           break;
 
         case 'thought':
@@ -226,6 +244,42 @@ export class ClaudeConverter {
 
     // Specific tool name
     return { type: 'tool', name: choice.name };
+  }
+
+  /**
+   * Convert LlmGenerateRequest to Anthropic MessageCountTokensParams.
+   * Only includes fields valid for countTokens (no generation parameters).
+   */
+  toCountTokensRequest(request: LlmGenerateRequest): Record<string, unknown> {
+    const { messages, system: msgSystem } = this.toClaudeMessages(
+      request.messages,
+    );
+
+    let finalSystem: string | undefined;
+    if (request.systemInstruction && msgSystem) {
+      finalSystem = `${request.systemInstruction}\n${msgSystem}`;
+    } else {
+      finalSystem = request.systemInstruction || msgSystem || undefined;
+    }
+
+    const params: Record<string, unknown> = {
+      model: request.model,
+      messages,
+    };
+
+    if (finalSystem) {
+      params['system'] = finalSystem;
+    }
+
+    if (request.tools && request.tools.length > 0) {
+      params['tools'] = this.toClaudeTools(request.tools);
+    }
+
+    if (request.toolChoice) {
+      params['tool_choice'] = this.toClaudeToolChoice(request.toolChoice);
+    }
+
+    return params;
   }
 
   // ============================================================================
@@ -335,7 +389,7 @@ export class ClaudeConverter {
    * Create a new stream state for processing stream events.
    */
   createStreamState(): ClaudeStreamState {
-    return { inputTokens: 0, currentToolCall: null };
+    return { inputTokens: 0, currentToolCalls: {} };
   }
 
   /**
@@ -356,10 +410,11 @@ export class ClaudeConverter {
       }
 
       case 'content_block_start': {
+        const index = e['index'] as number;
         const block = e['content_block'] as Record<string, unknown>;
         if (block?.['type'] === 'tool_use') {
-          // Start accumulating tool call
-          state.currentToolCall = {
+          // Start accumulating tool call at this index
+          state.currentToolCalls[index] = {
             id: block['id'] as string,
             name: block['name'] as string,
             inputJson: '',
@@ -369,6 +424,7 @@ export class ClaudeConverter {
       }
 
       case 'content_block_delta': {
+        const index = e['index'] as number;
         const delta = e['delta'] as Record<string, unknown>;
         const deltaType = delta?.['type'] as string;
 
@@ -390,17 +446,20 @@ export class ClaudeConverter {
           ];
         }
 
-        if (deltaType === 'input_json_delta' && state.currentToolCall) {
-          state.currentToolCall.inputJson += delta['partial_json'] as string;
+        if (deltaType === 'input_json_delta' && state.currentToolCalls[index]) {
+          state.currentToolCalls[index].inputJson += delta[
+            'partial_json'
+          ] as string;
         }
 
         return [];
       }
 
       case 'content_block_stop': {
-        if (state.currentToolCall) {
-          const toolCall = state.currentToolCall;
-          state.currentToolCall = null;
+        const index = e['index'] as number;
+        const toolCall = state.currentToolCalls[index];
+        if (toolCall) {
+          delete state.currentToolCalls[index];
 
           let args: Record<string, unknown> = {};
           try {

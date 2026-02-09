@@ -152,7 +152,7 @@ export class ClaudeAdapter extends BaseAdapter {
       );
     }
 
-    const params = this.converter.toClaudeRequest(request);
+    const params = this.converter.toCountTokensRequest(request);
     const result = (await this.client.messages.countTokens(params)) as {
       input_tokens?: number;
     };

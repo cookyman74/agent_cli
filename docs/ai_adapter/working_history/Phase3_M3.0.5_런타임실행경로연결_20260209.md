@@ -157,4 +157,5 @@ if (isMultiProviderEnabled()) {
 
 ## 커밋
 
-- (대기 중)
+- `54cf15f0b` feat(providers): M3.0.5 — 런타임 실행 경로 연결 (multi-provider
+  runtime wiring)

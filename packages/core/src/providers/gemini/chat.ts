@@ -42,7 +42,7 @@ import {
   ContentRetryFailureEvent,
 } from '../../telemetry/types.js';
 import { handleFallback } from '../../fallback/handler.js';
-import { isContentToolResultMessage } from '../../utils/geminiTypeConversion.js';
+import { isContentToolResultMessage } from './typeConversion.js';
 import { partListUnionToString } from '../../core/geminiRequest.js';
 import type { ModelConfigKey } from '../../services/modelConfigService.js';
 import { estimateTokenCountSync } from '../../utils/tokenCalculation.js';

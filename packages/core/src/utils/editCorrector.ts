@@ -18,7 +18,7 @@ import {
 import {
   isContentToolCallMessage,
   isContentToolResultMessage,
-} from '../utils/geminiTypeConversion.js';
+} from '../providers/gemini/typeConversion.js';
 import * as fs from 'node:fs';
 import { promptIdContext } from './promptIdContext.js';
 import { debugLogger } from './debugLogger.js';

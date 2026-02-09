@@ -11,7 +11,7 @@ import {
   convertPartListUnionToLlmContents,
   isContentToolCallMessage,
   isContentToolResultMessage,
-} from './geminiTypeConversion.js';
+} from '../providers/gemini/typeConversion.js';
 import type { Content } from '@google/genai';
 
 describe('geminiTypeConversion', () => {

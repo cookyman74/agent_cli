@@ -51,7 +51,7 @@ import type { RoutingContext } from '../routing/routingStrategy.js';
 import {
   convertContentsToLlmMessages,
   convertPartListUnionToLlmContents,
-} from '../utils/geminiTypeConversion.js';
+} from '../providers/gemini/typeConversion.js';
 import { parseThought } from '../utils/thoughtUtils.js';
 import { type z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';

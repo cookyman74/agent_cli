@@ -23,7 +23,7 @@ import type { Config } from '../config/config.js';
 import {
   isContentToolCallMessage,
   isContentToolResultMessage,
-} from '../utils/geminiTypeConversion.js';
+} from '../providers/gemini/typeConversion.js';
 import { debugLogger } from '../utils/debugLogger.js';
 
 const TOOL_CALL_LOOP_THRESHOLD = 5;

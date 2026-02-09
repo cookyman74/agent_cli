@@ -39,3 +39,10 @@ export {
   fromGenerateContentConfig,
   toGenerateContentConfig,
 } from './configConverter.js';
+export {
+  convertContentToLlmMessage,
+  convertContentsToLlmMessages,
+  convertPartListUnionToLlmContents,
+  isContentToolCallMessage,
+  isContentToolResultMessage,
+} from './typeConversion.js';

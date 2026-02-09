@@ -56,7 +56,7 @@ import type { RoutingContext } from '../routing/routingStrategy.js';
 import {
   convertContentsToLlmMessages,
   convertPartListUnionToLlmContents,
-} from '../utils/geminiTypeConversion.js';
+} from '../providers/gemini/typeConversion.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';

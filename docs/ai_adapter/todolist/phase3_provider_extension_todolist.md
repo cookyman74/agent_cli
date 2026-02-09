@@ -54,7 +54,7 @@ code to pass. Ensure cross-provider compatibility through integration tests.
 | 8    | AuthType 처리 통합 (2.3.1.8)              | Medium   | ⬜ → M3.1+  | 신규 프로바이더 구현 시 함께 |
 | 9    | 성능 검증 (응답 지연/메모리/스트리밍)     | Medium   | ⬜ → M3.4   | M3.4.3                       |
 | 10   | E2E 테스트 통과 검증                      | Medium   | ⬜ → M3.4   | M3.4.2                       |
-| 11   | `geminiTypeConversion.ts` 브릿지 제거     | Medium   | ⬜ → M3.0   | M3.0.4                       |
+| 11   | `geminiTypeConversion.ts` 브릿지 정리     | Medium   | ✅ 해소됨   | M3.0.4                       |
 | 12   | `telemetry/sdk.ts` 시그널 핸들러 누수     | Medium   | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
 | M2.7 | Agent/Telemetry 결합 해소                 | Watch    | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
 | 신규 | 런타임 실행 경로 연결 (ProviderFactory)   | High     | ⬜ → M3.0   | M3.0.5 (리뷰 #1 반영)        |
@@ -200,11 +200,11 @@ M3.0 착수 전 다음 Open Question의 잠정 결정 권장:
 
 ### 3.0.4 변환 브릿지 정리 (핸드오프 Medium #11)
 
-| ID      | 작업                                            | 상태 | 테스트 파일                    | 비고                                       |
-| ------- | ----------------------------------------------- | ---- | ------------------------------ | ------------------------------------------ |
-| 3.0.4.1 | `geminiTypeConversion.ts` 브릿지 사용처 확인    | ⬜   | N/A (분석)                     | 호출 지점이 LlmMessage 기반 전환 후 불필요 |
-| 3.0.4.2 | 사용처 직접 LlmMessage 타입 전환                | ⬜   | 관련 테스트 파일               | client.ts, local-executor.ts 등            |
-| 3.0.4.3 | `geminiTypeConversion.ts` 제거 또는 @deprecated | ⬜   | `geminiTypeConversion.test.ts` | 사용처 전환 완료 후                        |
+| ID      | 작업                                                                 | 상태 | 테스트 파일                    | 비고                                                     |
+| ------- | -------------------------------------------------------------------- | ---- | ------------------------------ | -------------------------------------------------------- |
+| 3.0.4.1 | `geminiTypeConversion.ts` 브릿지 사용처 확인                         | ✅   | N/A (분석)                     | 6개 사이트, 5개 함수 — 모두 Gemini SDK 타입 입력         |
+| 3.0.4.2 | `providers/gemini/typeConversion.ts`로 이동                          | ✅   | 관련 테스트 파일               | 6개 import 전환 + index.ts export 추가                   |
+| 3.0.4.3 | `utils/geminiTypeConversion.ts` @deprecated + messageInspectors 삭제 | ✅   | `geminiTypeConversion.test.ts` | re-export shim 유지, messageInspectors.ts dead code 삭제 |
 
 ### 3.0.5 런타임 실행 경로 연결 (리뷰 #1 반영)
 
@@ -1038,7 +1038,7 @@ describe.each([
 - [x] messageInspectors 4개 파일 마이그레이션 완료 (M3.0.2)
 - [x] 텔레메트리 레이어 @google/genai 독립화 (M3.0.3)
 - [x] LocalAgentExecutor GeminiChat 직접 결합 해소 (M3.0.3)
-- [ ] `geminiTypeConversion.ts` 브릿지 정리 완료
+- [x] `geminiTypeConversion.ts` 브릿지 정리 완료 (M3.0.4)
 - [x] `telemetry/sdk.ts` 시그널 핸들러 누수 수정 (M3.0.3)
 - [ ] `createContentGenerator()` → ProviderFactory 런타임 연결 완료 (3.0.5)
 - [ ] ProviderRegistry Gemini 팩토리 부트스트랩 동작 (3.0.5.4)

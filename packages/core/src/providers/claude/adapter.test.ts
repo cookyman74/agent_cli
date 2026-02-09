@@ -24,6 +24,7 @@ import {
   NetworkError,
   TimeoutError,
   ModelNotFoundError,
+  ValidationError,
 } from '../errors.js';
 
 // =================================================================
@@ -839,6 +840,49 @@ describe('ClaudeAdapter', () => {
         (e) => e.type === LlmEventType.Error,
       ) as unknown as { error: LlmError };
       expect(errorEvent.error).toBeInstanceOf(ModelNotFoundError);
+    });
+
+    // Review: LlmError passthrough — should not re-classify
+    it('should preserve existing LlmError without re-classification (stream)', async () => {
+      const original = new ValidationError('Missing required field', {
+        provider: 'claude',
+      });
+      mockClient.messages.create.mockRejectedValue(original);
+
+      const request = createBasicRequest();
+      const events = [];
+      for await (const event of adapter.generateContentStream(
+        request,
+        'prompt-1',
+      )) {
+        events.push(event);
+      }
+
+      const errorEvent = events.find(
+        (e) => e.type === LlmEventType.Error,
+      ) as unknown as { error: LlmError };
+      // Should be the original ValidationError, not re-classified as NetworkError
+      expect(errorEvent.error).toBeInstanceOf(ValidationError);
+      expect(errorEvent.error.type).toBe(LlmErrorType.VALIDATION);
+      expect(errorEvent.error.isRetryable).toBe(false);
+    });
+
+    it('should preserve existing LlmError without re-classification (non-stream)', async () => {
+      const original = new RateLimitError('Too many requests', {
+        provider: 'claude',
+        retryAfterMs: 5000,
+      });
+      mockClient.messages.create.mockRejectedValue(original);
+
+      const request = createBasicRequest();
+
+      try {
+        await adapter.generateContent(request, 'prompt-1');
+        expect.unreachable('should have thrown');
+      } catch (error) {
+        expect(error).toBe(original); // exact same instance
+        expect(error).toBeInstanceOf(RateLimitError);
+      }
     });
   });
 });

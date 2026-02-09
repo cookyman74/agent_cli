@@ -182,6 +182,11 @@ export class ClaudeAdapter extends BaseAdapter {
    * Uses HTTP status code when available, falls back to message heuristics.
    */
   private classifyError(error: unknown): LlmError {
+    // Preserve already-classified LlmError instances (e.g. from nested calls)
+    if (error instanceof LlmError) {
+      return error;
+    }
+
     const err = error instanceof Error ? error : new Error(String(error));
     const status = (error as Record<string, unknown>)?.['status'] as
       | number

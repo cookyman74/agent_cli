@@ -11,15 +11,63 @@
  * @see https://github.com/open-telemetry/semantic-conventions/blob/8b4f210f43136e57c1f6f47292eb6d38e3bf30bb/docs/gen-ai/gen-ai-events.md
  */
 
-import { FinishReason } from '@google/genai';
-import type {
-  Candidate,
-  Content,
-  ContentUnion,
-  Part,
-  PartUnion,
-} from '@google/genai';
 import { truncateString } from '../utils/textUtils.js';
+
+// ---------------------------------------------------------------------------
+// Provider-independent type definitions for telemetry semantic conversion.
+// Structurally compatible with @google/genai SDK types via duck typing.
+// ---------------------------------------------------------------------------
+
+/** Minimal Part shape — only fields consumed by toOTelPart(). */
+export interface TelemetryPart {
+  thought?: boolean;
+  text?: string;
+  functionCall?: { name?: string; id?: string; args?: Record<string, unknown> };
+  functionResponse?: { response?: Record<string, unknown>; id?: string };
+  executableCode?: { code?: string; language?: string };
+  codeExecutionResult?: { outcome?: string; output?: string };
+}
+
+/** Minimal Content shape — parts + role. */
+export interface TelemetryContent {
+  parts?: TelemetryPart[];
+  role?: string;
+}
+
+/** Union accepted by toSystemInstruction(). */
+export type TelemetryContentUnion =
+  | TelemetryContent
+  | TelemetryPartUnion[]
+  | TelemetryPartUnion;
+
+/** Union accepted by toPart(). */
+export type TelemetryPartUnion = TelemetryPart | string;
+
+/** Minimal Candidate shape — content + finishReason. */
+export interface TelemetryCandidate {
+  content?: TelemetryContent;
+  finishReason?: string;
+}
+
+/**
+ * FinishReason string constants.
+ * Mirrors @google/genai FinishReason enum values (each member = its own name string).
+ */
+const GeminiFinishReason = {
+  FINISH_REASON_UNSPECIFIED: 'FINISH_REASON_UNSPECIFIED',
+  STOP: 'STOP',
+  MAX_TOKENS: 'MAX_TOKENS',
+  SAFETY: 'SAFETY',
+  RECITATION: 'RECITATION',
+  LANGUAGE: 'LANGUAGE',
+  OTHER: 'OTHER',
+  BLOCKLIST: 'BLOCKLIST',
+  PROHIBITED_CONTENT: 'PROHIBITED_CONTENT',
+  SPII: 'SPII',
+  MALFORMED_FUNCTION_CALL: 'MALFORMED_FUNCTION_CALL',
+  IMAGE_SAFETY: 'IMAGE_SAFETY',
+  UNEXPECTED_TOOL_CALL: 'UNEXPECTED_TOOL_CALL',
+} as const;
 
 // 160KB limit for the total size of string content in a log entry.
 // The total log entry size limit is 256KB. We leave ~96KB (approx 37%) for JSON overhead (escaping, structure) and other fields.
@@ -117,7 +165,7 @@ function limitTotalLength(parts: AnyPart[]): void {
   }
 }
 
-export function toInputMessages(contents: Content[]): InputMessages {
+export function toInputMessages(contents: TelemetryContent[]): InputMessages {
   const messages: ChatMessage[] = [];
   for (const content of contents) {
     messages.push(toChatMessage(content));
@@ -127,7 +175,7 @@ export function toInputMessages(contents: Content[]): InputMessages {
   return messages;
 }
 
-function isPart(value: unknown): value is Part {
+function isPart(value: unknown): value is TelemetryPart {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -136,14 +184,16 @@ function isPart(value: unknown): value is Part {
   );
 }
 
-function toPart(part: PartUnion): Part {
+function toPart(part: TelemetryPartUnion): TelemetryPart {
   if (typeof part === 'string') {
     return { text: part };
   }
   return part;
 }
 
-function toContent(content: ContentUnion): Content | undefined {
+function toContent(
+  content: TelemetryContentUnion,
+): TelemetryContent | undefined {
   if (typeof content === 'string') {
     // 1. It's a string
     return {
@@ -169,7 +219,7 @@ function toContent(content: ContentUnion): Content | undefined {
 }
 
 export function toSystemInstruction(
-  systemInstruction?: ContentUnion,
+  systemInstruction?: TelemetryContentUnion,
 ): SystemInstruction | undefined {
   const parts: AnyPart[] = [];
   if (systemInstruction) {
@@ -184,7 +234,9 @@ export function toSystemInstruction(
   return parts;
 }
 
-export function toOutputMessages(candidates?: Candidate[]): OutputMessages {
+export function toOutputMessages(
+  candidates?: TelemetryCandidate[],
+): OutputMessages {
   const messages: OutputMessage[] = [];
   if (candidates) {
     for (const candidate of candidates) {
@@ -199,7 +251,9 @@ export function toOutputMessages(candidates?: Candidate[]): OutputMessages {
   return messages;
 }
 
-export function toFinishReasons(candidates?: Candidate[]): OTelFinishReason[] {
+export function toFinishReasons(
+  candidates?: TelemetryCandidate[],
+): OTelFinishReason[] {
   const reasons: OTelFinishReason[] = [];
   if (candidates) {
     for (const candidate of candidates) {
@@ -222,7 +276,7 @@ export function toOutputType(requested_mime?: string): string | undefined {
   }
 }
 
-export function toChatMessage(content?: Content): ChatMessage {
+export function toChatMessage(content?: TelemetryContent): ChatMessage {
   const message: ChatMessage = {
     role: undefined,
     parts: [],
@@ -236,7 +290,7 @@ export function toChatMessage(content?: Content): ChatMessage {
   return message;
 }
 
-export function toOTelPart(part: Part): AnyPart {
+export function toOTelPart(part: TelemetryPart): AnyPart {
   if (part.thought) {
     if (part.text) {
       return new ReasoningPart(part.text);
@@ -321,31 +375,31 @@ export enum OTelFinishReason {
 export function toOTelFinishReason(finishReason?: string): OTelFinishReason {
   switch (finishReason) {
     // we have significantly more finish reasons than the spec
-    case FinishReason.FINISH_REASON_UNSPECIFIED:
+    case GeminiFinishReason.FINISH_REASON_UNSPECIFIED:
       return OTelFinishReason.STOP;
-    case FinishReason.STOP:
+    case GeminiFinishReason.STOP:
       return OTelFinishReason.STOP;
-    case FinishReason.MAX_TOKENS:
+    case GeminiFinishReason.MAX_TOKENS:
       return OTelFinishReason.LENGTH;
-    case FinishReason.SAFETY:
+    case GeminiFinishReason.SAFETY:
       return OTelFinishReason.CONTENT_FILTER;
-    case FinishReason.RECITATION:
+    case GeminiFinishReason.RECITATION:
       return OTelFinishReason.CONTENT_FILTER;
-    case FinishReason.LANGUAGE:
+    case GeminiFinishReason.LANGUAGE:
       return OTelFinishReason.CONTENT_FILTER;
-    case FinishReason.OTHER:
+    case GeminiFinishReason.OTHER:
       return OTelFinishReason.STOP;
-    case FinishReason.BLOCKLIST:
+    case GeminiFinishReason.BLOCKLIST:
       return OTelFinishReason.CONTENT_FILTER;
-    case FinishReason.PROHIBITED_CONTENT:
+    case GeminiFinishReason.PROHIBITED_CONTENT:
       return OTelFinishReason.CONTENT_FILTER;
-    case FinishReason.SPII:
+    case GeminiFinishReason.SPII:
       return OTelFinishReason.CONTENT_FILTER;
-    case FinishReason.MALFORMED_FUNCTION_CALL:
+    case GeminiFinishReason.MALFORMED_FUNCTION_CALL:
       return OTelFinishReason.ERROR;
-    case FinishReason.IMAGE_SAFETY:
+    case GeminiFinishReason.IMAGE_SAFETY:
       return OTelFinishReason.CONTENT_FILTER;
-    case FinishReason.UNEXPECTED_TOOL_CALL:
+    case GeminiFinishReason.UNEXPECTED_TOOL_CALL:
       return OTelFinishReason.ERROR;
     default:
       return OTelFinishReason.STOP;
@@ -353,7 +407,7 @@ export function toOTelFinishReason(finishReason?: string): OTelFinishReason {
 }
 
 export interface OutputMessage extends ChatMessage {
-  finish_reason: FinishReason | string;
+  finish_reason: string;
 }
 
 export type OutputMessages = OutputMessage[];

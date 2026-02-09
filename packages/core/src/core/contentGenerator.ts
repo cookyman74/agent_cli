@@ -12,6 +12,17 @@ import type {
   EmbedContentResponse,
   EmbedContentParameters,
 } from '@google/genai';
+
+// Re-export Gemini SDK types for consumers that need interface method types
+// without importing @google/genai directly (e.g., LoggingContentGenerator).
+export type {
+  CountTokensResponse,
+  GenerateContentResponse,
+  GenerateContentParameters,
+  CountTokensParameters,
+  EmbedContentResponse,
+  EmbedContentParameters,
+};
 import type {
   LlmGenerateRequest,
   LlmGenerateResponse,

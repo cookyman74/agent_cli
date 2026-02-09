@@ -8,11 +8,54 @@
  * @fileoverview Defines the core configuration interfaces and types for the agent architecture.
  */
 
-import type { Content, FunctionDeclaration } from '@google/genai';
+import type {
+  Content,
+  FunctionDeclaration,
+  PartListUnion,
+  Tool,
+} from '@google/genai';
 import type { AnyDeclarativeTool } from '../tools/tools.js';
 import { type z } from 'zod';
-import type { ModelConfig } from '../services/modelConfigService.js';
+import type {
+  ModelConfig,
+  ModelConfigKey,
+} from '../services/modelConfigService.js';
 import type { AnySchema } from 'ajv';
+import type { StreamEvent } from '../providers/gemini/chat.js';
+import type { Config } from '../config/config.js';
+
+// ---------------------------------------------------------------------------
+// AgentChatSession — abstract interface for agent ↔ chat layer decoupling.
+// GeminiChat is the default implementation; future providers can supply their own.
+// ---------------------------------------------------------------------------
+
+/**
+ * Abstract chat session interface used by agent executors.
+ * Breaks the direct dependency on GeminiChat (Q5 provisional decision).
+ */
+export interface AgentChatSession {
+  sendMessageStream(
+    modelConfigKey: ModelConfigKey,
+    message: PartListUnion,
+    promptId: string,
+    signal: AbortSignal,
+  ): Promise<AsyncGenerator<StreamEvent>>;
+
+  setHistory(history: Content[]): void;
+  getHistory(curated?: boolean): Content[];
+  getLastPromptTokenCount(): number;
+}
+
+/**
+ * Factory function type for creating AgentChatSession instances.
+ * Allows injecting different chat implementations (e.g., for testing or multi-provider).
+ */
+export type ChatSessionFactory = (
+  config: Config,
+  systemInstruction: string | undefined,
+  tools: Tool[],
+  history: Content[],
+) => AgentChatSession;
 
 /**
  * Describes the possible termination modes for an agent.

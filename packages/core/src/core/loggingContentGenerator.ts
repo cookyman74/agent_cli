@@ -5,23 +5,28 @@
  */
 
 import type {
-  Candidate,
-  Content,
   CountTokensParameters,
   CountTokensResponse,
   EmbedContentParameters,
   EmbedContentResponse,
-  GenerateContentConfig,
   GenerateContentParameters,
-  GenerateContentResponseUsageMetadata,
   GenerateContentResponse,
-} from '@google/genai';
-import type { ServerDetails } from '../telemetry/types.js';
+  ContentGenerator,
+} from './contentGenerator.js';
+import type {
+  ServerDetails,
+  TelemetryGenerateConfig,
+  TelemetryUsageMetadata,
+} from '../telemetry/types.js';
 import {
   ApiRequestEvent,
   ApiResponseEvent,
   ApiErrorEvent,
 } from '../telemetry/types.js';
+import type {
+  TelemetryContent,
+  TelemetryCandidate,
+} from '../telemetry/semantic.js';
 import type { Config } from '../config/config.js';
 import type { UserTierId } from '../code_assist/types.js';
 import {
@@ -29,7 +34,6 @@ import {
   logApiRequest,
   logApiResponse,
 } from '../telemetry/loggers.js';
-import type { ContentGenerator } from './contentGenerator.js';
 import type {
   LlmGenerateRequest,
   LlmGenerateResponse,
@@ -69,10 +73,10 @@ export class LoggingContentGenerator implements ContentGenerator {
   }
 
   private logApiRequest(
-    contents: Content[],
+    contents: TelemetryContent[],
     model: string,
     promptId: string,
-    generationConfig?: GenerateContentConfig,
+    generationConfig?: TelemetryGenerateConfig,
     serverDetails?: ServerDetails,
   ): void {
     const requestText = JSON.stringify(contents);
@@ -125,15 +129,15 @@ export class LoggingContentGenerator implements ContentGenerator {
   }
 
   private _logApiResponse(
-    requestContents: Content[],
+    requestContents: TelemetryContent[],
     durationMs: number,
     model: string,
     prompt_id: string,
     responseId: string | undefined,
-    responseCandidates?: Candidate[],
-    usageMetadata?: GenerateContentResponseUsageMetadata,
+    responseCandidates?: TelemetryCandidate[],
+    usageMetadata?: TelemetryUsageMetadata,
     responseText?: string,
-    generationConfig?: GenerateContentConfig,
+    generationConfig?: TelemetryGenerateConfig,
     serverDetails?: ServerDetails,
   ): void {
     logApiResponse(
@@ -163,8 +167,8 @@ export class LoggingContentGenerator implements ContentGenerator {
     error: unknown,
     model: string,
     prompt_id: string,
-    requestContents: Content[],
-    generationConfig?: GenerateContentConfig,
+    requestContents: TelemetryContent[],
+    generationConfig?: TelemetryGenerateConfig,
     serverDetails?: ServerDetails,
   ): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -203,7 +207,7 @@ export class LoggingContentGenerator implements ContentGenerator {
         spanMetadata.input = { request: req, userPromptId, model: req.model };
 
         const startTime = Date.now();
-        const contents: Content[] = toContents(req.contents);
+        const contents: TelemetryContent[] = toContents(req.contents);
         const serverDetails = this._getEndpointUrl(req, 'generateContent');
         this.logApiRequest(
           contents,
@@ -329,9 +333,9 @@ export class LoggingContentGenerator implements ContentGenerator {
   ): AsyncGenerator<GenerateContentResponse> {
     const responses: GenerateContentResponse[] = [];
 
-    let lastUsageMetadata: GenerateContentResponseUsageMetadata | undefined;
+    let lastUsageMetadata: TelemetryUsageMetadata | undefined;
     const serverDetails = this._getEndpointUrl(req, 'generateContentStream');
-    const requestContents: Content[] = toContents(req.contents);
+    const requestContents: TelemetryContent[] = toContents(req.contents);
     try {
       for await (const response of stream) {
         responses.push(response);

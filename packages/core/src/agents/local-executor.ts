@@ -14,6 +14,7 @@ import type {
   FunctionCall,
   FunctionDeclaration,
   Schema,
+  Tool,
 } from '@google/genai';
 import { ToolRegistry } from '../tools/tool-registry.js';
 import {
@@ -40,6 +41,8 @@ import type {
   AgentInputs,
   OutputObject,
   SubagentActivityEvent,
+  AgentChatSession,
+  ChatSessionFactory,
 } from './types.js';
 import { AgentTerminateMode, DEFAULT_QUERY_STRING } from './types.js';
 import { templateString } from './utils.js';
@@ -63,6 +66,15 @@ export type ActivityCallback = (activity: SubagentActivityEvent) => void;
 
 const TASK_COMPLETE_TOOL_NAME = 'complete_task';
 const GRACE_PERIOD_MS = 60 * 1000; // 1 min
+
+/** Default ChatSessionFactory: creates a GeminiChat instance. */
+const defaultChatSessionFactory: ChatSessionFactory = (
+  config: Config,
+  systemInstruction: string | undefined,
+  tools: Tool[],
+  history: Content[],
+): AgentChatSession =>
+  new GeminiChat(config, systemInstruction ?? '', tools, history);
 
 /** The possible outcomes of a single agent turn. */
 type AgentTurnResult =
@@ -94,6 +106,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
   private readonly runtimeContext: Config;
   private readonly onActivity?: ActivityCallback;
   private readonly compressionService: ChatCompressionService;
+  private readonly chatFactory: ChatSessionFactory;
   private readonly parentCallId?: string;
   private hasFailedCompressionAttempt = false;
 
@@ -112,6 +125,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
     definition: LocalAgentDefinition<TOutput>,
     runtimeContext: Config,
     onActivity?: ActivityCallback,
+    chatFactory?: ChatSessionFactory,
   ): Promise<LocalAgentExecutor<TOutput>> {
     // Create an isolated tool registry for this agent instance.
     const agentToolRegistry = new ToolRegistry(
@@ -186,6 +200,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
       parentPromptId,
       parentCallId,
       onActivity,
+      chatFactory,
     );
   }
 
@@ -202,12 +217,14 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
     parentPromptId: string | undefined,
     parentCallId: string | undefined,
     onActivity?: ActivityCallback,
+    chatFactory?: ChatSessionFactory,
   ) {
     this.definition = definition;
     this.runtimeContext = runtimeContext;
     this.toolRegistry = toolRegistry;
     this.onActivity = onActivity;
     this.compressionService = new ChatCompressionService();
+    this.chatFactory = chatFactory ?? defaultChatSessionFactory;
     this.parentCallId = parentCallId;
 
     const randomIdPart = Math.random().toString(36).slice(2, 8);
@@ -225,7 +242,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
    * or stop the agent loop.
    */
   private async executeTurn(
-    chat: GeminiChat,
+    chat: AgentChatSession,
     currentMessage: Content,
     turnCounter: number,
     combinedSignal: AbortSignal,
@@ -314,7 +331,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
    * @returns The final result string if recovery was successful, or `null` if it failed.
    */
   private async executeFinalWarningTurn(
-    chat: GeminiChat,
+    chat: AgentChatSession,
     turnCounter: number,
     reason:
       | AgentTerminateMode.TIMEOUT
@@ -425,7 +442,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
       new AgentStartEvent(this.agentId, this.definition.name),
     );
 
-    let chat: GeminiChat | undefined;
+    let chat: AgentChatSession | undefined;
     let tools: FunctionDeclaration[] | undefined;
     try {
       // Inject standard runtime context into inputs
@@ -602,7 +619,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
   }
 
   private async tryCompressChat(
-    chat: GeminiChat,
+    chat: AgentChatSession,
     prompt_id: string,
   ): Promise<void> {
     const model = this.definition.modelConfig.model ?? DEFAULT_GEMINI_MODEL;
@@ -635,7 +652,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
    * @returns The model's response, including any tool calls or text.
    */
   private async callModel(
-    chat: GeminiChat,
+    chat: AgentChatSession,
     message: Content,
     signal: AbortSignal,
     promptId: string,
@@ -726,11 +743,11 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
     return { functionCalls, textResponse };
   }
 
-  /** Initializes a `GeminiChat` instance for the agent run. */
+  /** Initializes a chat session for the agent run via the injected factory. */
   private async createChatObject(
     inputs: AgentInputs,
     tools: FunctionDeclaration[],
-  ): Promise<GeminiChat> {
+  ): Promise<AgentChatSession> {
     const { promptConfig } = this.definition;
 
     if (!promptConfig.systemPrompt && !promptConfig.initialMessages) {
@@ -750,7 +767,7 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
       : undefined;
 
     try {
-      return new GeminiChat(
+      return this.chatFactory(
         this.runtimeContext,
         systemInstruction,
         [{ functionDeclarations: tools }],

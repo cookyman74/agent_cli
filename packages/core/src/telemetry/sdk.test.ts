@@ -402,4 +402,69 @@ describe('Telemetry SDK', () => {
       expect.stringContaining('Telemetry credentials have changed'),
     );
   });
+
+  describe('signal handler cleanup', () => {
+    it('should remove SIGTERM and SIGINT handlers on shutdown', async () => {
+      const processOnSpy = vi.spyOn(process, 'on');
+
+      await initializeTelemetry(mockConfig);
+
+      // Find the registered handlers
+      const sigTermHandler = processOnSpy.mock.calls.find(
+        (c) => c[0] === 'SIGTERM',
+      )?.[1];
+      const sigIntHandler = processOnSpy.mock.calls.find(
+        (c) => c[0] === 'SIGINT',
+      )?.[1];
+
+      expect(sigTermHandler).toBeDefined();
+      expect(sigIntHandler).toBeDefined();
+
+      const removeListenerSpy = vi.spyOn(process, 'removeListener');
+
+      await shutdownTelemetry(mockConfig);
+
+      expect(removeListenerSpy).toHaveBeenCalledWith('SIGTERM', sigTermHandler);
+      expect(removeListenerSpy).toHaveBeenCalledWith('SIGINT', sigIntHandler);
+    });
+
+    it('should not accumulate signal handlers across init/shutdown cycles', async () => {
+      const processOnSpy = vi.spyOn(process, 'on');
+
+      // Cycle 1: init → shutdown
+      await initializeTelemetry(mockConfig);
+      await shutdownTelemetry(mockConfig);
+
+      // Cycle 2: re-init → shutdown
+      await initializeTelemetry(mockConfig);
+      await shutdownTelemetry(mockConfig);
+
+      // Each cycle should register SIGTERM + SIGINT = 2 per cycle
+      const sigTermCalls = processOnSpy.mock.calls.filter(
+        (c) => c[0] === 'SIGTERM',
+      );
+      const sigIntCalls = processOnSpy.mock.calls.filter(
+        (c) => c[0] === 'SIGINT',
+      );
+
+      expect(sigTermCalls).toHaveLength(2);
+      expect(sigIntCalls).toHaveLength(2);
+
+      // But after final shutdown, no handlers should remain
+      // (process.listenerCount reflects actual current listeners)
+      const remainingSigTerm = process
+        .listeners('SIGTERM')
+        .filter(
+          (fn) => sigTermCalls[0]?.[1] === fn || sigTermCalls[1]?.[1] === fn,
+        );
+      const remainingSigInt = process
+        .listeners('SIGINT')
+        .filter(
+          (fn) => sigIntCalls[0]?.[1] === fn || sigIntCalls[1]?.[1] === fn,
+        );
+
+      expect(remainingSigTerm).toHaveLength(0);
+      expect(remainingSigInt).toHaveLength(0);
+    });
+  });
 });

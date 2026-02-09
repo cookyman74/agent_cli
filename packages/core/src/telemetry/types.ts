@@ -5,11 +5,43 @@
  */
 
 import type {
-  Candidate,
-  Content,
-  GenerateContentConfig,
-  GenerateContentResponseUsageMetadata,
-} from '@google/genai';
+  TelemetryContent,
+  TelemetryContentUnion,
+  TelemetryCandidate,
+} from './semantic.js';
+
+/**
+ * Provider-independent usage metadata for telemetry.
+ *
+ * Structurally compatible with @google/genai GenerateContentResponseUsageMetadata
+ * so Gemini SDK objects can be passed directly (TypeScript duck typing).
+ */
+export interface TelemetryUsageMetadata {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  cachedContentTokenCount?: number;
+  thoughtsTokenCount?: number;
+  toolUsePromptTokenCount?: number;
+  totalTokenCount?: number;
+}
+
+/**
+ * Provider-independent generation config for telemetry logging.
+ * Structurally compatible with @google/genai GenerateContentConfig.
+ */
+export interface TelemetryGenerateConfig {
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  candidateCount?: number;
+  seed?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  maxOutputTokens?: number;
+  responseMimeType?: string;
+  stopSequences?: string[];
+  systemInstruction?: TelemetryContentUnion;
+}
 import type { Config } from '../config/config.js';
 import type { ApprovalMode } from '../policy/types.js';
 
@@ -524,14 +556,14 @@ export interface ServerDetails {
 
 export interface GenAIPromptDetails {
   prompt_id: string;
-  contents: Content[];
-  generate_content_config?: GenerateContentConfig;
+  contents: TelemetryContent[];
+  generate_content_config?: TelemetryGenerateConfig;
   server?: ServerDetails;
 }
 
 export interface GenAIResponseDetails {
   response_id?: string;
-  candidates?: Candidate[];
+  candidates?: TelemetryCandidate[];
 }
 
 export interface GenAIUsageDetails {
@@ -548,7 +580,7 @@ export const EVENT_GEN_AI_OPERATION_DETAILS =
   'gen_ai.client.inference.operation.details';
 
 function toGenerateContentConfigAttributes(
-  config?: GenerateContentConfig,
+  config?: TelemetryGenerateConfig,
 ): LogAttributes {
   if (!config) {
     return {};
@@ -590,7 +622,7 @@ export class ApiResponseEvent implements BaseTelemetryEvent {
     prompt_details: GenAIPromptDetails,
     response_details: GenAIResponseDetails,
     auth_type?: string,
-    usage_data?: GenerateContentResponseUsageMetadata,
+    usage_data?: TelemetryUsageMetadata,
     response_text?: string,
   ) {
     this['event.name'] = 'api_response';

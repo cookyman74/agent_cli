@@ -88,6 +88,8 @@ let authListener: ((newCredentials: JWTInput) => Promise<void>) | undefined =
   undefined;
 const telemetryBuffer: Array<() => void | Promise<void>> = [];
 let activeTelemetryEmail: string | undefined;
+let sigTermHandler: (() => void) | undefined;
+let sigIntHandler: (() => void) | undefined;
 
 export function isTelemetrySdkInitialized(): boolean {
   return telemetryInitialized;
@@ -314,14 +316,16 @@ export async function initializeTelemetry(
   // Note: We don't use process.on('exit') here because that callback is synchronous
   // and won't wait for the async shutdownTelemetry() to complete.
   // Instead, telemetry shutdown is handled in runExitCleanup() in cleanup.ts
-  process.on('SIGTERM', () => {
+  sigTermHandler = () => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     shutdownTelemetry(config);
-  });
-  process.on('SIGINT', () => {
+  };
+  sigIntHandler = () => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     shutdownTelemetry(config);
-  });
+  };
+  process.on('SIGTERM', sigTermHandler);
+  process.on('SIGINT', sigIntHandler);
 }
 
 /**
@@ -372,6 +376,14 @@ export async function shutdownTelemetry(
     metrics.disable();
     propagation.disable();
     diag.disable();
+    if (sigTermHandler) {
+      process.removeListener('SIGTERM', sigTermHandler);
+      sigTermHandler = undefined;
+    }
+    if (sigIntHandler) {
+      process.removeListener('SIGINT', sigIntHandler);
+      sigIntHandler = undefined;
+    }
     if (authListener) {
       authEvents.off('post_auth', authListener);
       authListener = undefined;

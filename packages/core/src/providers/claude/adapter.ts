@@ -10,10 +10,8 @@
  * Accepts provider-independent LlmGenerateRequest, converts to Anthropic SDK
  * format, and converts responses back to LlmGenerateResponse / LlmEventStream.
  *
- * NOTE: This is a skeleton implementation for M3.1.0 (bootstrap + directory).
- * Full implementation (generate, stream, converter) will be added in M3.1.1+.
- *
  * @see docs/ai_adapter/03-technical-design.md §3.3.4
+ * @see packages/core/src/providers/gemini/adapter.ts (Gemini counterpart)
  */
 
 import { BaseAdapter } from '../baseAdapter.js';
@@ -22,10 +20,13 @@ import type {
   LlmGenerateResponse,
   LlmGenerateConfig,
   LlmProviderCapabilities,
+  LlmTokenCount,
   AdapterConfig,
   GenerateOptions,
 } from '../types.js';
-import type { LlmEventStream } from '../events.js';
+import type { LlmEvent, LlmEventStream } from '../events.js';
+import { UnsupportedFeatureError } from '../errors.js';
+import { ClaudeConverter } from './converter.js';
 
 /**
  * Interface for the Anthropic SDK client.
@@ -39,70 +40,140 @@ export interface ClaudeClient {
 }
 
 /**
- * Claude adapter capabilities — skeleton state (M3.1.0).
+ * Claude adapter capabilities (M3.1.1).
  *
- * Active capabilities (requiring method implementation) are set to false
- * until the corresponding methods are implemented in M3.1.1+.
+ * Enabled capabilities:
+ *   supportsStreaming: true     — generateContentStream implemented
+ *   supportsToolCalls: true     — tool_call/tool_result conversion
+ *   supportsImageInput: true    — base64 image conversion
+ *   supportsTokenCount: true    — countTokens via SDK
+ *   supportsSystemMessage: true — system message extraction
+ *   supportsThought: true       — thinking block conversion
  *
- * Target capabilities when fully implemented:
- *   supportsStreaming: true    (M3.1.1: generateContentStream)
- *   supportsToolCalls: true    (M3.1.2: tool message conversion)
- *   supportsImageInput: true   (M3.1.2: image message conversion)
- *   supportsTokenCount: true   (M3.1.1: countTokens override)
- *   supportsThought: true      (M3.1.3: extended thinking)
+ * Not supported:
+ *   supportsImageGeneration: false — Claude does not generate images
+ *   supportsEmbedding: false       — Claude Messages API has no embedding
  */
 const CLAUDE_CAPABILITIES: LlmProviderCapabilities = {
-  supportsStreaming: false,
-  supportsToolCalls: false,
-  supportsImageInput: false,
+  supportsStreaming: true,
+  supportsToolCalls: true,
+  supportsImageInput: true,
   supportsImageGeneration: false,
   supportsEmbedding: false,
-  supportsTokenCount: false,
+  supportsTokenCount: true,
   supportsSystemMessage: true,
-  supportsThought: false,
+  supportsThought: true,
   maxContextLength: 200_000,
   maxOutputTokens: 8_192,
 };
 
+/**
+ * ClaudeAdapter wraps the Anthropic SDK behind the BaseAdapter interface.
+ */
 export class ClaudeAdapter extends BaseAdapter {
   readonly providerName = 'claude';
   readonly capabilities = CLAUDE_CAPABILITIES;
+
+  private readonly converter: ClaudeConverter;
 
   constructor(
     config: AdapterConfig,
     protected readonly client: ClaudeClient,
   ) {
     super(config);
+    this.converter = new ClaudeConverter();
   }
 
-  // M3.1.1: Full implementation
-  generateContent(
-    _request: LlmGenerateRequest,
+  /**
+   * Generate content (non-streaming).
+   */
+  async generateContent(
+    request: LlmGenerateRequest,
     _userPromptId: string,
     _options?: GenerateOptions,
   ): Promise<LlmGenerateResponse> {
-    throw new Error(
-      'ClaudeAdapter.generateContent not yet implemented (M3.1.1)',
-    );
+    this.validateRequest(request);
+
+    try {
+      const params = this.converter.toClaudeRequest(request);
+      const response = await this.client.messages.create(params);
+      return this.converter.fromClaudeResponse(response, request.model);
+    } catch (error) {
+      this.handleError(error);
+    }
   }
 
-  // M3.1.1: Full implementation
+  /**
+   * Generate content as a stream of LlmEvents.
+   */
   generateContentStream(
-    _request: LlmGenerateRequest,
+    request: LlmGenerateRequest,
     _userPromptId: string,
     _options?: GenerateOptions,
   ): LlmEventStream {
-    throw new Error(
-      'ClaudeAdapter.generateContentStream not yet implemented (M3.1.1)',
-    );
+    this.validateRequest(request);
+
+    const client = this.client;
+    const converter = this.converter;
+    const handleErr = this.handleError.bind(this);
+    const params = converter.toClaudeRequest(request);
+
+    async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
+      try {
+        const stream = (await client.messages.create({
+          ...params,
+          stream: true,
+        })) as AsyncIterable<unknown>;
+
+        const state = converter.createStreamState();
+        for await (const chunk of stream) {
+          const events = converter.convertStreamEvent(chunk, state);
+          for (const event of events) {
+            yield event;
+          }
+        }
+      } catch (error) {
+        handleErr(error);
+      }
+    }
+
+    return streamGenerator();
   }
 
-  // M3.1.1: Full implementation
+  /**
+   * Count tokens in a request.
+   */
+  override async countTokens(
+    request: LlmGenerateRequest,
+  ): Promise<LlmTokenCount> {
+    if (!this.client.messages.countTokens) {
+      throw new UnsupportedFeatureError(
+        'Token counting is not available for this Claude client',
+      );
+    }
+
+    const params = this.converter.toClaudeRequest(request);
+    const result = (await this.client.messages.countTokens(params)) as {
+      input_tokens?: number;
+    };
+
+    return {
+      totalTokens: result.input_tokens ?? 0,
+    };
+  }
+
+  /**
+   * Map common config to provider-specific config.
+   */
   protected mapToProviderConfig(
-    _config: LlmGenerateConfig,
+    config: LlmGenerateConfig,
   ): Record<string, unknown> {
-    throw new Error(
-      'ClaudeAdapter.mapToProviderConfig not yet implemented (M3.1.1)',
-    );
+    return {
+      temperature: config.temperature,
+      max_tokens: config.maxTokens,
+      top_p: config.topP,
+      top_k: config.topK,
+      stop_sequences: config.stopSequences,
+    };
   }
 }

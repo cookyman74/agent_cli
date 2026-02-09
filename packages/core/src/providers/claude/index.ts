@@ -11,4 +11,5 @@
  */
 
 export { ClaudeAdapter, type ClaudeClient } from './adapter.js';
+export { ClaudeConverter, type ClaudeStreamState } from './converter.js';
 export { bootstrapClaudeProvider } from './bootstrap.js';

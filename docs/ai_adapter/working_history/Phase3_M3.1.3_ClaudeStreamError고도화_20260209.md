@@ -166,6 +166,12 @@ stop_reason 매핑과 스트림 cache token 지원을 확장한다:
 | 2   | 중간   | generateContent가 handleError(UNKNOWN) 사용 — 스트림과 비대칭     | `this.handleError(error)` → `throw this.classifyError(error)` 로 변경     |
 | 3   | 낮음   | classifyError가 LlmError 직접 생성 — subclass 미활용              | Auth/RateLimit/ModelNotFound/Network/TimeoutError subclass 사용           |
 | 4   | 낮음   | stream creation error 테스트에서 error.type 검증 누락             | `expect(errorEvent.error.type).toBe(LlmErrorType.TIMEOUT)` 추가           |
+| 5   | 중간   | classifyError가 이미 분류된 LlmError를 보존하지 않고 재분류       | `if (error instanceof LlmError) { return error; }` 선행 가드 추가         |
+| 6   | 낮음   | LlmError passthrough 회귀 테스트 부재                             | stream(ValidationError)/non-stream(RateLimitError) passthrough 테스트 2건 |
+
+**이슈 #5 상세**: `classifyError`에 `LlmError` 인스턴스가 전달될 때, `status`
+속성이 없으면 message 휴리스틱으로 폴백하여 `NetworkError`/`TimeoutError`로
+재분류됨. `isRetryable` 판단이 왜곡되어 retry 로직에 영향.
 
 ### 리뷰 후 Quality Gate
 
@@ -173,11 +179,11 @@ stop_reason 매핑과 스트림 cache token 지원을 확장한다:
 | ------------- | -------------------------- |
 | TypeCheck     | ✅ PASS                    |
 | ESLint        | ✅ PASS                    |
-| Claude 테스트 | ✅ 4 files / 112 passed    |
-| Provider 회귀 | ✅ 29 files / 555 passed   |
-| Core 전체     | ✅ 265 files / 4989 passed |
+| Claude 테스트 | ✅ 4 files / 114 passed    |
+| Provider 회귀 | ✅ 29 files / 557 passed   |
+| Core 전체     | ✅ 265 files / 4991 passed |
 
-**변화**: 리뷰 전 104 tests → 112 tests (+8), Core 4981 → 4989 (+8)
+**변화**: 리뷰 전 104 tests → 114 tests (+10), Core 4981 → 4991 (+10)
 
 ## 향후 작업
 
@@ -188,3 +194,5 @@ stop_reason 매핑과 스트림 cache token 지원을 확장한다:
 - `5c5601c7d` feat(providers): M3.1.3 — Claude 스트림 에러 처리 고도화
 - `f47d5dc03` fix(providers): M3.1.3 리뷰 반영 — classifyError 400/404 분기,
   subclass 활용, generateContent 에러 분류
+- `7c371dd77` fix(providers): M3.1.3 리뷰 반영 — classifyError LlmError
+  passthrough 보존

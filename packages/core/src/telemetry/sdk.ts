@@ -309,23 +309,24 @@ export async function initializeTelemetry(
     activeTelemetryEmail = credentials?.client_email;
     initializeMetrics(config);
     void flushTelemetryBuffer();
+
+    // Register signal handlers only after successful start.
+    // Note: We don't use process.on('exit') here because that callback is
+    // synchronous and won't wait for the async shutdownTelemetry() to complete.
+    // Instead, telemetry shutdown is handled in runExitCleanup() in cleanup.ts
+    sigTermHandler = () => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      shutdownTelemetry(config);
+    };
+    sigIntHandler = () => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      shutdownTelemetry(config);
+    };
+    process.on('SIGTERM', sigTermHandler);
+    process.on('SIGINT', sigIntHandler);
   } catch (error) {
     debugLogger.error('Error starting OpenTelemetry SDK:', error);
   }
-
-  // Note: We don't use process.on('exit') here because that callback is synchronous
-  // and won't wait for the async shutdownTelemetry() to complete.
-  // Instead, telemetry shutdown is handled in runExitCleanup() in cleanup.ts
-  sigTermHandler = () => {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    shutdownTelemetry(config);
-  };
-  sigIntHandler = () => {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    shutdownTelemetry(config);
-  };
-  process.on('SIGTERM', sigTermHandler);
-  process.on('SIGINT', sigIntHandler);
 }
 
 /**

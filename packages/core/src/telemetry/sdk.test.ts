@@ -466,5 +466,32 @@ describe('Telemetry SDK', () => {
       expect(remainingSigTerm).toHaveLength(0);
       expect(remainingSigInt).toHaveLength(0);
     });
+
+    it('should not register signal handlers when sdk.start() fails', async () => {
+      vi.mocked(NodeSDK.prototype.start).mockImplementation(() => {
+        throw new Error('SDK start failed');
+      });
+
+      const processOnSpy = vi.spyOn(process, 'on');
+
+      await initializeTelemetry(mockConfig);
+
+      // Signal handlers should NOT be registered when start fails
+      const sigTermCalls = processOnSpy.mock.calls.filter(
+        (c) => c[0] === 'SIGTERM',
+      );
+      const sigIntCalls = processOnSpy.mock.calls.filter(
+        (c) => c[0] === 'SIGINT',
+      );
+
+      expect(sigTermCalls).toHaveLength(0);
+      expect(sigIntCalls).toHaveLength(0);
+
+      // Verify error was logged
+      expect(debugLogger.error).toHaveBeenCalledWith(
+        'Error starting OpenTelemetry SDK:',
+        expect.any(Error),
+      );
+    });
   });
 });

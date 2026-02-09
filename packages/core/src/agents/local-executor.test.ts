@@ -54,6 +54,8 @@ import {
 } from '../telemetry/types.js';
 import type {
   AgentInputs,
+  AgentChatSession,
+  ChatSessionFactory,
   LocalAgentDefinition,
   SubagentActivityEvent,
   OutputConfig,
@@ -547,6 +549,39 @@ describe('LocalAgentExecutor', () => {
       ).rejects.toThrow(/must be requested with its server prefix/);
 
       getToolSpy.mockRestore();
+    });
+
+    it('should use custom chatFactory when provided', async () => {
+      const definition = createTestDefinition();
+      const mockCustomChat: AgentChatSession = {
+        sendMessageStream: mockSendMessageStream,
+        setHistory: mockSetHistory,
+        getHistory: vi.fn((_curated?: boolean) => [...mockChatHistory]),
+        getLastPromptTokenCount: vi.fn(() => 100),
+      };
+
+      const customFactory: ChatSessionFactory = vi.fn(() => mockCustomChat);
+
+      const executor = await LocalAgentExecutor.create(
+        definition,
+        mockConfig,
+        onActivity,
+        customFactory,
+      );
+
+      // Trigger a run to invoke createChatObject → chatFactory
+      mockModelResponse([
+        {
+          name: TASK_COMPLETE_TOOL_NAME,
+          args: { finalResult: 'done' },
+          id: 'call1',
+        },
+      ]);
+      await executor.run({ goal: 'test' }, signal);
+
+      // Custom factory should have been called instead of GeminiChat constructor
+      expect(customFactory).toHaveBeenCalledTimes(1);
+      expect(MockedGeminiChat).not.toHaveBeenCalled();
     });
   });
 

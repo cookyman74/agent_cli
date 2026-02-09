@@ -15,10 +15,8 @@ import {
   READ_MANY_FILES_TOOL_NAME,
   WRITE_FILE_TOOL_NAME,
 } from '../tools/tool-names.js';
-import {
-  isFunctionResponse,
-  isFunctionCall,
-} from '../utils/messageInspectors.js';
+import { isToolCallMessage, isToolResultMessage } from '../utils/llmUtils.js';
+import { convertContentToLlmMessage } from '../utils/geminiTypeConversion.js';
 import * as fs from 'node:fs';
 import { promptIdContext } from './promptIdContext.js';
 import { debugLogger } from './debugLogger.js';
@@ -113,7 +111,7 @@ async function findLastEditTimestamp(
 
       // Check for a relevant FunctionCall with the file path in its arguments.
       if (
-        isFunctionCall(entry) &&
+        isToolCallMessage(convertContentToLlmMessage(entry)) &&
         part.functionCall?.name &&
         toolsInCall.has(part.functionCall.name)
       ) {
@@ -122,7 +120,7 @@ async function findLastEditTimestamp(
       }
       // Check for a relevant FunctionResponse with the file path in its output.
       else if (
-        isFunctionResponse(entry) &&
+        isToolResultMessage(convertContentToLlmMessage(entry)) &&
         part.functionResponse?.name &&
         toolsInResp.has(part.functionResponse.name)
       ) {

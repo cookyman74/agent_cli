@@ -20,10 +20,8 @@ import {
   LlmLoopCheckEvent,
 } from '../telemetry/types.js';
 import type { Config } from '../config/config.js';
-import {
-  isFunctionCall,
-  isFunctionResponse,
-} from '../utils/messageInspectors.js';
+import { isToolCallMessage, isToolResultMessage } from '../utils/llmUtils.js';
+import { convertContentToLlmMessage } from '../utils/geminiTypeConversion.js';
 import { debugLogger } from '../utils/debugLogger.js';
 
 const TOOL_CALL_LOOP_THRESHOLD = 5;
@@ -405,7 +403,9 @@ export class LoopDetectionService {
     // until the last turn is not a function call.
     while (
       recentHistory.length > 0 &&
-      isFunctionCall(recentHistory[recentHistory.length - 1])
+      isToolCallMessage(
+        convertContentToLlmMessage(recentHistory[recentHistory.length - 1]),
+      )
     ) {
       recentHistory.pop();
     }
@@ -413,7 +413,10 @@ export class LoopDetectionService {
     // A function response should follow a function call.
     // Continuously removes leading function responses from the beginning of history
     // until the first turn is not a function response.
-    while (recentHistory.length > 0 && isFunctionResponse(recentHistory[0])) {
+    while (
+      recentHistory.length > 0 &&
+      isToolResultMessage(convertContentToLlmMessage(recentHistory[0]))
+    ) {
       recentHistory.shift();
     }
 
@@ -434,7 +437,10 @@ export class LoopDetectionService {
       ...trimmedHistory,
       { role: 'user', parts: [{ text: taskPrompt }] },
     ];
-    if (contents.length > 0 && isFunctionCall(contents[0])) {
+    if (
+      contents.length > 0 &&
+      isToolCallMessage(convertContentToLlmMessage(contents[0]))
+    ) {
       contents.unshift({
         role: 'user',
         parts: [{ text: 'Recent conversation history:' }],

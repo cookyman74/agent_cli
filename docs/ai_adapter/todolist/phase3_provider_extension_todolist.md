@@ -48,7 +48,7 @@ code to pass. Ensure cross-provider compatibility through integration tests.
 | 2    | `turn.ts` 이벤트 생성점 전환              | Critical | ✅ 해소됨   | M2.연기 (EventType 전환)     |
 | 3    | `chat.ts` → `providers/gemini/chat.ts`    | Critical | ✅ 해소됨   | M3.0.1 (`f56845dab`)         |
 | 4    | `turn.ts` → `providers/gemini/turn.ts`    | Critical | ✅ 해소됨   | M3.0.1 (`f56845dab`)         |
-| 5    | `messageInspectors` 마이그레이션 (4파일)  | High     | ⬜ → M3.0   | M3.0.2                       |
+| 5    | `messageInspectors` 마이그레이션 (4파일)  | High     | ✅ 해소됨   | M3.0.2                       |
 | 6    | `loggingContentGenerator` 텔레메트리 변환 | High     | ⬜ → M3.0   | M3.0.3                       |
 | 7    | `telemetry/semantic.ts` Gemini 결합 해소  | High     | ⬜ → M3.0   | M3.0.3                       |
 | 8    | AuthType 처리 통합 (2.3.1.8)              | Medium   | ⬜ → M3.1+  | 신규 프로바이더 구현 시 함께 |
@@ -172,12 +172,12 @@ M3.0 착수 전 다음 Open Question의 잠정 결정 권장:
 
 ### 3.0.2 messageInspectors 마이그레이션 (핸드오프 High #5)
 
-| ID      | 작업                                                                                            | 상태 | 테스트 파일                    | 비고                                           |
-| ------- | ----------------------------------------------------------------------------------------------- | ---- | ------------------------------ | ---------------------------------------------- |
-| 3.0.2.1 | `loopDetectionService.ts` — `isFunctionCall/Response` → `isToolCallMessage/isToolResultMessage` | ⬜   | `loopDetectionService.test.ts` | L408,416,437 Content→LlmMessage 전환 선행 필요 |
-| 3.0.2.2 | `geminiChat.ts` — `isFunctionResponse` 전환                                                     | ⬜   | `geminiChat.test.ts`           | chat.ts 이동(3.0.1.1)과 연계                   |
-| 3.0.2.3 | `utils/editCorrector.ts` — `isFunctionCall/Response` 전환                                       | ⬜   | `editCorrector.test.ts`        | 독립적 유틸, 난이도 소                         |
-| 3.0.2.4 | `utils/nextSpeakerChecker.ts` — `isFunctionResponse` 전환                                       | ⬜   | `nextSpeakerChecker.test.ts`   | 독립적 유틸, 난이도 소                         |
+| ID      | 작업                                                                                            | 상태 | 테스트 파일                    | 비고                                                          |
+| ------- | ----------------------------------------------------------------------------------------------- | ---- | ------------------------------ | ------------------------------------------------------------- |
+| 3.0.2.1 | `loopDetectionService.ts` — `isFunctionCall/Response` → `isToolCallMessage/isToolResultMessage` | ✅   | `loopDetectionService.test.ts` | L408,416,437 convertContentToLlmMessage 브릿지 사용           |
+| 3.0.2.2 | `geminiChat.ts` — `isFunctionResponse` 전환                                                     | ✅   | `geminiChat.test.ts`           | chat.ts 이동(3.0.1.1)과 연계, convertContentToLlmMessage 사용 |
+| 3.0.2.3 | `utils/editCorrector.ts` — `isFunctionCall/Response` 전환                                       | ✅   | `editCorrector.test.ts`        | convertContentToLlmMessage 브릿지 사용                        |
+| 3.0.2.4 | `utils/nextSpeakerChecker.ts` — `isFunctionResponse` 전환                                       | ✅   | `nextSpeakerChecker.test.ts`   | convertContentToLlmMessage 브릿지 사용                        |
 
 **대체 함수** (M2.6에서 구현 완료):
 

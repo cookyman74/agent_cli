@@ -7,7 +7,8 @@
 import type { Content } from '@google/genai';
 import type { BaseLlmClient } from '../core/baseLlmClient.js';
 import type { GeminiChat } from '../core/geminiChat.js';
-import { isFunctionResponse } from './messageInspectors.js';
+import { isToolResultMessage } from './llmUtils.js';
+import { convertContentToLlmMessage } from './geminiTypeConversion.js';
 import { debugLogger } from './debugLogger.js';
 
 const CHECK_PROMPT = `Analyze *only* the content and structure of your immediately preceding response (your last turn in the conversation history). Based *strictly* on that response, determine who should logically speak next: the 'user' or the 'model' (you).
@@ -71,7 +72,7 @@ export async function checkNextSpeaker(
   // then the model should speak next.
   if (
     lastComprehensiveMessage &&
-    isFunctionResponse(lastComprehensiveMessage)
+    isToolResultMessage(convertContentToLlmMessage(lastComprehensiveMessage))
   ) {
     return {
       reasoning:

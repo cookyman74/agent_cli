@@ -164,4 +164,4 @@ stop_reason 매핑과 스트림 cache token 지원을 확장한다:
 
 ## 커밋
 
-- `_COMMIT_ID_` feat(providers): M3.1.3 — Claude 스트림 에러 처리 고도화
+- `5c5601c7d` feat(providers): M3.1.3 — Claude 스트림 에러 처리 고도화

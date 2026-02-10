@@ -1,0 +1,2 @@
+{"method":"llmGenerateContentStream","response":[{"type":"text_delta","text":"I'll list the directory for you."},{"type":"tool_call_request","callId":"call_claude_1","name":"list_directory","args":{"dir_path":"."}},{"type":"finished","finishReason":"end_turn"}]}
+{"method":"llmGenerateContentStream","response":[{"type":"text_delta","text":"Here are the files in the current directory. I can see the test files you created."},{"type":"finished","finishReason":"end_turn","usage":{"promptTokens":50,"completionTokens":18,"totalTokens":68}}]}

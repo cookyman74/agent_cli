@@ -1,0 +1,1 @@
+{"method":"llmGenerateContentStream","response":[{"type":"text_delta","text":"Hello! I'm Claude, your AI assistant. How can I help you today?"},{"type":"finished","finishReason":"end_turn","usage":{"promptTokens":10,"completionTokens":15,"totalTokens":25}}]}

@@ -1,0 +1,1 @@
+{"method":"llmGenerateContentStream","response":[{"type":"text_delta","text":"Let me "},{"type":"text_delta","text":"explain this "},{"type":"text_delta","text":"concept step by step. "},{"type":"text_delta","text":"It involves multiple components working together."},{"type":"finished","finishReason":"end_turn","usage":{"promptTokens":12,"completionTokens":20,"totalTokens":32}}]}

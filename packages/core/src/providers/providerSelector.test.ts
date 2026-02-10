@@ -8,6 +8,9 @@ import {
   selectProvider,
   getRequiredEnvVars,
   validateProviderEnv,
+  getDefaultModelForProvider,
+  isGeminiSpecificModel,
+  resolveProviderModel,
 } from './providerSelector.js';
 import { ProviderType, AuthType } from './providerTypes.js';
 
@@ -118,6 +121,131 @@ describe('ProviderSelector', () => {
       const vars = getRequiredEnvVars(ProviderType.Didim);
 
       expect(vars).toContain('DIDIM_API_KEY');
+    });
+  });
+
+  // ==========================================================================
+  // Provider Model Resolution
+  // ==========================================================================
+
+  describe('getDefaultModelForProvider()', () => {
+    it('should return default model for Claude', () => {
+      const model = getDefaultModelForProvider(ProviderType.Claude);
+      expect(model).toMatch(/^claude-/);
+    });
+
+    it('should return default model for OpenAI', () => {
+      const model = getDefaultModelForProvider(ProviderType.OpenAI);
+      expect(model).toMatch(/^gpt-/);
+    });
+
+    it('should return default model for Gemini', () => {
+      const model = getDefaultModelForProvider(ProviderType.Gemini);
+      expect(model).toMatch(/^gemini-/);
+    });
+
+    it('should return default model for OpenAI-compatible', () => {
+      const model = getDefaultModelForProvider(ProviderType.OpenAICompatible);
+      expect(model).toMatch(/^gpt-/);
+    });
+  });
+
+  describe('isGeminiSpecificModel()', () => {
+    it('should detect Gemini concrete model names', () => {
+      expect(isGeminiSpecificModel('gemini-2.5-pro')).toBe(true);
+      expect(isGeminiSpecificModel('gemini-2.5-flash')).toBe(true);
+      expect(isGeminiSpecificModel('gemini-3-pro-preview')).toBe(true);
+    });
+
+    it('should detect Gemini auto models', () => {
+      expect(isGeminiSpecificModel('auto-gemini-2.5')).toBe(true);
+      expect(isGeminiSpecificModel('auto-gemini-3')).toBe(true);
+    });
+
+    it('should detect Gemini aliases', () => {
+      expect(isGeminiSpecificModel('auto')).toBe(true);
+      expect(isGeminiSpecificModel('pro')).toBe(true);
+      expect(isGeminiSpecificModel('flash')).toBe(true);
+      expect(isGeminiSpecificModel('flash-lite')).toBe(true);
+    });
+
+    it('should NOT detect non-Gemini model names', () => {
+      expect(isGeminiSpecificModel('claude-sonnet-4-20250514')).toBe(false);
+      expect(isGeminiSpecificModel('gpt-4o')).toBe(false);
+      expect(isGeminiSpecificModel('my-custom-model')).toBe(false);
+    });
+  });
+
+  describe('resolveProviderModel()', () => {
+    it('should pass through Gemini model for Gemini provider', () => {
+      const result = resolveProviderModel(
+        'gemini-2.5-pro',
+        ProviderType.Gemini,
+      );
+      expect(result).toBe('gemini-2.5-pro');
+    });
+
+    it('should resolve Gemini default to Claude model for Claude provider', () => {
+      const result = resolveProviderModel(
+        'gemini-2.5-pro',
+        ProviderType.Claude,
+      );
+      expect(result).toMatch(/^claude-/);
+    });
+
+    it('should resolve Gemini default to OpenAI model for OpenAI provider', () => {
+      const result = resolveProviderModel(
+        'gemini-2.5-pro',
+        ProviderType.OpenAI,
+      );
+      expect(result).toMatch(/^gpt-/);
+    });
+
+    it('should resolve Gemini alias to provider default', () => {
+      const result = resolveProviderModel('auto', ProviderType.Claude);
+      expect(result).toMatch(/^claude-/);
+    });
+
+    it('should resolve auto-gemini-2.5 to provider default', () => {
+      const result = resolveProviderModel(
+        'auto-gemini-2.5',
+        ProviderType.OpenAI,
+      );
+      expect(result).toMatch(/^gpt-/);
+    });
+
+    it('should pass through explicit non-Gemini model name', () => {
+      const result = resolveProviderModel(
+        'claude-3-opus-20240229',
+        ProviderType.Claude,
+      );
+      expect(result).toBe('claude-3-opus-20240229');
+    });
+
+    it('should pass through custom model name for OpenAI-compatible', () => {
+      const result = resolveProviderModel(
+        'my-local-llama',
+        ProviderType.OpenAICompatible,
+      );
+      expect(result).toBe('my-local-llama');
+    });
+
+    it('should prioritize LLM_MODEL env var over default resolution', () => {
+      vi.stubEnv('LLM_MODEL', 'claude-3-opus-20240229');
+      const result = resolveProviderModel(
+        'gemini-2.5-pro',
+        ProviderType.Claude,
+      );
+      expect(result).toBe('claude-3-opus-20240229');
+    });
+
+    it('should not use LLM_MODEL if model is already non-Gemini', () => {
+      vi.stubEnv('LLM_MODEL', 'claude-3-opus-20240229');
+      const result = resolveProviderModel(
+        'claude-sonnet-4-20250514',
+        ProviderType.Claude,
+      );
+      expect(result).toBe('claude-sonnet-4-20250514');
     });
   });
 

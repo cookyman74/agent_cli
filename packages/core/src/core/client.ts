@@ -63,6 +63,7 @@ import {
 import { debugLogger } from '../utils/debugLogger.js';
 import { buildLlmRequestFromGeminiState } from '../providers/gemini/requestBuilder.js';
 import { LlmResponseAccumulator } from '../providers/gemini/historyBuilder.js';
+import { resolveProviderModel } from '../providers/providerSelector.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
 import {
@@ -671,9 +672,14 @@ export class GeminiClient {
       isProviderIndependentGenerator(generator) &&
       generator.providerName !== 'gemini'
     ) {
+      // Resolve Gemini-specific model names to provider-appropriate defaults
+      const providerModel = resolveProviderModel(
+        modelToUse,
+        generator.providerName!,
+      );
       turn = yield* this.processLlmTurn(
         generator,
-        modelToUse,
+        providerModel,
         request,
         linkedSignal,
         prompt_id,
@@ -811,7 +817,22 @@ export class GeminiClient {
     const chat = this.getChat();
     const accumulator = new LlmResponseAccumulator(promptId);
 
-    // Add user request to history (Gemini does this inside chat.sendMessageStream)
+    // Build LlmGenerateRequest BEFORE adding to history to avoid duplication.
+    // buildLlmRequestFromGeminiState appends currentRequest as the last message,
+    // so it must not already exist in the history.
+    const { generateContentConfig } =
+      this.config.modelConfigService.getResolvedConfig({ model });
+    const llmRequest = buildLlmRequestFromGeminiState({
+      model,
+      history: chat.getHistory(/*curated=*/ true),
+      currentRequest: request,
+      systemInstruction: chat.getSystemInstruction(),
+      config: generateContentConfig,
+      tools: chat.getConfiguredTools(),
+    });
+
+    // Add user request to history AFTER building the request
+    // (Gemini does this inside chat.sendMessageStream)
     chat.addHistory(createUserContent(request));
 
     // Record user message for chat recording
@@ -824,18 +845,6 @@ export class GeminiClient {
         content: userText,
       });
     }
-
-    // Build LlmGenerateRequest from Gemini runtime state
-    const { generateContentConfig } =
-      this.config.modelConfigService.getResolvedConfig({ model });
-    const llmRequest = buildLlmRequestFromGeminiState({
-      model,
-      history: chat.getHistory(/*curated=*/ true),
-      currentRequest: request,
-      systemInstruction: chat.getSystemInstruction(),
-      config: generateContentConfig,
-      tools: chat.getConfiguredTools(),
-    });
 
     // Call the provider's streaming method
     const eventStream = generator.llmGenerateContentStream(

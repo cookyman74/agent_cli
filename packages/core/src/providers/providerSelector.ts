@@ -184,6 +184,92 @@ export function validateProviderEnv(provider: ProviderType): void {
   }
 }
 
+// ============================================================================
+// Provider Model Resolution
+// ============================================================================
+
+/**
+ * Default model names per provider type.
+ *
+ * When the CLI is configured with a Gemini-specific model (e.g., 'gemini-2.5-pro')
+ * but a non-Gemini provider is selected, these defaults are used instead.
+ */
+const DEFAULT_PROVIDER_MODELS: Record<ProviderType, string> = {
+  [ProviderType.Gemini]: 'gemini-2.5-pro',
+  [ProviderType.Claude]: 'claude-sonnet-4-20250514',
+  [ProviderType.OpenAI]: 'gpt-4o',
+  [ProviderType.OpenAICompatible]: 'gpt-4o',
+  [ProviderType.Didim]: 'didim-default',
+};
+
+/**
+ * Gemini model aliases recognized by the CLI.
+ * These are short-form names that the model router resolves to concrete Gemini models.
+ */
+const GEMINI_ALIASES = new Set(['auto', 'pro', 'flash', 'flash-lite']);
+
+/**
+ * Get the default model name for a provider.
+ *
+ * @param provider - Provider type
+ * @returns Default model name string
+ */
+export function getDefaultModelForProvider(provider: ProviderType): string {
+  return DEFAULT_PROVIDER_MODELS[provider];
+}
+
+/**
+ * Check if a model name is Gemini-specific (concrete name, alias, or auto model).
+ *
+ * @param model - Model name to check
+ * @returns True if the model is a Gemini-specific name
+ */
+export function isGeminiSpecificModel(model: string): boolean {
+  return (
+    model.startsWith('gemini-') ||
+    model.startsWith('auto-gemini') ||
+    GEMINI_ALIASES.has(model)
+  );
+}
+
+/**
+ * Resolve the model name for a given provider.
+ *
+ * Priority:
+ * 1. If model is not Gemini-specific → pass through unchanged
+ * 2. LLM_MODEL env var → use as explicit override
+ * 3. Gemini-specific model + non-Gemini provider → provider's default model
+ * 4. Gemini provider → pass through unchanged
+ *
+ * @param model - Current model name (may be Gemini-specific)
+ * @param provider - Target provider type or provider name string
+ * @returns Resolved model name appropriate for the provider
+ */
+export function resolveProviderModel(
+  model: string,
+  provider: ProviderType | string,
+): string {
+  // Non-Gemini model names always pass through
+  if (!isGeminiSpecificModel(model)) {
+    return model;
+  }
+
+  // Gemini provider uses Gemini models directly
+  if (provider === ProviderType.Gemini) {
+    return model;
+  }
+
+  // LLM_MODEL env var takes priority for non-Gemini providers
+  const llmModel = process.env['LLM_MODEL'];
+  if (llmModel) {
+    return llmModel;
+  }
+
+  // Gemini-specific model + non-Gemini provider → provider default
+  const providerKey = provider as ProviderType;
+  return DEFAULT_PROVIDER_MODELS[providerKey] ?? model;
+}
+
 /**
  * Get API key for a provider from environment.
  */

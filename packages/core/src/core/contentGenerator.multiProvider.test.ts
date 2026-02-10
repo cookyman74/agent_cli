@@ -62,6 +62,7 @@ vi.mock('./fakeContentGenerator.js');
 function createMockConfig(overrides: Partial<Config> = {}): Config {
   return {
     getModel: vi.fn().mockReturnValue('gemini-pro'),
+    setModel: vi.fn(),
     getProxy: vi.fn().mockReturnValue(undefined),
     getUsageStatisticsEnabled: vi.fn().mockReturnValue(false),
     getPreviewFeatures: vi.fn().mockReturnValue(false),

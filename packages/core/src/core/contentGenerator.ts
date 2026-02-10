@@ -47,7 +47,10 @@ import {
   type BridgeableGenerator,
 } from '../providers/gemini/adapterBridge.js';
 import { isMultiProviderEnabled } from '../providers/gemini/featureFlag.js';
-import { selectProvider } from '../providers/providerSelector.js';
+import {
+  selectProvider,
+  resolveProviderModel,
+} from '../providers/providerSelector.js';
 import { ProviderType } from '../providers/providerTypes.js';
 import { ProviderFactory } from '../providers/factory.js';
 import { bootstrapGeminiProvider } from '../providers/gemini/bootstrap.js';
@@ -294,6 +297,15 @@ export async function createContentGenerator(
           apiKey: selection.apiKey,
           baseUrl: selection.baseUrl,
         });
+
+        // Resolve provider-appropriate model and update config for status bar.
+        // e.g., 'auto' → 'claude-sonnet-4-20250514' for Claude provider.
+        const providerModel = resolveProviderModel(
+          gcConfig.getModel(),
+          selection.type,
+        );
+        gcConfig.setModel(providerModel, true);
+
         return new LoggingContentGenerator(
           wrapAdapterAsGenerator(adapter),
           gcConfig,

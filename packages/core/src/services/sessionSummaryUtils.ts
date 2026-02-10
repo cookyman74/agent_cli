@@ -52,6 +52,20 @@ async function generateAndSaveSummary(
     );
     return;
   }
+
+  // Skip summary generation for non-Gemini providers.
+  // BaseLlmClient uses legacy Gemini generateContent() which non-Gemini
+  // providers do not support, causing reportError → console.error.
+  if (
+    contentGenerator.providerName &&
+    contentGenerator.providerName !== 'gemini'
+  ) {
+    debugLogger.debug(
+      `[SessionSummary] Non-Gemini provider (${contentGenerator.providerName}), skipping summary generation`,
+    );
+    return;
+  }
+
   const baseLlmClient = new BaseLlmClient(contentGenerator, config);
   const summaryService = new SessionSummaryService(baseLlmClient);
 

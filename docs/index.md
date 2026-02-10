@@ -73,6 +73,10 @@ This documentation is organized into the following sections:
 - **[Introduction: Gemini CLI core](./core/index.md):** Information about Gemini
   CLI core.
 - **[Memport](./core/memport.md):** Using the Memory Import Processor.
+- **[Long-term memory proposal](./core/long-term-memory-proposal.md):**
+  PostgreSQL 기반 장기 메모리 도입 제안서.
+- **[Long-term memory design](./core/long-term-memory-design.md):** 장기 메모리
+  저장/검색 경로 상세 설계.
 - **[Tools API](./core/tools-api.md):** Information on how the core manages and
   exposes tools.
 - **[System Prompt Override](./cli/system-prompt.md):** Replace built-in system

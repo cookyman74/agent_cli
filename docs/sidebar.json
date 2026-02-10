@@ -101,6 +101,14 @@
       { "label": "Configuration", "slug": "docs/get-started/configuration" },
       { "label": "Keyboard shortcuts", "slug": "docs/cli/keyboard-shortcuts" },
       { "label": "Memory import processor", "slug": "docs/core/memport" },
+      {
+        "label": "Long-term memory proposal",
+        "slug": "docs/core/long-term-memory-proposal"
+      },
+      {
+        "label": "Long-term memory design",
+        "slug": "docs/core/long-term-memory-design"
+      },
       { "label": "Policy engine", "slug": "docs/core/policy-engine" },
       { "label": "Tools API", "slug": "docs/core/tools-api" }
     ]

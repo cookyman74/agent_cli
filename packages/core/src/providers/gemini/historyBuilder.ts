@@ -133,9 +133,11 @@ export class LlmResponseAccumulator {
       traceId: event.traceId,
     });
 
-    // Collect as Gemini Part for history Content
+    // Collect as Gemini Part for history Content.
+    // Include id for callId round-trip (non-Gemini tool response matching).
     this.functionCallParts.push({
       functionCall: {
+        id: event.callId,
         name: event.name,
         args: event.args,
       },

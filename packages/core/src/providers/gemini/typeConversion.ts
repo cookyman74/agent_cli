@@ -41,7 +41,7 @@ function convertPartToLlmContent(part: Part): LlmContent | null {
   if ('functionCall' in part && part.functionCall) {
     return {
       type: 'tool_call',
-      id: crypto.randomUUID(),
+      id: part.functionCall.id ?? crypto.randomUUID(),
       name: part.functionCall.name!,
       arguments: part.functionCall.args ?? {},
     };
@@ -50,7 +50,7 @@ function convertPartToLlmContent(part: Part): LlmContent | null {
   if ('functionResponse' in part && part.functionResponse) {
     return {
       type: 'tool_result',
-      toolCallId: '',
+      toolCallId: part.functionResponse.id ?? '',
       name: part.functionResponse.name,
       content:
         (part.functionResponse.response as string | Record<string, unknown>) ??

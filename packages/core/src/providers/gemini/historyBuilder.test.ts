@@ -102,6 +102,7 @@ describe('LlmResponseAccumulator', () => {
       expect(content.parts).toHaveLength(1);
       expect(content.parts![0]).toEqual({
         functionCall: {
+          id: 'call-1',
           name: 'search',
           args: { query: 'cats' },
         },
@@ -150,7 +151,7 @@ describe('LlmResponseAccumulator', () => {
         text: 'Let me search for that.',
       });
       expect(content.parts![1]).toEqual({
-        functionCall: { name: 'search', args: { q: 'test' } },
+        functionCall: { id: 'call-1', name: 'search', args: { q: 'test' } },
       });
     });
   });

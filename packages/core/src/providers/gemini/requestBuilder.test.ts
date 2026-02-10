@@ -349,5 +349,55 @@ describe('requestBuilder', () => {
       expect(toolResultMsg.role).toBe('user');
       expect(toolResultMsg.content[0].type).toBe('tool_result');
     });
+
+    it('should preserve callId through functionCall.id and functionResponse.id', () => {
+      const history: Content[] = [
+        { role: 'user', parts: [{ text: 'Do something' }] },
+        {
+          role: 'model',
+          parts: [
+            {
+              functionCall: {
+                id: 'call-abc-123',
+                name: 'my_tool',
+                args: { x: 1 },
+              },
+            },
+          ],
+        },
+        {
+          role: 'user',
+          parts: [
+            {
+              functionResponse: {
+                id: 'call-abc-123',
+                name: 'my_tool',
+                response: { output: 'done' },
+              },
+            },
+          ],
+        },
+      ];
+
+      const result = buildLlmRequestFromGeminiState({
+        model: 'test',
+        history,
+        currentRequest: [{ text: 'Next' }],
+      });
+
+      // tool_call should have id preserved
+      const toolCallContent = result.messages[1].content[0];
+      expect(toolCallContent.type).toBe('tool_call');
+      if (toolCallContent.type === 'tool_call') {
+        expect(toolCallContent.id).toBe('call-abc-123');
+      }
+
+      // tool_result should have toolCallId preserved
+      const toolResultContent = result.messages[2].content[0];
+      expect(toolResultContent.type).toBe('tool_result');
+      if (toolResultContent.type === 'tool_result') {
+        expect(toolResultContent.toolCallId).toBe('call-abc-123');
+      }
+    });
   });
 });

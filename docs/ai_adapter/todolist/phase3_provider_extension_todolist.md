@@ -731,20 +731,20 @@ vLLM, TGI, LM Studio 등 OpenAI 호환 API 지원
 
 ### 3.3.0 사전 준비
 
-| ID      | 작업                                             | 상태 | 테스트 파일        | 비고                                                                                                             |
-| ------- | ------------------------------------------------ | ---- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| 3.3.0.1 | ProviderRegistry에 OpenAI-Compatible 팩토리 등록 | ⬜   | `registry.test.ts` | 부트스트랩에 `register('openai-compatible', openaiCompatFactory)` 추가. `openai` SDK 재사용 (M3.2에서 설치 완료) |
+| ID      | 작업                                             | 상태 | 테스트 파일         | 비고                                                                                                        |
+| ------- | ------------------------------------------------ | ---- | ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 3.3.0.1 | ProviderRegistry에 OpenAI-Compatible 팩토리 등록 | ✅   | `bootstrap.test.ts` | `bootstrapOpenAiCompatibleProvider()` — has() guard, `LLM_CUSTOM_HEADERS`/`LLM_API_KEY_HEADER` env var 지원 |
 
 ### 3.3.1 OpenAICompatibleAdapter 구현
 
-| ID      | 작업                             | 상태 | 테스트 파일                   |
-| ------- | -------------------------------- | ---- | ----------------------------- |
-| 3.3.1.1 | `OpenAICompatibleAdapter` 클래스 | ⬜   | `openaiCompatAdapter.test.ts` |
-| 3.3.1.2 | `OpenAIAdapter` 상속             | ⬜   | `openaiCompatAdapter.test.ts` |
-| 3.3.1.3 | `baseUrl` 설정 지원              | ⬜   | `openaiCompatAdapter.test.ts` |
-| 3.3.1.4 | Custom headers 지원              | ⬜   | `openaiCompatAdapter.test.ts` |
-| 3.3.1.5 | `apiKeyHeaderName` 지원          | ⬜   | `openaiCompatAdapter.test.ts` |
-| 3.3.1.6 | 연결 테스트 메서드               | ⬜   | `openaiCompatAdapter.test.ts` |
+| ID      | 작업                             | 상태 | 테스트 파일         |
+| ------- | -------------------------------- | ---- | ------------------- | ------------------------------------------------------------------- |
+| 3.3.1.1 | `OpenAICompatibleAdapter` 클래스 | ✅   | `adapter.test.ts`   | BaseAdapter + OpenAiAdapter 상속, providerName='openai-compatible'  |
+| 3.3.1.2 | `OpenAIAdapter` 상속             | ✅   | `adapter.test.ts`   | `extends OpenAiAdapter` — converter/classifyError/generate\* 재사용 |
+| 3.3.1.3 | `baseUrl` 설정 지원              | ✅   | `bootstrap.test.ts` | OpenAI SDK `baseURL` 옵션으로 전달                                  |
+| 3.3.1.4 | Custom headers 지원              | ✅   | `bootstrap.test.ts` | `LLM_CUSTOM_HEADERS` env var (JSON) → SDK `defaultHeaders`          |
+| 3.3.1.5 | `apiKeyHeaderName` 지원          | ✅   | `bootstrap.test.ts` | `LLM_API_KEY_HEADER` env var → custom auth header                   |
+| 3.3.1.6 | 연결 테스트 메서드               | ✅   | `adapter.test.ts`   | `testConnection()` — HTTP응답=true, 네트워크에러=false              |
 
 **TDD 시나리오**:
 
@@ -790,26 +790,26 @@ describe('OpenAICompatibleAdapter', () => {
 ### 3.3.2 모델별 템플릿 훅
 
 | ID      | 작업                       | 상태 | 테스트 파일             |
-| ------- | -------------------------- | ---- | ----------------------- |
-| 3.3.2.1 | `PromptBuilder` 인터페이스 | ⬜   | `promptBuilder.test.ts` |
-| 3.3.2.2 | Llama3 ChatTemplate        | ⬜   | `promptBuilder.test.ts` |
-| 3.3.2.3 | Mistral ChatTemplate       | ⬜   | `promptBuilder.test.ts` |
-| 3.3.2.4 | 범용 ChatML 템플릿         | ⬜   | `promptBuilder.test.ts` |
+| ------- | -------------------------- | ---- | ----------------------- | ---------------------------------------------------------- |
+| 3.3.2.1 | `PromptBuilder` 인터페이스 | ✅   | `promptBuilder.test.ts` | `formatPrompt()` 메서드 — 확장 포인트                      |
+| 3.3.2.2 | Llama3 ChatTemplate        | ⏸️   | —                       | 서버 사이드 처리 (연기)                                    |
+| 3.3.2.3 | Mistral ChatTemplate       | ⏸️   | —                       | 서버 사이드 처리 (연기)                                    |
+| 3.3.2.4 | 범용 ChatML 템플릿         | ✅   | `promptBuilder.test.ts` | `ChatMLPromptBuilder` — `<\|im_start\|>/<\|im_end\|>` 토큰 |
 
 ### 3.3.3 호환성 시나리오 테스트
 
-| ID      | 작업                    | 상태 | 테스트 파일              |
-| ------- | ----------------------- | ---- | ------------------------ |
-| 3.3.3.1 | vLLM 호환성 테스트      | ⬜   | `vllmCompat.test.ts`     |
-| 3.3.3.2 | TGI 호환성 테스트       | ⬜   | `tgiCompat.test.ts`      |
-| 3.3.3.3 | LM Studio 호환성 테스트 | ⬜   | `lmstudioCompat.test.ts` |
-| 3.3.3.4 | Ollama 호환성 테스트    | ⬜   | `ollamaCompat.test.ts`   |
+| ID      | 작업                    | 상태 | 테스트 파일             |
+| ------- | ----------------------- | ---- | ----------------------- | -------------------------------------------------------------- |
+| 3.3.3.1 | vLLM 호환성 테스트      | ✅   | `compatibility.test.ts` | chat completion + streaming + error + no apiKey (4 tests)      |
+| 3.3.3.2 | TGI 호환성 테스트       | ✅   | `compatibility.test.ts` | chat completion + streaming + error (3 tests)                  |
+| 3.3.3.3 | LM Studio 호환성 테스트 | ✅   | `compatibility.test.ts` | chat completion + streaming (2 tests)                          |
+| 3.3.3.4 | Ollama 호환성 테스트    | ✅   | `compatibility.test.ts` | chat completion + streaming + missing usage graceful (3 tests) |
 
 **검증 기준**:
 
-- [ ] vLLM 기본 대화 동작
-- [ ] Custom baseUrl 동작
-- [ ] Custom headers 동작
+- [x] vLLM 기본 대화 동작
+- [x] Custom baseUrl 동작
+- [x] Custom headers 동작
 
 ---
 

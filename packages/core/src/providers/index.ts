@@ -80,3 +80,9 @@ export { Claude };
 // Then: OpenAi.OpenAiAdapter, OpenAi.bootstrapOpenAiProvider, etc.
 import * as OpenAi from './openai/index.js';
 export { OpenAi };
+
+// OpenAI-compatible provider types (Phase 3 - M3.3)
+// Use: import { OpenAiCompatible } from '@google/gemini-cli-core/providers'
+// Then: OpenAiCompatible.OpenAiCompatibleAdapter, etc.
+import * as OpenAiCompatible from './openai-compatible/index.js';
+export { OpenAiCompatible };

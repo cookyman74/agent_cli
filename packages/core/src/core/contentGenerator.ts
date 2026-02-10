@@ -56,6 +56,7 @@ import { ProviderFactory } from '../providers/factory.js';
 import { bootstrapGeminiProvider } from '../providers/gemini/bootstrap.js';
 import { bootstrapClaudeProvider } from '../providers/claude/bootstrap.js';
 import { bootstrapOpenAiProvider } from '../providers/openai/bootstrap.js';
+import { bootstrapOpenAiCompatibleProvider } from '../providers/openai-compatible/bootstrap.js';
 import type { BaseAdapter } from '../providers/baseAdapter.js';
 import type { AuthType as ProviderAuthType } from '../providers/providerTypes.js';
 
@@ -306,6 +307,7 @@ export async function createContentGenerator(
         bootstrapGeminiProvider();
         bootstrapClaudeProvider();
         bootstrapOpenAiProvider();
+        bootstrapOpenAiCompatibleProvider();
         const factory = new ProviderFactory();
         const adapter = factory.create(selection.type, {
           apiKey: selection.apiKey,

@@ -280,8 +280,8 @@ export class OpenAiConverter {
       | Array<Record<string, unknown>>
       | undefined;
 
-    // Guard: no choices array → check if this is malformed
-    if (!choices) {
+    // Guard: no choices array or non-array choices → malformed chunk
+    if (!choices || !Array.isArray(choices)) {
       return [];
     }
 
@@ -294,7 +294,7 @@ export class OpenAiConverter {
       return this.handleUsageOnlyChunk(usage, state);
     }
 
-    // Normal chunk with choices[0]
+    // Normal chunk: process choices[0] only (n=1 assumed for agent streaming)
     const choice = choices[0];
     const delta = (choice['delta'] as Record<string, unknown>) ?? {};
     const finishReason = choice['finish_reason'] as string | null;
@@ -371,18 +371,22 @@ export class OpenAiConverter {
     for (const tc of toolCalls) {
       const idx = tc['index'] as number;
       const fn = (tc['function'] as Record<string, unknown>) ?? {};
+      const existing = state.currentToolCalls[idx];
 
-      if (tc['id']) {
+      if (tc['id'] && !existing) {
         // New tool call: initialize state entry
         state.currentToolCalls[idx] = {
           id: tc['id'] as string,
           name: (fn['name'] as string) ?? '',
           argumentsJson: (fn['arguments'] as string) ?? '',
         };
-      } else if (state.currentToolCalls[idx]) {
-        // Continuation: append arguments
-        state.currentToolCalls[idx].argumentsJson +=
-          (fn['arguments'] as string) ?? '';
+      } else if (existing) {
+        // Continuation: append arguments and update name if provided
+        existing.argumentsJson += (fn['arguments'] as string) ?? '';
+        const name = fn['name'] as string | undefined;
+        if (name) {
+          existing.name = name;
+        }
       }
     }
   }

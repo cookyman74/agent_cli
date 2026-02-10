@@ -1207,5 +1207,115 @@ describe('OpenAiConverter', () => {
         expect(events).toHaveLength(0);
       });
     });
+
+    // --- Review Issue Fixes ---
+
+    describe('review issue fixes', () => {
+      it('R1: duplicate id in tool_call delta should NOT overwrite accumulated args', () => {
+        // Init tool call with id
+        converter.convertStreamEvent(
+          {
+            choices: [
+              {
+                index: 0,
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'call_1',
+                      function: { name: 'fn', arguments: '{"a"' },
+                    },
+                  ],
+                },
+                finish_reason: null,
+              },
+            ],
+          },
+          state,
+        );
+
+        // Duplicate id chunk (should NOT reinitialize)
+        converter.convertStreamEvent(
+          {
+            choices: [
+              {
+                index: 0,
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'call_1',
+                      function: { arguments: ':1}' },
+                    },
+                  ],
+                },
+                finish_reason: null,
+              },
+            ],
+          },
+          state,
+        );
+
+        expect(state.currentToolCalls[0].argumentsJson).toBe('{"a":1}');
+      });
+
+      it('R2: late name in continuation chunk should be reflected', () => {
+        // Init with id only (no name yet)
+        converter.convertStreamEvent(
+          {
+            choices: [
+              {
+                index: 0,
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'call_1',
+                      function: { name: '', arguments: '{}' },
+                    },
+                  ],
+                },
+                finish_reason: null,
+              },
+            ],
+          },
+          state,
+        );
+        expect(state.currentToolCalls[0].name).toBe('');
+
+        // Continuation with late name
+        converter.convertStreamEvent(
+          {
+            choices: [
+              {
+                index: 0,
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      function: { name: 'late_fn', arguments: '' },
+                    },
+                  ],
+                },
+                finish_reason: null,
+              },
+            ],
+          },
+          state,
+        );
+
+        expect(state.currentToolCalls[0].name).toBe('late_fn');
+      });
+
+      it('R3: non-array choices should return empty array without throwing', () => {
+        expect(() => {
+          const events = converter.convertStreamEvent(
+            { choices: { index: 0 } },
+            state,
+          );
+          expect(events).toHaveLength(0);
+        }).not.toThrow();
+      });
+    });
   });
 });

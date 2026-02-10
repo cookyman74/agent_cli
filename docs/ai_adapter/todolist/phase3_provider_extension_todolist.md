@@ -561,14 +561,14 @@ OpenAI 메시지/툴/스트림 변환기 구현
 
 ### 3.2.1 OpenAiAdapter 구현
 
-| ID      | 작업                           | 상태 | 테스트 파일       | 비고                                                                |
-| ------- | ------------------------------ | ---- | ----------------- | ------------------------------------------------------------------- |
-| 3.2.1.1 | `OpenAiAdapter` 클래스 생성    | ✅   | `adapter.test.ts` | DI 패턴: `OpenAiClient` 인터페이스                                  |
-| 3.2.1.2 | `BaseAdapter` 상속 구현        | ✅   | `adapter.test.ts` | validateRequest, mapToProviderConfig 구현                           |
-| 3.2.1.3 | OpenAI SDK 연동                | ✅   | `adapter.test.ts` | `client.chat.completions.create()` 호출                             |
-| 3.2.1.4 | `generateContent()` 구현       | ✅   | `adapter.test.ts` | 변환→호출→역변환 패턴, classifyError 에러 분류                      |
-| 3.2.1.5 | `generateContentStream()` 구현 | ⚠️   | `adapter.test.ts` | M3.2.A: 스켈레톤 (stream=true + yield 루프), M3.2.B에서 변환기 완성 |
-| 3.2.1.6 | capabilities 선언              | ✅   | `adapter.test.ts` | `supportsTokenCount: false`, `supportsThought: false`               |
+| ID      | 작업                           | 상태 | 테스트 파일       | 비고                                                              |
+| ------- | ------------------------------ | ---- | ----------------- | ----------------------------------------------------------------- |
+| 3.2.1.1 | `OpenAiAdapter` 클래스 생성    | ✅   | `adapter.test.ts` | DI 패턴: `OpenAiClient` 인터페이스                                |
+| 3.2.1.2 | `BaseAdapter` 상속 구현        | ✅   | `adapter.test.ts` | validateRequest, mapToProviderConfig 구현                         |
+| 3.2.1.3 | OpenAI SDK 연동                | ✅   | `adapter.test.ts` | `client.chat.completions.create()` 호출                           |
+| 3.2.1.4 | `generateContent()` 구현       | ✅   | `adapter.test.ts` | 변환→호출→역변환 패턴, classifyError 에러 분류                    |
+| 3.2.1.5 | `generateContentStream()` 구현 | ✅   | `adapter.test.ts` | M3.2.A: 스켈레톤, M3.2.B: 변환기 완성 + `supportsStreaming: true` |
+| 3.2.1.6 | capabilities 선언              | ✅   | `adapter.test.ts` | `supportsTokenCount: false`, `supportsThought: false`             |
 
 **TDD 시나리오**:
 
@@ -657,12 +657,12 @@ describe('OpenAI Message Converter', () => {
 
 ### 3.2.3 OpenAI 스트림 변환기
 
-| ID      | 작업                        | 상태 | 테스트 파일         | 비고        |
-| ------- | --------------------------- | ---- | ------------------- | ----------- |
-| 3.2.3.1 | `convertStreamEvent()` 변환 | ⬜   | `converter.test.ts` | M3.2.B 범위 |
-| 3.2.3.2 | 텍스트 델타 처리            | ⬜   | `converter.test.ts` | M3.2.B 범위 |
-| 3.2.3.3 | Tool call 델타 처리         | ⬜   | `converter.test.ts` | M3.2.B 범위 |
-| 3.2.3.4 | Usage 정보 추출             | ⬜   | `converter.test.ts` | M3.2.B 범위 |
+| ID      | 작업                        | 상태 | 테스트 파일         | 비고                                                                                 |
+| ------- | --------------------------- | ---- | ------------------- | ------------------------------------------------------------------------------------ |
+| 3.2.3.1 | `convertStreamEvent()` 변환 | ✅   | `converter.test.ts` | text delta 5건 + tool call 8건 + finish 4건 + usage 4건 + 통합 2건 + 엣지 2건 = 25건 |
+| 3.2.3.2 | 텍스트 델타 처리            | ✅   | `converter.test.ts` | T1-T5: delta.content 비empty → TextDelta, null/empty/role-only 필터링                |
+| 3.2.3.3 | Tool call 델타 처리         | ✅   | `converter.test.ts` | T6-T13: index 기반 축적, 병렬 추적, finish_reason=tool_calls 시 일괄 발행            |
+| 3.2.3.4 | Usage 정보 추출             | ✅   | `converter.test.ts` | T18-T21: usage-only 최종 청크 → MessageEnd, cached_tokens 추출                       |
 
 ### 3.2.4 OpenAI 에러 매핑
 
@@ -676,7 +676,8 @@ describe('OpenAI Message Converter', () => {
 **검증 기준**:
 
 - [x] OpenAI 기본 대화 동작
-- [ ] OpenAI 스트리밍 동작 (M3.2.B)
+- [x] OpenAI 스트리밍 동작 (M3.2.B — `convertStreamEvent` 25건 + adapter
+      streaming 3건)
 - [x] OpenAI 도구 호출 동작
 - [x] OpenAI JSON mode 동작
 

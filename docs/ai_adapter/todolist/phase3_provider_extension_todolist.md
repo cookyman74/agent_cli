@@ -80,7 +80,7 @@ M3.4.B (잔여) → M3.5
 | 7    | `telemetry/semantic.ts` Gemini 결합 해소  | High     | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
 | 8    | AuthType 처리 통합 (2.3.1.8)              | Medium   | ⬜ → M3.1+  | 신규 프로바이더 구현 시 함께 |
 | 9    | 성능 검증 (응답 지연/메모리/스트리밍)     | Medium   | ⬜ → M3.4   | M3.4.3                       |
-| 10   | E2E 테스트 통과 검증                      | Medium   | ⬜ → M3.4   | M3.4.2                       |
+| 10   | E2E 테스트 통과 검증                      | Medium   | ✅ 해소됨   | M3.4.2 (12 tests PASS)       |
 | 11   | `geminiTypeConversion.ts` 브릿지 정리     | Medium   | ✅ 해소됨   | M3.0.4                       |
 | 12   | `telemetry/sdk.ts` 시그널 핸들러 누수     | Medium   | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
 | M2.7 | Agent/Telemetry 결합 해소                 | Watch    | ✅ 해소됨   | M3.0.3 (`6a09c831d`)         |
@@ -851,31 +851,31 @@ describe('OpenAICompatibleAdapter', () => {
 
 ### 3.4.2 E2E 테스트 시나리오
 
-| ID      | 작업                   | 상태 | 테스트 파일 | M3.3 의존   |
-| ------- | ---------------------- | ---- | ----------- | ----------- |
-| 3.4.2.1 | Gemini E2E 테스트      | ⬜   | E2E         | ❌          |
-| 3.4.2.2 | Claude E2E 테스트      | ⬜   | E2E         | ❌          |
-| 3.4.2.3 | OpenAI E2E 테스트      | ⬜   | E2E         | ❌          |
-| 3.4.2.4 | vLLM E2E 테스트 (선택) | ⬜   | E2E         | ✅ → M3.4.B |
+| ID      | 작업                   | 상태 | 테스트 파일              | M3.3 의존   |
+| ------- | ---------------------- | ---- | ------------------------ | ----------- |
+| 3.4.2.1 | Gemini E2E 테스트      | ✅   | `multi-provider.test.ts` | ❌          |
+| 3.4.2.2 | Claude E2E 테스트      | ✅   | `multi-provider.test.ts` | ❌          |
+| 3.4.2.3 | OpenAI E2E 테스트      | ✅   | `multi-provider.test.ts` | ❌          |
+| 3.4.2.4 | vLLM E2E 테스트 (선택) | ⬜   | E2E                      | ✅ → M3.4.B |
 
 **E2E 테스트 매트릭스 (M3.4.A 선행 범위)**:
 
 | 시나리오      | Gemini | Claude | OpenAI | vLLM (M3.4.B) |
 | ------------- | ------ | ------ | ------ | ------------- |
-| 기본 대화     | ⬜     | ⬜     | ⬜     | ⏳ M3.3 후    |
-| 스트리밍 대화 | ⬜     | ⬜     | ⬜     | ⏳ M3.3 후    |
-| 도구 호출     | ⬜     | ⬜     | ⬜     | ⏳ M3.3 후    |
+| 기본 대화     | ✅     | ✅     | ✅     | ⏳ M3.3 후    |
+| 스트리밍 대화 | ✅     | ✅     | ✅     | ⏳ M3.3 후    |
+| 도구 호출     | ✅     | ✅     | ✅     | ⏳ M3.3 후    |
 | 이미지 입력   | ⬜     | ⬜     | ⬜     | ⏳ M3.3 후    |
-| 에러 처리     | ⬜     | ⬜     | ⬜     | ⏳ M3.3 후    |
+| 에러 처리     | ✅     | ✅     | ✅     | ⏳ M3.3 후    |
 
 ### 3.4.3 성능 회귀 테스트 (3-Provider Baseline)
 
-| ID      | 작업                      | 상태 | 테스트 파일           | M3.3 의존 |
-| ------- | ------------------------- | ---- | --------------------- | --------- |
-| 3.4.3.1 | 응답 지연 벤치마크        | ⬜   | `performance.test.ts` | ❌        |
-| 3.4.3.2 | 스트리밍 첫 토큰 벤치마크 | ⬜   | `performance.test.ts` | ❌        |
-| 3.4.3.3 | 메모리 사용량 프로파일링  | ⬜   | `performance.test.ts` | ❌        |
-| 3.4.3.4 | 번들 크기 분석            | ⬜   | `bundleSize.test.ts`  | ❌        |
+| ID      | 작업                      | 상태 | 테스트 파일                               | M3.3 의존 |
+| ------- | ------------------------- | ---- | ----------------------------------------- | --------- |
+| 3.4.3.1 | 응답 지연 벤치마크        | ✅   | `providers/__tests__/performance.test.ts` | ❌        |
+| 3.4.3.2 | 스트리밍 첫 토큰 벤치마크 | ✅   | `providers/__tests__/performance.test.ts` | ❌        |
+| 3.4.3.3 | 메모리 사용량 프로파일링  | ✅   | `providers/__tests__/performance.test.ts` | ❌        |
+| 3.4.3.4 | 번들 크기 분석            | ✅   | `providers/__tests__/bundleSize.test.ts`  | ❌        |
 
 **성능 기준**:
 
@@ -910,8 +910,8 @@ describe('OpenAICompatibleAdapter', () => {
 **M3.4.A 검증 기준** (선행 완료 조건):
 
 - [ ] 멀티 프로바이더 통합 테스트 통과 (3.4.1.1~3.4.1.4)
-- [ ] Gemini/Claude/OpenAI E2E 테스트 통과 (3.4.2.1~3.4.2.3)
-- [ ] 성능 회귀 없음 (3-provider baseline 기준 내)
+- [x] Gemini/Claude/OpenAI E2E 테스트 통과 (3.4.2.1~3.4.2.3)
+- [x] 성능 회귀 없음 (3-provider baseline 기준 내)
 - [ ] 3-provider 문서 완성 (vLLM placeholder 포함)
 - [ ] 의존성 검증 (`npm ci` 성공, esbuild bundle 포함 확인)
 

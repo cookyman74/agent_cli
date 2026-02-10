@@ -256,6 +256,57 @@ if (
 통합 테스트는 Mock Adapter를 사용하므로 실제 SDK 호출은 검증하지 않음. 실제 API
 호출 검증은 M3.4.2 E2E 테스트에서 수행 예정.
 
+## 리뷰 반영 (2026-02-10)
+
+### 리뷰 지적 사항 및 수정 결과
+
+| #   | 심각도 | 이슈                                                                       | 검증 결과                                                           | 수정 내용                                                                                                                                   |
+| --- | ------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 높음   | `processLlmTurn()`에서 AbortSignal을 `llmGenerateContentStream()`에 미전달 | ✅ 확인 — 3번째 인자 `options` 누락                                 | `{ signal }` 옵션 추가 (client.ts:862)                                                                                                      |
+| 2   | 높음   | abort 후 partial response가 history에 저장됨                               | ✅ 확인 — `!isError` 조건만 존재, `signal.aborted` 미체크           | `!isError && !signal.aborted` 조건으로 변경 (client.ts:878)                                                                                 |
+| 3   | 중간   | Non-Gemini 경로에 루프 감지 미적용                                         | ✅ 확인 — Gemini 경로의 `loopDetector.addAndCheck()` 대응 코드 없음 | `processLlmTurn` event loop에 `loopDetector.addAndCheck()` 추가 + `controller` 파라미터 추가하여 loop detected 시 abort (client.ts:870-878) |
+
+### 변경 파일
+
+| 파일                  | 변경 내용                                                                                                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/client.ts`      | (1) `llmGenerateContentStream` 호출 시 `{ signal }` 옵션 전달, (2) history recording 조건에 `!signal.aborted` 추가, (3) `processLlmTurn` 시그니처에 `controller: AbortController` 추가 + event loop에 `loopDetector.addAndCheck()` 루프 감지 추가 |
+| `core/client.test.ts` | `llmGenerateContentStream` 호출 기대값에 `signal` 옵션 검증 추가                                                                                                                                                                                  |
+
+### Quality Gate (1차 리뷰 반영 후)
+
+| 항목          | 결과                     |
+| ------------- | ------------------------ |
+| TypeCheck     | ✅ PASS                  |
+| ESLint        | ✅ PASS                  |
+| Client 테스트 | ✅ 80 passed (1 skipped) |
+| Provider 회귀 | ✅ 37 files / 758 passed |
+
+### 2차 리뷰 — SDK 레이어 AbortSignal 전달 누락
+
+| #   | 심각도 | 이슈                                                                                                                  | 검증 결과                                                                                     | 수정 내용                                                                    |
+| --- | ------ | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 5   | 중간   | `client.ts`에서 `{ signal }` 전달하나, Claude/OpenAI 어댑터가 `_options`로 미사용 → SDK 네트워크 요청에 signal 미전달 | ✅ 확인 — 양쪽 어댑터 `generateContent`/`generateContentStream` 모두 `_options` (unused) 선언 | `options?.signal`을 SDK `create()` 호출의 2번째 인자 `RequestOptions`로 전달 |
+
+**배경**: Anthropic/OpenAI SDK 모두 `RequestOptions.signal?: AbortSignal`을
+지원하며, 스트림의 `for await` break 시 내부 abort도 동작하지만, 외부 signal
+전달로 네트워크 레벨 즉시 취소가 가능해짐.
+
+### 2차 리뷰 변경 파일
+
+| 파일                          | 변경 내용                                                                                                                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `providers/claude/adapter.ts` | `generateContent`: `client.messages.create(params, { signal })`, `generateContentStream`: `client.messages.create({...params, stream: true}, { signal })`                                 |
+| `providers/openai/adapter.ts` | `generateContent`: `client.chat.completions.create(params, { signal })`, `generateContentStream`: `client.chat.completions.create({...params, stream: true, stream_options}, { signal })` |
+
+### Quality Gate (2차 리뷰 반영 후)
+
+| 항목          | 결과                     |
+| ------------- | ------------------------ |
+| TypeCheck     | ✅ PASS                  |
+| ESLint        | ✅ PASS                  |
+| Provider 회귀 | ✅ 37 files / 758 passed |
+
 ## 향후 작업
 
 - **M3.4.A 잔여**: 3.4.2 (E2E 테스트), 3.4.3 (성능 회귀), 3.4.4 (문서), 3.4.5

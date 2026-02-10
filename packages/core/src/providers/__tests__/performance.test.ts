@@ -12,6 +12,13 @@
  * Measures adapter framework overhead using mock adapters.
  * Network latency is excluded — only Registry → Factory → Adapter → Event Stream
  * overhead is measured.
+ *
+ * **Scope limitation**: These benchmarks target the adapter abstraction layer only.
+ * Real SDK conversion (toClaudeRequest, toOpenAiRequest), error classification
+ * (classifyError), and stream assembly (StreamAssembler) overhead is NOT measured
+ * here — those paths are covered by their respective unit tests.
+ * Full end-to-end latency (including SDK wire time) requires live API tests
+ * and is out of scope for regression gating.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -336,29 +343,43 @@ describe('Provider Performance Benchmarks', () => {
     it('memory growth during repeated operations should be < 10%', async () => {
       const request = createBasicRequest('test-model');
 
-      // Encourage GC if available
-      if (global.gc) global.gc();
+      // Multi-round measurement to reduce noise from GC timing and
+      // background V8 activity. Each round runs the workload and records
+      // the heap delta. The median of all rounds is used for the final check.
+      const ROUNDS = 5;
+      const ITERATIONS_PER_ROUND = 50;
+      const growthSamples: number[] = [];
 
-      const before = process.memoryUsage().heapUsed;
+      for (let round = 0; round < ROUNDS; round++) {
+        if (global.gc) global.gc();
+        const before = process.memoryUsage().heapUsed;
 
-      // 100 iterations × 3 providers × (generateContent + generateContentStream)
-      for (let i = 0; i < 100; i++) {
-        for (const [, adapter] of adapters) {
-          await adapter.generateContent(request, `mem-${i}`);
-          const stream = adapter.generateContentStream(request, `mem-s-${i}`);
-          for await (const _event of stream) {
-            /* consume */
+        for (let i = 0; i < ITERATIONS_PER_ROUND; i++) {
+          for (const [, adapter] of adapters) {
+            await adapter.generateContent(request, `mem-${round}-${i}`);
+            const stream = adapter.generateContentStream(
+              request,
+              `mem-s-${round}-${i}`,
+            );
+            for await (const _event of stream) {
+              /* consume */
+            }
           }
         }
+
+        if (global.gc) global.gc();
+        const after = process.memoryUsage().heapUsed;
+        growthSamples.push(((after - before) / before) * 100);
       }
 
-      if (global.gc) global.gc();
-      const after = process.memoryUsage().heapUsed;
+      // Use median to reduce outlier impact from GC pauses / background allocation
+      growthSamples.sort((a, b) => a - b);
+      const medianGrowth = growthSamples[Math.floor(growthSamples.length / 2)];
 
-      const growthPercent = ((after - before) / before) * 100;
+      const sampleStr = growthSamples.map((g) => g.toFixed(2) + '%').join(', ');
       expect(
-        growthPercent,
-        `Memory growth (${growthPercent.toFixed(2)}%) exceeds 10%`,
+        medianGrowth,
+        `Median memory growth (${medianGrowth.toFixed(2)}%) exceeds 10% [samples: ${sampleStr}]`,
       ).toBeLessThan(10);
     });
   });

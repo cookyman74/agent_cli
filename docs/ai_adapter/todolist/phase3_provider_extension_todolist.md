@@ -844,10 +844,10 @@ describe('OpenAICompatibleAdapter', () => {
 
 | ID      | 작업                        | 상태 | 테스트 파일                         | M3.3 의존 |
 | ------- | --------------------------- | ---- | ----------------------------------- | --------- |
-| 3.4.1.1 | 프로바이더 전환 테스트      | ⬜   | `multiProvider.integration.test.ts` | ❌        |
-| 3.4.1.2 | 동시 프로바이더 사용 테스트 | ⬜   | `multiProvider.integration.test.ts` | ❌        |
-| 3.4.1.3 | 설정 검증 통합 테스트       | ⬜   | `providerConfigIntegration.test.ts` | ❌        |
-| 3.4.1.4 | 에러 처리 통합 테스트       | ⬜   | `errorHandling.integration.test.ts` | ❌        |
+| 3.4.1.1 | 프로바이더 전환 테스트      | ✅   | `multiProvider.integration.test.ts` | ❌        |
+| 3.4.1.2 | 동시 프로바이더 사용 테스트 | ✅   | `multiProvider.integration.test.ts` | ❌        |
+| 3.4.1.3 | 설정 검증 통합 테스트       | ✅   | `providerConfigIntegration.test.ts` | ❌        |
+| 3.4.1.4 | 에러 처리 통합 테스트       | ✅   | `errorHandling.integration.test.ts` | ❌        |
 
 ### 3.4.2 E2E 테스트 시나리오
 

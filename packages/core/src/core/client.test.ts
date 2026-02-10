@@ -268,6 +268,7 @@ describe('Gemini Client (client.ts)', () => {
       getExperiments: () => {},
       getActiveModel: vi.fn().mockReturnValue('test-model'),
       setActiveModel: vi.fn(),
+      setModel: vi.fn(),
       resetTurn: vi.fn(),
       getModelAvailabilityService: vi
         .fn()
@@ -3299,9 +3300,11 @@ ${JSON.stringify(
       const yielded = await fromAsync(stream);
 
       // Should contain ModelInfo + the 3 LlmEvents
+      // Note: routing is skipped for non-Gemini, model comes from
+      // resolveProviderModel(config.getModel(), 'claude')
       expect(yielded).toContainEqual({
         type: LlmEventType.ModelInfo,
-        modelName: 'default-routed-model',
+        modelName: 'test-model',
       });
       expect(yielded).toContainEqual({
         type: LlmEventType.TextDelta,
@@ -3450,11 +3453,43 @@ ${JSON.stringify(
       const llmStream = generator.llmGenerateContentStream!;
       expect(llmStream).toHaveBeenCalledWith(
         expect.objectContaining({
-          model: 'default-routed-model',
+          model: 'test-model',
           messages: expect.any(Array),
         }),
         'prompt-llm-7',
       );
+    });
+
+    it('should skip routing for non-Gemini providers', async () => {
+      setupNonGeminiClient([
+        { type: LlmEventType.Finished, finishReason: 'end_turn' },
+      ]);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'test' }],
+        new AbortController().signal,
+        'prompt-llm-8',
+      );
+      await fromAsync(stream);
+
+      // Routing should NOT be called — it uses legacy Gemini API
+      expect(mockRouterService.route).not.toHaveBeenCalled();
+    });
+
+    it('should update config model for status bar display', async () => {
+      setupNonGeminiClient([
+        { type: LlmEventType.Finished, finishReason: 'end_turn' },
+      ]);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'test' }],
+        new AbortController().signal,
+        'prompt-llm-9',
+      );
+      await fromAsync(stream);
+
+      // config.setModel should be called with resolved provider model
+      expect(mockConfig.setModel).toHaveBeenCalledWith('test-model', true);
     });
   });
 });

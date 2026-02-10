@@ -630,6 +630,42 @@ export class GeminiClient {
       return turn;
     }
 
+    // ====================================================================
+    // Non-Gemini provider path: skip routing, use llm* methods directly
+    // Routing uses legacy Gemini generateContent() which throws for
+    // non-Gemini providers, so it must be checked before routing.
+    // ====================================================================
+    const generator = this.getContentGeneratorOrFail();
+    if (
+      isProviderIndependentGenerator(generator) &&
+      generator.providerName !== 'gemini'
+    ) {
+      // Resolve Gemini-specific model names to provider-appropriate defaults
+      const providerModel = resolveProviderModel(
+        this.config.getModel(),
+        generator.providerName!,
+      );
+
+      // Update config model for status bar display
+      this.config.setModel(providerModel, true);
+
+      if (!signal.aborted) {
+        yield { type: LlmEventType.ModelInfo, modelName: providerModel };
+      }
+
+      turn = yield* this.processLlmTurn(
+        generator,
+        providerModel,
+        request,
+        linkedSignal,
+        prompt_id,
+      );
+      return turn;
+    }
+
+    // ====================================================================
+    // Gemini provider path: routing + legacy Turn.run()
+    // ====================================================================
     const routingContext: RoutingContext = {
       history: convertContentsToLlmMessages(
         this.getChat().getHistory(/*curated=*/ true),
@@ -663,33 +699,6 @@ export class GeminiClient {
       yield { type: LlmEventType.ModelInfo, modelName: modelToUse };
     }
     this.currentSequenceModel = modelToUse;
-
-    // ====================================================================
-    // Non-Gemini provider path: use llm* methods directly
-    // ====================================================================
-    const generator = this.getContentGeneratorOrFail();
-    if (
-      isProviderIndependentGenerator(generator) &&
-      generator.providerName !== 'gemini'
-    ) {
-      // Resolve Gemini-specific model names to provider-appropriate defaults
-      const providerModel = resolveProviderModel(
-        modelToUse,
-        generator.providerName!,
-      );
-      turn = yield* this.processLlmTurn(
-        generator,
-        providerModel,
-        request,
-        linkedSignal,
-        prompt_id,
-      );
-      return turn;
-    }
-
-    // ====================================================================
-    // Gemini provider path: use legacy Turn.run()
-    // ====================================================================
     const resultStream = turn.run(modelConfigKey, request, linkedSignal);
     let isError = false;
     let isInvalidStream = false;

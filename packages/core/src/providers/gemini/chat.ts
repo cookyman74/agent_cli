@@ -761,6 +761,16 @@ export class GeminiChat {
     this.tools = tools;
   }
 
+  /** Get the current system instruction. */
+  getSystemInstruction(): string {
+    return this.systemInstruction;
+  }
+
+  /** Get the currently configured tools. */
+  getConfiguredTools(): Tool[] {
+    return this.tools;
+  }
+
   async maybeIncludeSchemaDepthContext(error: StructuredError): Promise<void> {
     // Check for potentially problematic cyclic tools with cyclic schemas
     // and include a recommendation to remove potentially problematic tools.

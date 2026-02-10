@@ -33,7 +33,10 @@ import type {
   ChatRecordingService,
   ResumedSessionData,
 } from '../services/chatRecordingService.js';
-import type { ContentGenerator } from './contentGenerator.js';
+import {
+  isProviderIndependentGenerator,
+  type ContentGenerator,
+} from './contentGenerator.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ChatCompressionService } from '../services/chatCompressionService.js';
 import { ideContextStore } from '../ide/ideContext.js';
@@ -58,6 +61,8 @@ import {
   convertPartListUnionToLlmContents,
 } from '../providers/gemini/typeConversion.js';
 import { debugLogger } from '../utils/debugLogger.js';
+import { buildLlmRequestFromGeminiState } from '../providers/gemini/requestBuilder.js';
+import { LlmResponseAccumulator } from '../providers/gemini/historyBuilder.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
 import {
@@ -657,6 +662,28 @@ export class GeminiClient {
       yield { type: LlmEventType.ModelInfo, modelName: modelToUse };
     }
     this.currentSequenceModel = modelToUse;
+
+    // ====================================================================
+    // Non-Gemini provider path: use llm* methods directly
+    // ====================================================================
+    const generator = this.getContentGeneratorOrFail();
+    if (
+      isProviderIndependentGenerator(generator) &&
+      generator.providerName !== 'gemini'
+    ) {
+      turn = yield* this.processLlmTurn(
+        generator,
+        modelToUse,
+        request,
+        linkedSignal,
+        prompt_id,
+      );
+      return turn;
+    }
+
+    // ====================================================================
+    // Gemini provider path: use legacy Turn.run()
+    // ====================================================================
     const resultStream = turn.run(modelConfigKey, request, linkedSignal);
     let isError = false;
     let isInvalidStream = false;
@@ -756,6 +783,104 @@ export class GeminiClient {
       }
     }
     return turn;
+  }
+
+  /**
+   * Process a turn using provider-independent llm* methods (non-Gemini path).
+   *
+   * Builds an LlmGenerateRequest from Gemini runtime state, calls the adapter's
+   * streaming method, yields LlmEvents, and accumulates the response for
+   * Gemini history storage.
+   *
+   * Returns a Turn-compatible object with pendingToolCalls, getResponseText(),
+   * and finishReason for the agentic loop in processTurn/sendMessageStream.
+   */
+  private async *processLlmTurn(
+    generator: ContentGenerator &
+      Required<
+        Pick<
+          ContentGenerator,
+          'llmGenerateContent' | 'llmGenerateContentStream' | 'llmCountTokens'
+        >
+      >,
+    model: string,
+    request: PartListUnion,
+    signal: AbortSignal,
+    promptId: string,
+  ): AsyncGenerator<LlmEvent, Turn> {
+    const chat = this.getChat();
+    const accumulator = new LlmResponseAccumulator(promptId);
+
+    // Add user request to history (Gemini does this inside chat.sendMessageStream)
+    chat.addHistory(createUserContent(request));
+
+    // Record user message for chat recording
+    const recordingService = chat.getChatRecordingService();
+    const userText = partToString(request);
+    if (userText) {
+      recordingService.recordMessage({
+        model,
+        type: 'user',
+        content: userText,
+      });
+    }
+
+    // Build LlmGenerateRequest from Gemini runtime state
+    const { generateContentConfig } =
+      this.config.modelConfigService.getResolvedConfig({ model });
+    const llmRequest = buildLlmRequestFromGeminiState({
+      model,
+      history: chat.getHistory(/*curated=*/ true),
+      currentRequest: request,
+      systemInstruction: chat.getSystemInstruction(),
+      config: generateContentConfig,
+      tools: chat.getConfiguredTools(),
+    });
+
+    // Call the provider's streaming method
+    const eventStream = generator.llmGenerateContentStream(
+      llmRequest,
+      promptId,
+    );
+
+    let isError = false;
+    for await (const event of eventStream) {
+      if (signal.aborted) break;
+
+      accumulator.addEvent(event);
+      yield event;
+
+      if (event.type === LlmEventType.Error) {
+        isError = true;
+      }
+    }
+
+    // Add model response to history (unless empty or error-only)
+    if (!isError) {
+      const responseContent = accumulator.toContent();
+      if (responseContent.parts && responseContent.parts.length > 0) {
+        chat.addHistory(responseContent);
+      }
+
+      // Record model response for chat recording
+      const responseText = accumulator.getResponseText();
+      if (responseText) {
+        recordingService.recordMessage({
+          model,
+          type: 'gemini',
+          content: responseText,
+        });
+      }
+    }
+
+    // Create Turn-compatible result via duck typing
+    // processTurn/sendMessageStream use: pendingToolCalls, finishReason, getResponseText()
+    return {
+      pendingToolCalls: accumulator.getPendingToolCalls(),
+      finishReason: accumulator.getFinishReason(),
+      getResponseText: () => accumulator.getResponseText(),
+      getDebugResponses: () => [],
+    } as unknown as Turn;
   }
 
   async *sendMessageStream(

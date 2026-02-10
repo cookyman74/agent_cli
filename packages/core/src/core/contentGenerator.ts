@@ -96,6 +96,9 @@ export interface GeminiContentGenerator {
   ): LlmEventStream;
 
   llmCountTokens?(request: LlmGenerateRequest): Promise<LlmTokenCount>;
+
+  /** Provider identifier (e.g., 'gemini', 'claude', 'openai'). */
+  readonly providerName?: string;
 }
 
 /**
@@ -135,6 +138,7 @@ export type ContentGenerator = GeminiContentGenerator;
  */
 function wrapAdapterAsGenerator(adapter: BaseAdapter): GeminiContentGenerator {
   return {
+    providerName: adapter.providerName,
     generateContent: () => {
       throw new Error(
         `Provider "${adapter.providerName}" does not support legacy Gemini API. Use llm* methods.`,

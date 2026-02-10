@@ -28,6 +28,7 @@ import {
   LlmEventType,
   Turn,
   type ChatCompressionInfo,
+  type LlmEvent,
 } from './turn.js';
 import { getCoreSystemPrompt } from './prompts.js';
 import { DEFAULT_GEMINI_MODEL_AUTO } from '../config/models.js';
@@ -3221,6 +3222,239 @@ ${JSON.stringify(
 
         resetChatSpy.mockRestore();
       });
+    });
+  });
+
+  // ============================================================================
+  // processLlmTurn — Non-Gemini provider path
+  // ============================================================================
+
+  describe('processLlmTurn — non-Gemini provider path', () => {
+    function createNonGeminiGenerator(
+      streamEvents: LlmEvent[],
+    ): ContentGenerator {
+      return {
+        providerName: 'claude',
+        generateContent: () => {
+          throw new Error('Legacy Gemini API not supported');
+        },
+        generateContentStream: () => {
+          throw new Error('Legacy Gemini API not supported');
+        },
+        countTokens: () => {
+          throw new Error('Legacy Gemini API not supported');
+        },
+        embedContent: () => {
+          throw new Error('Legacy Gemini API not supported');
+        },
+        llmGenerateContent: vi.fn(),
+        llmGenerateContentStream: vi.fn().mockReturnValue(
+          (async function* () {
+            for (const event of streamEvents) {
+              yield event;
+            }
+          })(),
+        ),
+        llmCountTokens: vi.fn(),
+      } as unknown as ContentGenerator;
+    }
+
+    function setupNonGeminiClient(streamEvents: LlmEvent[]) {
+      const generator = createNonGeminiGenerator(streamEvents);
+      vi.mocked(mockConfig.getContentGenerator).mockReturnValue(generator);
+
+      const mockRecordingService = {
+        recordMessage: vi.fn(),
+        recordMessageTokens: vi.fn(),
+        recordToolCalls: vi.fn(),
+        recordThought: vi.fn(),
+        initialize: vi.fn(),
+      };
+      const mockChat: Partial<GeminiChat> = {
+        addHistory: vi.fn(),
+        getHistory: vi.fn().mockReturnValue([]),
+        getLastPromptTokenCount: vi.fn().mockReturnValue(0),
+        getChatRecordingService: vi.fn().mockReturnValue(mockRecordingService),
+        getSystemInstruction: vi.fn().mockReturnValue('You are helpful.'),
+        getConfiguredTools: vi.fn().mockReturnValue([]),
+      };
+      client['chat'] = mockChat as GeminiChat;
+
+      return { generator, mockChat, mockRecordingService };
+    }
+
+    it('should yield LlmEvents from non-Gemini provider stream', async () => {
+      const events: LlmEvent[] = [
+        { type: LlmEventType.TextDelta, text: 'Hello ' },
+        { type: LlmEventType.TextDelta, text: 'world' },
+        { type: LlmEventType.Finished, finishReason: 'end_turn' },
+      ];
+      setupNonGeminiClient(events);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'Hi' }],
+        new AbortController().signal,
+        'prompt-llm-1',
+      );
+      const yielded = await fromAsync(stream);
+
+      // Should contain ModelInfo + the 3 LlmEvents
+      expect(yielded).toContainEqual({
+        type: LlmEventType.ModelInfo,
+        modelName: 'default-routed-model',
+      });
+      expect(yielded).toContainEqual({
+        type: LlmEventType.TextDelta,
+        text: 'Hello ',
+      });
+      expect(yielded).toContainEqual({
+        type: LlmEventType.TextDelta,
+        text: 'world',
+      });
+      expect(yielded).toContainEqual({
+        type: LlmEventType.Finished,
+        finishReason: 'end_turn',
+      });
+    });
+
+    it('should NOT call Turn.run for non-Gemini providers', async () => {
+      setupNonGeminiClient([
+        { type: LlmEventType.TextDelta, text: 'Hi' },
+        { type: LlmEventType.Finished, finishReason: 'end_turn' },
+      ]);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'test' }],
+        new AbortController().signal,
+        'prompt-llm-2',
+      );
+      await fromAsync(stream);
+
+      expect(mockTurnRunFn).not.toHaveBeenCalled();
+    });
+
+    it('should add user request and model response to history', async () => {
+      const { mockChat } = setupNonGeminiClient([
+        { type: LlmEventType.TextDelta, text: 'Response text' },
+        { type: LlmEventType.Finished, finishReason: 'end_turn' },
+      ]);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'User message' }],
+        new AbortController().signal,
+        'prompt-llm-3',
+      );
+      await fromAsync(stream);
+
+      // User request added to history
+      expect(mockChat.addHistory).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'user' }),
+      );
+      // Model response added to history
+      expect(mockChat.addHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: 'model',
+          parts: expect.arrayContaining([{ text: 'Response text' }]),
+        }),
+      );
+    });
+
+    it('should record user and model messages via chat recording service', async () => {
+      const { mockRecordingService } = setupNonGeminiClient([
+        { type: LlmEventType.TextDelta, text: 'Bot reply' },
+        { type: LlmEventType.Finished, finishReason: 'end_turn' },
+      ]);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'User msg' }],
+        new AbortController().signal,
+        'prompt-llm-4',
+      );
+      await fromAsync(stream);
+
+      // User message recorded
+      expect(mockRecordingService.recordMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'user' }),
+      );
+      // Model response recorded
+      expect(mockRecordingService.recordMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'gemini', content: 'Bot reply' }),
+      );
+    });
+
+    it('should handle tool call requests in non-Gemini stream', async () => {
+      setupNonGeminiClient([
+        { type: LlmEventType.TextDelta, text: 'Let me search.' },
+        {
+          type: LlmEventType.ToolCallRequest,
+          callId: 'call-1',
+          name: 'search',
+          args: { query: 'cats' },
+        } as LlmEvent,
+        { type: LlmEventType.Finished, finishReason: 'tool_use' },
+      ]);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'Find cats' }],
+        new AbortController().signal,
+        'prompt-llm-5',
+      );
+      const yielded = await fromAsync(stream);
+
+      expect(yielded).toContainEqual(
+        expect.objectContaining({
+          type: LlmEventType.ToolCallRequest,
+          name: 'search',
+        }),
+      );
+    });
+
+    it('should not add model response to history on error', async () => {
+      const { mockChat } = setupNonGeminiClient([
+        { type: LlmEventType.TextDelta, text: 'partial...' },
+        {
+          type: LlmEventType.Error,
+          error: 'Something went wrong',
+        } as LlmEvent,
+      ]);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'test' }],
+        new AbortController().signal,
+        'prompt-llm-6',
+      );
+      await fromAsync(stream);
+
+      // User request IS added
+      expect(mockChat.addHistory).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'user' }),
+      );
+      // Model response should NOT be added (error occurred)
+      expect(mockChat.addHistory).not.toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'model' }),
+      );
+    });
+
+    it('should call llmGenerateContentStream with correct request', async () => {
+      const { generator } = setupNonGeminiClient([
+        { type: LlmEventType.Finished, finishReason: 'end_turn' },
+      ]);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'Hello' }],
+        new AbortController().signal,
+        'prompt-llm-7',
+      );
+      await fromAsync(stream);
+
+      const llmStream = generator.llmGenerateContentStream!;
+      expect(llmStream).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'default-routed-model',
+          messages: expect.any(Array),
+        }),
+        'prompt-llm-7',
+      );
     });
   });
 });

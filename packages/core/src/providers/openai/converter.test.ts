@@ -1316,6 +1316,16 @@ describe('OpenAiConverter', () => {
           expect(events).toHaveLength(0);
         }).not.toThrow();
       });
+
+      it('R4: choices containing undefined element should return empty without throwing', () => {
+        expect(() => {
+          const events = converter.convertStreamEvent(
+            { choices: [undefined] },
+            state,
+          );
+          expect(events).toHaveLength(0);
+        }).not.toThrow();
+      });
     });
   });
 });

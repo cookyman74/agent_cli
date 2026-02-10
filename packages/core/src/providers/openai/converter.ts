@@ -295,7 +295,10 @@ export class OpenAiConverter {
     }
 
     // Normal chunk: process choices[0] only (n=1 assumed for agent streaming)
-    const choice = choices[0];
+    const choice = choices[0] as Record<string, unknown> | undefined;
+    if (!choice) {
+      return [];
+    }
     const delta = (choice['delta'] as Record<string, unknown>) ?? {};
     const finishReason = choice['finish_reason'] as string | null;
     const events: LlmEvent[] = [];

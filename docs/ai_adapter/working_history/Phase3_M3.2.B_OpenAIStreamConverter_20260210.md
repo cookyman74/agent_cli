@@ -152,27 +152,30 @@ M3.2.A에서 스텁(`[]` 반환)으로 남겨둔 `convertStreamEvent()`를 TDD�
 | ----------- | ----------------------------------------------------------------------------------------- |
 | `1badf7030` | `refactor(providers): extend OpenAiStreamState for stream tracking`                       |
 | `6dcd503a0` | `feat(providers): M3.2.B — OpenAI 스트림 변환기 구현 + streaming 활성화`                  |
-| `7ce47dcb2` | `fix(providers): M3.2.B 리뷰 반영 — accumulateToolCalls 방어 + choices 가드 + 테스트 3건` |
+| `b5d1246b2` | `fix(providers): M3.2.B 리뷰 반영 — accumulateToolCalls 방어 + choices 가드 + 테스트 3건` |
+| `619d9df17` | `fix(providers): M3.2.B 2차 리뷰 반영 — choices[0] nullish 가드 + 테스트 R4`              |
 
 ## 리뷰 반영
 
 ### 제시된 이슈 및 검증 결과
 
-| #   | 심각도 | 이슈                                                                                                                   | 검증 결과                                                                                 | 조치                                                   |
-| --- | ------ | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| 1   | 중간   | `accumulateToolCalls`에서 동일 id 포함 delta가 다시 오면 `state.currentToolCalls[idx]`를 재초기화하여 기존 축적분 소실 | ✅ 확인 — 실제 API는 continuation에 id=null이므로 발생 가능성 매우 낮지만, 방어 코드 필요 | `if (tc['id'] && !existing)` 조건으로 기존 엔트리 보호 |
-| 2   | 중간   | continuation chunk에 뒤늦게 name이 오는 경우 반영 안 됨                                                                | ✅ 확인 — 실제 API는 첫 chunk에만 name 전달하지만, 방어적으로 반영 필요                   | `else if (existing)` 분기에 `name` 업데이트 로직 추가  |
-| 3   | 낮음   | `choices`가 배열이 아닌 객체일 경우 `choices.length` 접근 시 예외 발생 가능                                            | ✅ 확인 — `{ choices: { index: 0 } }` 같은 malformed chunk에서 예외 발생                  | `!Array.isArray(choices)` 가드 추가                    |
-| 4   | 낮음   | `choices[0]`만 처리하여 multi-choice 무시                                                                              | ℹ️ 의도적 설계 — agent streaming은 n=1 전제                                               | 주석 명확화: "n=1 assumed for agent streaming"         |
-| 5   | 참고   | CLI 런타임 경로가 Gemini 고정                                                                                          | ℹ️ 기 문서화 — M3.2.A 결과서에 이미 기록                                                  | 추가 조치 없음                                         |
+| #   | 심각도 | 이슈                                                                                                                   | 검증 결과                                                                                 | 조치                                                      |
+| --- | ------ | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 1   | 중간   | `accumulateToolCalls`에서 동일 id 포함 delta가 다시 오면 `state.currentToolCalls[idx]`를 재초기화하여 기존 축적분 소실 | ✅ 확인 — 실제 API는 continuation에 id=null이므로 발생 가능성 매우 낮지만, 방어 코드 필요 | `if (tc['id'] && !existing)` 조건으로 기존 엔트리 보호    |
+| 2   | 중간   | continuation chunk에 뒤늦게 name이 오는 경우 반영 안 됨                                                                | ✅ 확인 — 실제 API는 첫 chunk에만 name 전달하지만, 방어적으로 반영 필요                   | `else if (existing)` 분기에 `name` 업데이트 로직 추가     |
+| 3   | 낮음   | `choices`가 배열이 아닌 객체일 경우 `choices.length` 접근 시 예외 발생 가능                                            | ✅ 확인 — `{ choices: { index: 0 } }` 같은 malformed chunk에서 예외 발생                  | `!Array.isArray(choices)` 가드 추가                       |
+| 4   | 낮음   | `choices[0]`만 처리하여 multi-choice 무시                                                                              | ℹ️ 의도적 설계 — agent streaming은 n=1 전제                                               | 주석 명확화: "n=1 assumed for agent streaming"            |
+| 5   | 참고   | CLI 런타임 경로가 Gemini 고정                                                                                          | ℹ️ 기 문서화 — M3.2.A 결과서에 이미 기록                                                  | 추가 조치 없음                                            |
+| 6   | 낮음   | `choices: [undefined]` 형태의 malformed chunk에서 `choices[0]['delta']` 접근 시 예외 발생                              | ✅ 확인 — `choices[0]` 자체가 undefined일 때 crash                                        | `choices[0]` nullish 가드 추가 (`if (!choice) return []`) |
 
-### 추가 테스트 (R1-R3)
+### 추가 테스트 (R1-R4)
 
 | 테스트 | 검증 내용                                                                      |
 | ------ | ------------------------------------------------------------------------------ |
 | R1     | duplicate id가 있는 continuation delta가 기존 축적 arguments를 보존하는지 검증 |
 | R2     | continuation chunk에 late name이 있을 때 state에 반영되는지 검증               |
 | R3     | `choices`가 non-array 객체일 때 예외 없이 빈 배열 반환 검증                    |
+| R4     | `choices: [undefined]`일 때 예외 없이 빈 배열 반환 검증                        |
 
 ### Quality Gate (리뷰 반영 후)
 
@@ -180,10 +183,10 @@ M3.2.A에서 스텁(`[]` 반환)으로 남겨둔 `convertStreamEvent()`를 TDD�
 | ------------- | ------------------------ |
 | TypeCheck     | ✅ PASS                  |
 | ESLint        | ✅ PASS                  |
-| OpenAI 테스트 | ✅ 3 files / 105 passed  |
-| Provider 회귀 | ✅ 33 files / 676 passed |
+| OpenAI 테스트 | ✅ 3 files / 106 passed  |
+| Provider 회귀 | ✅ 33 files / 677 passed |
 
-**변화**: 33 files / 673 → 33 files / 676 (+3 tests: R1, R2, R3)
+**변화**: 33 files / 673 → 33 files / 677 (+4 tests: R1, R2, R3, R4)
 
 ## 알려진 제한사항
 

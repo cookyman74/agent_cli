@@ -213,5 +213,34 @@ describe('sessionSummaryUtils', () => {
 
       await expect(generateSummary(mockConfig)).resolves.not.toThrow();
     });
+
+    it('should skip summary generation for non-Gemini provider', async () => {
+      // Setup non-Gemini content generator with providerName
+      const nonGeminiGenerator = {
+        providerName: 'claude',
+      } as ContentGenerator;
+      const nonGeminiConfig = {
+        getContentGenerator: vi.fn().mockReturnValue(nonGeminiGenerator),
+        storage: {
+          getProjectTempDir: vi.fn().mockReturnValue('/tmp/project'),
+        },
+      } as unknown as Config;
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      mockReaddir.mockResolvedValue(['session-2024-01-01T10-00-abc12345.json']);
+      vi.mocked(fs.readFile).mockResolvedValue(
+        createSessionWithUserMessages(2),
+      );
+
+      await generateSummary(nonGeminiConfig);
+
+      // BaseLlmClient should NOT be instantiated for non-Gemini providers
+      const { BaseLlmClient } = await import('../core/baseLlmClient.js');
+      expect(BaseLlmClient).not.toHaveBeenCalled();
+      // Summary service should NOT be called
+      expect(mockGenerateSummary).not.toHaveBeenCalled();
+      // File should NOT be written
+      expect(fs.writeFile).not.toHaveBeenCalled();
+    });
   });
 });

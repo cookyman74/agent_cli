@@ -3457,6 +3457,7 @@ ${JSON.stringify(
           messages: expect.any(Array),
         }),
         'prompt-llm-7',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
     });
 

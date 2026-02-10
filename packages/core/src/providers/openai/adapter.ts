@@ -99,13 +99,15 @@ export class OpenAiAdapter extends BaseAdapter {
   async generateContent(
     request: LlmGenerateRequest,
     _userPromptId: string,
-    _options?: GenerateOptions,
+    options?: GenerateOptions,
   ): Promise<LlmGenerateResponse> {
     this.validateRequest(request);
 
     try {
       const params = this.converter.toOpenAiRequest(request);
-      const response = await this.client.chat.completions.create(params);
+      const response = await this.client.chat.completions.create(params, {
+        signal: options?.signal,
+      });
       return this.converter.fromOpenAiResponse(response, request.model);
     } catch (error) {
       throw this.classifyError(error);
@@ -118,7 +120,7 @@ export class OpenAiAdapter extends BaseAdapter {
   generateContentStream(
     request: LlmGenerateRequest,
     _userPromptId: string,
-    _options?: GenerateOptions,
+    options?: GenerateOptions,
   ): LlmEventStream {
     this.validateRequest(request);
 
@@ -126,14 +128,18 @@ export class OpenAiAdapter extends BaseAdapter {
     const converter = this.converter;
     const classify = this.classifyError.bind(this);
     const params = converter.toOpenAiRequest(request);
+    const signal = options?.signal;
 
     async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
       try {
-        const stream = (await client.chat.completions.create({
-          ...params,
-          stream: true,
-          stream_options: { include_usage: true },
-        })) as AsyncIterable<unknown>;
+        const stream = (await client.chat.completions.create(
+          {
+            ...params,
+            stream: true,
+            stream_options: { include_usage: true },
+          },
+          { signal },
+        )) as AsyncIterable<unknown>;
 
         const state = converter.createStreamState();
         for await (const chunk of stream) {

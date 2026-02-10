@@ -60,6 +60,7 @@ export type FakeResponse =
 // Typically these would come from a file, provided by the `--fake-responses`
 // CLI argument.
 export class FakeContentGenerator implements ContentGenerator {
+  providerName?: string;
   private callCounter = 0;
   userTier?: UserTierId;
   userTierName?: string;

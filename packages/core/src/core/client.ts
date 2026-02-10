@@ -638,12 +638,13 @@ export class GeminiClient {
     const generator = this.getContentGeneratorOrFail();
     if (
       isProviderIndependentGenerator(generator) &&
+      generator.providerName != null &&
       generator.providerName !== 'gemini'
     ) {
       // Resolve Gemini-specific model names to provider-appropriate defaults
       const providerModel = resolveProviderModel(
         this.config.getModel(),
-        generator.providerName!,
+        generator.providerName,
       );
 
       // Update config model for status bar display
@@ -659,6 +660,7 @@ export class GeminiClient {
         request,
         linkedSignal,
         prompt_id,
+        controller,
       );
       return turn;
     }
@@ -822,6 +824,7 @@ export class GeminiClient {
     request: PartListUnion,
     signal: AbortSignal,
     promptId: string,
+    controller: AbortController,
   ): AsyncGenerator<LlmEvent, Turn> {
     const chat = this.getChat();
     const accumulator = new LlmResponseAccumulator(promptId);
@@ -859,11 +862,23 @@ export class GeminiClient {
     const eventStream = generator.llmGenerateContentStream(
       llmRequest,
       promptId,
+      { signal },
     );
 
     let isError = false;
     for await (const event of eventStream) {
       if (signal.aborted) break;
+
+      if (this.loopDetector.addAndCheck(event)) {
+        yield { type: LlmEventType.LoopDetected };
+        controller.abort();
+        return {
+          pendingToolCalls: [],
+          finishReason: undefined,
+          getResponseText: () => '',
+          getDebugResponses: () => [],
+        } as unknown as Turn;
+      }
 
       accumulator.addEvent(event);
       yield event;
@@ -873,8 +888,8 @@ export class GeminiClient {
       }
     }
 
-    // Add model response to history (unless empty or error-only)
-    if (!isError) {
+    // Add model response to history (unless aborted, empty, or error-only)
+    if (!isError && !signal.aborted) {
       const responseContent = accumulator.toContent();
       if (responseContent.parts && responseContent.parts.length > 0) {
         chat.addHistory(responseContent);

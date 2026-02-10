@@ -100,13 +100,15 @@ export class ClaudeAdapter extends BaseAdapter {
   async generateContent(
     request: LlmGenerateRequest,
     _userPromptId: string,
-    _options?: GenerateOptions,
+    options?: GenerateOptions,
   ): Promise<LlmGenerateResponse> {
     this.validateRequest(request);
 
     try {
       const params = this.converter.toClaudeRequest(request);
-      const response = await this.client.messages.create(params);
+      const response = await this.client.messages.create(params, {
+        signal: options?.signal,
+      });
       return this.converter.fromClaudeResponse(response, request.model);
     } catch (error) {
       throw this.classifyError(error);
@@ -119,7 +121,7 @@ export class ClaudeAdapter extends BaseAdapter {
   generateContentStream(
     request: LlmGenerateRequest,
     _userPromptId: string,
-    _options?: GenerateOptions,
+    options?: GenerateOptions,
   ): LlmEventStream {
     this.validateRequest(request);
 
@@ -127,13 +129,17 @@ export class ClaudeAdapter extends BaseAdapter {
     const converter = this.converter;
     const classify = this.classifyError.bind(this);
     const params = converter.toClaudeRequest(request);
+    const signal = options?.signal;
 
     async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
       try {
-        const stream = (await client.messages.create({
-          ...params,
-          stream: true,
-        })) as AsyncIterable<unknown>;
+        const stream = (await client.messages.create(
+          {
+            ...params,
+            stream: true,
+          },
+          { signal },
+        )) as AsyncIterable<unknown>;
 
         const state = converter.createStreamState();
         for await (const chunk of stream) {

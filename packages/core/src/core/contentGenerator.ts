@@ -248,6 +248,20 @@ export async function createContentGenerator(
       const fakeGenerator = await FakeContentGenerator.fromFile(
         gcConfig.fakeResponses,
       );
+
+      // Non-Gemini E2E tests: set providerName so that client.ts routes
+      // through processLlmTurn (llm* methods) instead of Gemini legacy path.
+      const llmProvider = process.env['LLM_PROVIDER'];
+      if (llmProvider && llmProvider !== 'gemini') {
+        fakeGenerator.providerName = llmProvider;
+        // Resolve model for status bar (mirrors real non-Gemini path at line 303)
+        const providerModel = resolveProviderModel(
+          gcConfig.getModel(),
+          llmProvider,
+        );
+        gcConfig.setModel(providerModel, true);
+      }
+
       return new LoggingContentGenerator(fakeGenerator, gcConfig);
     }
     const version = await getVersion();

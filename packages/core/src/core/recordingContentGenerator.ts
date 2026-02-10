@@ -45,6 +45,10 @@ export class RecordingContentGenerator implements ContentGenerator {
     return this.realGenerator.userTierName;
   }
 
+  get providerName(): string | undefined {
+    return this.realGenerator.providerName;
+  }
+
   async generateContent(
     request: GenerateContentParameters,
     userPromptId: string,

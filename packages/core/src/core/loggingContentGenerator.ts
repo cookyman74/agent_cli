@@ -72,6 +72,10 @@ export class LoggingContentGenerator implements ContentGenerator {
     return this.wrapped.userTierName;
   }
 
+  get providerName(): string | undefined {
+    return this.wrapped.providerName;
+  }
+
   private logApiRequest(
     contents: TelemetryContent[],
     model: string,

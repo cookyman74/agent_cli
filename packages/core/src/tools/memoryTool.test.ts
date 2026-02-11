@@ -324,13 +324,17 @@ describe('MemoryTool', () => {
       expect(result).not.toBe(false);
 
       if (result && result.type === 'edit') {
-        const expectedPath = path.join('~', GEMINI_DIR, 'GEMINI.md');
+        const expectedPath = path.join(
+          '~',
+          GEMINI_DIR,
+          DEFAULT_CONTEXT_FILENAME,
+        );
         expect(result.title).toBe(`Confirm Memory Save: ${expectedPath}`);
         expect(result.fileName).toContain(
           path.join('mock', 'home', GEMINI_DIR),
         );
-        expect(result.fileName).toContain('GEMINI.md');
-        expect(result.fileDiff).toContain('Index: GEMINI.md');
+        expect(result.fileName).toContain(DEFAULT_CONTEXT_FILENAME);
+        expect(result.fileDiff).toContain(`Index: ${DEFAULT_CONTEXT_FILENAME}`);
         expect(result.fileDiff).toContain('+## Gemini Added Memories');
         expect(result.fileDiff).toContain('+- Test fact');
         expect(result.originalContent).toBe('');
@@ -424,9 +428,13 @@ describe('MemoryTool', () => {
       expect(result).not.toBe(false);
 
       if (result && result.type === 'edit') {
-        const expectedPath = path.join('~', GEMINI_DIR, 'GEMINI.md');
+        const expectedPath = path.join(
+          '~',
+          GEMINI_DIR,
+          DEFAULT_CONTEXT_FILENAME,
+        );
         expect(result.title).toBe(`Confirm Memory Save: ${expectedPath}`);
-        expect(result.fileDiff).toContain('Index: GEMINI.md');
+        expect(result.fileDiff).toContain(`Index: ${DEFAULT_CONTEXT_FILENAME}`);
         expect(result.fileDiff).toContain('+- New fact');
         expect(result.originalContent).toBe(existingContent);
         expect(result.newContent).toContain('- Old fact');

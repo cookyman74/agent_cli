@@ -636,19 +636,47 @@ export class GeminiClient {
     // non-Gemini providers, so it must be checked before routing.
     // ====================================================================
     const generator = this.getContentGeneratorOrFail();
-    if (
-      isProviderIndependentGenerator(generator) &&
-      generator.providerName != null &&
-      generator.providerName !== 'gemini'
-    ) {
+    const providerName = generator.providerName;
+    const isNonGeminiProvider =
+      providerName != null && providerName !== 'gemini';
+
+    // Guard against inconsistent generator wiring:
+    // providerName says non-Gemini but llm* methods are missing.
+    if (isNonGeminiProvider && !isProviderIndependentGenerator(generator)) {
+      const message =
+        `Provider "${providerName}" requires llm* methods (` +
+        'llmGenerateContent/llmGenerateContentStream/llmCountTokens), ' +
+        'but the current content generator does not implement them.';
+      if (this.config.getDebugMode()) {
+        debugLogger.log(message);
+      }
+      if (!signal.aborted) {
+        yield {
+          type: LlmEventType.Error,
+          error: message,
+          code: 'PROVIDER_METHOD_MISMATCH',
+          isRetryable: false,
+        };
+      }
+      return turn;
+    }
+
+    if (isProviderIndependentGenerator(generator) && isNonGeminiProvider) {
+      const nonGeminiProvider = providerName;
       // Resolve Gemini-specific model names to provider-appropriate defaults
       const providerModel = resolveProviderModel(
         this.config.getModel(),
-        generator.providerName,
+        nonGeminiProvider,
       );
 
       // Update config model for status bar display
       this.config.setModel(providerModel, true);
+
+      if (this.config.getDebugMode()) {
+        debugLogger.log(
+          `Using provider-independent path: provider=${nonGeminiProvider}, model=${providerModel}`,
+        );
+      }
 
       if (!signal.aborted) {
         yield { type: LlmEventType.ModelInfo, modelName: providerModel };
@@ -866,12 +894,41 @@ export class GeminiClient {
     );
 
     let isError = false;
-    for await (const event of eventStream) {
-      if (signal.aborted) break;
+    try {
+      for await (const event of eventStream) {
+        if (signal.aborted) break;
 
-      if (this.loopDetector.addAndCheck(event)) {
-        yield { type: LlmEventType.LoopDetected };
-        controller.abort();
+        if (this.loopDetector.addAndCheck(event)) {
+          yield { type: LlmEventType.LoopDetected };
+          controller.abort();
+          return {
+            pendingToolCalls: [],
+            finishReason: undefined,
+            getResponseText: () => '',
+            getDebugResponses: () => [],
+          } as unknown as Turn;
+        }
+
+        accumulator.addEvent(event);
+        yield event;
+
+        if (event.type === LlmEventType.Error) {
+          isError = true;
+        }
+      }
+    } catch (error) {
+      // Check for user cancellation FIRST — abort signals may surface
+      // as thrown AbortError or cause the async generator to throw.
+      // Must emit UserCancelled (not Error) to avoid misclassifying
+      // user cancellations as API failures in UI/logging/metrics.
+      const isAbort =
+        signal.aborted ||
+        (error instanceof Error && error.name === 'AbortError');
+      if (isAbort) {
+        if (this.config.getDebugMode()) {
+          debugLogger.log('LLM stream aborted by user cancellation');
+        }
+        yield { type: LlmEventType.UserCancelled };
         return {
           pendingToolCalls: [],
           finishReason: undefined,
@@ -880,12 +937,22 @@ export class GeminiClient {
         } as unknown as Turn;
       }
 
-      accumulator.addEvent(event);
-      yield event;
-
-      if (event.type === LlmEventType.Error) {
-        isError = true;
+      isError = true;
+      const streamError =
+        error instanceof Error
+          ? error
+          : new Error(`LLM stream failed: ${String(error)}`);
+      if (this.config.getDebugMode()) {
+        debugLogger.log(
+          `LLM stream threw before yielding Error event: ${streamError.message}`,
+        );
       }
+      yield {
+        type: LlmEventType.Error,
+        error: streamError,
+        code: 'LLM_STREAM_FAILURE',
+        isRetryable: false,
+      };
     }
 
     // Add model response to history (unless aborted, empty, or error-only)

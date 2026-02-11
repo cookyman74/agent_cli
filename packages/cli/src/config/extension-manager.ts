@@ -24,6 +24,7 @@ import {
 } from './extensions/github.js';
 import {
   Config,
+  DEFAULT_CONTEXT_FILENAME,
   debugLogger,
   ExtensionDisableEvent,
   ExtensionEnableEvent,
@@ -916,7 +917,7 @@ export async function copyExtension(
 
 function getContextFileNames(config: ExtensionConfig): string[] {
   if (!config.contextFileName) {
-    return ['GEMINI.md'];
+    return [DEFAULT_CONTEXT_FILENAME];
   } else if (!Array.isArray(config.contextFileName)) {
     return [config.contextFileName];
   }

@@ -7,6 +7,7 @@
 // Copied exactly from packages/cli/src/config/extension.ts, last PR #1026
 
 import {
+  DEFAULT_CONTEXT_FILENAME,
   GEMINI_DIR,
   type MCPServerConfig,
   type ExtensionInstallMetadata,
@@ -127,7 +128,7 @@ function loadExtension(extensionDir: string): GeminiCLIExtension | null {
 
 function getContextFileNames(config: ExtensionConfig): string[] {
   if (!config.contextFileName) {
-    return ['GEMINI.md'];
+    return [DEFAULT_CONTEXT_FILENAME];
   } else if (!Array.isArray(config.contextFileName)) {
     return [config.contextFileName];
   }

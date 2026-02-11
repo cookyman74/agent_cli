@@ -3492,5 +3492,199 @@ ${JSON.stringify(
       // config.setModel should be called with resolved provider model
       expect(mockConfig.setModel).toHaveBeenCalledWith('test-model', true);
     });
+
+    it('should yield explicit error when providerName is non-gemini but llm* methods are missing', async () => {
+      const brokenGenerator: ContentGenerator = {
+        providerName: 'claude',
+        generateContent: () => {
+          throw new Error('legacy path');
+        },
+        generateContentStream: () => {
+          throw new Error('legacy path');
+        },
+        countTokens: () => {
+          throw new Error('legacy path');
+        },
+        embedContent: () => {
+          throw new Error('legacy path');
+        },
+      } as unknown as ContentGenerator;
+      vi.mocked(mockConfig.getContentGenerator).mockReturnValue(
+        brokenGenerator,
+      );
+
+      const mockChat: Partial<GeminiChat> = {
+        addHistory: vi.fn(),
+        getHistory: vi.fn().mockReturnValue([]),
+        getLastPromptTokenCount: vi.fn().mockReturnValue(0),
+        getChatRecordingService: vi.fn().mockReturnValue({
+          recordMessage: vi.fn(),
+          recordMessageTokens: vi.fn(),
+          recordToolCalls: vi.fn(),
+          recordThought: vi.fn(),
+          initialize: vi.fn(),
+        }),
+        getSystemInstruction: vi.fn().mockReturnValue('You are helpful.'),
+        getConfiguredTools: vi.fn().mockReturnValue([]),
+      };
+      client['chat'] = mockChat as GeminiChat;
+
+      const stream = client.sendMessageStream(
+        [{ text: 'test' }],
+        new AbortController().signal,
+        'prompt-llm-mismatch',
+      );
+      const yielded = await fromAsync(stream);
+
+      expect(yielded).toContainEqual(
+        expect.objectContaining({
+          type: LlmEventType.Error,
+          code: 'PROVIDER_METHOD_MISMATCH',
+          isRetryable: false,
+        }),
+      );
+      expect(mockRouterService.route).not.toHaveBeenCalled();
+    });
+
+    it('should convert thrown llm stream exception into Error event', async () => {
+      const generator = createNonGeminiGenerator([]);
+      generator.llmGenerateContentStream = vi.fn().mockReturnValue(
+        // eslint-disable-next-line require-yield
+        (async function* () {
+          throw new Error('stream exploded');
+        })(),
+      );
+      vi.mocked(mockConfig.getContentGenerator).mockReturnValue(generator);
+
+      const mockChat: Partial<GeminiChat> = {
+        addHistory: vi.fn(),
+        getHistory: vi.fn().mockReturnValue([]),
+        getLastPromptTokenCount: vi.fn().mockReturnValue(0),
+        getChatRecordingService: vi.fn().mockReturnValue({
+          recordMessage: vi.fn(),
+          recordMessageTokens: vi.fn(),
+          recordToolCalls: vi.fn(),
+          recordThought: vi.fn(),
+          initialize: vi.fn(),
+        }),
+        getSystemInstruction: vi.fn().mockReturnValue('You are helpful.'),
+        getConfiguredTools: vi.fn().mockReturnValue([]),
+      };
+      client['chat'] = mockChat as GeminiChat;
+
+      const stream = client.sendMessageStream(
+        [{ text: 'test' }],
+        new AbortController().signal,
+        'prompt-llm-throw',
+      );
+      const yielded = await fromAsync(stream);
+
+      expect(yielded).toContainEqual(
+        expect.objectContaining({
+          type: LlmEventType.ModelInfo,
+          modelName: 'test-model',
+        }),
+      );
+      expect(yielded).toContainEqual(
+        expect.objectContaining({
+          type: LlmEventType.Error,
+          code: 'LLM_STREAM_FAILURE',
+          isRetryable: false,
+        }),
+      );
+      // Error path should not append model response history.
+      expect(mockChat.addHistory).not.toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'model' }),
+      );
+    });
+
+    it('should yield UserCancelled (not Error) when abort signal triggers stream throw', async () => {
+      const controller = new AbortController();
+      const generator = createNonGeminiGenerator([]);
+      generator.llmGenerateContentStream = vi.fn().mockReturnValue(
+        // eslint-disable-next-line require-yield
+        (async function* () {
+          // Simulate: stream throws after abort signal fires
+          controller.abort();
+          throw new Error('The operation was aborted');
+        })(),
+      );
+      vi.mocked(mockConfig.getContentGenerator).mockReturnValue(generator);
+
+      const mockChat: Partial<GeminiChat> = {
+        addHistory: vi.fn(),
+        getHistory: vi.fn().mockReturnValue([]),
+        getLastPromptTokenCount: vi.fn().mockReturnValue(0),
+        getChatRecordingService: vi.fn().mockReturnValue({
+          recordMessage: vi.fn(),
+          recordMessageTokens: vi.fn(),
+          recordToolCalls: vi.fn(),
+          recordThought: vi.fn(),
+          initialize: vi.fn(),
+        }),
+        getSystemInstruction: vi.fn().mockReturnValue('You are helpful.'),
+        getConfiguredTools: vi.fn().mockReturnValue([]),
+      };
+      client['chat'] = mockChat as GeminiChat;
+
+      const stream = client.sendMessageStream(
+        [{ text: 'test' }],
+        controller.signal,
+        'prompt-abort-stream',
+      );
+      const yielded = await fromAsync(stream);
+
+      // Should emit UserCancelled, NOT LLM_STREAM_FAILURE
+      expect(yielded).toContainEqual({
+        type: LlmEventType.UserCancelled,
+      });
+      expect(yielded).not.toContainEqual(
+        expect.objectContaining({ code: 'LLM_STREAM_FAILURE' }),
+      );
+    });
+
+    it('should yield UserCancelled when stream throws AbortError by name', async () => {
+      const generator = createNonGeminiGenerator([]);
+      const abortError = new Error('Aborted');
+      abortError.name = 'AbortError';
+      generator.llmGenerateContentStream = vi.fn().mockReturnValue(
+        // eslint-disable-next-line require-yield
+        (async function* () {
+          throw abortError;
+        })(),
+      );
+      vi.mocked(mockConfig.getContentGenerator).mockReturnValue(generator);
+
+      const mockChat: Partial<GeminiChat> = {
+        addHistory: vi.fn(),
+        getHistory: vi.fn().mockReturnValue([]),
+        getLastPromptTokenCount: vi.fn().mockReturnValue(0),
+        getChatRecordingService: vi.fn().mockReturnValue({
+          recordMessage: vi.fn(),
+          recordMessageTokens: vi.fn(),
+          recordToolCalls: vi.fn(),
+          recordThought: vi.fn(),
+          initialize: vi.fn(),
+        }),
+        getSystemInstruction: vi.fn().mockReturnValue('You are helpful.'),
+        getConfiguredTools: vi.fn().mockReturnValue([]),
+      };
+      client['chat'] = mockChat as GeminiChat;
+
+      const stream = client.sendMessageStream(
+        [{ text: 'test' }],
+        new AbortController().signal,
+        'prompt-abort-error',
+      );
+      const yielded = await fromAsync(stream);
+
+      // AbortError by name should also be classified as user cancellation
+      expect(yielded).toContainEqual({
+        type: LlmEventType.UserCancelled,
+      });
+      expect(yielded).not.toContainEqual(
+        expect.objectContaining({ code: 'LLM_STREAM_FAILURE' }),
+      );
+    });
   });
 });

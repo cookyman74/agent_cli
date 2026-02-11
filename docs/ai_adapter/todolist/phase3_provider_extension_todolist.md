@@ -900,20 +900,20 @@ describe('OpenAICompatibleAdapter', () => {
 
 | ID      | 작업               | 상태 | M3.3 의존 | 비고                                                                                                                       |
 | ------- | ------------------ | ---- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 3.4.5.1 | 버그 수정          | ⬜   | ❌        | 이슈 트래킹                                                                                                                |
-| 3.4.5.2 | 에지 케이스 처리   | ⬜   | ❌        |                                                                                                                            |
-| 3.4.5.3 | 에러 메시지 개선   | ⬜   | ❌        |                                                                                                                            |
-| 3.4.5.4 | 로깅 개선          | ⬜   | ❌        |                                                                                                                            |
-| 3.4.5.5 | 기능 플래그 정리   | ⬜   | ❌        |                                                                                                                            |
-| 3.4.5.6 | 의존성 정합성 검증 | ⬜   | ❌        | package.json에 `@anthropic-ai/sdk`, `openai` 존재 확인, `npm ci` 클린 설치 성공, lockfile 동기화, esbuild 번들링 포함 확인 |
+| 3.4.5.1 | 버그 수정          | ✅   | ❌        | non-Gemini provider + llm\* 메서드 불일치 가드 및 explicit error event 추가                                                |
+| 3.4.5.2 | 에지 케이스 처리   | ✅   | ❌        | llm stream throw 시 Error event 변환, model history 오염 방지                                                              |
+| 3.4.5.3 | 에러 메시지 개선   | ✅   | ❌        | `PROVIDER_METHOD_MISMATCH`, `LLM_STREAM_FAILURE` 코드와 설명 메시지 추가                                                   |
+| 3.4.5.4 | 로깅 개선          | ✅   | ❌        | debug mode에서 non-Gemini 경로 선택/stream throw 상황 로깅                                                                 |
+| 3.4.5.5 | 기능 플래그 정리   | ✅   | ❌        | featureFlag 테스트 재검증(16 PASS) + non-Gemini 경로 guard와 충돌 없는 동작 확인                                           |
+| 3.4.5.6 | 의존성 정합성 검증 | ✅   | ❌        | package/lockfile 검증, `npm ci --ignore-scripts` 성공, `npm run check:lockfile` PASS, bundle 내 anthropic/openai 포함 확인 |
 
 **M3.4.A 검증 기준** (선행 완료 조건):
 
-- [ ] 멀티 프로바이더 통합 테스트 통과 (3.4.1.1~3.4.1.4)
+- [x] 멀티 프로바이더 통합 테스트 통과 (3.4.1.1~3.4.1.4)
 - [x] Gemini/Claude/OpenAI E2E 테스트 통과 (3.4.2.1~3.4.2.3)
 - [x] 성능 회귀 없음 (3-provider baseline 기준 내)
 - [x] 3-provider 문서 완성 (vLLM placeholder 포함)
-- [ ] 의존성 검증 (`npm ci` 성공, esbuild bundle 포함 확인)
+- [x] 의존성 검증 (`npm ci` 성공, esbuild bundle 포함 확인)
 
 ---
 

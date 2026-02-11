@@ -790,11 +790,11 @@ describe('OpenAICompatibleAdapter', () => {
 ### 3.3.2 모델별 템플릿 훅
 
 | ID      | 작업                       | 상태 | 테스트 파일             |
-| ------- | -------------------------- | ---- | ----------------------- | ---------------------------------------------------------- |
-| 3.3.2.1 | `PromptBuilder` 인터페이스 | ✅   | `promptBuilder.test.ts` | `formatPrompt()` 메서드 — 확장 포인트                      |
-| 3.3.2.2 | Llama3 ChatTemplate        | ⏸️   | —                       | 서버 사이드 처리 (연기)                                    |
-| 3.3.2.3 | Mistral ChatTemplate       | ⏸️   | —                       | 서버 사이드 처리 (연기)                                    |
-| 3.3.2.4 | 범용 ChatML 템플릿         | ✅   | `promptBuilder.test.ts` | `ChatMLPromptBuilder` — `<\|im_start\|>/<\|im_end\|>` 토큰 |
+| ------- | -------------------------- | ---- | ----------------------- | ------------------------------------------------------------------ |
+| 3.3.2.1 | `PromptBuilder` 인터페이스 | ✅   | `promptBuilder.test.ts` | `formatPrompt()` 메서드 — 확장 포인트                              |
+| 3.3.2.2 | Llama3 ChatTemplate        | ✅   | `promptBuilder.test.ts` | `Llama3PromptBuilder` + model hook(`createPromptBuilderForModel`)  |
+| 3.3.2.3 | Mistral ChatTemplate       | ✅   | `promptBuilder.test.ts` | `MistralPromptBuilder` + model hook(`createPromptBuilderForModel`) |
+| 3.3.2.4 | 범용 ChatML 템플릿         | ✅   | `promptBuilder.test.ts` | `ChatMLPromptBuilder` — `<\|im_start\|>/<\|im_end\|>` 토큰         |
 
 ### 3.3.3 호환성 시나리오 테스트
 
@@ -888,11 +888,11 @@ describe('OpenAICompatibleAdapter', () => {
 
 | ID      | 작업                  | 상태 | 산출물                  | M3.3 의존 |
 | ------- | --------------------- | ---- | ----------------------- | --------- |
-| 3.4.4.1 | 사용자 가이드 작성    | ⬜   | `docs/providers.md`     | 🔶        |
-| 3.4.4.2 | API 레퍼런스 업데이트 | ⬜   | `docs/api/`             | ❌        |
-| 3.4.4.3 | 환경변수 문서화       | ⬜   | `docs/configuration.md` | 🔶        |
-| 3.4.4.4 | 마이그레이션 가이드   | ⬜   | `docs/migration.md`     | ❌        |
-| 3.4.4.5 | README 업데이트       | ⬜   | `README.md`             | 🔶        |
+| 3.4.4.1 | 사용자 가이드 작성    | ✅   | `docs/providers.md`     | 🔶        |
+| 3.4.4.2 | API 레퍼런스 업데이트 | ✅   | `docs/api/`             | ❌        |
+| 3.4.4.3 | 환경변수 문서화       | ✅   | `docs/configuration.md` | 🔶        |
+| 3.4.4.4 | 마이그레이션 가이드   | ✅   | `docs/migration.md`     | ❌        |
+| 3.4.4.5 | README 업데이트       | ✅   | `README.md`             | 🔶        |
 
 🔶 = 3 providers 완전 문서화 + vLLM placeholder 포함, M3.4.B에서 상세화
 
@@ -912,7 +912,7 @@ describe('OpenAICompatibleAdapter', () => {
 - [ ] 멀티 프로바이더 통합 테스트 통과 (3.4.1.1~3.4.1.4)
 - [x] Gemini/Claude/OpenAI E2E 테스트 통과 (3.4.2.1~3.4.2.3)
 - [x] 성능 회귀 없음 (3-provider baseline 기준 내)
-- [ ] 3-provider 문서 완성 (vLLM placeholder 포함)
+- [x] 3-provider 문서 완성 (vLLM placeholder 포함)
 - [ ] 의존성 검증 (`npm ci` 성공, esbuild bundle 포함 확인)
 
 ---
@@ -933,14 +933,14 @@ describe('OpenAICompatibleAdapter', () => {
 
 | ID        | 작업                     | 상태 | 산출물                  |
 | --------- | ------------------------ | ---- | ----------------------- |
-| 3.4.4.1-B | vLLM 섹션 상세화         | ⬜   | `docs/providers.md`     |
-| 3.4.4.3-B | LLM_BASE_URL 문서 상세화 | ⬜   | `docs/configuration.md` |
-| 3.4.4.5-B | vLLM Quick Start 추가    | ⬜   | `README.md`             |
+| 3.4.4.1-B | vLLM 섹션 상세화         | ✅   | `docs/providers.md`     |
+| 3.4.4.3-B | LLM_BASE_URL 문서 상세화 | ✅   | `docs/configuration.md` |
+| 3.4.4.5-B | vLLM Quick Start 추가    | ✅   | `README.md`             |
 
 **M3.4.B 검증 기준** (전체 M3.4 완료 조건):
 
 - [ ] vLLM E2E 테스트 통과 (또는 환경 의존 skip 처리)
-- [ ] vLLM 문서 완성 (placeholder → full docs)
+- [x] vLLM 문서 완성 (placeholder → full docs)
 - [ ] 전체 M3.4 완료 (M3.4.A + M3.4.B)
 
 ---

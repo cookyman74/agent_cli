@@ -315,6 +315,14 @@ gemini
 
 - [**Headless Mode (Scripting)**](./docs/cli/headless.md) - Use Gemini CLI in
   automated workflows.
+- [**Provider Guide**](./docs/providers.md) - Multi-provider runtime usage
+  (`gemini`, `claude`, `openai`, `openai-compatible` including vLLM).
+- [**Multi-Provider Configuration**](./docs/configuration.md) - Environment
+  variables and precedence for provider/model resolution.
+- [**Migration Guide**](./docs/migration.md) - Move from Gemini-only to
+  provider-independent (`llm*`) call paths.
+- [**Provider Adapter API**](./docs/api/providers.md) - Adapter contract and
+  streaming/event types overview.
 - [**Architecture Overview**](./docs/architecture.md) - How Gemini CLI works.
 - [**IDE Integration**](./docs/ide-integration/index.md) - VS Code companion.
 - [**Sandboxing & Security**](./docs/cli/sandbox.md) - Safe execution
@@ -327,6 +335,16 @@ gemini
 - [**Tools API Development**](./docs/core/tools-api.md) - Create custom tools.
 - [**Local development**](./docs/local-development.md) - Local development
   tooling.
+
+### vLLM Quick Start
+
+```bash
+export ENABLE_MULTI_PROVIDER=true
+export LLM_PROVIDER=openai-compatible
+export LLM_BASE_URL="http://localhost:8000/v1"
+export LLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
+gemini -m Qwen/Qwen2.5-7B-Instruct
+```
 
 ### Troubleshooting & Support
 

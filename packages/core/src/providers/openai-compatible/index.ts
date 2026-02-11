@@ -12,3 +12,10 @@
 
 export { OpenAiCompatibleAdapter } from './adapter.js';
 export { bootstrapOpenAiCompatibleProvider } from './bootstrap.js';
+export {
+  ChatMLPromptBuilder,
+  Llama3PromptBuilder,
+  MistralPromptBuilder,
+  createPromptBuilderForModel,
+} from './promptBuilder.js';
+export type { PromptBuilder } from './promptBuilder.js';

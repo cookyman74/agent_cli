@@ -141,6 +141,31 @@ describe('bootstrapOpenAiCompatibleProvider', () => {
     );
   });
 
+  it('should suppress default apiKey when LLM_API_KEY_HEADER is set', async () => {
+    vi.stubEnv('LLM_API_KEY_HEADER', 'X-Custom-Auth');
+
+    const OpenAI = (await import('openai')).default;
+    bootstrapOpenAiCompatibleProvider(registry);
+    registry.createAdapter('openai-compatible', {
+      apiKey: 'real-key',
+      baseUrl: 'http://localhost:8000/v1',
+    });
+    // When custom auth header is used:
+    // 1. SDK apiKey = 'not-needed' (prevents SDK from using the real key)
+    // 2. Authorization = null (SDK treats null as "delete this header",
+    //    stripping the auto-generated Authorization: Bearer header)
+    // 3. Custom header carries the real key
+    expect(OpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: 'not-needed',
+        defaultHeaders: expect.objectContaining({
+          'X-Custom-Auth': 'real-key',
+          Authorization: null,
+        }),
+      }),
+    );
+  });
+
   it('should ignore malformed LLM_CUSTOM_HEADERS', async () => {
     vi.stubEnv('LLM_CUSTOM_HEADERS', 'not-valid-json');
 

@@ -52,6 +52,15 @@ export class OpenAiCompatibleAdapter extends OpenAiAdapter {
   constructor(config: AdapterConfig, client: OpenAiClient) {
     super(config, client);
 
+    // Guard: baseUrl is required for OpenAI-compatible servers.
+    // Without it, requests would silently go to the default OpenAI endpoint.
+    if (!config.baseUrl) {
+      throw new Error(
+        'OpenAI-compatible adapter requires baseUrl (LLM_BASE_URL). ' +
+          'Without it, requests would go to the default OpenAI endpoint.',
+      );
+    }
+
     // Merge user-provided capability overrides with conservative defaults.
     const overrides = config['capabilities'] as
       | Partial<LlmProviderCapabilities>

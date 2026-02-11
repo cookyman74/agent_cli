@@ -148,7 +148,104 @@ placeholder 사용.
 
 ---
 
-## 8. 다음 단계
+## 8. 리뷰 반영 (2026-02-11)
+
+### 8.1 높음: LLM_API_KEY_HEADER 중복 Authorization 방지
+
+**문제**: `LLM_API_KEY_HEADER` 설정 시 커스텀 헤더에 API key를 넣으면서도,
+`apiKey`를 그대로 SDK에 전달하여 `Authorization: Bearer` 헤더가 중복 주입됨.
+
+**1차 수정**: `useCustomAuthHeader` 플래그 도입. 커스텀 auth 헤더 사용 시 SDK
+`apiKey`를 `'not-needed'`로 설정하여 기본 Authorization 헤더 억제.
+
+**2차 수정 (8.6)**: `apiKey: 'not-needed'`만으로는
+`Authorization: Bearer not-needed` 헤더가 여전히 생성됨 확인. OpenAI SDK
+`buildHeaders`(`client.mjs:462-484`)는 `authHeaders` → `defaultHeaders` 순서로
+병합하며, `headers.mjs:57-59`에서 `null` 값은 해당 헤더를 삭제함.
+`defaultHeaders`에 `Authorization: null`을 추가하여 `Authorization` 헤더를
+완전히 제거.
+
+**테스트 추가**: `should suppress default apiKey when LLM_API_KEY_HEADER is set`
+(검증: `apiKey: 'not-needed'` + `defaultHeaders.Authorization: null`)
+
+### 8.2 중간: signal 미전달 (오인 — 수정 불필요)
+
+**검증 결과**: OpenAI SDK `create(body, options?: RequestOptions)`는 2번째
+인자에 `{ signal: AbortSignal }` 전달을 지원함. 우리 코드는 이미
+`create(params, { signal })` 로 전달 중이며, `OpenAiClient` 인터페이스도
+`options?` 파라미터를 포함. `OpenAiCompatibleAdapter`는 `OpenAiAdapter`를
+상속하므로 동일 경로로 signal 전달됨.
+
+**결론**: 추가 수정 불필요.
+
+### 8.3 중간: default model gpt-4o → 'default' 변경
+
+**문제**: `DEFAULT_PROVIDER_MODELS[OpenAICompatible]`이 `'gpt-4o'`여서, 로컬
+서버에 `gpt-4o`를 요청하면 모델 미존재 에러 발생.
+
+**수정**: `'gpt-4o'` → `'default'`로 변경. 로컬 서버는 `model: 'default'` 시
+로드된 첫 번째 모델을 사용하거나 모델명을 무시함. `LLM_MODEL` env var가 있으면
+항상 우선 사용되므로, `'default'`는 최후 폴백으로만 동작.
+
+### 8.4 낮음: baseUrl 누락 시 생성자 가드
+
+**문제**: `ProviderFactory.create('openai-compatible', {})` 호출 시 baseUrl 없이
+생성되어 의도치 않게 기본 OpenAI 엔드포인트로 향할 수 있음.
+
+**수정**: `OpenAiCompatibleAdapter` 생성자에 `baseUrl` 필수 검증 추가. 누락 시
+명확한 에러 메시지와 함께 throw.
+
+**테스트 추가**: `should throw when baseUrl is missing`
+
+### 8.5 1차 리뷰 반영 후 테스트 결과
+
+| 범위                         | 결과          |
+| ---------------------------- | ------------- |
+| openai-compatible (44 tests) | ✅ All passed |
+| Providers 전체 (811 tests)   | ✅ All passed |
+| Lint                         | ✅ Clean      |
+| Build                        | ✅ Success    |
+
+### 8.6 2차 리뷰: Authorization 헤더 완전 제거
+
+**문제**: 1차 수정에서 `apiKey: 'not-needed'`를 SDK에 전달했으나, SDK 내부에서
+`Authorization: Bearer not-needed` 헤더가 여전히 생성됨.
+`new OpenAI({ apiKey: 'not-needed' }).authHeaders({})` 결과:
+`{ Authorization: 'Bearer not-needed' }` → 일부 서버에서 인증 충돌 가능.
+
+**원인 분석**: OpenAI SDK `buildHeaders`(`client.mjs:462-484`)는 다음 순서로
+병합:
+`idempotency → base → authHeaders → defaultHeaders → bodyHeaders → options.headers`.
+`authHeaders`는 `apiKey`로부터 `Authorization: Bearer <key>`를 자동 생성.
+
+**해결**: SDK의 `headers.mjs:57-59`에서 `null` 값은 해당 키를 삭제하는 메커니즘
+발견. `defaultHeaders`에 `Authorization: null`을 설정하면, 먼저 병합된
+`authHeaders`의 `Authorization`이 삭제됨.
+
+**수정 내용** (`bootstrap.ts`):
+
+```typescript
+const sdkHeaders: Record<string, string | null> = { ...defaultHeaders };
+if (useCustomAuthHeader) {
+  sdkHeaders['Authorization'] = null;
+}
+```
+
+**테스트 업데이트**: `Authorization: null` 포함 검증 추가.
+
+### 8.7 2차 리뷰 반영 후 테스트 결과
+
+| 범위                         | 결과          |
+| ---------------------------- | ------------- |
+| openai-compatible (44 tests) | ✅ All passed |
+| Providers 전체 (811 tests)   | ✅ All passed |
+| Lint                         | ✅ Clean      |
+| Typecheck                    | ✅ Clean      |
+| Build                        | ✅ Success    |
+
+---
+
+## 9. 다음 단계
 
 - M3.4.B (잔여): OpenAI-Compatible E2E 테스트 + 문서 상세화
 - Phase 3 완료 후 → Phase 4 (통합/안정화)

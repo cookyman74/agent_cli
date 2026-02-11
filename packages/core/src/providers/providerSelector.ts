@@ -198,7 +198,7 @@ const DEFAULT_PROVIDER_MODELS: Record<ProviderType, string> = {
   [ProviderType.Gemini]: 'gemini-2.5-pro',
   [ProviderType.Claude]: 'claude-sonnet-4-20250514',
   [ProviderType.OpenAI]: 'gpt-4o',
-  [ProviderType.OpenAICompatible]: 'gpt-4o',
+  [ProviderType.OpenAICompatible]: 'default',
   [ProviderType.Didim]: 'didim-default',
 };
 

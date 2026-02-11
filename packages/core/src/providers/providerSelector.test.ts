@@ -146,7 +146,9 @@ describe('ProviderSelector', () => {
 
     it('should return default model for OpenAI-compatible', () => {
       const model = getDefaultModelForProvider(ProviderType.OpenAICompatible);
-      expect(model).toMatch(/^gpt-/);
+      // OpenAI-compatible uses 'default' as a generic placeholder
+      // since local servers (vLLM/Ollama) don't use OpenAI model names.
+      expect(model).toBe('default');
     });
   });
 

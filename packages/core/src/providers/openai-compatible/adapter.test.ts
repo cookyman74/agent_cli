@@ -85,6 +85,13 @@ describe('OpenAiCompatibleAdapter', () => {
     it('should have providerName "openai-compatible"', () => {
       expect(adapter.providerName).toBe('openai-compatible');
     });
+
+    it('should throw when baseUrl is missing', () => {
+      const client = createMockClient();
+      expect(() => new OpenAiCompatibleAdapter({}, client)).toThrow(
+        'requires baseUrl',
+      );
+    });
   });
 
   // ==========================================================================

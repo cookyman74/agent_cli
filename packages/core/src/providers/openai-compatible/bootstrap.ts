@@ -55,16 +55,31 @@ export function bootstrapOpenAiCompatibleProvider(
 
     // Custom API key header: use a custom header name instead of
     // the standard Authorization: Bearer header.
+    // When LLM_API_KEY_HEADER is set, suppress the default Authorization
+    // header by passing 'not-needed' as apiKey to the SDK, and inject
+    // the real key via defaultHeaders instead.
     const apiKeyHeaderName = process.env['LLM_API_KEY_HEADER'];
-    if (apiKeyHeaderName && config.apiKey) {
-      defaultHeaders[apiKeyHeaderName] = config.apiKey;
+    const useCustomAuthHeader = !!(apiKeyHeaderName && config.apiKey);
+    if (useCustomAuthHeader) {
+      defaultHeaders[apiKeyHeaderName] = config.apiKey!;
+    }
+
+    // Build SDK headers, optionally stripping the auto-generated
+    // Authorization: Bearer header when a custom auth header is used.
+    // OpenAI SDK buildHeaders merges authHeaders BEFORE defaultHeaders,
+    // and treats null values as "delete this header".
+    const sdkHeaders: Record<string, string | null> = { ...defaultHeaders };
+    if (useCustomAuthHeader) {
+      sdkHeaders['Authorization'] = null;
     }
 
     const client = new OpenAI({
-      apiKey: config.apiKey ?? 'not-needed',
+      apiKey: useCustomAuthHeader
+        ? 'not-needed'
+        : (config.apiKey ?? 'not-needed'),
       baseURL: config.baseUrl,
       defaultHeaders:
-        Object.keys(defaultHeaders).length > 0 ? defaultHeaders : undefined,
+        Object.keys(defaultHeaders).length > 0 ? sdkHeaders : undefined,
     });
 
     return new OpenAiCompatibleAdapter(

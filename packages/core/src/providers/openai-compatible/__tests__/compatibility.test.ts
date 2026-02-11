@@ -140,7 +140,7 @@ describe('vLLM compatibility', () => {
 
   it('should handle vLLM error response (model not found)', async () => {
     const err = new Error('Model not found');
-    (err as Record<string, unknown>)['status'] = 404;
+    (err as unknown as Record<string, unknown>)['status'] = 404;
 
     const client = createMockClient(null);
     (
@@ -254,7 +254,7 @@ describe('TGI compatibility', () => {
 
   it('should handle TGI error format', async () => {
     const err = new Error('Rate limit exceeded');
-    (err as Record<string, unknown>)['status'] = 429;
+    (err as unknown as Record<string, unknown>)['status'] = 429;
 
     const client = createMockClient(null);
     (

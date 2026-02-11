@@ -44,7 +44,10 @@ import { ClaudeConverter } from './converter.js';
  */
 export interface ClaudeClient {
   messages: {
-    create(params: Record<string, unknown>): Promise<unknown>;
+    create(
+      params: Record<string, unknown>,
+      options?: Record<string, unknown>,
+    ): Promise<unknown>;
     countTokens?(params: Record<string, unknown>): Promise<unknown>;
   };
 }

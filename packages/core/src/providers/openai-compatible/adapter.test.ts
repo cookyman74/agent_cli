@@ -264,7 +264,7 @@ describe('OpenAiCompatibleAdapter', () => {
 
     it('should return true when server responds with HTTP error (reachable)', async () => {
       const err = new Error('Unauthorized');
-      (err as Record<string, unknown>)['status'] = 401;
+      (err as unknown as Record<string, unknown>)['status'] = 401;
       const errorClient = createMockClient();
       (
         errorClient.chat.completions.create as ReturnType<typeof vi.fn>

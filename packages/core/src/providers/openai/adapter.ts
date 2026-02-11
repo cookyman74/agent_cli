@@ -43,7 +43,10 @@ import { OpenAiConverter } from './converter.js';
 export interface OpenAiClient {
   chat: {
     completions: {
-      create(params: Record<string, unknown>): Promise<unknown>;
+      create(
+        params: Record<string, unknown>,
+        options?: Record<string, unknown>,
+      ): Promise<unknown>;
     };
   };
 }
@@ -80,7 +83,7 @@ const OPENAI_CAPABILITIES: LlmProviderCapabilities = {
  * OpenAiAdapter wraps the OpenAI SDK behind the BaseAdapter interface.
  */
 export class OpenAiAdapter extends BaseAdapter {
-  readonly providerName = 'openai';
+  readonly providerName: string = 'openai';
   readonly capabilities = OPENAI_CAPABILITIES;
 
   private readonly converter: OpenAiConverter;

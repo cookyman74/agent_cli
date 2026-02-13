@@ -39,12 +39,12 @@ fs.writeFileSync(
 );
 console.log('Wrote .npmrc for @google-gemini scope to packages/core/');
 
-// Update @google/gemini-cli
+// Update @didim/agent-cli
 updatePackageJson('packages/cli/package.json', (pkg) => {
-  pkg.name = '@google-gemini/gemini-cli';
+  pkg.name = '@didim/agent-cli';
   pkg.files = ['bundle/'];
   pkg.bin = {
-    gemini: 'bundle/gemini.js',
+    didim: 'bundle/gemini.js',
   };
 
   // Remove fields that are not relevant to the bundled package.
@@ -60,9 +60,9 @@ updatePackageJson('packages/a2a-server/package.json', (pkg) => {
   pkg.name = '@google-gemini/gemini-cli-a2a-server';
 });
 
-// Update @google/gemini-cli-core
+// Update @didim/agent-cli-core
 updatePackageJson('packages/core/package.json', (pkg) => {
-  pkg.name = '@google-gemini/gemini-cli-core';
+  pkg.name = '@didim/agent-cli-core';
 });
 
 console.log('Successfully prepared packages for GitHub release.');

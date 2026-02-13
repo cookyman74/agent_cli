@@ -20,7 +20,7 @@ import {
   type ToolConfirmationPayload,
   type ToolCallConfirmationDetails,
   debugLogger,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import type { IndividualToolCallDisplay } from '../types.js';
 
 interface ToolActionsContextValue {

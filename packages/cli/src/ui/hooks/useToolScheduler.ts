@@ -9,7 +9,7 @@ import type {
   EditorType,
   CompletedToolCall,
   ToolCallRequestInfo,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import {
   useReactToolScheduler,
   type TrackedToolCall as LegacyTrackedToolCall,

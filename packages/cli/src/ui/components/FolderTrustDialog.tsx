@@ -15,7 +15,7 @@ import * as process from 'node:process';
 import * as path from 'node:path';
 import { relaunchApp } from '../../utils/processUtils.js';
 import { runExitCleanup } from '../../utils/cleanup.js';
-import { ExitCodes } from '@google/gemini-cli-core';
+import { ExitCodes } from '@didim/agent-cli-core';
 
 export enum FolderTrustChoice {
   TRUST_FOLDER = 'trust_folder',

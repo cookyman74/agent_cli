@@ -14,8 +14,8 @@ import zlib from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
-import { CoreEvent, coreEvents, debugLogger } from '@google/gemini-cli-core';
-import type { Config } from '@google/gemini-cli-core';
+import { CoreEvent, coreEvents, debugLogger } from '@didim/agent-cli-core';
+import type { Config } from '@didim/agent-cli-core';
 
 const ACTIVITY_ID_HEADER = 'x-activity-request-id';
 

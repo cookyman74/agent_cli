@@ -38,7 +38,7 @@ import {
   type OutputFormat,
   coreEvents,
   GEMINI_MODEL_ALIAS_AUTO,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import {
   type Settings,
   type MergedSettings,
@@ -54,7 +54,7 @@ import { isWorkspaceTrusted } from './trustedFolders.js';
 import { createPolicyEngineConfig } from './policy.js';
 import { ExtensionManager } from './extension-manager.js';
 import { McpServerEnablementManager } from './mcp/mcpServerEnablement.js';
-import type { ExtensionEvents } from '@google/gemini-cli-core/src/utils/extensionLoader.js';
+import type { ExtensionEvents } from '@didim/agent-cli-core/src/utils/extensionLoader.js';
 import { requestConsentNonInteractive } from './extensions/consent.js';
 import { promptForSetting } from './extensions/extensionSettings.js';
 import type { EventEmitter } from 'node:stream';

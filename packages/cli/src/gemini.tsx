@@ -64,7 +64,7 @@ import {
   ValidationCancelledError,
   ValidationRequiredError,
   type FetchAdminControlsResponse,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import {
   initializeApp,
   type InitializationResult,

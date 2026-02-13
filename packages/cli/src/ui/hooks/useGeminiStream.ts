@@ -31,7 +31,7 @@ import {
   ValidationRequiredError,
   coreEvents,
   CoreEvent,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import type {
   Config,
   EditorType,
@@ -42,7 +42,7 @@ import type {
   ToolCallRequestInfo,
   RetryAttemptPayload,
   ToolCallConfirmationDetails,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import { type Part, type PartListUnion } from '@google/genai';
 import type {
   HistoryItem,

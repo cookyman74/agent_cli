@@ -1,8 +1,11 @@
 {
-  "name": "@google/gemini-cli",
+  "name": "@didim/agent-cli",
   "version": "0.27.0-nightly.20260121.97aac696f",
   "description": "Gemini CLI",
   "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/google-gemini/gemini-cli.git"
@@ -30,7 +33,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.12.0",
-    "@google/gemini-cli-core": "file:../core",
+    "@didim/agent-cli-core": "file:../core",
     "@google/genai": "1.30.0",
     "@iarna/toml": "^2.2.5",
     "@modelcontextprotocol/sdk": "^1.23.0",

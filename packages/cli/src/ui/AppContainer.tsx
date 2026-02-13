@@ -65,7 +65,7 @@ import {
   generateSummary,
   type AgentsDiscoveredPayload,
   ChangeAuthRequestedError,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import process from 'node:process';
 import { useHistory } from './hooks/useHistoryManager.js';

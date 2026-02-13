@@ -7,15 +7,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act } from 'react';
 import { render } from '../../test-utils/render.js';
-import type { Config, CodeAssistServer } from '@google/gemini-cli-core';
-import { UserTierId, getCodeAssistServer } from '@google/gemini-cli-core';
+import type { Config, CodeAssistServer } from '@didim/agent-cli-core';
+import { UserTierId, getCodeAssistServer } from '@didim/agent-cli-core';
 import { usePrivacySettings } from './usePrivacySettings.js';
 import { waitFor } from '../../test-utils/async.js';
 
 // Mock the dependencies
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
+vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
   return {
     ...actual,
     getCodeAssistServer: vi.fn(),

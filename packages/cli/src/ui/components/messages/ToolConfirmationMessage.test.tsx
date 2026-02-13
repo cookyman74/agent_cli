@@ -9,7 +9,7 @@ import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import type {
   ToolCallConfirmationDetails,
   Config,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import {
   renderWithProviders,
   createMockSettings,

@@ -49,7 +49,7 @@ import {
   type HookEventName,
   type ResolvedExtensionSetting,
   coreEvents,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import { maybeRequestConsentOrFail } from './extensions/consent.js';
 import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
 import { ExtensionStorage } from './extensions/storage.js';

@@ -8,9 +8,8 @@ import { render } from '../../test-utils/render.js';
 import { ContextUsageDisplay } from './ContextUsageDisplay.js';
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
+vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
   return {
     ...actual,
     tokenLimit: () => 10000,

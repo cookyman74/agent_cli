@@ -11,8 +11,8 @@ import {
   type SlashCommand,
   type CommandContext,
 } from '../ui/commands/types.js';
-import type { MessageActionReturn, Config } from '@google/gemini-cli-core';
-import { isNightly, startupProfiler } from '@google/gemini-cli-core';
+import type { MessageActionReturn, Config } from '@didim/agent-cli-core';
+import { isNightly, startupProfiler } from '@didim/agent-cli-core';
 import { aboutCommand } from '../ui/commands/aboutCommand.js';
 import { agentsCommand } from '../ui/commands/agentsCommand.js';
 import { authCommand } from '../ui/commands/authCommand.js';

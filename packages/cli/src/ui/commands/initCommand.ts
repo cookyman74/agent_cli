@@ -12,7 +12,7 @@ import type {
   SlashCommandActionReturn,
 } from './types.js';
 import { CommandKind } from './types.js';
-import { DEFAULT_CONTEXT_FILENAME, performInit } from '@google/gemini-cli-core';
+import { DEFAULT_CONTEXT_FILENAME, performInit } from '@didim/agent-cli-core';
 
 export const initCommand: SlashCommand = {
   name: 'init',

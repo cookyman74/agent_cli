@@ -1,10 +1,13 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with
+code in this repository.
 
 ## Project Overview
 
-Gemini CLI is an open-source AI agent that brings Gemini directly into the terminal. It's a TypeScript monorepo using npm workspaces with a React-based terminal UI (Ink).
+Gemini CLI is an open-source AI agent that brings Gemini directly into the
+terminal. It's a TypeScript monorepo using npm workspaces with a React-based
+terminal UI (Ink).
 
 ## Build & Development Commands
 
@@ -38,7 +41,7 @@ npm run clean
 npm run test
 
 # Run tests for a specific workspace
-npm test -w @google/gemini-cli-core -- src/path/to/file.test.ts
+npm test -w @didim/agent-cli-core -- src/path/to/file.test.ts
 
 # Run integration/E2E tests (requires bundle first)
 npm run bundle && npm run test:e2e
@@ -66,9 +69,12 @@ npm run typecheck     # TypeScript type checking
 
 ### Package Structure
 
-- **`packages/cli`**: Terminal UI (React/Ink), input processing, display rendering, user configuration
-- **`packages/core`**: Backend logic, Gemini API orchestration, prompt construction, tool execution
-- **`packages/core/src/tools/`**: Built-in tools (file system, shell, web fetch, grep, glob, etc.)
+- **`packages/cli`**: Terminal UI (React/Ink), input processing, display
+  rendering, user configuration
+- **`packages/core`**: Backend logic, Gemini API orchestration, prompt
+  construction, tool execution
+- **`packages/core/src/tools/`**: Built-in tools (file system, shell, web fetch,
+  grep, glob, etc.)
 - **`packages/a2a-server`**: Experimental Agent-to-Agent server
 - **`packages/vscode-ide-companion`**: VS Code extension companion
 
@@ -88,19 +94,27 @@ npm run typecheck     # TypeScript type checking
 ## Development Conventions
 
 ### Node.js Version
-- **Development**: Use Node.js `~20.19.0` (specific version required for dev dependencies)
+
+- **Development**: Use Node.js `~20.19.0` (specific version required for dev
+  dependencies)
 - **Production**: Node.js `>=20`
 
 ### Commit Messages
+
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
 - `feat(cli): Add --json flag to 'config get' command`
 - `fix(core): Resolve timeout issue in shell tool`
 
 ### Import Rules
-ESLint enforces restrictions on relative imports between packages. Use package imports for cross-package dependencies.
+
+ESLint enforces restrictions on relative imports between packages. Use package
+imports for cross-package dependencies.
 
 ### Testing Environment Variables
+
 Use Vitest's stubbing for environment variables:
+
 ```typescript
 beforeEach(() => {
   vi.stubEnv('NAME', 'value');
@@ -111,7 +125,9 @@ afterEach(() => {
 ```
 
 ### React/Ink Patterns
-The CLI uses Ink for terminal rendering. Follow existing component patterns in `packages/cli/src/`.
+
+The CLI uses Ink for terminal rendering. Follow existing component patterns in
+`packages/cli/src/`.
 
 ## Integration Test Diagnostics
 
@@ -132,6 +148,7 @@ npm run deflake -- --runs=5 --command="npm run test:e2e -- -- --test-name-patter
 ## Sandboxing
 
 For development with sandboxing enabled:
+
 ```bash
 # Set in ~/.env or environment
 GEMINI_SANDBOX=true  # Uses docker or podman
@@ -141,11 +158,13 @@ GEMINI_SANDBOX=true  # Uses docker or podman
 npm run build:all
 ```
 
-macOS uses Seatbelt (`sandbox-exec`) by default. Configure with `SEATBELT_PROFILE`.
+macOS uses Seatbelt (`sandbox-exec`) by default. Configure with
+`SEATBELT_PROFILE`.
 
 ## Development Tracing
 
 Enable OpenTelemetry traces for debugging:
+
 ```bash
 # Start telemetry collector
 npm run telemetry -- --target=local  # or --target=genkit

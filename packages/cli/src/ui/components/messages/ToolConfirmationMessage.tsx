@@ -16,7 +16,7 @@ import {
   ToolConfirmationOutcome,
   hasRedirection,
   debugLogger,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import type { RadioSelectItem } from '../shared/RadioButtonSelect.js';
 import { useToolActions } from '../../contexts/ToolActionsContext.js';
 import { RadioButtonSelect } from '../shared/RadioButtonSelect.js';

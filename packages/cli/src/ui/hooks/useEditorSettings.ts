@@ -10,12 +10,12 @@ import type {
   LoadedSettings,
 } from '../../config/settings.js';
 import { MessageType } from '../types.js';
-import type { EditorType } from '@google/gemini-cli-core';
+import type { EditorType } from '@didim/agent-cli-core';
 import {
   allowEditorTypeInSandbox,
   checkHasEditorType,
   getEditorDisplayName,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 
 import { SettingPaths } from '../../config/settingPaths.js';

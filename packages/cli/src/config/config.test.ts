@@ -17,10 +17,10 @@ import {
   type ExtensionLoader,
   debugLogger,
   ApprovalMode,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import { loadCliConfig, parseArguments, type CliArgs } from './config.js';
 import { type Settings, createTestMergedSettings } from './settings.js';
-import * as ServerConfig from '@google/gemini-cli-core';
+import * as ServerConfig from '@didim/agent-cli-core';
 
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { ExtensionManager } from './extension-manager.js';
@@ -90,9 +90,9 @@ vi.mock('read-package-up', () => ({
   ),
 }));
 
-vi.mock('@google/gemini-cli-core', async () => {
+vi.mock('@didim/agent-cli-core', async () => {
   const actualServer = await vi.importActual<typeof ServerConfig>(
-    '@google/gemini-cli-core',
+    '@didim/agent-cli-core',
   );
   return {
     ...actualServer,

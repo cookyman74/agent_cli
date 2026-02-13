@@ -15,7 +15,7 @@ import type {
   RetrieveUserQuotaResponse,
   SkillDefinition,
   AgentDefinition,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import type { PartListUnion } from '@google/genai';
 import { type ReactNode } from 'react';
 

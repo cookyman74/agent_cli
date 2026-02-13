@@ -13,7 +13,7 @@ import { ToolGroupMessage } from './ToolGroupMessage.js';
 import type { IndividualToolCallDisplay } from '../../types.js';
 import { ToolCallStatus } from '../../types.js';
 import { Scrollable } from '../shared/Scrollable.js';
-import type { Config } from '@google/gemini-cli-core';
+import type { Config } from '@didim/agent-cli-core';
 
 describe('<ToolGroupMessage />', () => {
   const createToolCall = (

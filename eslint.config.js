@@ -180,13 +180,13 @@ export default tseslint.config(
               name: 'node:os',
               importNames: ['homedir', 'tmpdir'],
               message:
-                'Please use the helpers from @google/gemini-cli-core instead of node:os homedir()/tmpdir() to ensure strict environment isolation.',
+                'Please use the helpers from @didim/agent-cli-core instead of node:os homedir()/tmpdir() to ensure strict environment isolation.',
             },
             {
               name: 'os',
               importNames: ['homedir', 'tmpdir'],
               message:
-                'Please use the helpers from @google/gemini-cli-core instead of os homedir()/tmpdir() to ensure strict environment isolation.',
+                'Please use the helpers from @didim/agent-cli-core instead of os homedir()/tmpdir() to ensure strict environment isolation.',
             },
           ],
         },
@@ -213,8 +213,8 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          name: '@google/gemini-cli-core',
-          message: 'Please use relative imports within the @google/gemini-cli-core package.',
+          name: '@didim/agent-cli-core',
+          message: 'Please use relative imports within the @didim/agent-cli-core package.',
         },
       ],
     },
@@ -225,8 +225,8 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          name: '@google/gemini-cli',
-          message: 'Please use relative imports within the @google/gemini-cli package.',
+          name: '@didim/agent-cli',
+          message: 'Please use relative imports within the @didim/agent-cli package.',
         },
       ],
     },

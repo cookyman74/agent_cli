@@ -7,7 +7,7 @@
 import { render } from '../../../test-utils/render.js';
 import { describe, it, expect, vi } from 'vitest';
 import { McpStatus } from './McpStatus.js';
-import { MCPServerStatus } from '@google/gemini-cli-core';
+import { MCPServerStatus } from '@didim/agent-cli-core';
 import { MessageType } from '../../types.js';
 
 describe('McpStatus', () => {
@@ -88,7 +88,7 @@ describe('McpStatus', () => {
 
   it('renders correctly with a disconnected server', async () => {
     vi.spyOn(
-      await import('@google/gemini-cli-core'),
+      await import('@didim/agent-cli-core'),
       'getMCPServerStatus',
     ).mockReturnValue(MCPServerStatus.DISCONNECTED);
     const { lastFrame, unmount } = render(<McpStatus {...baseProps} />);

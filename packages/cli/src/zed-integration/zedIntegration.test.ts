@@ -25,7 +25,7 @@ import {
   type GeminiChat,
   type Config,
   type MessageBus,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import { SettingScope, type LoadedSettings } from '../config/settings.js';
 import { loadCliConfig, type CliArgs } from '../config/config.js';
 import * as fs from 'node:fs/promises';
@@ -50,9 +50,9 @@ vi.mock('node:path', async (importOriginal) => {
 
 // Mock ReadManyFilesTool
 vi.mock(
-  '@google/gemini-cli-core',
+  '@didim/agent-cli-core',
   async (
-    importOriginal: () => Promise<typeof import('@google/gemini-cli-core')>,
+    importOriginal: () => Promise<typeof import('@didim/agent-cli-core')>,
   ) => {
     const actual = await importOriginal();
     return {

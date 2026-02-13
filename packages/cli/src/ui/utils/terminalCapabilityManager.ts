@@ -13,7 +13,7 @@ import {
   disableModifyOtherKeys,
   enableBracketedPasteMode,
   disableBracketedPasteMode,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 
 export type TerminalBackgroundColor = string | undefined;
 

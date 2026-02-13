@@ -18,8 +18,8 @@ import type {
   Config,
   ConversationRecord,
   MessageRecord,
-} from '@google/gemini-cli-core';
-import { coreEvents } from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
+import { coreEvents } from '@didim/agent-cli-core';
 
 // Mock modules
 vi.mock('fs/promises');

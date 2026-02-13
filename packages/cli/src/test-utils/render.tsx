@@ -27,7 +27,7 @@ import {
 import { type HistoryItemToolGroup, StreamingState } from '../ui/types.js';
 import { ToolActionsProvider } from '../ui/contexts/ToolActionsContext.js';
 
-import { makeFakeConfig, type Config } from '@google/gemini-cli-core';
+import { makeFakeConfig, type Config } from '@didim/agent-cli-core';
 import { FakePersistentState } from './persistentStateFake.js';
 import { AppContext, type AppState } from '../ui/contexts/AppContext.js';
 

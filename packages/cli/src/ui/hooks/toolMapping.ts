@@ -11,7 +11,7 @@ import {
   type SerializableConfirmationDetails,
   type ToolResultDisplay,
   debugLogger,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import {
   ToolCallStatus,
   type HistoryItemToolGroup,

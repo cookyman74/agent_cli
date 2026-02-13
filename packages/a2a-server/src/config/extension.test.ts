@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { DEFAULT_CONTEXT_FILENAME, GEMINI_DIR } from '@google/gemini-cli-core';
+import { DEFAULT_CONTEXT_FILENAME, GEMINI_DIR } from '@didim/agent-cli-core';
 import { loadExtensions, EXTENSIONS_CONFIG_FILENAME } from './extension.js';
 
 vi.mock('../utils/logger.js', () => ({
@@ -22,9 +22,8 @@ vi.mock('../utils/logger.js', () => ({
 // Mock homedir to prevent loading from real home directory
 const mockHomedir = vi.hoisted(() => vi.fn());
 
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
+vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
   return {
     ...actual,
     homedir: mockHomedir,

@@ -15,7 +15,7 @@ import type { CustomTheme } from './theme.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import type * as osActual from 'node:os';
-import { debugLogger } from '@google/gemini-cli-core';
+import { debugLogger } from '@didim/agent-cli-core';
 
 vi.mock('node:fs');
 vi.mock('node:os', async (importOriginal) => {
@@ -27,9 +27,8 @@ vi.mock('node:os', async (importOriginal) => {
   };
 });
 
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
+vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
   return {
     ...actual,
     homedir: () => os.homedir(),

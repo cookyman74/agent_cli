@@ -25,7 +25,7 @@ import type {
   Config,
   EditorType,
   AnyToolInvocation,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import {
   ApprovalMode,
   AuthType,
@@ -37,7 +37,7 @@ import {
   coreEvents,
   CoreEvent,
   MCPDiscoveryState,
-} from '@google/gemini-cli-core';
+} from '@didim/agent-cli-core';
 import type { Part, PartListUnion } from '@google/genai';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { SlashCommandProcessorResult } from '../types.js';
@@ -76,7 +76,7 @@ const MockedUserPromptEvent = vi.hoisted(() =>
 );
 const mockParseAndFormatApiError = vi.hoisted(() => vi.fn());
 
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+vi.mock('@didim/agent-cli-core', async (importOriginal) => {
   const actualCoreModule = (await importOriginal()) as any;
   return {
     ...actualCoreModule,

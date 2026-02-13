@@ -607,11 +607,20 @@ Would you like to attempt to install via "git clone" instead?`,
         }
       }
 
-      const contextFiles = getContextFileNames(config)
-        .map((contextFileName) =>
-          path.join(effectiveExtensionPath, contextFileName),
-        )
-        .filter((contextFilePath) => fs.existsSync(contextFilePath));
+      // Use the first existing context file from the configured list.
+      // This prevents duplicate context loading when multiple files exist.
+      const contextFileNames = getContextFileNames(config);
+      const contextFiles: string[] = [];
+      for (const contextFileName of contextFileNames) {
+        const contextFilePath = path.join(
+          effectiveExtensionPath,
+          contextFileName,
+        );
+        if (fs.existsSync(contextFilePath)) {
+          contextFiles.push(contextFilePath);
+          break; // Stop at the first found file
+        }
+      }
 
       let hooks: { [K in HookEventName]?: HookDefinition[] } | undefined;
       if (
@@ -917,7 +926,8 @@ export async function copyExtension(
 
 function getContextFileNames(config: ExtensionConfig): string[] {
   if (!config.contextFileName) {
-    return [DEFAULT_CONTEXT_FILENAME];
+    // Default fallback chain: AGENTS.md → GEMINI.md (legacy compat)
+    return [DEFAULT_CONTEXT_FILENAME, 'GEMINI.md'];
   } else if (!Array.isArray(config.contextFileName)) {
     return [config.contextFileName];
   }

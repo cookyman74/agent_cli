@@ -6,7 +6,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Config } from '../config/config.js';
-import { DEFAULT_CONTEXT_FILENAME } from '../tools/memoryTool.js';
+import {
+  DEFAULT_CONTEXT_FILENAME,
+  setGeminiMdFilename,
+} from '../tools/memoryTool.js';
 import {
   addMemory,
   listMemoryFiles,
@@ -205,6 +208,44 @@ describe('memory commands', () => {
           `No ${DEFAULT_CONTEXT_FILENAME} files in use.`,
         );
       }
+    });
+
+    it('should display multiple filenames when configured', () => {
+      setGeminiMdFilename(['AGENTS.md', 'GEMINI.md']);
+      const filePaths = ['/path/to/AGENTS.md', '/path/to/GEMINI.md'];
+      vi.mocked(mockConfig.getGeminiMdFilePaths).mockReturnValue(filePaths);
+
+      const result = listMemoryFiles(mockConfig);
+
+      expect(result.type).toBe('message');
+      if (result.type === 'message') {
+        expect(result.messageType).toBe('info');
+        expect(result.content).toContain(
+          'There are 2 context file(s) (AGENTS.md, GEMINI.md) in use:',
+        );
+        expect(result.content).toContain(filePaths.join('\n'));
+      }
+
+      // Reset to default for other tests
+      setGeminiMdFilename(DEFAULT_CONTEXT_FILENAME);
+    });
+
+    it('should display multi-filename label when no files exist', () => {
+      setGeminiMdFilename(['AGENTS.md', 'GEMINI.md']);
+      vi.mocked(mockConfig.getGeminiMdFilePaths).mockReturnValue([]);
+
+      const result = listMemoryFiles(mockConfig);
+
+      expect(result.type).toBe('message');
+      if (result.type === 'message') {
+        expect(result.messageType).toBe('info');
+        expect(result.content).toBe(
+          'No context files (AGENTS.md, GEMINI.md) in use.',
+        );
+      }
+
+      // Reset to default for other tests
+      setGeminiMdFilename(DEFAULT_CONTEXT_FILENAME);
     });
   });
 });

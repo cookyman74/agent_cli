@@ -5,7 +5,7 @@
  */
 
 import type { Config } from '../config/config.js';
-import { getCurrentGeminiMdFilename } from '../tools/memoryTool.js';
+import { getAllGeminiMdFilenames } from '../tools/memoryTool.js';
 import { refreshServerHierarchicalMemory } from '../utils/memoryDiscovery.js';
 import type { MessageActionReturn, ToolActionReturn } from './types.js';
 
@@ -79,15 +79,24 @@ export async function refreshMemory(
 export function listMemoryFiles(config: Config): MessageActionReturn {
   const filePaths = config.getGeminiMdFilePaths() || [];
   const fileCount = filePaths.length;
-  const contextFilename = getCurrentGeminiMdFilename();
+  const allFilenames = getAllGeminiMdFilenames();
   let content: string;
 
   if (fileCount > 0) {
-    content = `There are ${fileCount} ${contextFilename} file(s) in use:\n\n${filePaths.join(
+    // Display all configured filenames for clarity in multi-file setups
+    const filenameLabel =
+      allFilenames.length > 1
+        ? `context file(s) (${allFilenames.join(', ')})`
+        : `${allFilenames[0]} file(s)`;
+    content = `There are ${fileCount} ${filenameLabel} in use:\n\n${filePaths.join(
       '\n',
     )}`;
   } else {
-    content = `No ${contextFilename} files in use.`;
+    const filenameLabel =
+      allFilenames.length > 1
+        ? `context files (${allFilenames.join(', ')})`
+        : `${allFilenames[0]} files`;
+    content = `No ${filenameLabel} in use.`;
   }
 
   return {

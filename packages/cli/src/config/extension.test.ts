@@ -25,6 +25,7 @@ import {
   KeychainTokenStorage,
   loadAgentsFromDirectory,
   loadSkillsFromDir,
+  DEFAULT_CONTEXT_FILENAME,
 } from '@google/gemini-cli-core';
 import {
   loadSettings,
@@ -277,6 +278,77 @@ describe('extension tests', () => {
       const ext1 = extensions.find((e) => e.name === 'ext1');
       expect(ext1?.contextFiles).toEqual([
         path.join(userExtensionsDir, 'ext1', 'my-context-file.md'),
+      ]);
+    });
+
+    it('should load only AGENTS.md when both AGENTS.md and GEMINI.md exist (first-found fallback)', async () => {
+      const extDir = createExtension({
+        extensionsDir: userExtensionsDir,
+        name: 'ext1',
+        version: '1.0.0',
+        addContextFile: false, // Don't auto-create GEMINI.md
+        contextFileName: undefined, // No custom contextFileName
+      });
+      // Manually create both files
+      fs.writeFileSync(
+        path.join(extDir, DEFAULT_CONTEXT_FILENAME),
+        'agents context',
+      );
+      fs.writeFileSync(path.join(extDir, 'GEMINI.md'), 'gemini context');
+
+      const extensions = await extensionManager.loadExtensions();
+
+      expect(extensions).toHaveLength(1);
+      const ext1 = extensions.find((e) => e.name === 'ext1');
+      // Should load only AGENTS.md (first found in fallback chain)
+      expect(ext1?.contextFiles).toEqual([
+        path.join(userExtensionsDir, 'ext1', DEFAULT_CONTEXT_FILENAME),
+      ]);
+      expect(ext1?.contextFiles).toHaveLength(1);
+    });
+
+    it('should load GEMINI.md when only GEMINI.md exists (fallback works)', async () => {
+      const extDir = createExtension({
+        extensionsDir: userExtensionsDir,
+        name: 'ext2',
+        version: '1.0.0',
+        addContextFile: false,
+        contextFileName: undefined,
+      });
+      // Only create GEMINI.md (legacy extension)
+      fs.writeFileSync(path.join(extDir, 'GEMINI.md'), 'gemini context');
+
+      const extensions = await extensionManager.loadExtensions();
+
+      expect(extensions).toHaveLength(1);
+      const ext2 = extensions.find((e) => e.name === 'ext2');
+      // Should load GEMINI.md (fallback in chain)
+      expect(ext2?.contextFiles).toEqual([
+        path.join(userExtensionsDir, 'ext2', 'GEMINI.md'),
+      ]);
+    });
+
+    it('should load AGENTS.md when only AGENTS.md exists (primary path)', async () => {
+      const extDir = createExtension({
+        extensionsDir: userExtensionsDir,
+        name: 'ext3',
+        version: '1.0.0',
+        addContextFile: false,
+        contextFileName: undefined,
+      });
+      // Only create AGENTS.md
+      fs.writeFileSync(
+        path.join(extDir, DEFAULT_CONTEXT_FILENAME),
+        'agents context',
+      );
+
+      const extensions = await extensionManager.loadExtensions();
+
+      expect(extensions).toHaveLength(1);
+      const ext3 = extensions.find((e) => e.name === 'ext3');
+      // Should load AGENTS.md (primary)
+      expect(ext3?.contextFiles).toEqual([
+        path.join(userExtensionsDir, 'ext3', DEFAULT_CONTEXT_FILENAME),
       ]);
     });
 

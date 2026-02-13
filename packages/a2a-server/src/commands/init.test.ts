@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { InitCommand } from './init.js';
-import { performInit } from '@google/gemini-cli-core';
+import { performInit, DEFAULT_CONTEXT_FILENAME } from '@google/gemini-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { CoderAgentExecutor } from '../agent/executor.js';
@@ -83,10 +83,11 @@ describe('InitCommand', () => {
 
   describe('execute', () => {
     it('handles info from performInit', async () => {
+      const infoMessage = `${DEFAULT_CONTEXT_FILENAME} already exists.`;
       vi.mocked(performInit).mockReturnValue({
         type: 'message',
         messageType: 'info',
-        content: 'GEMINI.md already exists.',
+        content: infoMessage,
       } as CommandActionReturn);
 
       await command.execute(context, []);
@@ -98,7 +99,7 @@ describe('InitCommand', () => {
           status: expect.objectContaining({
             state: 'completed',
             message: expect.objectContaining({
-              parts: [{ kind: 'text', text: 'GEMINI.md already exists.' }],
+              parts: [{ kind: 'text', text: infoMessage }],
             }),
           }),
         }),
@@ -110,7 +111,7 @@ describe('InitCommand', () => {
           status: expect.objectContaining({
             state: 'completed',
             message: expect.objectContaining({
-              parts: [{ kind: 'text', text: 'GEMINI.md already exists.' }],
+              parts: [{ kind: 'text', text: infoMessage }],
             }),
           }),
         }),
@@ -140,10 +141,12 @@ describe('InitCommand', () => {
     });
 
     describe('when handling submit_prompt', () => {
+      const submitPromptContent = `Create a new ${DEFAULT_CONTEXT_FILENAME} file.`;
+
       beforeEach(() => {
         vi.mocked(performInit).mockReturnValue({
           type: 'submit_prompt',
-          content: 'Create a new GEMINI.md file.',
+          content: submitPromptContent,
         } as CommandActionReturn);
       });
 
@@ -151,7 +154,7 @@ describe('InitCommand', () => {
         await command.execute(context, []);
 
         expect(fs.writeFileSync).toHaveBeenCalledWith(
-          path.join(mockWorkspacePath, 'GEMINI.md'),
+          path.join(mockWorkspacePath, DEFAULT_CONTEXT_FILENAME),
           '',
           'utf8',
         );
@@ -166,7 +169,7 @@ describe('InitCommand', () => {
             userMessage: expect.objectContaining({
               parts: expect.arrayContaining([
                 expect.objectContaining({
-                  text: 'Create a new GEMINI.md file.',
+                  text: submitPromptContent,
                 }),
               ]),
               metadata: {

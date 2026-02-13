@@ -94,21 +94,17 @@ User Input
 export interface ContentGenerator {
   generateContent(
     request: GenerateContentParameters,
-    userPromptId?: string
+    userPromptId?: string,
   ): Promise<GenerateContentResponse>;
 
   generateContentStream(
     request: GenerateContentParameters,
-    userPromptId?: string
+    userPromptId?: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>>;
 
-  countTokens(
-    request: CountTokensRequest
-  ): Promise<CountTokensResponse>;
+  countTokens(request: CountTokensRequest): Promise<CountTokensResponse>;
 
-  embedContent(
-    request: EmbedContentRequest
-  ): Promise<EmbedContentResponse>;
+  embedContent(request: EmbedContentRequest): Promise<EmbedContentResponse>;
 }
 ```
 
@@ -227,7 +223,7 @@ packages/core/src/
 import { GoogleGenAI } from '@google/genai';
 
 class GeminiClient {
-  private generator = new GoogleGenAI(apiKey);  // 직접 의존
+  private generator = new GoogleGenAI(apiKey); // 직접 의존
 }
 
 // After: 추상화에 의존
@@ -235,7 +231,7 @@ import { ContentGenerator } from './providers/types';
 import { ProviderRegistry } from './providers/registry';
 
 class GeminiClient {
-  constructor(private generator: ContentGenerator) {}  // 인터페이스에 의존
+  constructor(private generator: ContentGenerator) {} // 인터페이스에 의존
 }
 ```
 
@@ -254,13 +250,13 @@ registry.register('llama', new LlamaAdapter());
 
 ### 2.3.3 단일 책임 원칙 (SRP)
 
-| 컴포넌트 | 책임 |
-|----------|------|
-| `ContentGenerator` | 콘텐츠 생성 인터페이스 정의 |
-| `GeminiAdapter` | Gemini API 호출 및 응답 변환 |
-| `ClaudeAdapter` | Claude API 호출 및 응답 변환 |
-| `ProviderRegistry` | 프로바이더 관리 및 조회 |
-| `ProviderFactory` | 설정 기반 프로바이더 생성 |
+| 컴포넌트           | 책임                         |
+| ------------------ | ---------------------------- |
+| `ContentGenerator` | 콘텐츠 생성 인터페이스 정의  |
+| `GeminiAdapter`    | Gemini API 호출 및 응답 변환 |
+| `ClaudeAdapter`    | Claude API 호출 및 응답 변환 |
+| `ProviderRegistry` | 프로바이더 관리 및 조회      |
+| `ProviderFactory`  | 설정 기반 프로바이더 생성    |
 
 ## 2.4 프로바이더 선택 흐름
 
@@ -394,7 +390,7 @@ enum LlmErrorType {
   MODEL_OVERLOADED = 'model_overloaded',
   CONTEXT_LENGTH_EXCEEDED = 'context_length_exceeded',
   NETWORK = 'network',
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
 }
 
 // 각 어댑터에서 프로바이더별 에러를 공통 타입으로 변환
@@ -413,7 +409,7 @@ class GeminiAdapter {
 const fallbackConfig = {
   primary: 'claude',
   fallback: ['gemini', 'openai'],
-  maxRetries: 2
+  maxRetries: 2,
 };
 ```
 
@@ -421,16 +417,16 @@ const fallbackConfig = {
 
 ### 2.7.1 기능 매핑
 
-| 기능 | Gemini | Claude | OpenAI |
-|------|--------|--------|--------|
-| 텍스트 생성 | ✅ | ✅ | ✅ |
-| 스트리밍 | ✅ | ✅ | ✅ |
-| 도구 호출 | ✅ | ✅ | ✅ |
-| 이미지 입력 | ✅ | ✅ | ✅ |
-| 이미지 생성 | ✅ | ❌ | ✅ (DALL-E) |
-| 임베딩 | ✅ | ❌ | ✅ |
-| 토큰 카운트 | ✅ | ⚠️ (추정) | ✅ |
-| 코드 실행 | ✅ | ❌ | ❌ |
+| 기능        | Gemini | Claude    | OpenAI      |
+| ----------- | ------ | --------- | ----------- |
+| 텍스트 생성 | ✅     | ✅        | ✅          |
+| 스트리밍    | ✅     | ✅        | ✅          |
+| 도구 호출   | ✅     | ✅        | ✅          |
+| 이미지 입력 | ✅     | ✅        | ✅          |
+| 이미지 생성 | ✅     | ❌        | ✅ (DALL-E) |
+| 임베딩      | ✅     | ❌        | ✅          |
+| 토큰 카운트 | ✅     | ⚠️ (추정) | ✅          |
+| 코드 실행   | ✅     | ❌        | ❌          |
 
 ### 2.7.2 기능 가용성 확인
 

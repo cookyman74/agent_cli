@@ -4,7 +4,8 @@
 
 ### 4.1.1 목적
 
-Gemini CLI의 Multi-LLM Provider Adapter 설계를 DidimAIStudio 솔루션과 연동하여 다음 목표를 달성합니다:
+Gemini CLI의 Multi-LLM Provider Adapter 설계를 DidimAIStudio 솔루션과 연동하여
+다음 목표를 달성합니다:
 
 1.  **프로바이더 통합**: 두 시스템의 LLM 프로바이더 지원을 통합
 2.  **설정 공유**: 모델 설정 및 API 키를 일관되게 관리
@@ -13,43 +14,45 @@ Gemini CLI의 Multi-LLM Provider Adapter 설계를 DidimAIStudio 솔루션과 �
 
 ### 4.1.2 DidimAIStudio 솔루션 구조
 
-> **소스코드 경로**: `/DidimAIStudio`
-> **인프라 구성**: `/DidimAIStudio/infra/compose/docker-compose.base.yml`
+> **소스코드 경로**: `/DidimAIStudio` **인프라 구성**:
+> `/DidimAIStudio/infra/compose/docker-compose.base.yml`
 
-DidimAIStudio는 마이크로서비스 아키텍처로 구성되어 있으며, Gemini CLI 연동에 핵심적인 서비스는 다음과 같습니다:
+DidimAIStudio는 마이크로서비스 아키텍처로 구성되어 있으며, Gemini CLI 연동에
+핵심적인 서비스는 다음과 같습니다:
 
 #### 핵심 서비스
 
-| 서비스 | 포트 | 역할 | 소스 경로 |
-|--------|------|------|-----------|
+| 서비스               | 포트 | 역할                                      | 소스 경로                    |
+| -------------------- | ---- | ----------------------------------------- | ---------------------------- |
 | **scenario-gateway** | 8008 | API 게이트웨이, API-Key 인증, 요청 라우팅 | `/services/scenario-gateway` |
-| **agents** | 8003 | LLM 실행 엔진, 시나리오/워크플로우 처리 | `/services/agents` |
+| **agents**           | 8003 | LLM 실행 엔진, 시나리오/워크플로우 처리   | `/services/agents`           |
 
 #### 관련 서비스
 
-| 서비스 | 포트 | 역할 |
-|--------|------|------|
-| auth | 8000 | 사용자 인증/인가 |
-| models | 8001 | 모델 프로파일 관리 |
-| indexing | 8002 | 문서 인덱싱/RAG |
-| cloud-storage | 8006 | 파일 스토리지 |
-| mcp-tools | 8007 | MCP 도구 서버 |
+| 서비스        | 포트 | 역할               |
+| ------------- | ---- | ------------------ |
+| auth          | 8000 | 사용자 인증/인가   |
+| models        | 8001 | 모델 프로파일 관리 |
+| indexing      | 8002 | 문서 인덱싱/RAG    |
+| cloud-storage | 8006 | 파일 스토리지      |
+| mcp-tools     | 8007 | MCP 도구 서버      |
 
 ### 4.1.3 시스템 비교
 
-| 구분 | Gemini CLI | DidimAIStudio |
-|------|------------|---------------------|
-| **역할** | 클라이언트 CLI | 서버 마이크로서비스 |
-| **언어** | TypeScript | Python |
-| **프레임워크** | Node.js + Ink | FastAPI + LangGraph |
+| 구분           | Gemini CLI                  | DidimAIStudio                   |
+| -------------- | --------------------------- | ------------------------------- |
+| **역할**       | 클라이언트 CLI              | 서버 마이크로서비스             |
+| **언어**       | TypeScript                  | Python                          |
+| **프레임워크** | Node.js + Ink               | FastAPI + LangGraph             |
 | **프로바이더** | Gemini (+ 어댑터 확장 예정) | 13+ (OpenAI, Claude, Gemini 등) |
-| **스트리밍** | AsyncGenerator | SSE (Server-Sent Events) |
-| **설정 저장** | 환경변수 + 로컬 파일 | Database + 환경변수 |
-| **게이트웨이** | - | scenario-gateway (API-Key 인증) |
+| **스트리밍**   | AsyncGenerator              | SSE (Server-Sent Events)        |
+| **설정 저장**  | 환경변수 + 로컬 파일        | Database + 환경변수             |
+| **게이트웨이** | -                           | scenario-gateway (API-Key 인증) |
 
 ### 4.1.4 연동 범위
 
 **In Scope (1차)**:
+
 - 공통 타입 시스템 정의
 - scenario-gateway를 통한 API 연동
 - 메시지 형식 변환
@@ -57,6 +60,7 @@ DidimAIStudio는 마이크로서비스 아키텍처로 구성되어 있으며, G
 - 토큰 사용량 추적 통합
 
 **Out of Scope (향후)**:
+
 - 실시간 양방향 동기화
 - 분산 트레이싱 통합
 - 공유 메모리 시스템
@@ -195,13 +199,16 @@ Gemini CLI ──► Provider Adapter ──► LLM API (OpenAI/Claude/Gemini)
 **사용 시나리오**: 단독 CLI 사용, 빠른 응답 필요
 
 **설정**:
+
 ```typescript
 // 환경변수 또는 config에서 설정
 LLM_PROVIDER=gemini  // gemini | claude | openai | vllm
 GEMINI_API_KEY=...
 ```
 
-> ⚠️ **Direct 모드 구현 상태**: 현재 `03-technical-design.md`의 GeminiAdapter, ClaudeAdapter, OpenAIAdapter 설계에 해당합니다. DidimAIStudioAdapter와는 별개의 코드 경로입니다.
+> ⚠️ **Direct 모드 구현 상태**: 현재 `03-technical-design.md`의 GeminiAdapter,
+> ClaudeAdapter, OpenAIAdapter 설계에 해당합니다. DidimAIStudioAdapter와는
+> 별개의 코드 경로입니다.
 
 #### 모드 B: Gateway Mode (DidimAIStudio 연동)
 
@@ -212,11 +219,13 @@ Gemini CLI ──► DidimAIStudioAdapter ──► scenario-gateway ──► a
 ```
 
 **사용 시나리오**:
+
 - DidimAIStudio의 고급 기능 활용 (에이전트 워크플로우, 메모리)
 - 중앙 집중식 API 키 관리
 - 사용량 추적 및 비용 관리
 
 **설정**:
+
 ```typescript
 // 환경변수 또는 config에서 설정
 LLM_PROVIDER=didim
@@ -225,9 +234,10 @@ DIDIM_API_KEY=...
 ```
 
 > ⚠️ **엔드포인트 선택 (M2 관련)**:
+>
 > - `/api/v1/invoke/sse`: 기본 SSE 스트리밍
 > - `/api/v1/invoke/sse/improved`: LangGraph 세분화 SSE (권장)
-> 
+>
 > 현재 어댑터는 **`/api/v1/invoke/sse/improved`를 사용**합니다.
 
 ### 4.2.4 데이터 흐름
@@ -312,49 +322,52 @@ class AgentsInvokeResponse(BaseModel):
 
 #### 메시지 타입
 
-| Gemini CLI | DidimAIStudio | 설명 |
-|------------|---------------|------|
-| `LlmMessage` | `BaseMessage` (LangChain) | 기본 메시지 |
-| `LlmTextContent` | `message: str` | 텍스트 내용 |
-| `LlmImageContent` | `attachments: List[str]` | 이미지 URL |
-| `LlmToolCallContent` | `ToolCall` (LangGraph) | 도구 호출 |
-| `LlmToolResultContent` | `ToolMessage` (LangGraph) | 도구 결과 |
+| Gemini CLI             | DidimAIStudio             | 설명        |
+| ---------------------- | ------------------------- | ----------- |
+| `LlmMessage`           | `BaseMessage` (LangChain) | 기본 메시지 |
+| `LlmTextContent`       | `message: str`            | 텍스트 내용 |
+| `LlmImageContent`      | `attachments: List[str]`  | 이미지 URL  |
+| `LlmToolCallContent`   | `ToolCall` (LangGraph)    | 도구 호출   |
+| `LlmToolResultContent` | `ToolMessage` (LangGraph) | 도구 결과   |
 
 #### 요청/응답 타입
 
-| Gemini CLI | DidimAIStudio (scenario-gateway) | DidimAIStudio (agents) | 비고 |
-|------------|----------------------------------|------------------------|------|
-| `LlmGenerateRequest` | `ScenarioSSERequestDTO` | `AgentsInvokeRequest` | ⚠️ chat 필드만 전달됨 |
-| `LlmGenerateResponse` | SSE `done` event | `AgentsInvokeResponse` | |
-| `LlmStreamEvent` | SSE Events | SSE Events | |
-| `LlmTokenUsage` | `token_summary` | `total_tokens` | |
+| Gemini CLI            | DidimAIStudio (scenario-gateway) | DidimAIStudio (agents) | 비고                  |
+| --------------------- | -------------------------------- | ---------------------- | --------------------- |
+| `LlmGenerateRequest`  | `ScenarioSSERequestDTO`          | `AgentsInvokeRequest`  | ⚠️ chat 필드만 전달됨 |
+| `LlmGenerateResponse` | SSE `done` event                 | `AgentsInvokeResponse` |                       |
+| `LlmStreamEvent`      | SSE Events                       | SSE Events             |                       |
+| `LlmTokenUsage`       | `token_summary`                  | `total_tokens`         |                       |
 
 > ⚠️ **제한사항**:
-> - `LlmGenerateRequest`의 `messages[]`, `tools[]`, `systemInstruction`은 현재 gateway API로 전달 불가
+>
+> - `LlmGenerateRequest`의 `messages[]`, `tools[]`, `systemInstruction`은 현재
+>   gateway API로 전달 불가
 > - Multi-turn 컨텍스트는 서버 측 thread 관리에 의존
 
 #### SSE 이벤트 타입 매핑
 
-| Gemini CLI `LlmStreamEvent.type` | DidimAIStudio SSE Event | 설명 | 비고 |
-|----------------------------------|-------------------------|------|------|
-| `content_delta` | `message`, `content` | 텍스트 청크 | |
-| `content_delta` | `message_partial` | 토큰 스트리밍 | improved SSE |
-| `content_delta` (metadata) | `message_metadata` | 실행 컨텍스트 | improved SSE |
-| `content_delta` (metadata) | `process` | 노드 진행 상황 | improved SSE |
-| `message_end` | `done` | 응답 완료 | threadId, qaId 포함 |
-| `error` | `error` | 에러 발생 | |
+| Gemini CLI `LlmStreamEvent.type` | DidimAIStudio SSE Event | 설명           | 비고                |
+| -------------------------------- | ----------------------- | -------------- | ------------------- |
+| `content_delta`                  | `message`, `content`    | 텍스트 청크    |                     |
+| `content_delta`                  | `message_partial`       | 토큰 스트리밍  | improved SSE        |
+| `content_delta` (metadata)       | `message_metadata`      | 실행 컨텍스트  | improved SSE        |
+| `content_delta` (metadata)       | `process`               | 노드 진행 상황 | improved SSE        |
+| `message_end`                    | `done`                  | 응답 완료      | threadId, qaId 포함 |
+| `error`                          | `error`                 | 에러 발생      |                     |
 
-> ⚠️ **tool_call_delta 미지원**: 현재 gateway API는 tool 정보를 입/출력하지 않으므로 `tool_call_delta` 이벤트는 발생하지 않습니다.
+> ⚠️ **tool_call_delta 미지원**: 현재 gateway API는 tool 정보를 입/출력하지
+> 않으므로 `tool_call_delta` 이벤트는 발생하지 않습니다.
 
 #### 완료 상태 매핑
 
-| Gemini CLI `LlmStopReason` | DidimAIStudio SSE Event |
-|---------------------------|-------------------------|
-| `end_turn` | `done` event |
-| `max_tokens` | `done` with truncation |
-| `tool_use` | `process` (tool_start) |
-| `content_filter` | `error` (CONTENT_FILTER) |
-| `error` | `error` event |
+| Gemini CLI `LlmStopReason` | DidimAIStudio SSE Event  |
+| -------------------------- | ------------------------ |
+| `end_turn`                 | `done` event             |
+| `max_tokens`               | `done` with truncation   |
+| `tool_use`                 | `process` (tool_start)   |
+| `content_filter`           | `error` (CONTENT_FILTER) |
+| `error`                    | `error` event            |
 
 ### 4.3.3 공통 인터페이스 정의
 
@@ -370,17 +383,17 @@ class AgentsInvokeResponse(BaseModel):
 
 // scenario-gateway 입력 (POST /api/v1/invoke/sse)
 export interface ScenarioSSERequestDTO {
-  chat: string;  // 채팅 메시지 (1-10000자)
+  chat: string; // 채팅 메시지 (1-10000자)
 }
 
 // agents 서비스 요청 (내부 통신용, scenario-gateway → agents)
 export interface AgentsInvokeRequest {
-  scenario_my_page_id: number;    // 시나리오 마이페이지 ID
-  user_id: string;                // 사용자 ID
-  thread_id: string;              // 대화 흐름 구분 ID
-  qa_id: string;                  // 질문-응답 단위 ID
-  message: string;                // 사용자 메시지
-  attachments?: string[] | null;  // 첨부파일 URL 목록
+  scenario_my_page_id: number; // 시나리오 마이페이지 ID
+  user_id: string; // 사용자 ID
+  thread_id: string; // 대화 흐름 구분 ID
+  qa_id: string; // 질문-응답 단위 ID
+  message: string; // 사용자 메시지
+  attachments?: string[] | null; // 첨부파일 URL 목록
 }
 
 // agents 서비스 응답
@@ -403,22 +416,22 @@ export interface WebSocketKeyResponseDTO {
   id: number;
   user_id: string;
   scenario_my_page_id?: number;
-  thread_id: string;     // 스레드 ID
-  qa_id: string;         // QA ID
+  thread_id: string; // 스레드 ID
+  qa_id: string; // QA ID
   created_at: string;
   updated_at: string;
 }
 
 // SSE 이벤트 타입
 export type DidimSSEEventType =
-  | 'message'           // 기본 메시지 청크
-  | 'content'           // 콘텐츠 청크
-  | 'message_partial'   // 토큰 스트리밍 (improved)
-  | 'message_complete'  // 메시지 완료 (improved)
-  | 'message_metadata'  // 실행 컨텍스트 (improved)
-  | 'process'           // 노드 진행 상황 (improved)
-  | 'done'              // 응답 완료
-  | 'error';            // 에러
+  | 'message' // 기본 메시지 청크
+  | 'content' // 콘텐츠 청크
+  | 'message_partial' // 토큰 스트리밍 (improved)
+  | 'message_complete' // 메시지 완료 (improved)
+  | 'message_metadata' // 실행 컨텍스트 (improved)
+  | 'process' // 노드 진행 상황 (improved)
+  | 'done' // 응답 완료
+  | 'error'; // 에러
 
 // SSE 청크 데이터
 export interface SSEChatChunk {
@@ -521,31 +534,32 @@ class LlmGenerateResponse(BaseModel):
 ### 4.4.1 DidimAIStudio 실제 API 엔드포인트
 
 > **소스 참조**:
+>
 > - `/services/scenario-gateway/app/api/v1/endpoints/scenario_api.py`
 > - `/services/agents/app/api/v1/router.py`
 
 #### scenario-gateway 엔드포인트 (Port 8008)
 
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| POST | `/api/v1/invoke` | 비스트리밍 채팅 요청 |
-| POST | `/api/v1/invoke/sse` | SSE 스트리밍 채팅 |
-| POST | `/api/v1/invoke/sse/improved` | LangGraph 호환 세분화 SSE |
-| GET | `/health` | 헬스 체크 |
-| GET | `/metrics` | Prometheus 메트릭 |
+| 메서드 | 경로                          | 설명                      |
+| ------ | ----------------------------- | ------------------------- |
+| POST   | `/api/v1/invoke`              | 비스트리밍 채팅 요청      |
+| POST   | `/api/v1/invoke/sse`          | SSE 스트리밍 채팅         |
+| POST   | `/api/v1/invoke/sse/improved` | LangGraph 호환 세분화 SSE |
+| GET    | `/health`                     | 헬스 체크                 |
+| GET    | `/metrics`                    | Prometheus 메트릭         |
 
 #### agents 엔드포인트 (Port 8003) - 내부 통신
 
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| POST | `/v1/invoke` | 비스트리밍 실행 |
-| POST | `/v1/invoke/sse` | SSE 스트리밍 실행 |
-| POST | `/v1/invoke/sse/improved` | 세분화 SSE 스트리밍 |
-| POST | `/v1/websocket-keys` | 새 Thread + qa_id 생성 |
-| POST | `/v1/websocket-keys/with-thread-id` | 기존 Thread에 qa_id 발급 |
-| POST | `/v1/chats` | 채팅 종료 (토큰 집계) |
-| GET | `/v1/scenarios` | 시나리오 조회 |
-| GET | `/v1/threads` | Thread 조회 |
+| 메서드 | 경로                                | 설명                     |
+| ------ | ----------------------------------- | ------------------------ |
+| POST   | `/v1/invoke`                        | 비스트리밍 실행          |
+| POST   | `/v1/invoke/sse`                    | SSE 스트리밍 실행        |
+| POST   | `/v1/invoke/sse/improved`           | 세분화 SSE 스트리밍      |
+| POST   | `/v1/websocket-keys`                | 새 Thread + qa_id 생성   |
+| POST   | `/v1/websocket-keys/with-thread-id` | 기존 Thread에 qa_id 발급 |
+| POST   | `/v1/chats`                         | 채팅 종료 (토큰 집계)    |
+| GET    | `/v1/scenarios`                     | 시나리오 조회            |
+| GET    | `/v1/threads`                       | Thread 조회              |
 
 ### 4.4.2 DidimAIStudio 어댑터 (gemini-cli)
 
@@ -570,16 +584,16 @@ import {
 import { DidimTypeConverter } from './converter';
 
 export interface DidimAdapterConfig extends AdapterConfig {
-  baseUrl: string;           // scenario-gateway URL (예: http://localhost:8008)
-  apiKey: string;            // API Key (Bearer 토큰)
-  threadId?: string;         // 기존 대화 스레드 ID (선택적)
+  baseUrl: string; // scenario-gateway URL (예: http://localhost:8008)
+  apiKey: string; // API Key (Bearer 토큰)
+  threadId?: string; // 기존 대화 스레드 ID (선택적)
 }
 
 export class DidimAIStudioAdapter extends BaseAdapter {
   readonly providerName = 'didim-aistudio';
   /**
    * Capabilities - 실제 scenario-gateway API 지원 범위 기반
-   * 
+   *
    * ⚠️ 제한사항:
    * - Tool/Attachment는 현재 ScenarioSSERequestDTO(chat만 수신)로 전달 불가
    * - Embedding/TokenCount는 사후 추정값만 제공 (사전 API 없음)
@@ -587,13 +601,13 @@ export class DidimAIStudioAdapter extends BaseAdapter {
    */
   readonly capabilities: ProviderCapabilities = {
     supportsStreaming: true,
-    supportsToolCalls: false,       // ⚠️ 현재 gateway API로 tool 정보 전달 불가
-    supportsImageInput: false,      // ⚠️ attachments는 gateway 내부에서만 처리
+    supportsToolCalls: false, // ⚠️ 현재 gateway API로 tool 정보 전달 불가
+    supportsImageInput: false, // ⚠️ attachments는 gateway 내부에서만 처리
     supportsImageGeneration: false,
-    supportsEmbedding: false,       // ⚠️ Didim API에 사전 embedding endpoint 없음
-    supportsTokenCount: false,      // ⚠️ 사전 token count API 없음 (추정값만 가능)
-    supportsSystemMessage: false,   // ⚠️ 시나리오 설정에 포함, 요청 시 전달 불가
-    maxContextLength: 200_000,      // 시나리오에 설정된 모델에 따라 다름
+    supportsEmbedding: false, // ⚠️ Didim API에 사전 embedding endpoint 없음
+    supportsTokenCount: false, // ⚠️ 사전 token count API 없음 (추정값만 가능)
+    supportsSystemMessage: false, // ⚠️ 시나리오 설정에 포함, 요청 시 전달 불가
+    maxContextLength: 200_000, // 시나리오에 설정된 모델에 따라 다름
     maxOutputTokens: 32_768,
   };
 
@@ -613,12 +627,12 @@ export class DidimAIStudioAdapter extends BaseAdapter {
    * - ScenarioSSERequestDTO가 "chat" 필드만 받으므로, 마지막 사용자 메시지만 전송됨
    * - 시스템 메시지, 이전 대화 히스토리, 도구 컨텍스트는 전달되지 않음
    * - Multi-turn 품질은 DidimAIStudio 서버 측 thread 관리에 의존
-   * 
+   *
    * TODO: 전용 API 확장 시 LlmGenerateRequest 전체를 전달하도록 개선
    */
   async generateContent(
     request: LlmGenerateRequest,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmGenerateResponse> {
     // 마지막 사용자 메시지만 추출 (API 제약으로 인한 제한)
     const chatMessage = this.converter.extractLastUserMessage(request);
@@ -627,7 +641,7 @@ export class DidimAIStudioAdapter extends BaseAdapter {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${this.config.apiKey}`,
         ...(this.currentThreadId && { 'x-thread-id': this.currentThreadId }),
       },
       body: JSON.stringify({ chat: chatMessage }),
@@ -648,7 +662,7 @@ export class DidimAIStudioAdapter extends BaseAdapter {
 
   async generateContentStream(
     request: LlmGenerateRequest,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): Promise<LlmStream> {
     this.validateRequest(request);
     return this.createSSEStream(request, options);
@@ -663,21 +677,24 @@ export class DidimAIStudioAdapter extends BaseAdapter {
 
   private async *createSSEStream(
     request: LlmGenerateRequest,
-    options?: GenerateOptions
+    options?: GenerateOptions,
   ): LlmStream {
     const chatMessage = this.converter.extractLastUserMessage(request);
 
-    const response = await fetch(`${this.config.baseUrl}/api/v1/invoke/sse/improved`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        'Accept': 'text/event-stream',
-        ...(this.currentThreadId && { 'x-thread-id': this.currentThreadId }),
+    const response = await fetch(
+      `${this.config.baseUrl}/api/v1/invoke/sse/improved`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.config.apiKey}`,
+          Accept: 'text/event-stream',
+          ...(this.currentThreadId && { 'x-thread-id': this.currentThreadId }),
+        },
+        body: JSON.stringify({ chat: chatMessage }),
+        signal: options?.signal,
       },
-      body: JSON.stringify({ chat: chatMessage }),
-      signal: options?.signal,
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`SSE connection failed: ${response.statusText}`);
@@ -754,9 +771,9 @@ export class DidimAIStudioAdapter extends BaseAdapter {
 
     try {
       const parsed = JSON.parse(data);
-      return { 
-        eventType, 
-        data: parsed, 
+      return {
+        eventType,
+        data: parsed,
         eventId,
         // H1 수정: data에서 threadId 추출
         threadId: parsed.thread_id || parsed.threadId,
@@ -772,8 +789,8 @@ interface ParsedSSEEvent {
   eventType: string;
   data: any;
   eventId: string | null;
-  threadId?: string;  // H1: data에서 추출된 threadId
-  qaId?: string;      // data에서 추출된 qaId
+  threadId?: string; // H1: data에서 추출된 threadId
+  qaId?: string; // data에서 추출된 qaId
 }
 ```
 
@@ -803,13 +820,13 @@ export class DidimTypeConverter {
    * 마지막 사용자 메시지 추출
    */
   extractLastUserMessage(request: LlmGenerateRequest): string {
-    const userMessages = request.messages.filter(m => m.role === 'user');
+    const userMessages = request.messages.filter((m) => m.role === 'user');
     if (userMessages.length === 0) return '';
 
     const lastMessage = userMessages[userMessages.length - 1];
     const texts = lastMessage.content
       .filter((c): c is LlmTextContent => c.type === 'text')
-      .map(c => c.text);
+      .map((c) => c.text);
 
     return texts.join('\n');
   }
@@ -847,7 +864,10 @@ export class DidimTypeConverter {
   /**
    * ChatResponse → LlmGenerateResponse 변환
    */
-  toChatResponseToLlm(response: ChatResponse, model: string): LlmGenerateResponse {
+  toChatResponseToLlm(
+    response: ChatResponse,
+    model: string,
+  ): LlmGenerateResponse {
     return {
       id: response.thread_id,
       content: [{ type: 'text', text: response.response }],
@@ -864,7 +884,11 @@ export class DidimTypeConverter {
   /**
    * SSE 이벤트 → LlmStreamEvent 변환
    */
-  toStreamEvent(event: { eventType: string; data: any; eventId: string | null }): LlmStreamEvent {
+  toStreamEvent(event: {
+    eventType: string;
+    data: any;
+    eventId: string | null;
+  }): LlmStreamEvent {
     const { eventType, data } = event;
 
     switch (eventType) {
@@ -957,8 +981,9 @@ export class DidimTypeConverter {
 
 ### 4.4.4 기존 API 활용 방안 (DidimAIStudio)
 
-> **핵심**: Gemini CLI는 scenario-gateway의 기존 API를 그대로 활용합니다.
-> 별도의 `/gemini-cli` 전용 API를 만들지 않고, 기존 `/api/v1/invoke/sse` 엔드포인트를 사용합니다.
+> **핵심**: Gemini CLI는 scenario-gateway의 기존 API를 그대로 활용합니다. 별도의
+> `/gemini-cli` 전용 API를 만들지 않고, 기존 `/api/v1/invoke/sse` 엔드포인트를
+> 사용합니다.
 
 #### 기존 API 흐름 (scenario_api.py)
 
@@ -1356,16 +1381,16 @@ class GeminiCLIConverter:
 
 export interface DidimIntegrationConfig {
   enabled: boolean;
-  baseUrl: string;        // scenario-gateway URL (예: http://localhost:8008)
-  apiKey: string;         // DidimAIStudio API-Key (시나리오별 발급)
-  threadId?: string;      // 기존 대화 스레드 ID (선택적)
+  baseUrl: string; // scenario-gateway URL (예: http://localhost:8008)
+  apiKey: string; // DidimAIStudio API-Key (시나리오별 발급)
+  threadId?: string; // 기존 대화 스레드 ID (선택적)
 
   // 선택적 설정
   timeout?: number;
   retries?: number;
 
   // 모드 선택
-  mode: 'direct' | 'gateway';  // direct: 직접 API, gateway: DidimAI 경유
+  mode: 'direct' | 'gateway'; // direct: 직접 API, gateway: DidimAI 경유
 }
 
 // 환경 변수
@@ -1467,22 +1492,22 @@ class Settings(BaseSettings):
  */
 export const PROVIDER_MAPPING = {
   // Gemini CLI → DidimAIStudio
-  'gemini': 'google',
-  'claude': 'anthropic',
-  'openai': 'openai',
-  'gpt': 'openai',
+  gemini: 'google',
+  claude: 'anthropic',
+  openai: 'openai',
+  gpt: 'openai',
 
   // DidimAIStudio 전용
-  'bedrock': 'bedrock',
-  'azure': 'azure_openai',
-  'mistral': 'mistral',
-  'groq': 'groq',
-  'naver': 'naver',
-  'vllm': 'vllm',
-  'together': 'together',
-  'cohere': 'cohere',
-  'fireworks': 'fireworks',
-  'huggingface': 'huggingface',
+  bedrock: 'bedrock',
+  azure: 'azure_openai',
+  mistral: 'mistral',
+  groq: 'groq',
+  naver: 'naver',
+  vllm: 'vllm',
+  together: 'together',
+  cohere: 'cohere',
+  fireworks: 'fireworks',
+  huggingface: 'huggingface',
 };
 
 /**
@@ -1541,19 +1566,19 @@ import { LlmError, LlmErrorType } from '../errors';
  * DidimAIStudio 에러 코드 → Gemini CLI 에러 타입 매핑
  */
 export const ERROR_CODE_MAPPING: Record<string, LlmErrorType> = {
-  'AUTH_FAILED': LlmErrorType.AUTHENTICATION,
-  'RATE_LIMITED': LlmErrorType.RATE_LIMIT,
-  'MODEL_OVERLOADED': LlmErrorType.MODEL_OVERLOADED,
-  'CONTEXT_TOO_LONG': LlmErrorType.CONTEXT_LENGTH_EXCEEDED,
-  'CONTENT_FILTERED': LlmErrorType.CONTENT_FILTER,
-  'TIMEOUT': LlmErrorType.TIMEOUT,
-  'NETWORK_ERROR': LlmErrorType.NETWORK,
-  'INVALID_REQUEST': LlmErrorType.INVALID_REQUEST,
+  AUTH_FAILED: LlmErrorType.AUTHENTICATION,
+  RATE_LIMITED: LlmErrorType.RATE_LIMIT,
+  MODEL_OVERLOADED: LlmErrorType.MODEL_OVERLOADED,
+  CONTEXT_TOO_LONG: LlmErrorType.CONTEXT_LENGTH_EXCEEDED,
+  CONTENT_FILTERED: LlmErrorType.CONTENT_FILTER,
+  TIMEOUT: LlmErrorType.TIMEOUT,
+  NETWORK_ERROR: LlmErrorType.NETWORK,
+  INVALID_REQUEST: LlmErrorType.INVALID_REQUEST,
 };
 
 export function mapDidimErrorToLlmError(
   errorCode: string,
-  message: string
+  message: string,
 ): LlmError {
   const errorType = ERROR_CODE_MAPPING[errorCode] || LlmErrorType.UNKNOWN;
   return new LlmError(errorType, message, 'didim-aistudio');
@@ -1567,7 +1592,7 @@ export function mapDidimErrorToLlmError(
 
 export interface FallbackConfig {
   enabled: boolean;
-  fallbackProvider: string;  // 'gemini' | 'claude' | 'openai'
+  fallbackProvider: string; // 'gemini' | 'claude' | 'openai'
   maxRetries: number;
   retryableErrors: LlmErrorType[];
 }
@@ -1631,7 +1656,11 @@ describe('DidimTypeConverter', () => {
               { type: 'text', text: 'What is this?' },
               {
                 type: 'image',
-                source: { type: 'url', mediaType: 'image/png', data: 'https://example.com/image.png' },
+                source: {
+                  type: 'url',
+                  mediaType: 'image/png',
+                  data: 'https://example.com/image.png',
+                },
               },
             ],
           },
@@ -1743,7 +1772,7 @@ describe('DidimAIStudioAdapter Integration', () => {
     }
 
     expect(events.length).toBeGreaterThan(0);
-    expect(events.some(e => e.type === 'message_end')).toBe(true);
+    expect(events.some((e) => e.type === 'message_end')).toBe(true);
   });
 });
 ```
@@ -1755,38 +1784,38 @@ describe('DidimAIStudioAdapter Integration', () => {
 
 ### Phase 1: 기반 작업 (3일)
 
-| 작업 | 담당 | 일정 |
-|------|------|------|
+| 작업                                              | 담당       | 일정  |
+| ------------------------------------------------- | ---------- | ----- |
 | DidimAIStudio API 분석 (scenario-gateway, agents) | gemini-cli | 0.5일 |
-| 공통 타입 정의 (TypeScript) | gemini-cli | 1일 |
-| 에러 매핑 정의 | gemini-cli | 0.5일 |
-| API-Key 발급 및 테스트 환경 구성 | 공통 | 1일 |
+| 공통 타입 정의 (TypeScript)                       | gemini-cli | 1일   |
+| 에러 매핑 정의                                    | gemini-cli | 0.5일 |
+| API-Key 발급 및 테스트 환경 구성                  | 공통       | 1일   |
 
 ### Phase 2: 어댑터 구현 (5일)
 
-| 작업 | 담당 | 일정 |
-|------|------|------|
-| DidimAIStudioAdapter 구현 | gemini-cli | 2일 |
+| 작업                               | 담당       | 일정  |
+| ---------------------------------- | ---------- | ----- |
+| DidimAIStudioAdapter 구현          | gemini-cli | 2일   |
 | DidimTypeConverter 구현 (SSE 파싱) | gemini-cli | 1.5일 |
-| SSE 스트리밍 테스트 | gemini-cli | 0.5일 |
-| 기존 API 호환성 검증 | 공통 | 1일 |
+| SSE 스트리밍 테스트                | gemini-cli | 0.5일 |
+| 기존 API 호환성 검증               | 공통       | 1일   |
 
 ### Phase 3: 테스트 및 통합 (4일)
 
-| 작업 | 담당 | 일정 |
-|------|------|------|
-| 단위 테스트 작성 | gemini-cli | 1일 |
-| 통합 테스트 작성 (Docker 환경) | 공통 | 1일 |
-| E2E 테스트 (scenario-gateway ↔ agents) | 공통 | 1일 |
-| 문서화 및 예제 작성 | 공통 | 1일 |
+| 작업                                    | 담당       | 일정 |
+| --------------------------------------- | ---------- | ---- |
+| 단위 테스트 작성                        | gemini-cli | 1일  |
+| 통합 테스트 작성 (Docker 환경)          | 공통       | 1일  |
+| E2E 테스트 (scenario-gateway ↔ agents) | 공통       | 1일  |
+| 문서화 및 예제 작성                     | 공통       | 1일  |
 
 ### 선택적 확장: Gemini CLI 전용 API (1주)
 
-| 작업 | 담당 | 일정 |
-|------|------|------|
-| `/api/v1/gemini-cli/*` 엔드포인트 추가 | DidimAIStudio | 2일 |
-| GeminiCLIService 구현 | DidimAIStudio | 2일 |
-| 통합 테스트 | 공통 | 1일 |
+| 작업                                   | 담당          | 일정 |
+| -------------------------------------- | ------------- | ---- |
+| `/api/v1/gemini-cli/*` 엔드포인트 추가 | DidimAIStudio | 2일  |
+| GeminiCLIService 구현                  | DidimAIStudio | 2일  |
+| 통합 테스트                            | 공통          | 1일  |
 
 ### 총 예상 기간: 2주 (기본) ~ 3주 (전용 API 포함)
 
@@ -1810,7 +1839,8 @@ describe('DidimAIStudioAdapter Integration', () => {
 
 ### 4.11.1 문맥 관리 아키텍처 차이
 
-Gemini CLI(기본 모드)와 DidimAIStudio 연동 모드는 대화 문맥(히스토리) 관리 방식이 근본적으로 다릅니다:
+Gemini CLI(기본 모드)와 DidimAIStudio 연동 모드는 대화 문맥(히스토리) 관리
+방식이 근본적으로 다릅니다:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -1839,16 +1869,17 @@ Gemini CLI(기본 모드)와 DidimAIStudio 연동 모드는 대화 문맥(히스
 
 > ⚠️ **중요**: 아래 제약사항들은 DidimAIStudio Gateway 모드 사용 시 적용됩니다.
 
-| 제약사항 | 설명 | 영향 |
-|----------|------|------|
-| **단방향 동기화** | CLI 로컬 히스토리 조작(삭제/수정)이 서버 thread에 반영되지 않음 | 로컬에서 대화 삭제해도 서버는 이전 문맥 유지 |
-| **히스토리 전송 불가** | `extractLastUserMessage()`로 마지막 메시지만 전송 | 시스템 메시지, 이전 대화가 직접 전달되지 않음 |
-| **서버 의존적 문맥** | Multi-turn 품질은 DidimAIStudio의 thread 관리에 의존 | 서버 측 thread 만료/삭제 시 문맥 손실 가능 |
-| **도구 컨텍스트 미전달** | `tools[]` 정보가 gateway API로 전달되지 않음 | 시나리오에 사전 정의된 도구만 사용 가능 |
+| 제약사항                 | 설명                                                            | 영향                                          |
+| ------------------------ | --------------------------------------------------------------- | --------------------------------------------- |
+| **단방향 동기화**        | CLI 로컬 히스토리 조작(삭제/수정)이 서버 thread에 반영되지 않음 | 로컬에서 대화 삭제해도 서버는 이전 문맥 유지  |
+| **히스토리 전송 불가**   | `extractLastUserMessage()`로 마지막 메시지만 전송               | 시스템 메시지, 이전 대화가 직접 전달되지 않음 |
+| **서버 의존적 문맥**     | Multi-turn 품질은 DidimAIStudio의 thread 관리에 의존            | 서버 측 thread 만료/삭제 시 문맥 손실 가능    |
+| **도구 컨텍스트 미전달** | `tools[]` 정보가 gateway API로 전달되지 않음                    | 시나리오에 사전 정의된 도구만 사용 가능       |
 
 ### 4.11.3 UX 안내 메시지 설계 (권고사항 2 반영)
 
-DidimAIStudio 연동 시 사용자에게 서버 측 문맥 관리 특성을 인지시키기 위한 UX 장치:
+DidimAIStudio 연동 시 사용자에게 서버 측 문맥 관리 특성을 인지시키기 위한 UX
+장치:
 
 ```typescript
 // packages/cli/src/views/DidimModeIndicator.tsx
@@ -1860,18 +1891,18 @@ const DIDIM_MODE_NOTICES = {
     • 대화 히스토리는 서버에서 관리됩니다.
     • 로컬에서 히스토리를 수정해도 서버에 반영되지 않습니다.
   `,
-  
+
   // 새 thread 시작 시
   newThread: (threadId: string) => `
     🔗 새 대화 스레드가 시작되었습니다: ${threadId.substring(0, 8)}...
   `,
-  
+
   // 기존 thread 연결 시
   resumeThread: (threadId: string) => `
     🔗 기존 대화를 이어갑니다: ${threadId.substring(0, 8)}...
     (서버에 저장된 대화 문맥이 적용됩니다)
   `,
-  
+
   // 로컬 히스토리 삭제 시도 시 경고
   localDeleteWarning: `
     ⚠️  로컬 히스토리만 삭제됩니다.
@@ -1882,7 +1913,7 @@ const DIDIM_MODE_NOTICES = {
 // 사용 예시
 function renderSessionStart(): React.ReactNode {
   const { provider } = useProviderContext();
-  
+
   if (provider === 'didim') {
     return (
       <Box marginBottom={1}>
@@ -1901,4 +1932,3 @@ function renderSessionStart(): React.ReactNode {
 1. **양방향 동기화 API**: CLI ↔ DidimAIStudio 간 히스토리 동기화 프로토콜
 2. **Thread 관리 CLI 명령어**: `gemini thread list`, `gemini thread delete <id>`
 3. **오프라인 모드 전환**: 서버 연결 불가 시 자동으로 기본 모드로 fallback
-

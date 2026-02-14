@@ -572,6 +572,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const isAuthenticating = authState === AuthState.Unauthenticated;
   const isSelectingProvider = authState === AuthState.SelectingProvider;
   const isConfiguringSlm = authState === AuthState.ConfiguringSlm;
+  const isConfiguringVertex = authState === AuthState.ConfiguringVertex;
 
   // Session browser and resume functionality
   const isGeminiClientInitialized = config.getGeminiClient()?.isInitialized();
@@ -808,6 +809,47 @@ Logging in with Google... Restarting Gemini CLI to continue.
     setAuthState(AuthState.SelectingProvider);
   }, [setAuthState]);
 
+  const handleVertexConfigComplete = useCallback(
+    async (vertexConfig: { project: string; location: string }) => {
+      try {
+        onAuthError(null);
+        // Save Vertex AI config to settings
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.vertexConfig',
+          vertexConfig,
+        );
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.selectedProvider',
+          'vertex-ai',
+        );
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.selectedType',
+          AuthType.USE_VERTEX_AI,
+        );
+
+        // Set env vars for Vertex AI routing in contentGenerator
+        process.env['GOOGLE_CLOUD_PROJECT'] = vertexConfig.project;
+        process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;
+
+        await config.refreshAuth(AuthType.USE_VERTEX_AI);
+        setAuthState(AuthState.Authenticated);
+      } catch (e) {
+        onAuthError(
+          `Failed to configure Vertex AI: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    },
+    [settings, config, setAuthState, onAuthError],
+  );
+
+  const handleVertexConfigCancel = useCallback(() => {
+    // Go back to provider selection (Step 1)
+    setAuthState(AuthState.SelectingProvider);
+  }, [setAuthState]);
+
   const handleProviderSelect = useCallback(
     (providerKey: string) => {
       setSelectedProvider(providerKey);
@@ -819,12 +861,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
       } else if (providerKey === 'claude' || providerKey === 'openai') {
         // Claude/OpenAI → Direct to API key input
         setAuthState(AuthState.AwaitingApiKeyInput);
+      } else if (providerKey === 'vertex-ai') {
+        // Vertex AI → Step 2C: Vertex AI configuration dialog
+        setAuthState(AuthState.ConfiguringVertex);
       } else if (providerKey === 'slm') {
         // sLM → Step 2D: sLM configuration dialog
         setAuthState(AuthState.ConfiguringSlm);
       }
-      // vertex-ai routing will be added in Phase 3
-      // when ConfiguringVertex dialog is implemented
     },
     [setSelectedProvider, setAuthState],
   );
@@ -1816,6 +1859,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isAwaitingApiKeyInput: authState === AuthState.AwaitingApiKeyInput,
       isSelectingProvider,
       isConfiguringSlm,
+      isConfiguringVertex,
       selectedProvider,
       apiKeyDefaultValue,
       editorError,
@@ -1915,6 +1959,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isAuthenticating,
       isSelectingProvider,
       isConfiguringSlm,
+      isConfiguringVertex,
       selectedProvider,
       isConfigInitialized,
       authError,
@@ -2059,6 +2104,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleProviderSelect,
       handleSlmConfigComplete,
       handleSlmConfigCancel,
+      handleVertexConfigComplete,
+      handleVertexConfigCancel,
       setBannerVisible,
       setEmbeddedShellFocused,
       setAuthContext,
@@ -2125,6 +2172,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleProviderSelect,
       handleSlmConfigComplete,
       handleSlmConfigCancel,
+      handleVertexConfigComplete,
+      handleVertexConfigCancel,
       setBannerVisible,
       setEmbeddedShellFocused,
       setAuthContext,

@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`VertexConfigDialog > snapshot > matches snapshot for initial render 1`] = `
+"╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                  │
+│ Vertex AI Configuration                                                              Step 1 of 2 │
+│                                                                                                  │
+│ Google Cloud Project ID                                                                          │
+│ Enter the Google Cloud project ID to use with Vertex AI.                                         │
+│                                                                                                  │
+│ ╭──────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │                                                                                              │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                                  │
+│ Press Enter to continue, Esc to go back                                                          │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
+`;

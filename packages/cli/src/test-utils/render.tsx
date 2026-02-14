@@ -158,6 +158,7 @@ const baseMockUiState = {
   terminalBackgroundColor: undefined,
   isSelectingProvider: false,
   isConfiguringSlm: false,
+  isConfiguringVertex: false,
   selectedProvider: undefined,
 };
 
@@ -204,6 +205,8 @@ const mockUIActions: UIActions = {
   handleProviderSelect: vi.fn(),
   handleSlmConfigComplete: vi.fn(),
   handleSlmConfigCancel: vi.fn(),
+  handleVertexConfigComplete: vi.fn(),
+  handleVertexConfigCancel: vi.fn(),
   setBannerVisible: vi.fn(),
   setEmbeddedShellFocused: vi.fn(),
   setAuthContext: vi.fn(),

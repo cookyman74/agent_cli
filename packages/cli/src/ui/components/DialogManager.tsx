@@ -16,6 +16,7 @@ import { AuthDialog } from '../auth/AuthDialog.js';
 import { ApiAuthDialog } from '../auth/ApiAuthDialog.js';
 import { ProviderSelectDialog } from '../auth/ProviderSelectDialog.js';
 import { SlmConfigDialog } from '../auth/SlmConfigDialog.js';
+import { VertexConfigDialog } from '../auth/VertexConfigDialog.js';
 import { AuthState } from '../types.js';
 import { EditorSettingsDialog } from './EditorSettingsDialog.js';
 import { PrivacyNotice } from '../privacy/PrivacyNotice.js';
@@ -237,6 +238,20 @@ export const DialogManager = ({
           onComplete={uiActions.handleSlmConfigComplete}
           onCancel={uiActions.handleSlmConfigCancel}
           defaultConfig={slmConfig}
+        />
+      </Box>
+    );
+  }
+  if (uiState.isConfiguringVertex) {
+    const vertexConfig = settings?.merged?.security?.auth?.vertexConfig as
+      | { project?: string; location?: string }
+      | undefined;
+    return (
+      <Box flexDirection="column">
+        <VertexConfigDialog
+          onComplete={uiActions.handleVertexConfigComplete}
+          onCancel={uiActions.handleVertexConfigCancel}
+          defaultConfig={vertexConfig}
         />
       </Box>
     );

@@ -485,6 +485,31 @@ describe('useAuth', () => {
       });
     });
 
+    it('should set GOOGLE_CLOUD env vars when restarting with Vertex AI auth', async () => {
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_VERTEX_AI,
+              selectedProvider: 'vertex-ai',
+              vertexConfig: {
+                project: 'my-gcp-project',
+                location: 'europe-west1',
+              },
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+        expect(process.env['GOOGLE_CLOUD_PROJECT']).toBe('my-gcp-project');
+        expect(process.env['GOOGLE_CLOUD_LOCATION']).toBe('europe-west1');
+      });
+    });
+
     it('should clean sLM env vars when restarting with Claude provider', async () => {
       // Simulate sLM env vars left over from previous session
       process.env['LLM_MODEL'] = 'llama3';

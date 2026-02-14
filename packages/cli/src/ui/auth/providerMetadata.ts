@@ -73,12 +73,13 @@ export const PROVIDER_DISPLAY_MAP: Record<string, ProviderDisplayInfo> = {
 /**
  * Provider keys shown in Step 1 provider selection.
  * Didim provider is hidden from user selection (activated via DIDIM_API_KEY env var only).
- * vertex-ai is excluded until its configuration dialog is implemented (Phase 3).
+ * Didim provider is hidden (activated via DIDIM_API_KEY env var only).
  */
 export const PROVIDER_SELECT_ITEMS = [
   'gemini',
   'claude',
   'openai',
+  'vertex-ai',
   'slm',
 ] as const;
 

@@ -305,6 +305,19 @@ export const useAuthCommand = (
           }
         }
 
+        if (authType === AuthType.USE_VERTEX_AI) {
+          // Vertex AI — restore project/location from saved settings
+          const vertexConfig = settings.merged.security.auth.vertexConfig as
+            | { project?: string; location?: string }
+            | undefined;
+          if (vertexConfig?.project) {
+            process.env['GOOGLE_CLOUD_PROJECT'] = vertexConfig.project;
+          }
+          if (vertexConfig?.location) {
+            process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;
+          }
+        }
+
         const error = validateAuthMethodWithSettings(authType, settings);
         if (error) {
           onAuthError(error);

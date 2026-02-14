@@ -63,6 +63,7 @@ export interface UIState {
   isAwaitingApiKeyInput: boolean;
   isSelectingProvider: boolean;
   isConfiguringSlm: boolean;
+  isConfiguringVertex: boolean;
   selectedProvider?: string;
   apiKeyDefaultValue?: string;
   editorError: string | null;

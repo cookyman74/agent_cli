@@ -67,6 +67,9 @@ vi.mock('../auth/ProviderSelectDialog.js', () => ({
 vi.mock('../auth/SlmConfigDialog.js', () => ({
   SlmConfigDialog: () => <Text>SlmConfigDialog</Text>,
 }));
+vi.mock('../auth/VertexConfigDialog.js', () => ({
+  VertexConfigDialog: () => <Text>VertexConfigDialog</Text>,
+}));
 
 describe('DialogManager', () => {
   const defaultProps = {
@@ -101,6 +104,7 @@ describe('DialogManager', () => {
     selectedAgentDefinition: undefined,
     isSelectingProvider: false,
     isConfiguringSlm: false,
+    isConfiguringVertex: false,
   };
 
   it('renders nothing by default', () => {
@@ -159,6 +163,7 @@ describe('DialogManager', () => {
     [{ isModelDialogOpen: true }, 'ModelDialog'],
     [{ isSelectingProvider: true }, 'ProviderSelectDialog'],
     [{ isConfiguringSlm: true }, 'SlmConfigDialog'],
+    [{ isConfiguringVertex: true }, 'VertexConfigDialog'],
     [{ isAuthenticating: true }, 'AuthInProgress'],
     [{ isAwaitingApiKeyInput: true }, 'ApiAuthDialog'],
     [{ isAuthDialogOpen: true }, 'AuthDialog'],

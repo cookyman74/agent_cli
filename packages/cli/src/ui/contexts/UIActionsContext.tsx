@@ -75,6 +75,11 @@ export interface UIActions {
     customHeaders?: string;
   }) => Promise<void>;
   handleSlmConfigCancel: () => void;
+  handleVertexConfigComplete: (config: {
+    project: string;
+    location: string;
+  }) => Promise<void>;
+  handleVertexConfigCancel: () => void;
   setBannerVisible: (visible: boolean) => void;
   setEmbeddedShellFocused: (value: boolean) => void;
   setAuthContext: (context: { requiresRestart?: boolean }) => void;

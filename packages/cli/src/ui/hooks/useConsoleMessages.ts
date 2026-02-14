@@ -16,7 +16,7 @@ import {
   coreEvents,
   CoreEvent,
   type ConsoleLogPayload,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export interface UseConsoleMessagesReturn {
   consoleMessages: ConsoleMessageItem[];

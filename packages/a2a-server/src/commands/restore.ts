@@ -9,7 +9,7 @@ import {
   getToolCallDataSchema,
   isNodeError,
   performRestore,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type {

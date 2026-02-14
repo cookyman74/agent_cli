@@ -6,8 +6,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { main } from './gemini.js';
-import { debugLogger } from '@didim/agent-cli-core';
-import { type Config } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
+import { type Config } from '@didim365/agent-cli-core';
 
 // Custom error to identify mock process.exit calls
 class MockProcessExitError extends Error {
@@ -17,8 +17,9 @@ class MockProcessExitError extends Error {
   }
 }
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     writeToStdout: vi.fn(),

@@ -1,5 +1,5 @@
 {
-  "name": "@didim/agent-cli",
+  "name": "@didim365/agent-cli",
   "version": "0.27.0-nightly.20260121.97aac696f",
   "engines": {
     "node": ">=20.0.0"
@@ -27,7 +27,7 @@
     "auth:docker": "gcloud auth configure-docker us-west1-docker.pkg.dev",
     "auth": "npm run auth:npm && npm run auth:docker",
     "generate": "node scripts/generate-git-commit-info.js",
-    "predocs:settings": "npm run build --workspace @didim/agent-cli-core",
+    "predocs:settings": "npm run build --workspace @didim365/agent-cli-core",
     "schema:settings": "tsx ./scripts/generate-settings-schema.ts",
     "docs:settings": "tsx ./scripts/generate-settings-doc.ts",
     "docs:keybindings": "tsx ./scripts/generate-keybindings-doc.ts",

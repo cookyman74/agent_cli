@@ -12,11 +12,11 @@ vi.mock('../../utils/skillUtils.js', () => ({
   uninstallSkill: mockUninstallSkill,
 }));
 
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   debugLogger: { log: vi.fn(), error: vi.fn() },
 }));
 
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import { handleUninstall, uninstallCommand } from './uninstall.js';
 
 describe('skill uninstall command', () => {

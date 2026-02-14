@@ -15,8 +15,8 @@ import type {
   Config,
   GeminiClient,
   ShellExecutionResult,
-} from '@didim/agent-cli-core';
-import { isBinary, ShellExecutionService } from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
+import { isBinary, ShellExecutionService } from '@didim365/agent-cli-core';
 import { type PartListUnion } from '@google/genai';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { SHELL_COMMAND_NAME } from '../constants.js';

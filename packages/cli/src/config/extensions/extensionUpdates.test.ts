@@ -17,7 +17,7 @@ import {
   type ExtensionInstallMetadata,
   type GeminiCLIExtension,
   coreEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { EXTENSION_SETTINGS_FILENAME } from './variables.js';
 import { ExtensionManager } from '../extension-manager.js';
 import { createTestMergedSettings } from '../settings.js';
@@ -37,8 +37,9 @@ vi.mock('node:fs', async (importOriginal) => {
   };
 });
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     KeychainTokenStorage: vi.fn(),

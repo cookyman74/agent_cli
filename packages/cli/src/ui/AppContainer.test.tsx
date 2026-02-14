@@ -29,7 +29,7 @@ import {
   type ResumedSessionData,
   AuthType,
   type AgentDefinition,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 // Mock coreEvents
 const mockCoreEvents = vi.hoisted(() => ({
@@ -49,8 +49,9 @@ const mocks = vi.hoisted(() => ({
   mockStdout: { write: vi.fn() },
 }));
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     coreEvents: mockCoreEvents,
@@ -182,7 +183,7 @@ import {
   writeToStdout,
   enableMouseEvents,
   disableMouseEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { type ExtensionManager } from '../config/extension-manager.js';
 
 describe('AppContainer State Management', () => {

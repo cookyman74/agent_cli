@@ -8,7 +8,7 @@ import { render } from '../../../test-utils/render.js';
 import { ToolResultDisplay } from './ToolResultDisplay.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Box, Text } from 'ink';
-import type { AnsiOutput } from '@didim/agent-cli-core';
+import type { AnsiOutput } from '@didim365/agent-cli-core';
 
 // Mock child components to simplify testing
 vi.mock('./DiffRenderer.js', () => ({

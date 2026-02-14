@@ -18,7 +18,7 @@ import {
   coreEvents,
   GEMINI_DIR,
   type GeminiCLIExtension,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 vi.mock('node:os', () => ({
   homedir: vi.fn().mockReturnValue('/virtual-home'),

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { appendToLastTextPart } from '@didim/agent-cli-core';
+import { appendToLastTextPart } from '@didim365/agent-cli-core';
 import type { IPromptProcessor, PromptPipelineContent } from './types.js';
 import type { CommandContext } from '../../ui/commands/types.js';
 

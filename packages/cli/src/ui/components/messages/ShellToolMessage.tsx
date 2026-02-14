@@ -22,7 +22,7 @@ import {
   FocusHint,
 } from './ToolShared.js';
 import type { ToolMessageProps } from './ToolMessage.js';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 
 export interface ShellToolMessageProps extends ToolMessageProps {
   activeShellPtyId?: number | null;

@@ -10,7 +10,7 @@ import { renderHook } from '../../test-utils/render.js';
 import { waitFor } from '../../test-utils/async.js';
 import { useIncludeDirsTrust } from './useIncludeDirsTrust.js';
 import * as trustedFolders from '../../config/trustedFolders.js';
-import type { Config, WorkspaceContext } from '@didim/agent-cli-core';
+import type { Config, WorkspaceContext } from '@didim365/agent-cli-core';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { LoadedTrustedFolders } from '../../config/trustedFolders.js';
 

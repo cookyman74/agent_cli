@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { FileSystemService } from '@didim/agent-cli-core';
+import type { FileSystemService } from '@didim365/agent-cli-core';
 import type * as acp from '@agentclientprotocol/sdk';
 
 /**

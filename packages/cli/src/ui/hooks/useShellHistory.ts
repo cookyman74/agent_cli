@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { debugLogger, isNodeError, Storage } from '@didim/agent-cli-core';
+import { debugLogger, isNodeError, Storage } from '@didim365/agent-cli-core';
 
 const MAX_HISTORY_LENGTH = 100;
 

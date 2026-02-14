@@ -14,7 +14,7 @@ import {
   unescapePath,
   escapePath,
   Storage,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 /**
  * Supported image file extensions based on Gemini API.

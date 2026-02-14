@@ -666,7 +666,7 @@ import type {
 
 ## Quality Gates
 
-- [ ] 모든 단위 테스트 통과 (`npm run test -w @didim/agent-cli-core`)
+- [ ] 모든 단위 테스트 통과 (`npm run test -w @didim365/agent-cli-core`)
 - [ ] TypeScript 컴파일 에러 없음 (`npm run typecheck`)
 - [ ] ESLint 경고 없음 (`npm run lint`)
 - [ ] 기존 테스트 회귀 없음 (`npm run test`)

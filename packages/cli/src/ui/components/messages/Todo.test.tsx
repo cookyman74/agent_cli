@@ -8,7 +8,7 @@ import { render } from '../../../test-utils/render.js';
 import { describe, it, expect } from 'vitest';
 import { Box } from 'ink';
 import { TodoTray } from './Todo.js';
-import type { Todo } from '@didim/agent-cli-core';
+import type { Todo } from '@didim365/agent-cli-core';
 import type { UIState } from '../../contexts/UIStateContext.js';
 import { UIStateContext } from '../../contexts/UIStateContext.js';
 import type { HistoryItem } from '../../types.js';

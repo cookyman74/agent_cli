@@ -10,8 +10,8 @@ import { MessageType, type HistoryItemHooksList } from '../types.js';
 import type {
   HookRegistryEntry,
   MessageActionReturn,
-} from '@didim/agent-cli-core';
-import { getErrorMessage } from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
+import { getErrorMessage } from '@didim365/agent-cli-core';
 import { SettingScope } from '../../config/settings.js';
 
 /**

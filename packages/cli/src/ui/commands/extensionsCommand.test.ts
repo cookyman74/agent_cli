@@ -7,7 +7,7 @@
 import type {
   ExtensionLoader,
   GeminiCLIExtension,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import { MessageType } from '../types.js';
 import {

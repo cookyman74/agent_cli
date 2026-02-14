@@ -11,7 +11,7 @@ import type {
   AnyToolInvocation,
   Config,
   DiscoveredMCPResource,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   debugLogger,
   getErrorMessage,
@@ -20,7 +20,7 @@ import {
   ReadManyFilesTool,
   REFERENCE_CONTENT_START,
   REFERENCE_CONTENT_END,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { Buffer } from 'node:buffer';
 import type { HistoryItem, IndividualToolCallDisplay } from '../types.js';
 import { ToolCallStatus } from '../types.js';

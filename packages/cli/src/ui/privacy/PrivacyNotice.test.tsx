@@ -11,7 +11,7 @@ import type {
   AuthType,
   Config,
   ContentGeneratorConfig,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 // Mock child components
 vi.mock('./GeminiPrivacyNotice.js', async () => {

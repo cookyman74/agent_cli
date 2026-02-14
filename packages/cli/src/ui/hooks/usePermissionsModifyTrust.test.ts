@@ -19,7 +19,7 @@ import { usePermissionsModifyTrust } from './usePermissionsModifyTrust.js';
 import { TrustLevel } from '../../config/trustedFolders.js';
 import type { LoadedSettings } from '../../config/settings.js';
 import type { LoadedTrustedFolders } from '../../config/trustedFolders.js';
-import { coreEvents } from '@didim/agent-cli-core';
+import { coreEvents } from '@didim365/agent-cli-core';
 
 // Hoist mocks
 const mockedCwd = vi.hoisted(() => vi.fn());

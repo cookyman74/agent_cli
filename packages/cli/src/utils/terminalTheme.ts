@@ -12,7 +12,7 @@ import { themeManager, DEFAULT_THEME } from '../ui/themes/theme-manager.js';
 import { pickDefaultThemeName } from '../ui/themes/theme.js';
 import { getThemeTypeFromBackgroundColor } from '../ui/themes/color-utils.js';
 import type { LoadedSettings } from '../config/settings.js';
-import { type Config, coreEvents, debugLogger } from '@didim/agent-cli-core';
+import { type Config, coreEvents, debugLogger } from '@didim365/agent-cli-core';
 
 /**
  * Detects terminal capabilities, loads themes, and sets the active theme.

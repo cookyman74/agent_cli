@@ -10,10 +10,11 @@ import {
   type Config,
   ValidationRequiredError,
   AuthType,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     getErrorMessage: (e: unknown) => (e as Error).message,

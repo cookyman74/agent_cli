@@ -9,7 +9,7 @@ import {
   coreEvents,
   type Config,
   type ResumedSessionData,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { Part } from '@google/genai';
 import type { HistoryItemWithoutId } from '../types.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';

@@ -13,7 +13,7 @@ import {
   disableModifyOtherKeys,
   enableBracketedPasteMode,
   disableBracketedPasteMode,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export type TerminalBackgroundColor = string | undefined;
 

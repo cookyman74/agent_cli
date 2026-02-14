@@ -9,7 +9,7 @@ import {
   type Config,
   getErrorMessage,
   ValidationRequiredError,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 /**
  * Handles the initial authentication flow.

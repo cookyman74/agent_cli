@@ -11,7 +11,7 @@ import {
   coreEvents,
   type McpClient,
   MCPServerStatus,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { GeminiSpinner } from './GeminiRespondingSpinner.js';
 import { theme } from '../semantic-colors.js';
 

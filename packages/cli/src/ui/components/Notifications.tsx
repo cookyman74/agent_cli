@@ -13,7 +13,7 @@ import { StreamingState } from '../types.js';
 import { UpdateNotification } from './UpdateNotification.js';
 import { persistentState } from '../../utils/persistentState.js';
 
-import { GEMINI_DIR, Storage, homedir } from '@didim/agent-cli-core';
+import { GEMINI_DIR, Storage, homedir } from '@didim365/agent-cli-core';
 
 import * as fs from 'node:fs/promises';
 import path from 'node:path';

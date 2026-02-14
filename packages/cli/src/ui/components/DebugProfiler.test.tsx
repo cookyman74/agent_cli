@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { appEvents, AppEvent } from '../../utils/events.js';
-import { coreEvents } from '@didim/agent-cli-core';
+import { coreEvents } from '@didim365/agent-cli-core';
 import {
   profiler,
   DebugProfiler,

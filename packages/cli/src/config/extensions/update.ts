@@ -11,7 +11,7 @@ import {
 } from '../../ui/state/extensions.js';
 import { loadInstallMetadata } from '../extension.js';
 import { checkForExtensionUpdate } from './github.js';
-import { debugLogger, type GeminiCLIExtension } from '@didim/agent-cli-core';
+import { debugLogger, type GeminiCLIExtension } from '@didim365/agent-cli-core';
 import * as fs from 'node:fs';
 import { getErrorMessage } from '../../utils/errors.js';
 import { copyExtension, type ExtensionManager } from '../extension-manager.js';

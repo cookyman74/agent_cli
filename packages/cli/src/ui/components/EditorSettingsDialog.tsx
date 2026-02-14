@@ -22,9 +22,9 @@ import {
   type EditorType,
   isEditorAvailable,
   EDITOR_DISPLAY_NAMES,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
-import { coreEvents } from '@didim/agent-cli-core';
+import { coreEvents } from '@didim365/agent-cli-core';
 
 interface EditorDialogProps {
   onSelect: (

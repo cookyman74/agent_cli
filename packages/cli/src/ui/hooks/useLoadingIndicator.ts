@@ -11,7 +11,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   getDisplayString,
   type RetryAttemptPayload,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export interface UseLoadingIndicatorProps {
   streamingState: StreamingState;

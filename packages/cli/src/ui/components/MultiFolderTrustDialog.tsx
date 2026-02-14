@@ -15,7 +15,7 @@ import { loadTrustedFolders, TrustLevel } from '../../config/trustedFolders.js';
 import { expandHomeDir } from '../utils/directoryUtils.js';
 import * as path from 'node:path';
 import { MessageType, type HistoryItem } from '../types.js';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 
 export enum MultiFolderTrustChoice {
   YES,

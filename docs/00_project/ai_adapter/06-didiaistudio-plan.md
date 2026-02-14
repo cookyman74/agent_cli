@@ -518,13 +518,13 @@ DIDIM_AGENT_API_URL=http://localhost:8003        # agents 서비스 URL (시나�
 
 ```bash
 # API 클라이언트 단위 테스트
-npm test -w @didim/agent-cli-core -- src/providers/didim/apiClient.test.ts
+npm test -w @didim365/agent-cli-core -- src/providers/didim/apiClient.test.ts
 
 # SSE 파서 단위 테스트
-npm test -w @didim/agent-cli-core -- src/providers/didim/sseParser.test.ts
+npm test -w @didim365/agent-cli-core -- src/providers/didim/sseParser.test.ts
 
 # 시나리오 매니저 단위 테스트
-npm test -w @didim/agent-cli-core -- src/providers/didim/scenarioManager.test.ts
+npm test -w @didim365/agent-cli-core -- src/providers/didim/scenarioManager.test.ts
 ```
 
 ### 8.2 수동 검증

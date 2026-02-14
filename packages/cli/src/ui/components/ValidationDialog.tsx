@@ -14,7 +14,7 @@ import {
   openBrowserSecurely,
   shouldLaunchBrowser,
   type ValidationIntent,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { keyMatchers, Command } from '../keyMatchers.js';
 

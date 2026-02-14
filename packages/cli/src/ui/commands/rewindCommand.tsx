@@ -17,8 +17,11 @@ import { RewindOutcome } from '../components/RewindConfirmation.js';
 import { checkExhaustive } from '../../utils/checks.js';
 
 import type { Content } from '@google/genai';
-import type { ChatRecordingService, GeminiClient } from '@didim/agent-cli-core';
-import { coreEvents, debugLogger } from '@didim/agent-cli-core';
+import type {
+  ChatRecordingService,
+  GeminiClient,
+} from '@didim365/agent-cli-core';
+import { coreEvents, debugLogger } from '@didim365/agent-cli-core';
 
 /**
  * Helper function to handle the core logic of rewinding a conversation.

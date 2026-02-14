@@ -10,7 +10,7 @@ import * as path from 'node:path';
 import { initCommand } from './initCommand.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import type { CommandContext } from './types.js';
-import type { SubmitPromptActionReturn } from '@didim/agent-cli-core';
+import type { SubmitPromptActionReturn } from '@didim365/agent-cli-core';
 
 // Mock the 'fs' module
 vi.mock('fs', async (importOriginal) => {

@@ -8,10 +8,10 @@ import type { MockInstance } from 'vitest';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ideCommand } from './ideCommand.js';
 import { type CommandContext } from './types.js';
-import { IDE_DEFINITIONS } from '@didim/agent-cli-core';
-import * as core from '@didim/agent-cli-core';
+import { IDE_DEFINITIONS } from '@didim365/agent-cli-core';
+import * as core from '@didim365/agent-cli-core';
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original = await importOriginal<typeof core>();
   return {
     ...original,

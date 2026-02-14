@@ -8,7 +8,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import * as processUtils from '../../utils/processUtils.js';
 import { renderWithProviders } from '../../test-utils/render.js';
 import { IdeTrustChangeDialog } from './IdeTrustChangeDialog.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 describe('IdeTrustChangeDialog', () => {
   beforeEach(() => {

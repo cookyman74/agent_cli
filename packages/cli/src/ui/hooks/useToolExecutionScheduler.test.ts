@@ -20,12 +20,13 @@ import {
   type AnyDeclarativeTool,
   type AnyToolInvocation,
   ROOT_SCHEDULER_ID,
-} from '@didim/agent-cli-core';
-import { createMockMessageBus } from '@didim/agent-cli-core/src/test-utils/mock-message-bus.js';
+} from '@didim365/agent-cli-core';
+import { createMockMessageBus } from '@didim365/agent-cli-core/src/test-utils/mock-message-bus.js';
 
 // Mock Core Scheduler
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     Scheduler: vi.fn().mockImplementation(() => ({
@@ -389,7 +390,7 @@ describe('useToolExecutionScheduler', () => {
     };
 
     // Mock the specific return value for this test
-    const { Scheduler } = await import('@didim/agent-cli-core');
+    const { Scheduler } = await import('@didim365/agent-cli-core');
     vi.mocked(Scheduler).mockImplementation(
       () =>
         ({

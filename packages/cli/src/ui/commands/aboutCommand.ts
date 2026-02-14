@@ -13,7 +13,7 @@ import {
   UserAccountManager,
   debugLogger,
   getVersion,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export const aboutCommand: SlashCommand = {
   name: 'about',

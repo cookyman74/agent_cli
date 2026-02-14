@@ -21,7 +21,7 @@ import { ExtensionStorage } from './storage.js';
 import prompts from 'prompts';
 import * as fsPromises from 'node:fs/promises';
 import * as fs from 'node:fs';
-import { KeychainTokenStorage } from '@didim/agent-cli-core';
+import { KeychainTokenStorage } from '@didim365/agent-cli-core';
 import { EXTENSION_SETTINGS_FILENAME } from './variables.js';
 
 vi.mock('prompts');
@@ -33,8 +33,9 @@ vi.mock('os', async (importOriginal) => {
   };
 });
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     KeychainTokenStorage: vi.fn(),

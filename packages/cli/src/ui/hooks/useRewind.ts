@@ -5,7 +5,10 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { ConversationRecord, MessageRecord } from '@didim/agent-cli-core';
+import type {
+  ConversationRecord,
+  MessageRecord,
+} from '@didim365/agent-cli-core';
 import {
   calculateTurnStats,
   calculateRewindImpact,

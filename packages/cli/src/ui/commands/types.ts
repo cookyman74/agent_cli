@@ -16,7 +16,7 @@ import type {
   Logger,
   CommandActionReturn,
   AgentDefinition,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 import type { UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
 import type { SessionStatsState } from '../contexts/SessionContext.js';

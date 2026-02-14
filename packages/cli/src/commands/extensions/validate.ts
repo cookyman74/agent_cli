@@ -5,7 +5,7 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import semver from 'semver';

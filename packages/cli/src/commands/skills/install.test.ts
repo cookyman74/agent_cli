@@ -19,11 +19,11 @@ vi.mock('../../config/extensions/consent.js', () => ({
   skillsConsentString: mockSkillsConsentString,
 }));
 
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   debugLogger: { log: vi.fn(), error: vi.fn() },
 }));
 
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import { handleInstall, installCommand } from './install.js';
 
 describe('skill install command', () => {

@@ -1,7 +1,7 @@
 # /model 멀티 프로바이더 확장 기능 변경 계획서
 
 - 작성일: 2026-02-09
-- 대상: `didim` CLI (`@didim/agent-cli`, `@didim/agent-cli-core`)
+- 대상: `didim` CLI (`@didim365/agent-cli`, `@didim365/agent-cli-core`)
 - 목적: `/model` 명령을 Gemini 전용에서 Claude/OpenAI 등 멀티 프로바이더
   환경에서도 실사용 가능하도록 확장
 

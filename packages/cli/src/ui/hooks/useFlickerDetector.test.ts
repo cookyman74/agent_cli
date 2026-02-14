@@ -8,8 +8,8 @@ import { renderHook } from '../../test-utils/render.js';
 import { vi, type Mock } from 'vitest';
 import { useFlickerDetector } from './useFlickerDetector.js';
 import { useConfig } from '../contexts/ConfigContext.js';
-import { recordFlickerFrame } from '@didim/agent-cli-core';
-import { type Config } from '@didim/agent-cli-core';
+import { recordFlickerFrame } from '@didim365/agent-cli-core';
+import { type Config } from '@didim365/agent-cli-core';
 import { type DOMElement, measureElement } from 'ink';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { appEvents, AppEvent } from '../../utils/events.js';
@@ -17,8 +17,9 @@ import { appEvents, AppEvent } from '../../utils/events.js';
 // Mock dependencies
 vi.mock('../contexts/ConfigContext.js');
 vi.mock('../contexts/UIStateContext.js');
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     recordFlickerFrame: vi.fn(),

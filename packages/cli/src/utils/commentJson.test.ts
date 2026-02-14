@@ -9,9 +9,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { updateSettingsFilePreservingFormat } from './commentJson.js';
-import { coreEvents } from '@didim/agent-cli-core';
+import { coreEvents } from '@didim365/agent-cli-core';
 
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   coreEvents: {
     emitFeedback: vi.fn(),
   },

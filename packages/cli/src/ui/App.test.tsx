@@ -8,11 +8,11 @@ import { describe, it, expect, vi, type Mock, beforeEach } from 'vitest';
 import type React from 'react';
 import { renderWithProviders } from '../test-utils/render.js';
 import { Text, useIsScreenReaderEnabled, type DOMElement } from 'ink';
-import { type Config } from '@didim/agent-cli-core';
+import { type Config } from '@didim365/agent-cli-core';
 import { App } from './App.js';
 import { type UIState } from './contexts/UIStateContext.js';
 import { StreamingState, ToolCallStatus } from './types.js';
-import { makeFakeConfig } from '@didim/agent-cli-core';
+import { makeFakeConfig } from '@didim365/agent-cli-core';
 
 vi.mock('ink', async (importOriginal) => {
   const original = await importOriginal<typeof import('ink')>();

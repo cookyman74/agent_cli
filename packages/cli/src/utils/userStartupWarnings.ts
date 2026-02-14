@@ -7,7 +7,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { homedir } from '@didim/agent-cli-core';
+import { homedir } from '@didim365/agent-cli-core';
 import type { Settings } from '../config/settingsSchema.js';
 import {
   isFolderTrustEnabled,

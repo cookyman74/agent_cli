@@ -5,7 +5,7 @@
  */
 
 import type { ExecutionEventBus, AgentExecutor } from '@a2a-js/sdk/server';
-import type { Config, GitService } from '@didim/agent-cli-core';
+import type { Config, GitService } from '@didim365/agent-cli-core';
 
 export interface CommandContext {
   config: Config;

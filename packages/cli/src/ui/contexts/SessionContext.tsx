@@ -18,8 +18,8 @@ import type {
   SessionMetrics,
   ModelMetrics,
   ToolCallStats,
-} from '@didim/agent-cli-core';
-import { uiTelemetryService, sessionId } from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
+import { uiTelemetryService, sessionId } from '@didim365/agent-cli-core';
 
 export enum ToolCallDecision {
   ACCEPT = 'accept',

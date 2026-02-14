@@ -6,7 +6,7 @@
 
 import * as fs from 'node:fs';
 import { parse, stringify } from 'comment-json';
-import { coreEvents } from '@didim/agent-cli-core';
+import { coreEvents } from '@didim365/agent-cli-core';
 
 /**
  * Type representing an object that may contain Symbol keys for comments.

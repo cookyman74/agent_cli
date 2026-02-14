@@ -7,7 +7,7 @@
 import { expect, describe, it, beforeEach, afterEach } from 'vitest';
 import { TestRig } from './test-helper.js';
 import { join } from 'node:path';
-import { ExitCodes } from '@didim/agent-cli-core/src/index.js';
+import { ExitCodes } from '@didim365/agent-cli-core/src/index.js';
 
 describe('JSON output', () => {
   let rig: TestRig;

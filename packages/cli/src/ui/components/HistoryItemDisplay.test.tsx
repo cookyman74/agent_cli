@@ -12,7 +12,7 @@ import { SessionStatsProvider } from '../contexts/SessionContext.js';
 import type {
   Config,
   ToolExecuteConfirmationDetails,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { ToolGroupMessage } from './messages/ToolGroupMessage.js';
 import { renderWithProviders } from '../../test-utils/render.js';
 

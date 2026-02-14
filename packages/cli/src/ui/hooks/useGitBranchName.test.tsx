@@ -13,13 +13,13 @@ import { useGitBranchName } from './useGitBranchName.js';
 import { fs, vol } from 'memfs';
 import * as fsPromises from 'node:fs/promises';
 import path from 'node:path'; // For mocking fs
-import { spawnAsync as mockSpawnAsync } from '@didim/agent-cli-core';
+import { spawnAsync as mockSpawnAsync } from '@didim365/agent-cli-core';
 
-// Mock @didim/agent-cli-core
-vi.mock('@didim/agent-cli-core', async () => {
+// Mock @didim365/agent-cli-core
+vi.mock('@didim365/agent-cli-core', async () => {
   const original = await vi.importActual<
-    typeof import('@didim/agent-cli-core')
-  >('@didim/agent-cli-core');
+    typeof import('@didim365/agent-cli-core')
+  >('@didim365/agent-cli-core');
   return {
     ...original,
     spawnAsync: vi.fn(),

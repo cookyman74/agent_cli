@@ -9,7 +9,7 @@ import { format } from 'node:util';
 import { handleList, listCommand } from './list.js';
 import { loadSettings, type LoadedSettings } from '../../config/settings.js';
 import { loadCliConfig } from '../../config/config.js';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import chalk from 'chalk';
 
 const emitConsoleLog = vi.hoisted(() => vi.fn());
@@ -22,8 +22,9 @@ const debugLogger = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     coreEvents: {

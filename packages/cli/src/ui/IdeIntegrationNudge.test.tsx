@@ -9,13 +9,14 @@ import { render } from '../test-utils/render.js';
 import { act } from 'react';
 import { IdeIntegrationNudge } from './IdeIntegrationNudge.js';
 import { KeypressProvider } from './contexts/KeypressContext.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Mock debugLogger
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     debugLogger: {

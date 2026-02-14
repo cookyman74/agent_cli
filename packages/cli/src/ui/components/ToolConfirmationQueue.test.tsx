@@ -8,7 +8,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { ToolConfirmationQueue } from './ToolConfirmationQueue.js';
 import { ToolCallStatus } from '../types.js';
 import { renderWithProviders } from '../../test-utils/render.js';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import type { ConfirmingToolState } from '../hooks/useConfirmingTool.js';
 
 describe('ToolConfirmationQueue', () => {

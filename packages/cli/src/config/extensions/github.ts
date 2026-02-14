@@ -10,7 +10,7 @@ import {
   debugLogger,
   type ExtensionInstallMetadata,
   type GeminiCLIExtension,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { ExtensionUpdateState } from '../../ui/state/extensions.js';
 import * as os from 'node:os';
 import * as https from 'node:https';

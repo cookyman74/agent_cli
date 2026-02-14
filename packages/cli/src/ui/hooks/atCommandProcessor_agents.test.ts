@@ -10,7 +10,7 @@ import type {
   Config,
   AgentDefinition,
   MessageBus,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   FileDiscoveryService,
   GlobTool,
@@ -18,7 +18,7 @@ import {
   StandardFileSystemService,
   ToolRegistry,
   COMMON_IGNORE_PATTERNS,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import * as os from 'node:os';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import * as fsPromises from 'node:fs/promises';

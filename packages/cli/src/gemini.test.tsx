@@ -52,7 +52,7 @@ import {
   type ResumedSessionData,
   debugLogger,
   coreEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { act } from 'react';
 import { type InitializationResult } from './core/initializer.js';
 
@@ -61,8 +61,9 @@ const performance = vi.hoisted(() => ({
 }));
 vi.stubGlobal('performance', performance);
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     recordSlowRender: vi.fn(),
@@ -308,7 +309,7 @@ describe('initializeOutputListenersAndFlush', () => {
   });
 
   it('should flush backlogs and setup listeners if no listeners exist', async () => {
-    const { coreEvents } = await import('@didim/agent-cli-core');
+    const { coreEvents } = await import('@didim365/agent-cli-core');
     const { initializeOutputListenersAndFlush } = await import('./gemini.js');
 
     // Mock listenerCount to return 0
@@ -1303,7 +1304,7 @@ describe('gemini.tsx main function exit codes', () => {
       './config/config.js'
     );
     const { loadSettings } = await import('./config/settings.js');
-    const { AuthType } = await import('@didim/agent-cli-core');
+    const { AuthType } = await import('@didim365/agent-cli-core');
 
     const refreshAuthSpy = vi.fn();
 
@@ -1504,7 +1505,7 @@ describe('startInteractiveUI', () => {
   });
 
   it('should enable mouse events when alternate buffer is enabled', async () => {
-    const { enableMouseEvents } = await import('@didim/agent-cli-core');
+    const { enableMouseEvents } = await import('@didim365/agent-cli-core');
     await startTestInteractiveUI(
       mockConfig,
       mockSettings,
@@ -1531,7 +1532,7 @@ describe('startInteractiveUI', () => {
   });
 
   it('should perform all startup tasks in correct order', async () => {
-    const { getVersion } = await import('@didim/agent-cli-core');
+    const { getVersion } = await import('@didim365/agent-cli-core');
     const { checkForUpdates } = await import('./ui/utils/updateCheck.js');
     const { registerCleanup } = await import('./utils/cleanup.js');
 
@@ -1559,7 +1560,7 @@ describe('startInteractiveUI', () => {
   });
 
   it('should not recordSlowRender when less than threshold', async () => {
-    const { recordSlowRender } = await import('@didim/agent-cli-core');
+    const { recordSlowRender } = await import('@didim365/agent-cli-core');
     performance.now.mockReturnValueOnce(0);
     await startTestInteractiveUI(
       mockConfig,
@@ -1574,7 +1575,7 @@ describe('startInteractiveUI', () => {
   });
 
   it('should call recordSlowRender when more than threshold', async () => {
-    const { recordSlowRender } = await import('@didim/agent-cli-core');
+    const { recordSlowRender } = await import('@didim365/agent-cli-core');
     performance.now.mockReturnValueOnce(0);
     performance.now.mockReturnValueOnce(300);
 

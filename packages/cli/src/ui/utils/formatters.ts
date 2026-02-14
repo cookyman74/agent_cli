@@ -7,7 +7,7 @@
 import {
   REFERENCE_CONTENT_START,
   REFERENCE_CONTENT_END,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export const formatMemoryUsage = (bytes: number): string => {
   const gb = bytes / (1024 * 1024 * 1024);

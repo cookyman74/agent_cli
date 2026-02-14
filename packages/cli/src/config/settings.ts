@@ -17,7 +17,7 @@ import {
   coreEvents,
   homedir,
   type FetchAdminControlsResponse,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import stripJsonComments from 'strip-json-comments';
 import { DefaultLight } from '../ui/themes/default-light.js';
 import { DefaultDark } from '../ui/themes/default.js';

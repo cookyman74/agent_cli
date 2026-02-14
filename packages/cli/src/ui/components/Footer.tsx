@@ -11,7 +11,7 @@ import {
   shortenPath,
   tildeifyPath,
   getDisplayString,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
 import { ThemedGradient } from './ThemedGradient.js';

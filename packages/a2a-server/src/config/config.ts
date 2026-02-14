@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as dotenv from 'dotenv';
 
-import type { TelemetryTarget } from '@didim/agent-cli-core';
+import type { TelemetryTarget } from '@didim365/agent-cli-core';
 import {
   AuthType,
   Config,
@@ -24,7 +24,7 @@ import {
   PREVIEW_GEMINI_MODEL,
   homedir,
   GitService,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 import { logger } from '../utils/logger.js';
 import type { Settings } from './settings.js';

@@ -6,7 +6,10 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { InitCommand } from './init.js';
-import { performInit, DEFAULT_CONTEXT_FILENAME } from '@didim/agent-cli-core';
+import {
+  performInit,
+  DEFAULT_CONTEXT_FILENAME,
+} from '@didim365/agent-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { CoderAgentExecutor } from '../agent/executor.js';
@@ -14,11 +17,12 @@ import { CoderAgentEvent } from '../types.js';
 import type { ExecutionEventBus } from '@a2a-js/sdk/server';
 import { createMockConfig } from '../utils/testing_utils.js';
 import type { CommandContext } from './types.js';
-import type { CommandActionReturn, Config } from '@didim/agent-cli-core';
+import type { CommandActionReturn, Config } from '@didim365/agent-cli-core';
 import { logger } from '../utils/logger.js';
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     performInit: vi.fn(),

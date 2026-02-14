@@ -14,7 +14,7 @@ import {
 } from 'vitest';
 import { configureCommand } from './configure.js';
 import yargs from 'yargs';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import {
   updateSetting,
   promptForSetting,

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Storage, debugLogger } from '@didim/agent-cli-core';
+import { Storage, debugLogger } from '@didim365/agent-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 

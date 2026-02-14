@@ -9,9 +9,9 @@ import { ExtensionsCommand, ListExtensionsCommand } from './extensions.js';
 import type { CommandContext } from './types.js';
 
 const mockListExtensions = vi.hoisted(() => vi.fn());
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
 
   return {
     ...original,

@@ -7,11 +7,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getStartupWarnings } from './startupWarnings.js';
 import * as fs from 'node:fs/promises';
-import { getErrorMessage } from '@didim/agent-cli-core';
+import { getErrorMessage } from '@didim365/agent-cli-core';
 
 vi.mock('node:fs/promises', { spy: true });
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     getErrorMessage: vi.fn(),

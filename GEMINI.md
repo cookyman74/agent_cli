@@ -45,7 +45,7 @@ powerful tool for developers.
   - **Integration (E2E):** `npm run test:e2e`
   - **Workspace-Specific:** `npm test -w <pkg> -- <path>` (Note: `<path>` must
     be relative to the workspace root, e.g.,
-    `-w @didim/agent-cli-core -- src/routing/modelRouterService.test.ts`)
+    `-w @didim365/agent-cli-core -- src/routing/modelRouterService.test.ts`)
 - **Full Validation:** `npm run preflight` (Heaviest check; runs clean, install,
   build, lint, type check, and tests. Recommended before submitting PRs.)
 - **Individual Checks:** `npm run lint` / `npm run format` / `npm run typecheck`

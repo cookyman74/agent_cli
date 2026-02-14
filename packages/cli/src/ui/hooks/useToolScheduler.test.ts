@@ -23,7 +23,7 @@ import type {
   Status as ToolCallStatusType,
   AnyDeclarativeTool,
   AnyToolInvocation,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
@@ -32,14 +32,14 @@ import {
   HookSystem,
   PREVIEW_GEMINI_MODEL,
   PolicyDecision,
-} from '@didim/agent-cli-core';
-import { MockTool } from '@didim/agent-cli-core/src/test-utils/mock-tool.js';
-import { createMockMessageBus } from '@didim/agent-cli-core/src/test-utils/mock-message-bus.js';
+} from '@didim365/agent-cli-core';
+import { MockTool } from '@didim365/agent-cli-core/src/test-utils/mock-tool.js';
+import { createMockMessageBus } from '@didim365/agent-cli-core/src/test-utils/mock-message-bus.js';
 import { ToolCallStatus } from '../types.js';
 
 // Mocks
-vi.mock('@didim/agent-cli-core', async () => {
-  const actual = await vi.importActual<any>('@didim/agent-cli-core');
+vi.mock('@didim365/agent-cli-core', async () => {
+  const actual = await vi.importActual<any>('@didim365/agent-cli-core');
   // Patch CoreToolScheduler to have cancelAll if it's missing in the test environment
   if (
     actual.CoreToolScheduler &&

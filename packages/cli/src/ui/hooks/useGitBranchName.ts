@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { spawnAsync } from '@didim/agent-cli-core';
+import { spawnAsync } from '@didim365/agent-cli-core';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';

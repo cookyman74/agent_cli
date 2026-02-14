@@ -15,7 +15,7 @@ editing documents.
 The standard method to install and run Gemini CLI uses `npm`:
 
 ```bash
-npm install -g @didim/agent-cli
+npm install -g @didim365/agent-cli
 ```
 
 Once Gemini CLI is installed, run Gemini CLI from your command line:

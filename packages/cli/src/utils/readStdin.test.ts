@@ -6,9 +6,9 @@
 
 import { vi, describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { readStdin } from './readStdin.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   debugLogger: {
     warn: vi.fn(),
   },

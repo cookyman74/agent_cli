@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@didim/agent-cli-core": "file:../core",
+    "@didim365/agent-cli-core": "file:../core",
     "@lydell/node-pty": "1.1.0",
     "strip-ansi": "^7.1.2",
     "vitest": "^3.2.4"

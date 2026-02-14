@@ -20,7 +20,7 @@ import {
   type ToolConfirmationPayload,
   type ToolCallConfirmationDetails,
   debugLogger,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { IndividualToolCallDisplay } from '../types.js';
 
 interface ToolActionsContextValue {

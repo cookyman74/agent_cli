@@ -6,7 +6,7 @@ For most users, our latest stable release is the recommended release. Install
 the latest stable version with:
 
 ```
-npm install -g @didim/agent-cli
+npm install -g @didim365/agent-cli
 ```
 
 ## Highlights

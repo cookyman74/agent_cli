@@ -8,11 +8,11 @@ import type {
   Config,
   ConversationRecord,
   MessageRecord,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   partListUnionToString,
   SESSION_FILE_PREFIX,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { stripUnsafeCharacters } from '../ui/utils/textUtils.js';

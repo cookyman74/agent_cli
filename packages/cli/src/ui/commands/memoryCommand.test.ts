@@ -19,11 +19,11 @@ import {
   showMemory,
   addMemory,
   listMemoryFiles,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...original,
     getErrorMessage: vi.fn((error: unknown) => {

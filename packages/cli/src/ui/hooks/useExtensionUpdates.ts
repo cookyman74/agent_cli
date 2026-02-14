@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { debugLogger, type GeminiCLIExtension } from '@didim/agent-cli-core';
+import { debugLogger, type GeminiCLIExtension } from '@didim365/agent-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 import {
   ExtensionUpdateState,

@@ -11,14 +11,14 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { quote, parse } from 'shell-quote';
 import { promisify } from 'node:util';
-import type { Config, SandboxConfig } from '@didim/agent-cli-core';
+import type { Config, SandboxConfig } from '@didim365/agent-cli-core';
 import {
   coreEvents,
   debugLogger,
   FatalSandboxError,
   GEMINI_DIR,
   homedir,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { ConsolePatcher } from '../ui/utils/ConsolePatcher.js';
 import { randomBytes } from 'node:crypto';
 import {

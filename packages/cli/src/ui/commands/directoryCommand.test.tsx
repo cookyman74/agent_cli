@@ -11,7 +11,7 @@ import {
   expandHomeDir,
   getDirectorySuggestions,
 } from '../utils/directoryUtils.js';
-import type { Config, WorkspaceContext } from '@didim/agent-cli-core';
+import type { Config, WorkspaceContext } from '@didim365/agent-cli-core';
 import type { MultiFolderTrustDialogProps } from '../components/MultiFolderTrustDialog.js';
 import type { CommandContext, OpenCustomDialogActionReturn } from './types.js';
 import { MessageType } from '../types.js';

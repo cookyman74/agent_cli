@@ -12,7 +12,7 @@ const getPackageJson = vi.hoisted(() => vi.fn());
 const debugLogger = vi.hoisted(() => ({
   warn: vi.fn(),
 }));
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   getPackageJson,
   debugLogger,
 }));

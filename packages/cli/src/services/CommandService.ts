@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import type { SlashCommand } from '../ui/commands/types.js';
 import type { ICommandLoader } from './types.js';
 

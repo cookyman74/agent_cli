@@ -5,7 +5,7 @@
  */
 
 import { Box, Text } from 'ink';
-import { type AgentDefinition } from '@didim/agent-cli-core';
+import { type AgentDefinition } from '@didim365/agent-cli-core';
 import { theme } from '../semantic-colors.js';
 import {
   RadioButtonSelect,

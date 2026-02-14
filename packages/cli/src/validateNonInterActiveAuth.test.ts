@@ -21,8 +21,8 @@ import {
   debugLogger,
   ExitCodes,
   coreEvents,
-} from '@didim/agent-cli-core';
-import type { Config } from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import * as auth from './config/auth.js';
 import { type LoadedSettings } from './config/settings.js';
 

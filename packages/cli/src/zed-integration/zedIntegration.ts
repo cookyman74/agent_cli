@@ -10,7 +10,7 @@ import type {
   ToolResult,
   ToolCallConfirmationDetails,
   FilterFilesOptions,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   AuthType,
   logToolCall,
@@ -32,7 +32,7 @@ import {
   createWorkingStdio,
   startupProfiler,
   Kind,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import * as acp from '@agentclientprotocol/sdk';
 import { AcpFileSystemService } from './fileSystemService.js';
 import { Readable, Writable } from 'node:stream';

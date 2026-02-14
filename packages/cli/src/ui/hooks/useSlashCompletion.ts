@@ -12,7 +12,7 @@ import {
   type CommandContext,
   type SlashCommand,
 } from '../commands/types.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 // Type alias for improved type safety based on actual fzf result structure
 type FzfCommandResult = {

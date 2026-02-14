@@ -21,7 +21,7 @@ import {
   CompletionMode,
 } from './useCommandCompletion.js';
 import type { CommandContext } from '../commands/types.js';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import { useTextBuffer } from '../components/shared/text-buffer.js';
 import type { Suggestion } from '../components/SuggestionsDisplay.js';
 import type { UseAtCompletionProps } from './useAtCompletion.js';

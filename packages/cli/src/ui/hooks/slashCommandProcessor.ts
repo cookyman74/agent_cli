@@ -20,7 +20,7 @@ import type {
   ExtensionsStoppingEvent,
   ToolCallConfirmationDetails,
   AgentDefinition,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   GitService,
   Logger,
@@ -34,7 +34,7 @@ import {
   addMCPStatusChangeListener,
   removeMCPStatusChangeListener,
   MCPDiscoveryState,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import type {
   Message,

@@ -14,12 +14,13 @@ import {
   MessageBusType,
   IdeClient,
   type ToolCallConfirmationDetails,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { ToolCallStatus, type IndividualToolCallDisplay } from '../types.js';
 
 // Mock IdeClient
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     IdeClient: {

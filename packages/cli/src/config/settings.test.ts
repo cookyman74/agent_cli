@@ -74,7 +74,7 @@ import {
   SettingScope,
   LoadedSettings,
 } from './settings.js';
-import { FatalConfigError, GEMINI_DIR } from '@didim/agent-cli-core';
+import { FatalConfigError, GEMINI_DIR } from '@didim365/agent-cli-core';
 import { updateSettingsFilePreservingFormat } from '../utils/commentJson.js';
 import {
   getSettingsSchema,
@@ -115,8 +115,9 @@ const mockCoreEvents = vi.hoisted(() => ({
   emitSettingsChanged: vi.fn(),
 }));
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     coreEvents: mockCoreEvents,

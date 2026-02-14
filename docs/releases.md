@@ -18,8 +18,8 @@ More information can be found about these systems in the
 
 | Package    | `prod` (Wombat Dressing Room) | `dev` (Github Private NPM Repo)           |
 | ---------- | ----------------------------- | ----------------------------------------- |
-| CLI        | @didim/agent-cli              | @google-gemini/gemini-cli                 |
-| Core       | @didim/agent-cli-core         | @google-gemini/gemini-cli-core A2A Server |
+| CLI        | @didim365/agent-cli           | @google-gemini/gemini-cli                 |
+| Core       | @didim365/agent-cli-core      | @google-gemini/gemini-cli-core A2A Server |
 | A2A Server | @google/gemini-cli-a2a-server | @google-gemini/gemini-cli-a2a-server      |
 
 ## Release cadence and tags
@@ -44,7 +44,7 @@ These releases will not have been fully vetted and may contain regressions or
 other outstanding issues. Please help us test and install with `preview` tag.
 
 ```bash
-npm install -g @didim/agent-cli@preview
+npm install -g @didim365/agent-cli@preview
 ```
 
 ### Stable
@@ -53,7 +53,7 @@ This will be the full promotion of last week's release + any bug fixes and
 validations. Use `latest` tag.
 
 ```bash
-npm install -g @didim/agent-cli@latest
+npm install -g @didim365/agent-cli@latest
 ```
 
 ### Nightly
@@ -63,7 +63,7 @@ npm install -g @didim/agent-cli@latest
   there are pending validations and issues. Use `nightly` tag.
 
 ```bash
-npm install -g @didim/agent-cli@nightly
+npm install -g @didim365/agent-cli@nightly
 ```
 
 ## Weekly release promotion
@@ -374,12 +374,12 @@ packages are working as expected. This can be done by installing the packages
 locally and running a set of tests to ensure that they are functioning
 correctly.
 
-- `npx -y @didim/agent-cli@latest --version` to validate the push worked as
+- `npx -y @didim365/agent-cli@latest --version` to validate the push worked as
   expected if you were not doing a rc or dev tag
-- `npx -y @didim/agent-cli@<release tag> --version` to validate the tag pushed
-  appropriately
+- `npx -y @didim365/agent-cli@<release tag> --version` to validate the tag
+  pushed appropriately
 - _This is destructive locally_
-  `npm uninstall @didim/agent-cli && npm uninstall -g @didim/agent-cli && npm cache clean --force &&  npm install @didim/agent-cli@<version>`
+  `npm uninstall @didim365/agent-cli && npm uninstall -g @didim365/agent-cli && npm cache clean --force &&  npm install @didim365/agent-cli@<version>`
 - Smoke testing a basic run through of exercising a few llm commands and tools
   is recommended to ensure that the packages are working as expected. We'll
   codify this more in the future.
@@ -457,11 +457,11 @@ Here are the key stages:
 **Stage 3: Publishing standard packages to NPM**
 
 - **What happens:** The `npm publish` command is run for the
-  `@didim/agent-cli-core` and `@didim/agent-cli` packages.
+  `@didim365/agent-cli-core` and `@didim365/agent-cli` packages.
 - **Why:** This publishes them as standard Node.js packages. Users installing
-  via `npm install -g @didim/agent-cli` will download these packages, and `npm`
-  will handle installing the `@didim/agent-cli-core` dependency automatically.
-  The code in these packages is not bundled into a single file.
+  via `npm install -g @didim365/agent-cli` will download these packages, and
+  `npm` will handle installing the `@didim365/agent-cli-core` dependency
+  automatically. The code in these packages is not bundled into a single file.
 
 **Stage 4: Assembling and creating the GitHub release asset**
 
@@ -502,7 +502,8 @@ executable that enables `npx` usage directly from the GitHub repository.
 **Summary of artifacts**
 
 - **NPM:** Publishes standard, un-bundled Node.js packages. The primary artifact
-  is the code in `packages/cli/dist`, which depends on `@didim/agent-cli-core`.
+  is the code in `packages/cli/dist`, which depends on
+  `@didim365/agent-cli-core`.
 - **GitHub release:** Publishes a single, bundled `gemini.js` file that contains
   all dependencies, for easy execution via `npx`.
 

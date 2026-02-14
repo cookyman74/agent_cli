@@ -12,7 +12,7 @@ import {
   type ConversationRecord,
   type MessageRecord,
   partToString,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { BaseSelectionList } from './shared/BaseSelectionList.js';
 import { theme } from '../semantic-colors.js';
 import { useKeypress } from '../hooks/useKeypress.js';

@@ -8,7 +8,7 @@ release may not be as stable as our [latest weekly release](latest.md).
 To install the preview release:
 
 ```
-npm install -g @didim/agent-cli@preview
+npm install -g @didim365/agent-cli@preview
 ```
 
 ## Highlights

@@ -9,7 +9,7 @@ import { RELAUNCH_EXIT_CODE } from './processUtils.js';
 import {
   writeToStderr,
   type FetchAdminControlsResponse,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export async function relaunchOnExitCode(runner: () => Promise<number>) {
   while (true) {

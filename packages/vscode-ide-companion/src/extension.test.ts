@@ -10,11 +10,11 @@ import { activate } from './extension.js';
 import {
   IDE_DEFINITIONS,
   detectIdeFromEnv,
-} from '@didim/agent-cli-core/src/ide/detect-ide.js';
+} from '@didim365/agent-cli-core/src/ide/detect-ide.js';
 
-vi.mock('@didim/agent-cli-core/src/ide/detect-ide.js', async () => {
+vi.mock('@didim365/agent-cli-core/src/ide/detect-ide.js', async () => {
   const actual = await vi.importActual(
-    '@didim/agent-cli-core/src/ide/detect-ide.js',
+    '@didim365/agent-cli-core/src/ide/detect-ide.js',
   );
   return {
     ...actual,

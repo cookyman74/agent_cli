@@ -9,7 +9,7 @@ import type {
   ToolCallRequestInfo,
   ResumedSessionData,
   UserFeedbackPayload,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { isSlashCommand } from './ui/utils/commandUtils.js';
 import type { LoadedSettings } from './config/settings.js';
 import {
@@ -29,7 +29,7 @@ import {
   ToolErrorType,
   Scheduler,
   ROOT_SCHEDULER_ID,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 import type { Content, Part } from '@google/genai';
 import readline from 'node:readline';

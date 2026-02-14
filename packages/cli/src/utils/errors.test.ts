@@ -13,13 +13,13 @@ import {
   beforeEach,
   afterEach,
 } from 'vitest';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import {
   OutputFormat,
   FatalInputError,
   debugLogger,
   coreEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   getErrorMessage,
   handleError,
@@ -35,9 +35,9 @@ vi.mock('./cleanup.js', () => ({
 }));
 
 // Mock the core modules
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
 
   return {
     ...original,

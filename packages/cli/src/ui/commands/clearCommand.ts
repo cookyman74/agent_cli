@@ -9,7 +9,7 @@ import {
   SessionEndReason,
   SessionStartSource,
   flushTelemetry,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
 import { MessageType } from '../types.js';

@@ -7,7 +7,7 @@
 // File for 'gemini mcp remove' command
 import type { CommandModule } from 'yargs';
 import { loadSettings, SettingScope } from '../../config/settings.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import { exitCli } from '../utils.js';
 
 async function removeMcpServer(

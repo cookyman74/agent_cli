@@ -10,7 +10,7 @@ import {
   type Todo,
   type TodoList,
   type TodoStatus,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { theme } from '../../semantic-colors.js';
 import { useUIState } from '../../contexts/UIStateContext.js';
 import { useMemo } from 'react';

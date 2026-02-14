@@ -22,17 +22,17 @@ import {
   type CompletedToolCall,
   ApprovalMode,
   ToolConfirmationOutcome,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { createMockConfig } from '../utils/testing_utils.js';
 import type { ExecutionEventBus, RequestContext } from '@a2a-js/sdk/server';
 import { CoderAgentEvent } from '../types.js';
-import type { ToolCall } from '@didim/agent-cli-core';
+import type { ToolCall } from '@didim365/agent-cli-core';
 
 const mockProcessRestorableToolCalls = vi.hoisted(() => vi.fn());
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...original,
     processRestorableToolCalls: mockProcessRestorableToolCalls,

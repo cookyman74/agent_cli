@@ -5,7 +5,7 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { debugLogger, type SkillDefinition } from '@didim/agent-cli-core';
+import { debugLogger, type SkillDefinition } from '@didim365/agent-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 import { exitCli } from '../utils.js';
 import { installSkill } from '../../utils/skillUtils.js';

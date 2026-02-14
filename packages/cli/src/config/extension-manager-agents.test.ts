@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { ExtensionManager } from './extension-manager.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import { createTestMergedSettings } from './settings.js';
 import { createExtension } from '../test-utils/createExtension.js';
 import { EXTENSIONS_DIRECTORY_NAME } from './extensions/variables.js';
@@ -24,9 +24,10 @@ vi.mock('node:os', async (importOriginal) => {
   };
 });
 
-// Mock @didim/agent-cli-core
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const core = await importOriginal<typeof import('@didim/agent-cli-core')>();
+// Mock @didim365/agent-cli-core
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const core =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...core,
     homedir: mockHomedir,

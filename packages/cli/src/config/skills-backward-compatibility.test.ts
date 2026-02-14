@@ -7,12 +7,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loadCliConfig, parseArguments } from './config.js';
 import * as trustedFolders from './trustedFolders.js';
-import { loadServerHierarchicalMemory } from '@didim/agent-cli-core';
+import { loadServerHierarchicalMemory } from '@didim365/agent-cli-core';
 import { type Settings, createTestMergedSettings } from './settings.js';
 
 vi.mock('./trustedFolders.js');
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     loadServerHierarchicalMemory: vi.fn(),

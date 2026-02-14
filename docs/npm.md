@@ -1,20 +1,21 @@
 # Package overview
 
-This monorepo contains two main packages: `@didim/agent-cli` and
-`@didim/agent-cli-core`.
+This monorepo contains two main packages: `@didim365/agent-cli` and
+`@didim365/agent-cli-core`.
 
-## `@didim/agent-cli`
+## `@didim365/agent-cli`
 
 This is the main package for the Gemini CLI. It is responsible for the user
 interface, command parsing, and all other user-facing functionality.
 
 When this package is published, it is bundled into a single executable file.
 This bundle includes all of the package's dependencies, including
-`@didim/agent-cli-core`. This means that whether a user installs the package
-with `npm install -g @didim/agent-cli` or runs it directly with
-`npx @didim/agent-cli`, they are using this single, self-contained executable.
+`@didim365/agent-cli-core`. This means that whether a user installs the package
+with `npm install -g @didim365/agent-cli` or runs it directly with
+`npx @didim365/agent-cli`, they are using this single, self-contained
+executable.
 
-## `@didim/agent-cli-core`
+## `@didim365/agent-cli-core`
 
 This package contains the core logic for interacting with the Gemini API. It is
 responsible for making API requests, handling authentication, and managing the
@@ -59,4 +60,4 @@ package that should be managed as part of the workspace.
 - **Simplified script execution**: You can run scripts in any package from the
   root of the project using the `--workspace` flag. For example, to run the
   `build` script in the `cli` package, you can run
-  `npm run build --workspace @didim/agent-cli`.
+  `npm run build --workspace @didim365/agent-cli`.

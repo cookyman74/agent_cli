@@ -17,10 +17,10 @@ import {
   type ExtensionLoader,
   debugLogger,
   ApprovalMode,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { loadCliConfig, parseArguments, type CliArgs } from './config.js';
 import { type Settings, createTestMergedSettings } from './settings.js';
-import * as ServerConfig from '@didim/agent-cli-core';
+import * as ServerConfig from '@didim365/agent-cli-core';
 
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { ExtensionManager } from './extension-manager.js';
@@ -90,9 +90,9 @@ vi.mock('read-package-up', () => ({
   ),
 }));
 
-vi.mock('@didim/agent-cli-core', async () => {
+vi.mock('@didim365/agent-cli-core', async () => {
   const actualServer = await vi.importActual<typeof ServerConfig>(
-    '@didim/agent-cli-core',
+    '@didim365/agent-cli-core',
   );
   return {
     ...actualServer,

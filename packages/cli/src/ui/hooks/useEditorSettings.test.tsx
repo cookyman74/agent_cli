@@ -26,13 +26,13 @@ import {
   type EditorType,
   checkHasEditorType,
   allowEditorTypeInSandbox,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 
 import { SettingPaths } from '../../config/settingPaths.js';
 
-vi.mock('@didim/agent-cli-core', async () => {
-  const actual = await vi.importActual('@didim/agent-cli-core');
+vi.mock('@didim365/agent-cli-core', async () => {
+  const actual = await vi.importActual('@didim365/agent-cli-core');
   return {
     ...actual,
     checkHasEditorType: vi.fn(() => true),

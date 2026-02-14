@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MCPServerConfig } from '@didim/agent-cli-core';
-import { MCPServerStatus } from '@didim/agent-cli-core';
+import type { MCPServerConfig } from '@didim365/agent-cli-core';
+import { MCPServerStatus } from '@didim365/agent-cli-core';
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { MAX_MCP_RESOURCES_TO_SHOW } from '../../constants.js';

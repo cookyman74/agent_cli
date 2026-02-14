@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import type { ArgumentsCamelCase, CommandModule } from 'yargs';
-import { debugLogger, ExitCodes } from '@didim/agent-cli-core';
+import { debugLogger, ExitCodes } from '@didim365/agent-cli-core';
 import { runExitCleanup } from './utils/cleanup.js';
 import type { MergedSettings } from './config/settings.js';
 import process from 'node:process';

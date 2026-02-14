@@ -10,7 +10,7 @@ import {
   ShellExecutionService,
   flatMapTextParts,
   PolicyDecision,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 import type { CommandContext } from '../../ui/commands/types.js';
 import type { IPromptProcessor, PromptPipelineContent } from './types.js';

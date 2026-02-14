@@ -7,7 +7,7 @@
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { ApprovalMode } from '@didim/agent-cli-core';
+import { ApprovalMode } from '@didim365/agent-cli-core';
 
 interface ApprovalModeIndicatorProps {
   approvalMode: ApprovalMode;

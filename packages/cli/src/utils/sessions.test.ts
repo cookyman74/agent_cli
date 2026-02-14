@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Config } from '@didim/agent-cli-core';
-import { ChatRecordingService } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
+import { ChatRecordingService } from '@didim365/agent-cli-core';
 import { listSessions, deleteSession } from './sessions.js';
 import { SessionSelector, type SessionInfo } from './sessionUtils.js';
 
@@ -21,8 +21,8 @@ vi.mock('./sessionUtils.js', () => ({
   formatRelativeTime: vi.fn(() => 'some time ago'),
 }));
 
-vi.mock('@didim/agent-cli-core', async () => {
-  const actual = await vi.importActual('@didim/agent-cli-core');
+vi.mock('@didim365/agent-cli-core', async () => {
+  const actual = await vi.importActual('@didim365/agent-cli-core');
   return {
     ...actual,
     ChatRecordingService: vi.fn(),

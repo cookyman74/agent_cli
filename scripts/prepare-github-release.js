@@ -39,9 +39,9 @@ fs.writeFileSync(
 );
 console.log('Wrote .npmrc for @google-gemini scope to packages/core/');
 
-// Update @didim/agent-cli
+// Update @didim365/agent-cli
 updatePackageJson('packages/cli/package.json', (pkg) => {
-  pkg.name = '@didim/agent-cli';
+  pkg.name = '@didim365/agent-cli';
   pkg.files = ['bundle/'];
   pkg.bin = {
     didim: 'bundle/gemini.js',
@@ -60,9 +60,9 @@ updatePackageJson('packages/a2a-server/package.json', (pkg) => {
   pkg.name = '@google-gemini/gemini-cli-a2a-server';
 });
 
-// Update @didim/agent-cli-core
+// Update @didim365/agent-cli-core
 updatePackageJson('packages/core/package.json', (pkg) => {
-  pkg.name = '@didim/agent-cli-core';
+  pkg.name = '@didim365/agent-cli-core';
 });
 
 console.log('Successfully prepared packages for GitHub release.');

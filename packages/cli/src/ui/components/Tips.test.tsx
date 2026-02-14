@@ -7,7 +7,7 @@
 import { render } from '../../test-utils/render.js';
 import { Tips } from './Tips.js';
 import { describe, it, expect, vi } from 'vitest';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 
 describe('Tips', () => {
   it.each([

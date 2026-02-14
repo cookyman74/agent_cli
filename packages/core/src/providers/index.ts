@@ -64,25 +64,25 @@ export * from './legacyAliases.js';
 
 // Gemini provider types (Phase 2 - M2.0)
 // Exported as namespace to avoid conflict with legacyAliases
-// Use: import { Gemini } from '@didim/agent-cli-core/providers'
+// Use: import { Gemini } from '@didim365/agent-cli-core/providers'
 // Then: Gemini.GeminiEventType, Gemini.ServerGeminiStreamEvent, etc.
 import * as Gemini from './gemini/index.js';
 export { Gemini };
 
 // Claude provider types (Phase 3 - M3.1)
-// Use: import { Claude } from '@didim/agent-cli-core/providers'
+// Use: import { Claude } from '@didim365/agent-cli-core/providers'
 // Then: Claude.ClaudeAdapter, Claude.bootstrapClaudeProvider, etc.
 import * as Claude from './claude/index.js';
 export { Claude };
 
 // OpenAI provider types (Phase 3 - M3.2)
-// Use: import { OpenAi } from '@didim/agent-cli-core/providers'
+// Use: import { OpenAi } from '@didim365/agent-cli-core/providers'
 // Then: OpenAi.OpenAiAdapter, OpenAi.bootstrapOpenAiProvider, etc.
 import * as OpenAi from './openai/index.js';
 export { OpenAi };
 
 // OpenAI-compatible provider types (Phase 3 - M3.3)
-// Use: import { OpenAiCompatible } from '@didim/agent-cli-core/providers'
+// Use: import { OpenAiCompatible } from '@didim365/agent-cli-core/providers'
 // Then: OpenAiCompatible.OpenAiCompatibleAdapter, etc.
 import * as OpenAiCompatible from './openai-compatible/index.js';
 export { OpenAiCompatible };

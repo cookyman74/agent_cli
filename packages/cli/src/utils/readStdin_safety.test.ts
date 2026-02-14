@@ -9,7 +9,7 @@ import { readStdin } from './readStdin.js';
 import { EventEmitter } from 'node:events';
 
 // Mock debugLogger to avoid clutter
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   debugLogger: {
     warn: vi.fn(),
   },

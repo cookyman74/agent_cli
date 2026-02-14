@@ -31,8 +31,12 @@ import type { Key } from '../hooks/useKeypress.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { keyMatchers, Command } from '../keyMatchers.js';
 import type { CommandContext, SlashCommand } from '../commands/types.js';
-import type { Config } from '@didim/agent-cli-core';
-import { ApprovalMode, coreEvents, debugLogger } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
+import {
+  ApprovalMode,
+  coreEvents,
+  debugLogger,
+} from '@didim365/agent-cli-core';
 import {
   parseInputForHighlighting,
   parseSegmentsFromTokens,

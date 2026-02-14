@@ -18,8 +18,8 @@ import type {
   Config,
   ConversationRecord,
   MessageRecord,
-} from '@didim/agent-cli-core';
-import { coreEvents } from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
+import { coreEvents } from '@didim365/agent-cli-core';
 
 // Mock modules
 vi.mock('fs/promises');

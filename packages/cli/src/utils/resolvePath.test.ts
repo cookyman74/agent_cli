@@ -13,7 +13,7 @@ vi.mock('node:os', () => ({
   homedir: vi.fn(),
 }));
 
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   homedir: () => os.homedir(),
 }));
 

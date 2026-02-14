@@ -7,7 +7,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { CoderAgentEvent, type AgentSettings } from '../types.js';
-import { DEFAULT_CONTEXT_FILENAME, performInit } from '@didim/agent-cli-core';
+import {
+  DEFAULT_CONTEXT_FILENAME,
+  performInit,
+} from '@didim365/agent-cli-core';
 import type {
   Command,
   CommandContext,

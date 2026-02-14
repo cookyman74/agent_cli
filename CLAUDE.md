@@ -41,7 +41,7 @@ npm run clean
 npm run test
 
 # Run tests for a specific workspace
-npm test -w @didim/agent-cli-core -- src/path/to/file.test.ts
+npm test -w @didim365/agent-cli-core -- src/path/to/file.test.ts
 
 # Run integration/E2E tests (requires bundle first)
 npm run bundle && npm run test:e2e

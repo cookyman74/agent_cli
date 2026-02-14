@@ -6,8 +6,8 @@
 
 import * as glob from 'glob';
 import * as path from 'node:path';
-import type { Config } from '@didim/agent-cli-core';
-import { GEMINI_DIR, Storage } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
+import { GEMINI_DIR, Storage } from '@didim365/agent-cli-core';
 import mock from 'mock-fs';
 import { FileCommandLoader } from './FileCommandLoader.js';
 import { assert, vi } from 'vitest';
@@ -58,9 +58,9 @@ vi.mock('./prompt-processors/argumentProcessor.js', async (importOriginal) => {
       .mockImplementation(() => new original.DefaultArgumentProcessor()),
   };
 });
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...original,
     Storage: original.Storage,

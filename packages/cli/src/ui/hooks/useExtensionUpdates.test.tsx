@@ -14,7 +14,7 @@ import {
   GEMINI_DIR,
   loadAgentsFromDirectory,
   loadSkillsFromDir,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { render } from '../../test-utils/render.js';
 import { waitFor } from '../../test-utils/async.js';
 import { MessageType } from '../types.js';
@@ -34,8 +34,9 @@ vi.mock('os', async (importOriginal) => {
   };
 });
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     homedir: () => os.homedir(),

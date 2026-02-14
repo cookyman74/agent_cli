@@ -37,8 +37,8 @@ import {
   type SettingsValue,
   TOGGLE_TYPES,
 } from '../../config/settingsSchema.js';
-import { coreEvents, debugLogger } from '@didim/agent-cli-core';
-import type { Config } from '@didim/agent-cli-core';
+import { coreEvents, debugLogger } from '@didim365/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { useTextBuffer } from './shared/text-buffer.js';
 import {

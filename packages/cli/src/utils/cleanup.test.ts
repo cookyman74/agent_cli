@@ -8,7 +8,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   Storage: vi.fn().mockImplementation(() => ({
     getProjectTempDir: vi.fn().mockReturnValue('/tmp/project'),
   })),

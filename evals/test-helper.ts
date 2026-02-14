@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { TestRig } from '@google/gemini-cli-test-utils';
-import { createUnauthorizedToolError } from '@didim/agent-cli-core';
+import { createUnauthorizedToolError } from '@didim365/agent-cli-core';
 
 export * from '@google/gemini-cli-test-utils';
 

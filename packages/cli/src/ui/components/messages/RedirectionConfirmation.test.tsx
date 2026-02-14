@@ -9,8 +9,8 @@ import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import type {
   ToolCallConfirmationDetails,
   Config,
-} from '@didim/agent-cli-core';
-import { initializeShellParsers } from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
+import { initializeShellParsers } from '@didim365/agent-cli-core';
 import { renderWithProviders } from '../../../test-utils/render.js';
 
 describe('ToolConfirmationMessage Redirection', () => {

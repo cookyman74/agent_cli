@@ -9,7 +9,7 @@ import { theme } from '../semantic-colors.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { relaunchApp } from '../../utils/processUtils.js';
 import { type RestartReason } from '../hooks/useIdeTrustListener.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 interface IdeTrustChangeDialogProps {
   reason: RestartReason;

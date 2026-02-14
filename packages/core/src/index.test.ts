@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
  * remain accessible after file moves (M3.0.1).
  *
  * If any of these imports fail, it means a file move broke the
- * public API surface of @didim/agent-cli-core.
+ * public API surface of @didim365/agent-cli-core.
  */
 describe('root index.ts re-export regression', () => {
   it('should export GeminiChat from moved providers/gemini/chat.ts', async () => {

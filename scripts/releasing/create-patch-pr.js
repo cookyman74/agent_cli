@@ -32,9 +32,9 @@ async function main() {
     })
     .option('cli-package-name', {
       description:
-        'fully qualified package name with scope (e.g @didim/agent-cli)',
+        'fully qualified package name with scope (e.g @didim365/agent-cli)',
       string: true,
-      default: '@didim/agent-cli',
+      default: '@didim365/agent-cli',
     })
     .option('dry-run', {
       description: 'Whether to run in dry-run mode.',

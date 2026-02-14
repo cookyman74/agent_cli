@@ -21,7 +21,7 @@ import {
   SlashCommandStatus,
   makeFakeConfig,
   coreEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 const {
   logSlashCommand,
@@ -46,9 +46,9 @@ vi.mock('./useAlternateBuffer.js', () => ({
   useAlternateBuffer: mockUseAlternateBuffer,
 }));
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
 
   return {
     ...original,

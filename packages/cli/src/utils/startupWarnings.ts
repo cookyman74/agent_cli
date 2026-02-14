@@ -7,7 +7,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import { join as pathJoin } from 'node:path';
-import { getErrorMessage } from '@didim/agent-cli-core';
+import { getErrorMessage } from '@didim365/agent-cli-core';
 
 const warningsFilePath = pathJoin(os.tmpdir(), 'gemini-cli-warnings.txt');
 

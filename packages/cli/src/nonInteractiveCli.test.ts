@@ -12,7 +12,7 @@ import type {
   AnyToolInvocation,
   UserFeedbackPayload,
   LlmEvent,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   ToolErrorType,
   LlmEventType,
@@ -20,7 +20,7 @@ import {
   uiTelemetryService,
   FatalInputError,
   CoreEvent,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { Part } from '@google/genai';
 import { runNonInteractive } from './nonInteractiveCli.js';
 import {
@@ -49,9 +49,9 @@ const mockCoreEvents = vi.hoisted(() => ({
 
 const mockSchedulerSchedule = vi.hoisted(() => vi.fn());
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
 
   class MockChatRecordingService {
     initialize = vi.fn();
@@ -1728,7 +1728,7 @@ describe('runNonInteractive', () => {
       .mockReturnValue('model-1');
 
     // Mock debugLogger.error
-    const { debugLogger } = await import('@didim/agent-cli-core');
+    const { debugLogger } = await import('@didim365/agent-cli-core');
     const debugLoggerErrorSpy = vi
       .spyOn(debugLogger, 'error')
       .mockImplementation(() => {});

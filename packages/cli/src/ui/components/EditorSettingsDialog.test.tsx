@@ -12,10 +12,11 @@ import type { LoadedSettings } from '../../config/settings.js';
 import { KeypressProvider } from '../contexts/KeypressContext.js';
 import { act } from 'react';
 import { waitFor } from '../../test-utils/async.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     isEditorAvailable: () => true, // Mock to behave predictably in CI

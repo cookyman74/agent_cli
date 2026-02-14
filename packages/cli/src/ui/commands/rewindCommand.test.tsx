@@ -14,7 +14,7 @@ import {
   type CommandContext,
 } from './types.js';
 import type { ReactElement } from 'react';
-import { coreEvents } from '@didim/agent-cli-core';
+import { coreEvents } from '@didim365/agent-cli-core';
 
 // Mock dependencies
 const mockRewindTo = vi.fn();
@@ -32,8 +32,9 @@ const mockSetInput = vi.fn();
 const mockRevertFileChanges = vi.fn();
 const mockGetProjectRoot = vi.fn().mockReturnValue('/mock/root');
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     coreEvents: {

@@ -5,7 +5,7 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import { loadSettings } from '../../config/settings.js';
 import { loadCliConfig, type CliArgs } from '../../config/config.js';
 import { exitCli } from '../utils.js';

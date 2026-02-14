@@ -9,8 +9,8 @@ import path from 'node:path';
 import toml from '@iarna/toml';
 import { glob } from 'glob';
 import { z } from 'zod';
-import type { Config } from '@didim/agent-cli-core';
-import { Storage, coreEvents } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
+import { Storage, coreEvents } from '@didim365/agent-cli-core';
 import type { ICommandLoader } from './types.js';
 import type {
   CommandContext,

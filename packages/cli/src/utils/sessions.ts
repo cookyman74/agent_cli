@@ -10,7 +10,7 @@ import {
   writeToStderr,
   writeToStdout,
   type Config,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   formatRelativeTime,
   SessionSelector,

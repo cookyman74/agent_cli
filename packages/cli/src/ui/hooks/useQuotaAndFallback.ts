@@ -17,7 +17,7 @@ import {
   PREVIEW_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL,
   VALID_GEMINI_MODELS,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type UseHistoryManagerReturn } from './useHistoryManager.js';
 import { MessageType } from '../types.js';

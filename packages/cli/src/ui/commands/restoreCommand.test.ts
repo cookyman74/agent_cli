@@ -15,7 +15,7 @@ import {
   GEMINI_DIR,
   type Config,
   type GitService,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 describe('restoreCommand', () => {
   let mockContext: CommandContext;

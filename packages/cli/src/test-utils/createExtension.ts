@@ -9,7 +9,7 @@ import * as path from 'node:path';
 import {
   type MCPServerConfig,
   type ExtensionInstallMetadata,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   EXTENSIONS_CONFIG_FILENAME,
   INSTALL_METADATA_FILENAME,

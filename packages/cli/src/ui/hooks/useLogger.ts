@@ -5,8 +5,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { Storage } from '@didim/agent-cli-core';
-import { sessionId, Logger } from '@didim/agent-cli-core';
+import type { Storage } from '@didim365/agent-cli-core';
+import { sessionId, Logger } from '@didim365/agent-cli-core';
 
 /**
  * Hook to manage the logger instance.

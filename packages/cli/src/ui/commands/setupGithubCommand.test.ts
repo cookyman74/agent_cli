@@ -17,8 +17,8 @@ import {
 } from './setupGithubCommand.js';
 import type { CommandContext } from './types.js';
 import * as commandUtils from '../utils/commandUtils.js';
-import type { ToolActionReturn } from '@didim/agent-cli-core';
-import { debugLogger } from '@didim/agent-cli-core';
+import type { ToolActionReturn } from '@didim365/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 vi.mock('child_process');
 

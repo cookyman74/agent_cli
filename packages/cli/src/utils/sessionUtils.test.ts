@@ -12,8 +12,8 @@ import {
   hasUserOrAssistantMessage,
   SessionError,
 } from './sessionUtils.js';
-import type { Config, MessageRecord } from '@didim/agent-cli-core';
-import { SESSION_FILE_PREFIX } from '@didim/agent-cli-core';
+import type { Config, MessageRecord } from '@didim365/agent-cli-core';
+import { SESSION_FILE_PREFIX } from '@didim365/agent-cli-core';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';

@@ -13,7 +13,7 @@ import {
   type Config,
   CoreEvent,
   coreEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 describe('useMcpStatus', () => {
   let mockConfig: Config;

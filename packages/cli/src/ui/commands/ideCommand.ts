@@ -11,13 +11,13 @@ import {
   logIdeConnection,
   IdeConnectionEvent,
   IdeConnectionType,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   getIdeInstaller,
   IDEConnectionStatus,
   ideContextStore,
   GEMINI_CLI_COMPANION_EXTENSION_NAME,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import path from 'node:path';
 import type {
   CommandContext,

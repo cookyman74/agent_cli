@@ -19,7 +19,7 @@ import {
 vi.mock('node:os');
 vi.mock('node:fs');
 vi.mock('node:fs/promises');
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   debugLogger: {
     log: vi.fn(),
     warn: vi.fn(),

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import {
   OutputFormat,
   JsonFormatter,
@@ -18,7 +18,7 @@ import {
   isFatalToolError,
   debugLogger,
   coreEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { runSyncCleanup } from './cleanup.js';
 
 export function getErrorMessage(error: unknown): string {

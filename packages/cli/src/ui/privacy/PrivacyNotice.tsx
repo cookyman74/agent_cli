@@ -5,7 +5,7 @@
  */
 
 import { Box } from 'ink';
-import { type Config, AuthType } from '@didim/agent-cli-core';
+import { type Config, AuthType } from '@didim365/agent-cli-core';
 import { GeminiPrivacyNotice } from './GeminiPrivacyNotice.js';
 import { CloudPaidPrivacyNotice } from './CloudPaidPrivacyNotice.js';
 import { CloudFreePrivacyNotice } from './CloudFreePrivacyNotice.js';

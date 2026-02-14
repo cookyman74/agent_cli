@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AuthType } from '@didim/agent-cli-core';
+import { AuthType } from '@didim365/agent-cli-core';
 import { loadEnvironment, loadSettings } from './settings.js';
 
 export function validateAuthMethod(authMethod: string): string | null {

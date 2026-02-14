@@ -7,7 +7,7 @@
     "types": ["node", "vitest/globals"],
     "baseUrl": ".",
     "paths": {
-      "@didim/agent-cli-core": ["./index.ts"]
+      "@didim365/agent-cli-core": ["./index.ts"]
     }
   },
   "include": ["index.ts", "src/**/*.ts", "src/**/*.json"],

@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ConversationRecord, MessageRecord } from '@didim/agent-cli-core';
+import type {
+  ConversationRecord,
+  MessageRecord,
+} from '@didim365/agent-cli-core';
 import fs from 'node:fs/promises';
 import * as Diff from 'diff';
 import {
@@ -12,7 +15,7 @@ import {
   debugLogger,
   getFileDiffFromResultDisplay,
   computeAddedAndRemovedLines,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export interface FileChangeDetail {
   fileName: string;

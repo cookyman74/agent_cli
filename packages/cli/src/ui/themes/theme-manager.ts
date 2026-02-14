@@ -25,7 +25,7 @@ import { ANSI } from './ansi.js';
 import { ANSILight } from './ansi-light.js';
 import { NoColorTheme } from './no-color.js';
 import process from 'node:process';
-import { debugLogger, homedir } from '@didim/agent-cli-core';
+import { debugLogger, homedir } from '@didim365/agent-cli-core';
 
 export interface ThemeDisplay {
   name: string;

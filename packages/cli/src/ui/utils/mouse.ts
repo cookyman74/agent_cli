@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { enableMouseEvents, disableMouseEvents } from '@didim/agent-cli-core';
+import {
+  enableMouseEvents,
+  disableMouseEvents,
+} from '@didim365/agent-cli-core';
 import {
   SGR_MOUSE_REGEX,
   X11_MOUSE_REGEX,

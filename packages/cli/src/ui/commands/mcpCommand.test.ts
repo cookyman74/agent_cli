@@ -14,13 +14,14 @@ import {
   getMCPDiscoveryState,
   DiscoveredMCPTool,
   type MessageBus,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 import type { CallableTool } from '@google/genai';
 import { MessageType } from '../types.js';
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   const mockAuthenticate = vi.fn();
   return {
     ...actual,

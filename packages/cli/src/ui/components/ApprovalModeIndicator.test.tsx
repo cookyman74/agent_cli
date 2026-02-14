@@ -7,7 +7,7 @@
 import { render } from '../../test-utils/render.js';
 import { ApprovalModeIndicator } from './ApprovalModeIndicator.js';
 import { describe, it, expect } from 'vitest';
-import { ApprovalMode } from '@didim/agent-cli-core';
+import { ApprovalMode } from '@didim365/agent-cli-core';
 
 describe('ApprovalModeIndicator', () => {
   it('renders correctly for AUTO_EDIT mode', () => {

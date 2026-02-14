@@ -12,7 +12,10 @@ import type {
   SlashCommandActionReturn,
 } from './types.js';
 import { CommandKind } from './types.js';
-import { DEFAULT_CONTEXT_FILENAME, performInit } from '@didim/agent-cli-core';
+import {
+  DEFAULT_CONTEXT_FILENAME,
+  performInit,
+} from '@didim365/agent-cli-core';
 
 export const initCommand: SlashCommand = {
   name: 'init',

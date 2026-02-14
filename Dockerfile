@@ -40,8 +40,8 @@ ENV PATH=$PATH:/usr/local/share/npm-global/bin
 USER node
 
 # install gemini-cli and clean up
-COPY packages/cli/dist/didim-agent-cli-*.tgz /tmp/gemini-cli.tgz
-COPY packages/core/dist/didim-agent-cli-core-*.tgz /tmp/gemini-core.tgz
+COPY packages/cli/dist/didim365-agent-cli-*.tgz /tmp/gemini-cli.tgz
+COPY packages/core/dist/didim365-agent-cli-core-*.tgz /tmp/gemini-core.tgz
 RUN npm install -g /tmp/gemini-cli.tgz /tmp/gemini-core.tgz \
   && npm cache clean --force \
   && rm -f /tmp/gemini-{cli,core}.tgz

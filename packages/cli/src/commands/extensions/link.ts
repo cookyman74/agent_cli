@@ -8,7 +8,7 @@ import type { CommandModule } from 'yargs';
 import {
   debugLogger,
   type ExtensionInstallMetadata,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 import { getErrorMessage } from '../../utils/errors.js';
 import {

@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { render } from '../../test-utils/render.js';
 import { waitFor } from '../../test-utils/async.js';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import { SessionBrowser } from './SessionBrowser.js';
 import type { SessionBrowserProps } from './SessionBrowser.js';
 import type { SessionInfo } from '../../utils/sessionUtils.js';

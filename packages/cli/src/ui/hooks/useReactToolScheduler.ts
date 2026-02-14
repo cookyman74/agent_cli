@@ -18,8 +18,8 @@ import type {
   ValidatingToolCall,
   WaitingToolCall,
   CancelledToolCall,
-} from '@didim/agent-cli-core';
-import { CoreToolScheduler } from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
+import { CoreToolScheduler } from '@didim365/agent-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 
 export type ScheduleFn = (

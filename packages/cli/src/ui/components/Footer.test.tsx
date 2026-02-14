@@ -10,12 +10,12 @@ import {
   createMockSettings,
 } from '../../test-utils/render.js';
 import { Footer } from './Footer.js';
-import { tildeifyPath, ToolCallDecision } from '@didim/agent-cli-core';
+import { tildeifyPath, ToolCallDecision } from '@didim365/agent-cli-core';
 import type { SessionStatsState } from '../contexts/SessionContext.js';
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...original,
     shortenPath: (p: string, len: number) => {

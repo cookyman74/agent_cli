@@ -19,8 +19,9 @@ import {
 
 const mockIsBinary = vi.hoisted(() => vi.fn());
 const mockShellExecutionService = vi.hoisted(() => vi.fn());
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     ShellExecutionService: { execute: mockShellExecutionService },
@@ -53,7 +54,7 @@ import {
   type GeminiClient,
   type ShellExecutionResult,
   type ShellOutputEvent,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';

@@ -9,7 +9,7 @@ import type {
   EditorType,
   CompletedToolCall,
   ToolCallRequestInfo,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   useReactToolScheduler,
   type TrackedToolCall as LegacyTrackedToolCall,

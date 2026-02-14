@@ -16,16 +16,16 @@ import {
   DEFAULT_GEMINI_FLASH_LITE_MODEL,
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
-} from '@didim/agent-cli-core';
-import type { Config, ModelSlashCommandEvent } from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
+import type { Config, ModelSlashCommandEvent } from '@didim365/agent-cli-core';
 
 // Mock dependencies
 const mockGetDisplayString = vi.fn();
 const mockLogModelSlashCommand = vi.fn();
 const mockModelSlashCommandEvent = vi.fn();
 
-vi.mock('@didim/agent-cli-core', async () => {
-  const actual = await vi.importActual('@didim/agent-cli-core');
+vi.mock('@didim365/agent-cli-core', async () => {
+  const actual = await vi.importActual('@didim365/agent-cli-core');
   return {
     ...actual,
     getDisplayString: (val: string) => mockGetDisplayString(val),

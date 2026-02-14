@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { loadSettings, USER_SETTINGS_PATH } from './settings.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 const mocks = vi.hoisted(() => {
   const suffix = Math.random().toString(36).slice(2);
@@ -27,8 +27,9 @@ vi.mock('node:os', async (importOriginal) => {
   };
 });
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   const path = await import('node:path');
   const os = await import('node:os');
   return {

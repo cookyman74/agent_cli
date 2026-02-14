@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
 import { AcpFileSystemService } from './fileSystemService.js';
 import type { AgentSideConnection } from '@agentclientprotocol/sdk';
-import type { FileSystemService } from '@didim/agent-cli-core';
+import type { FileSystemService } from '@didim365/agent-cli-core';
 
 describe('AcpFileSystemService', () => {
   let mockConnection: Mocked<AgentSideConnection>;

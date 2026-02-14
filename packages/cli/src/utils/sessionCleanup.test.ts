@@ -11,7 +11,7 @@ import {
   SESSION_FILE_PREFIX,
   type Config,
   debugLogger,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { Settings } from '../config/settings.js';
 import { cleanupExpiredSessions } from './sessionCleanup.js';
 import { type SessionInfo, getAllSessionFiles } from './sessionUtils.js';

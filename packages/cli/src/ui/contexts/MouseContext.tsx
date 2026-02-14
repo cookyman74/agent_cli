@@ -14,7 +14,7 @@ import {
   useRef,
 } from 'react';
 import { ESC } from '../utils/input.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import { appEvents, AppEvent } from '../../utils/events.js';
 import {
   isIncompleteMouseSequence,

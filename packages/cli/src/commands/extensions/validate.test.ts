@@ -19,7 +19,7 @@ import yargs from 'yargs';
 import { createExtension } from '../../test-utils/createExtension.js';
 import path from 'node:path';
 import * as os from 'node:os';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 vi.mock('../utils.js', () => ({
   exitCli: vi.fn(),

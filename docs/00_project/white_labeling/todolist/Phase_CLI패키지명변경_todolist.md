@@ -11,7 +11,7 @@
 
 | 항목        | 내용                                                                      |
 | ----------- | ------------------------------------------------------------------------- |
-| 프로젝트    | CLI 배포 패키지명을 `@google/gemini-cli` → `@didim/agent-cli`로 변경      |
+| 프로젝트    | CLI 배포 패키지명을 `@google/gemini-cli` → `@didim365/agent-cli`로 변경   |
 | 영향 범위   | 26개 파일, 77개 참조 (package.json, scripts, docs, source, tests)         |
 | 위험 수준   | 🟡 Medium (문자열 치환 중심이나, tgz 파일명/npm 워크스페이스 연동에 주의) |
 | 성능 민감도 | 🟢 Low (런타임 성능 무관)                                                 |
@@ -79,14 +79,14 @@
 ## 🔄 Phase 1: 소스 코드 + 테스트 변경
 
 > 소스 코드(`installationInfo.ts`)와 테스트에서 `@google/gemini-cli`를
-> `@didim/agent-cli`로 변경
+> `@didim365/agent-cli`로 변경
 
 ### 1.1 사전 작업 (Pre-Work)
 
 - [ ] **[CONTEXT]** 작업 목적 및 배경 확인
-  - `@google/gemini-cli`로 설치되는 패키지를 `@didim/agent-cli`로 변경하여 독립
-    브랜딩
-  - `@didim/agent-cli-core`, `@google/gemini-cli-a2a-server`는 변경하지 않음
+  - `@google/gemini-cli`로 설치되는 패키지를 `@didim365/agent-cli`로 변경하여
+    독립 브랜딩
+  - `@didim365/agent-cli-core`, `@google/gemini-cli-a2a-server`는 변경하지 않음
 
 - [ ] **[ANALYSIS]** 현재 소스 코드 참조 분석
   - `packages/cli/src/utils/installationInfo.ts` — 4곳 (pnpm/yarn/bun/npm update
@@ -110,19 +110,19 @@
 
 - [ ] **[TASK-001]** `installationInfo.ts` 패키지명 변경
   - 파일: `packages/cli/src/utils/installationInfo.ts`
-  - 변경: `@google/gemini-cli` → `@didim/agent-cli` (4곳)
-    - Line 113: `pnpm add -g @didim/agent-cli@latest`
-    - Line 126: `yarn global add @didim/agent-cli@latest`
-    - Line 146: `bun add -g @didim/agent-cli@latest`
-    - Line 179: `npm install -g @didim/agent-cli@latest`
+  - 변경: `@google/gemini-cli` → `@didim365/agent-cli` (4곳)
+    - Line 113: `pnpm add -g @didim365/agent-cli@latest`
+    - Line 126: `yarn global add @didim365/agent-cli@latest`
+    - Line 146: `bun add -g @didim365/agent-cli@latest`
+    - Line 179: `npm install -g @didim365/agent-cli@latest`
 
 - [ ] **[TASK-002]** `installationInfo.test.ts` 기대값 변경
   - 파일: `packages/cli/src/utils/installationInfo.test.ts`
-  - 변경: `@google/gemini-cli` → `@didim/agent-cli` (7곳)
+  - 변경: `@google/gemini-cli` → `@didim365/agent-cli` (7곳)
 
 - [ ] **[TASK-003]** `handleAutoUpdate.test.ts` 기대값 변경
   - 파일: `packages/cli/src/utils/handleAutoUpdate.test.ts`
-  - 변경: `@google/gemini-cli` → `@didim/agent-cli` (11곳)
+  - 변경: `@google/gemini-cli` → `@didim365/agent-cli` (11곳)
 
 - [ ] **[GREEN-VERIFY]** 테스트 통과 확인
   ```bash
@@ -132,7 +132,7 @@
 ### 1.4 🔵 REFACTOR Phase
 
 - [ ] **[REFACTOR-STRUCTURE]** 하드코딩 패키지명을 상수로 추출 검토
-  - 현재 4곳에 `@didim/agent-cli` 하드코딩 — 상수 추출 여부 판단
+  - 현재 4곳에 `@didim365/agent-cli` 하드코딩 — 상수 추출 여부 판단
   - 기존 패턴이 하드코딩이므로, 일관성 유지 차원에서 유지 (선택)
 
 - [ ] **[REFACTOR-VERIFY]** 테스트 재확인
@@ -150,7 +150,7 @@
 
 - [ ] **[COMMIT]** 변경사항 커밋
   ```bash
-  git commit -m "feat(cli): 설치/업데이트 명령 패키지명 @didim/agent-cli로 변경"
+  git commit -m "feat(cli): 설치/업데이트 명령 패키지명 @didim365/agent-cli로 변경"
   ```
 
 ---
@@ -164,7 +164,7 @@
 - [ ] **[REVIEW]** Phase 1 완료 확인
 - [ ] **[ANALYSIS]** tgz 파일명 패턴 확인
   - `npm pack`은 패키지명에서 `@scope/name` → `scope-name-version.tgz` 형식 생성
-  - `@didim/agent-cli` → `didim-agent-cli-{version}.tgz`
+  - `@didim365/agent-cli` → `didim365-agent-cli-{version}.tgz`
 
 ### 2.2 🔴 RED Phase
 
@@ -176,7 +176,7 @@
 ### 2.3 🟢 GREEN Phase
 
 - [ ] **[TASK-001]** `packages/cli/package.json` name 변경
-  - Line 2: `"name": "@google/gemini-cli"` → `"name": "@didim/agent-cli"`
+  - Line 2: `"name": "@google/gemini-cli"` → `"name": "@didim365/agent-cli"`
   - `publishConfig` 추가:
     ```json
     "publishConfig": {
@@ -185,38 +185,38 @@
     ```
 
 - [ ] **[TASK-002]** `package.json` (root) name 변경
-  - Line 2: `"name": "@google/gemini-cli"` → `"name": "@didim/agent-cli"`
+  - Line 2: `"name": "@google/gemini-cli"` → `"name": "@didim365/agent-cli"`
 
 - [ ] **[TASK-003]** `scripts/build_sandbox.js` 변경
-  - Line 93: 로그 메시지 `@didim/agent-cli`
-  - Line 95: rmSync glob `didim-agent-cli-*.tgz`
-  - Line 97: `npm pack -w @didim/agent-cli`
-  - Line 118: chmodSync `didim-agent-cli-${packageVersion}.tgz`
+  - Line 93: 로그 메시지 `@didim365/agent-cli`
+  - Line 95: rmSync glob `didim365-agent-cli-*.tgz`
+  - Line 97: `npm pack -w @didim365/agent-cli`
+  - Line 118: chmodSync `didim365-agent-cli-${packageVersion}.tgz`
 
 - [ ] **[TASK-004]** `scripts/get-release-version.js` 변경
-  - Lines 42, 44: 패키지명 기본값 `@didim/agent-cli`
+  - Lines 42, 44: 패키지명 기본값 `@didim365/agent-cli`
 
 - [ ] **[TASK-005]** `scripts/releasing/create-patch-pr.js` 변경
-  - Lines 35, 37: 패키지명 기본값 `@didim/agent-cli`
+  - Lines 35, 37: 패키지명 기본값 `@didim365/agent-cli`
 
 - [ ] **[TASK-006]** `scripts/releasing/patch-comment.js` 변경
-  - Line 143: npm install 문구 `@didim/agent-cli`
+  - Line 143: npm install 문구 `@didim365/agent-cli`
 
 - [ ] **[TASK-007]** `scripts/prepare-github-release.js` 변경
-  - Line 42: 주석 `@didim/agent-cli`
-  - Line 44: `pkg.name = '@didim/agent-cli'` (GitHub 패키징용)
+  - Line 42: 주석 `@didim365/agent-cli`
+  - Line 44: `pkg.name = '@didim365/agent-cli'` (GitHub 패키징용)
 
 - [ ] **[TASK-008]** `scripts/tests/get-release-version.test.js` 변경
-  - Lines 60, 130, 171, 178: `@didim/agent-cli`
+  - Lines 60, 130, 171, 178: `@didim365/agent-cli`
 
 - [ ] **[TASK-009]** `eslint.config.js` 변경
-  - Lines 228-229: no-restricted-imports 패키지명 `@didim/agent-cli`
+  - Lines 228-229: no-restricted-imports 패키지명 `@didim365/agent-cli`
 
 - [ ] **[GREEN-VERIFY]** 빌드 및 테스트 확인
   ```bash
   npm install  # package-lock.json 재생성
-  npm run build -w @didim/agent-cli
-  npm run typecheck -w @didim/agent-cli
+  npm run build -w @didim365/agent-cli
+  npm run typecheck -w @didim365/agent-cli
   npm run lint
   ```
 
@@ -231,7 +231,7 @@
 - [ ] **[REFACTOR-VERIFY]** 전체 빌드 재확인
   ```bash
   npm run build
-  npm test -w @didim/agent-cli
+  npm test -w @didim365/agent-cli
   ```
 
 ### 2.5 사후 작업
@@ -239,25 +239,25 @@
 - [ ] **[TEST]** Phase 1 테스트 회귀 확인 (workspace명 변경 반영)
 
   ```bash
-  npm test -w @didim/agent-cli -- src/utils/installationInfo.test.ts src/utils/handleAutoUpdate.test.ts
+  npm test -w @didim365/agent-cli -- src/utils/installationInfo.test.ts src/utils/handleAutoUpdate.test.ts
   ```
 
 - [ ] **[VERIFY]** npm pack 파일명 확인
 
   ```bash
-  npm pack -w @didim/agent-cli --dry-run  # didim-agent-cli-{ver}.tgz 확인
+  npm pack -w @didim365/agent-cli --dry-run  # didim365-agent-cli-{ver}.tgz 확인
   ```
 
 - [ ] **[COMMIT]** 변경사항 커밋
   ```bash
-  git commit -m "feat(cli): 패키지명 @didim/agent-cli로 변경 + 빌드 스크립트 동기화"
+  git commit -m "feat(cli): 패키지명 @didim365/agent-cli로 변경 + 빌드 스크립트 동기화"
   ```
 
 ---
 
 ## 🔄 Phase 3: 문서 일괄 변경
 
-> README, docs/ 내 모든 `@google/gemini-cli` 참조를 `@didim/agent-cli`로 변경
+> README, docs/ 내 모든 `@google/gemini-cli` 참조를 `@didim365/agent-cli`로 변경
 
 ### 3.1 사전 작업
 
@@ -298,7 +298,7 @@
 ### 3.4 🔵 REFACTOR Phase
 
 - [ ] **[REFACTOR-STRUCTURE]** 문구 일관성 확인
-  - `npm install -g @didim/agent-cli` 형태 통일
+  - `npm install -g @didim365/agent-cli` 형태 통일
   - 불필요한 Google NPM 뱃지 URL 검토
 
 ### 3.5 사후 작업
@@ -306,7 +306,7 @@
 - [ ] **[VERIFY]** 문서 빌드 확인 (있는 경우)
 - [ ] **[COMMIT]** 변경사항 커밋
   ```bash
-  git commit -m "docs: 설치/릴리스 문서 패키지명 @didim/agent-cli로 변경"
+  git commit -m "docs: 설치/릴리스 문서 패키지명 @didim365/agent-cli로 변경"
   ```
 
 ---
@@ -336,8 +336,8 @@
 - [ ] **[TASK-003]** 전체 테스트
 
   ```bash
-  npm test -w @didim/agent-cli
-  npm test -w @didim/agent-cli-core
+  npm test -w @didim365/agent-cli
+  npm test -w @didim365/agent-cli-core
   npm test -w @google/gemini-cli-a2a-server
   ```
 
@@ -400,12 +400,12 @@
 
 ### 변경 범위 제한
 
-1. **`@google/gemini-cli`만 변경** — `@didim/agent-cli-core`,
+1. **`@google/gemini-cli`만 변경** — `@didim365/agent-cli-core`,
    `@google/gemini-cli-a2a-server`는 변경하지 않음
-2. **tgz 파일명 패턴**: `@didim/agent-cli` → `didim-agent-cli-{ver}.tgz` (npm
-   규칙)
+2. **tgz 파일명 패턴**: `@didim365/agent-cli` → `didim365-agent-cli-{ver}.tgz`
+   (npm 규칙)
 3. **workspace 참조**: Phase 2 이후 `npm test -w` 명령에서 workspace 이름이
-   `@didim/agent-cli`로 변경됨
+   `@didim365/agent-cli`로 변경됨
 4. **prepare-github-release.js**: GitHub Packages 사용 시 scope 검토 필요
 
 ### TDD 사이클 원칙

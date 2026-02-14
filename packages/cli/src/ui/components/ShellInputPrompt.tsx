@@ -7,7 +7,7 @@
 import { useCallback } from 'react';
 import type React from 'react';
 import { useKeypress } from '../hooks/useKeypress.js';
-import { ShellExecutionService } from '@didim/agent-cli-core';
+import { ShellExecutionService } from '@didim365/agent-cli-core';
 import { keyToAnsi, type Key } from '../hooks/keyToAnsi.js';
 
 export interface ShellInputPromptProps {

@@ -8,7 +8,7 @@ import { ExtensionManager } from '../../config/extension-manager.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
 import { loadSettings } from '../../config/settings.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 export async function getExtensionManager() {
   const workspaceDir = process.cwd();

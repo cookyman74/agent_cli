@@ -10,8 +10,8 @@ import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import { SettingScope } from '../../config/settings.js';
 
-vi.mock('@didim/agent-cli-core', async () => {
-  const actual = await vi.importActual('@didim/agent-cli-core');
+vi.mock('@didim365/agent-cli-core', async () => {
+  const actual = await vi.importActual('@didim365/agent-cli-core');
   return {
     ...actual,
     clearCachedCredentialFile: vi.fn().mockResolvedValue(undefined),
@@ -74,7 +74,7 @@ describe('authCommand', () => {
       expect(logoutCommand?.name).toBe('logout');
 
       const { clearCachedCredentialFile } = await import(
-        '@didim/agent-cli-core'
+        '@didim365/agent-cli-core'
       );
 
       await logoutCommand!.action!(mockContext, '');

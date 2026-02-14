@@ -144,10 +144,10 @@
 
 권장 자동 검증 명령:
 
-- [ ] `npm test --workspace @didim/agent-cli -- ModelDialog 관련 테스트`
-- [ ] `npm test --workspace @didim/agent-cli-core -- providerSelector 관련 테스트`
-- [ ] `npm run typecheck --workspace @didim/agent-cli`
-- [ ] `npm run typecheck --workspace @didim/agent-cli-core`
+- [ ] `npm test --workspace @didim365/agent-cli -- ModelDialog 관련 테스트`
+- [ ] `npm test --workspace @didim365/agent-cli-core -- providerSelector 관련 테스트`
+- [ ] `npm run typecheck --workspace @didim365/agent-cli`
+- [ ] `npm run typecheck --workspace @didim365/agent-cli-core`
 
 완료 기준:
 

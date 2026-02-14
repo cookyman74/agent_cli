@@ -26,7 +26,7 @@ import {
   loadAgentsFromDirectory,
   loadSkillsFromDir,
   DEFAULT_CONTEXT_FILENAME,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   loadSettings,
   createTestMergedSettings,
@@ -102,8 +102,9 @@ const mockLogExtensionInstallEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionUninstall = vi.hoisted(() => vi.fn());
 const mockLogExtensionUpdateEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionDisable = vi.hoisted(() => vi.fn());
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     logExtensionEnable: mockLogExtensionEnable,

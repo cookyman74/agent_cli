@@ -11,7 +11,7 @@ import {
   SESSION_FILE_PREFIX,
   type Config,
   debugLogger,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 // Create a mock config for integration testing
 function createTestConfig(): Config {

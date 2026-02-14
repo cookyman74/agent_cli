@@ -7,14 +7,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import type { MCPServerConfig } from '@didim/agent-cli-core';
+import type { MCPServerConfig } from '@didim365/agent-cli-core';
 import {
   debugLogger,
   GEMINI_DIR,
   getErrorMessage,
   type TelemetrySettings,
   homedir,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import stripJsonComments from 'strip-json-comments';
 
 export const USER_SETTINGS_DIR = path.join(homedir(), GEMINI_DIR);

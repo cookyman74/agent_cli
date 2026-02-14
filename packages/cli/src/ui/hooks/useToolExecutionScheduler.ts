@@ -17,7 +17,7 @@ import {
   type EditorType,
   type ToolCallsUpdateMessage,
   ROOT_SCHEDULER_ID,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 
 // Re-exporting types compatible with legacy hook expectations

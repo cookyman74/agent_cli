@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ApprovalMode, type PolicyRule } from '@didim/agent-cli-core';
+import { ApprovalMode, type PolicyRule } from '@didim365/agent-cli-core';
 import { CommandKind, type SlashCommand } from './types.js';
 import { MessageType } from '../types.js';
 

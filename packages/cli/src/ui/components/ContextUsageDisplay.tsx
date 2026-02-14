@@ -6,7 +6,7 @@
 
 import { Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { tokenLimit } from '@didim/agent-cli-core';
+import { tokenLimit } from '@didim365/agent-cli-core';
 
 export const ContextUsageDisplay = ({
   promptTokenCount,

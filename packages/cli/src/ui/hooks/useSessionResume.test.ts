@@ -13,7 +13,7 @@ import type {
   ResumedSessionData,
   ConversationRecord,
   MessageRecord,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { HistoryItemWithoutId } from '../types.js';
 

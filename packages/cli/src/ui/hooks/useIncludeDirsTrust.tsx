@@ -5,13 +5,13 @@
  */
 
 import { useEffect } from 'react';
-import { type Config } from '@didim/agent-cli-core';
+import { type Config } from '@didim365/agent-cli-core';
 import { loadTrustedFolders } from '../../config/trustedFolders.js';
 import { expandHomeDir, batchAddDirectories } from '../utils/directoryUtils.js';
 import {
   debugLogger,
   refreshServerHierarchicalMemory,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { MultiFolderTrustDialog } from '../components/MultiFolderTrustDialog.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { MessageType, type HistoryItem } from '../types.js';

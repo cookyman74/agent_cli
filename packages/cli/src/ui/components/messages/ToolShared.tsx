@@ -19,7 +19,7 @@ import {
   type Config,
   SHELL_TOOL_NAME,
   type ToolResultDisplay,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useInactivityTimer } from '../../hooks/useInactivityTimer.js';
 
 export const STATUS_INDICATOR_WIDTH = 3;

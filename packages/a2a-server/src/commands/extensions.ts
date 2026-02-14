@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { listExtensions } from '@didim/agent-cli-core';
+import { listExtensions } from '@didim365/agent-cli-core';
 import type {
   Command,
   CommandContext,

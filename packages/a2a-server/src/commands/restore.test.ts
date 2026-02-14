@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RestoreCommand, ListCheckpointsCommand } from './restore.js';
 import type { CommandContext } from './types.js';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import { createMockConfig } from '../utils/testing_utils.js';
 
 beforeEach(() => {
@@ -18,9 +18,9 @@ const mockPerformRestore = vi.hoisted(() => vi.fn());
 const mockLoggerInfo = vi.hoisted(() => vi.fn());
 const mockGetCheckpointInfoList = vi.hoisted(() => vi.fn());
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...original,
     performRestore: mockPerformRestore,

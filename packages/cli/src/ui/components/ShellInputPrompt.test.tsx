@@ -7,7 +7,7 @@
 import { render } from '../../test-utils/render.js';
 import { ShellInputPrompt } from './ShellInputPrompt.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ShellExecutionService } from '@didim/agent-cli-core';
+import { ShellExecutionService } from '@didim365/agent-cli-core';
 
 // Mock useKeypress
 const mockUseKeypress = vi.fn();
@@ -17,8 +17,8 @@ vi.mock('../hooks/useKeypress.js', () => ({
 }));
 
 // Mock ShellExecutionService
-vi.mock('@didim/agent-cli-core', async () => {
-  const actual = await vi.importActual('@didim/agent-cli-core');
+vi.mock('@didim365/agent-cli-core', async () => {
+  const actual = await vi.importActual('@didim365/agent-cli-core');
   return {
     ...actual,
     ShellExecutionService: {

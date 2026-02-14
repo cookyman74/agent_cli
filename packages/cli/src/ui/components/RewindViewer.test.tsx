@@ -9,7 +9,10 @@ import { act } from 'react';
 import { renderWithProviders } from '../../test-utils/render.js';
 import { RewindViewer } from './RewindViewer.js';
 import { waitFor } from '../../test-utils/async.js';
-import type { ConversationRecord, MessageRecord } from '@didim/agent-cli-core';
+import type {
+  ConversationRecord,
+  MessageRecord,
+} from '@didim365/agent-cli-core';
 
 vi.mock('../utils/formatters.js', async (importOriginal) => {
   const original =
@@ -20,9 +23,9 @@ vi.mock('../utils/formatters.js', async (importOriginal) => {
   };
 });
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
 
   const partToStringRecursive = (part: unknown): string => {
     if (!part) {

@@ -23,7 +23,7 @@ import {
   MCPServerStatus,
   type McpClient,
   coreEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { Text } from 'ink';
 
 // Mock GeminiSpinner

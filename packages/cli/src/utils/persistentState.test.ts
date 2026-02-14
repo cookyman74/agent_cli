@@ -7,11 +7,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Storage, debugLogger } from '@didim/agent-cli-core';
+import { Storage, debugLogger } from '@didim365/agent-cli-core';
 import { PersistentState } from './persistentState.js';
 
 vi.mock('node:fs');
-vi.mock('@didim/agent-cli-core', () => ({
+vi.mock('@didim365/agent-cli-core', () => ({
   Storage: {
     getGlobalGeminiDir: vi.fn(),
   },

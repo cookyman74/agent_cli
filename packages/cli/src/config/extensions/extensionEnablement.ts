@@ -6,7 +6,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { coreEvents, type GeminiCLIExtension } from '@didim/agent-cli-core';
+import { coreEvents, type GeminiCLIExtension } from '@didim365/agent-cli-core';
 import { ExtensionStorage } from './storage.js';
 
 export interface ExtensionEnablementConfig {

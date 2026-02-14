@@ -7,7 +7,7 @@
 import {
   IdeDiffAcceptedNotificationSchema,
   IdeDiffRejectedNotificationSchema,
-} from '@didim/agent-cli-core/src/ide/types.js';
+} from '@didim365/agent-cli-core/src/ide/types.js';
 import { type JSONRPCNotification } from '@modelcontextprotocol/sdk/types.js';
 import * as path from 'node:path';
 import * as vscode from 'vscode';

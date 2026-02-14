@@ -11,7 +11,7 @@ import {
   setDeferredCommand,
   type DeferredCommand,
 } from './deferred.js';
-import { ExitCodes } from '@didim/agent-cli-core';
+import { ExitCodes } from '@didim365/agent-cli-core';
 import type { ArgumentsCamelCase, CommandModule } from 'yargs';
 import type { MergedSettings } from './config/settings.js';
 import type { MockInstance } from 'vitest';
@@ -24,8 +24,8 @@ const { mockRunExitCleanup, mockDebugLogger } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@didim/agent-cli-core', async () => {
-  const actual = await vi.importActual('@didim/agent-cli-core');
+vi.mock('@didim365/agent-cli-core', async () => {
+  const actual = await vi.importActual('@didim365/agent-cli-core');
   return {
     ...actual,
     debugLogger: mockDebugLogger,

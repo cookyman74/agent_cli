@@ -12,16 +12,16 @@ import {
   IDEConnectionStatus,
   ideContextStore,
   type IDEConnectionState,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useIdeTrustListener } from './useIdeTrustListener.js';
 import * as trustedFolders from '../../config/trustedFolders.js';
 import { useSettings } from '../contexts/SettingsContext.js';
 import type { LoadedSettings } from '../../config/settings.js';
 
 // Mock dependencies
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   const ideClientInstance = {
     addTrustChangeListener: vi.fn(),
     removeTrustChangeListener: vi.fn(),

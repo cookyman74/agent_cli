@@ -21,7 +21,7 @@ import {
   MINIMUM_MAX_HEIGHT,
 } from '../components/shared/MaxSizedBox.js';
 import type { LoadedSettings } from '../../config/settings.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import { isAlternateBufferEnabled } from '../hooks/useAlternateBuffer.js';
 
 // Configure theming and parsing utilities.

@@ -12,9 +12,9 @@ import type {
   Config,
   ConversationRecord,
   ResumedSessionData,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { Part } from '@google/genai';
-import { partListUnionToString, coreEvents } from '@didim/agent-cli-core';
+import { partListUnionToString, coreEvents } from '@didim365/agent-cli-core';
 import type { SessionInfo } from '../../utils/sessionUtils.js';
 import { MessageType, ToolCallStatus } from '../types.js';
 

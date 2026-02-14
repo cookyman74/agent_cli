@@ -9,7 +9,10 @@ import { spawn, exec, execSync } from 'node:child_process';
 import os from 'node:os';
 import fs from 'node:fs';
 import { start_sandbox } from './sandbox.js';
-import { FatalSandboxError, type SandboxConfig } from '@didim/agent-cli-core';
+import {
+  FatalSandboxError,
+  type SandboxConfig,
+} from '@didim365/agent-cli-core';
 import { EventEmitter } from 'node:events';
 
 const { mockedHomedir, mockedGetContainerPath } = vi.hoisted(() => ({
@@ -55,8 +58,9 @@ vi.mock('node:util', async (importOriginal) => {
   };
 });
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     debugLogger: {

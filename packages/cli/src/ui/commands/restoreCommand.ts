@@ -14,7 +14,7 @@ import {
   getTruncatedCheckpointNames,
   performRestore,
   type ToolCallData,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   type CommandContext,
   type SlashCommand,

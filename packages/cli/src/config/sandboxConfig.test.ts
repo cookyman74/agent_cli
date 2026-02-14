@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getPackageJson } from '@didim/agent-cli-core';
+import { getPackageJson } from '@didim365/agent-cli-core';
 import commandExists from 'command-exists';
 import * as os from 'node:os';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadSandboxConfig } from './sandboxConfig.js';
 
 // Mock dependencies
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...(actual as object),

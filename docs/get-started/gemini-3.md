@@ -7,7 +7,7 @@ Gemini 3 Pro and Gemini 3 Flash are available on Gemini CLI for all users!
 Get started by upgrading Gemini CLI to the latest version:
 
 ```bash
-npm install -g @didim/agent-cli@latest
+npm install -g @didim365/agent-cli@latest
 ```
 
 After you’ve confirmed your version is 0.21.1 or later:

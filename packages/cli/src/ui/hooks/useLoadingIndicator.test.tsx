@@ -15,7 +15,7 @@ import {
 } from './usePhraseCycler.js';
 import { WITTY_LOADING_PHRASES } from '../constants/wittyPhrases.js';
 import { INFORMATIVE_TIPS } from '../constants/tips.js';
-import type { RetryAttemptPayload } from '@didim/agent-cli-core';
+import type { RetryAttemptPayload } from '@didim365/agent-cli-core';
 
 describe('useLoadingIndicator', () => {
   beforeEach(() => {

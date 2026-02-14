@@ -10,7 +10,10 @@ import { renderHook } from '../../test-utils/render.js';
 import { useRewind } from './useRewind.js';
 import * as rewindFileOps from '../utils/rewindFileOps.js';
 import type { FileChangeStats } from '../utils/rewindFileOps.js';
-import type { ConversationRecord, MessageRecord } from '@didim/agent-cli-core';
+import type {
+  ConversationRecord,
+  MessageRecord,
+} from '@didim365/agent-cli-core';
 
 // Mock the dependency
 vi.mock('../utils/rewindFileOps.js', () => ({

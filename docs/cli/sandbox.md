@@ -8,7 +8,7 @@ prerequisites, quickstart, and configuration.
 Before using sandboxing, you need to install and set up the Gemini CLI:
 
 ```bash
-npm install -g @didim/agent-cli
+npm install -g @didim365/agent-cli
 ```
 
 To verify the installation:

@@ -12,7 +12,7 @@ import {
   CoreEvent,
   type HookStartPayload,
   type HookEndPayload,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { act } from 'react';
 
 describe('useHookDisplayState', () => {

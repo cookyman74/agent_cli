@@ -90,23 +90,25 @@ if (!argv.s) {
   execSync('npm run build --workspaces', { stdio: 'inherit' });
 }
 
-console.log('packing @didim/agent-cli ...');
+console.log('packing @didim365/agent-cli ...');
 const cliPackageDir = join('packages', 'cli');
-rmSync(join(cliPackageDir, 'dist', 'didim-agent-cli-*.tgz'), { force: true });
+rmSync(join(cliPackageDir, 'dist', 'didim365-agent-cli-*.tgz'), {
+  force: true,
+});
 execSync(
-  `npm pack -w @didim/agent-cli --pack-destination ./packages/cli/dist`,
+  `npm pack -w @didim365/agent-cli --pack-destination ./packages/cli/dist`,
   {
     stdio: 'ignore',
   },
 );
 
-console.log('packing @didim/agent-cli-core ...');
+console.log('packing @didim365/agent-cli-core ...');
 const corePackageDir = join('packages', 'core');
-rmSync(join(corePackageDir, 'dist', 'didim-agent-cli-core-*.tgz'), {
+rmSync(join(corePackageDir, 'dist', 'didim365-agent-cli-core-*.tgz'), {
   force: true,
 });
 execSync(
-  `npm pack -w @didim/agent-cli-core --pack-destination ./packages/core/dist`,
+  `npm pack -w @didim365/agent-cli-core --pack-destination ./packages/core/dist`,
   { stdio: 'ignore' },
 );
 
@@ -115,11 +117,11 @@ const packageVersion = JSON.parse(
 ).version;
 
 chmodSync(
-  join(cliPackageDir, 'dist', `didim-agent-cli-${packageVersion}.tgz`),
+  join(cliPackageDir, 'dist', `didim365-agent-cli-${packageVersion}.tgz`),
   0o755,
 );
 chmodSync(
-  join(corePackageDir, 'dist', `didim-agent-cli-core-${packageVersion}.tgz`),
+  join(corePackageDir, 'dist', `didim365-agent-cli-core-${packageVersion}.tgz`),
   0o755,
 );
 

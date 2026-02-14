@@ -21,7 +21,7 @@ downloading the Gemini CLI package from the NPM registry.
 - **Global install:**
 
   ```bash
-  npm install -g @didim/agent-cli
+  npm install -g @didim365/agent-cli
   ```
 
   Then, run the CLI from anywhere:
@@ -34,7 +34,7 @@ downloading the Gemini CLI package from the NPM registry.
 
   ```bash
   # Execute the latest version from NPM without a global install
-  npx @didim/agent-cli
+  npx @didim365/agent-cli
   ```
 
 ### 2. Run in a sandbox (Docker/Podman)
@@ -101,8 +101,8 @@ architectural components and processes:
 Gemini CLI project is a monorepo that publishes two core packages to the NPM
 registry:
 
-- `@didim/agent-cli-core`: The backend, handling logic and tool execution.
-- `@didim/agent-cli`: The user-facing frontend.
+- `@didim365/agent-cli-core`: The backend, handling logic and tool execution.
+- `@didim365/agent-cli`: The user-facing frontend.
 
 These packages are used when performing the standard installation and when
 running Gemini CLI from the source.
@@ -113,8 +113,8 @@ There are two distinct build processes used, depending on the distribution
 channel:
 
 - **NPM publication:** For publishing to the NPM registry, the TypeScript source
-  code in `@didim/agent-cli-core` and `@didim/agent-cli` is transpiled into
-  standard JavaScript using the TypeScript Compiler (`tsc`). The resulting
+  code in `@didim365/agent-cli-core` and `@didim365/agent-cli` is transpiled
+  into standard JavaScript using the TypeScript Compiler (`tsc`). The resulting
   `dist/` directory is what gets published in the NPM package. This is a
   standard approach for TypeScript libraries.
 

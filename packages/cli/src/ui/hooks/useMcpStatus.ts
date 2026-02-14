@@ -10,7 +10,7 @@ import {
   coreEvents,
   MCPDiscoveryState,
   CoreEvent,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export function useMcpStatus(config: Config) {
   const [discoveryState, setDiscoveryState] = useState<MCPDiscoveryState>(

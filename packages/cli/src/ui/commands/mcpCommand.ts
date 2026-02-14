@@ -10,7 +10,7 @@ import type {
   CommandContext,
 } from './types.js';
 import { CommandKind } from './types.js';
-import type { MessageActionReturn } from '@didim/agent-cli-core';
+import type { MessageActionReturn } from '@didim365/agent-cli-core';
 import {
   DiscoveredMCPTool,
   getMCPDiscoveryState,
@@ -22,7 +22,7 @@ import {
   mcpServerRequiresOAuth,
   CoreEvent,
   coreEvents,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 import { MessageType, type HistoryItemMcpStatus } from '../types.js';
 import {
@@ -110,7 +110,7 @@ const authCommand: SlashCommand = {
       });
 
       // Import dynamically to avoid circular dependencies
-      const { MCPOAuthProvider } = await import('@didim/agent-cli-core');
+      const { MCPOAuthProvider } = await import('@didim365/agent-cli-core');
 
       let oauthConfig = server.oauth;
       if (!oauthConfig) {

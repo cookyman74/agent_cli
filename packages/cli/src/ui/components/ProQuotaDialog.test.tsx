@@ -13,7 +13,7 @@ import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import {
   PREVIEW_GEMINI_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 // Mock the child component to make it easier to test the parent
 vi.mock('./shared/RadioButtonSelect.js', () => ({

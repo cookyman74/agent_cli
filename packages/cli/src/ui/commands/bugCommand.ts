@@ -20,7 +20,7 @@ import {
   getVersion,
   INITIAL_HISTORY_LENGTH,
   debugLogger,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { terminalCapabilityManager } from '../utils/terminalCapabilityManager.js';
 import { exportHistoryToFile } from '../utils/historyExportUtils.js';
 import path from 'node:path';

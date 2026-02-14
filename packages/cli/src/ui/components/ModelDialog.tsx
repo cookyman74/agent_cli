@@ -18,7 +18,7 @@ import {
   ModelSlashCommandEvent,
   logModelSlashCommand,
   getDisplayString,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
 import { DescriptiveRadioButtonSelect } from './shared/DescriptiveRadioButtonSelect.js';

@@ -11,8 +11,8 @@ import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 
 // Mock the telemetry service
-vi.mock('@didim/agent-cli-core', async () => {
-  const actual = await vi.importActual('@didim/agent-cli-core');
+vi.mock('@didim365/agent-cli-core', async () => {
+  const actual = await vi.importActual('@didim365/agent-cli-core');
   return {
     ...actual,
     uiTelemetryService: {
@@ -21,8 +21,8 @@ vi.mock('@didim/agent-cli-core', async () => {
   };
 });
 
-import type { GeminiClient } from '@didim/agent-cli-core';
-import { uiTelemetryService } from '@didim/agent-cli-core';
+import type { GeminiClient } from '@didim365/agent-cli-core';
+import { uiTelemetryService } from '@didim365/agent-cli-core';
 
 describe('clearCommand', () => {
   let mockContext: CommandContext;

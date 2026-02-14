@@ -7,7 +7,7 @@
 import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
 import { listMcpServers } from './list.js';
 import { loadSettings, mergeSettings } from '../../config/settings.js';
-import { createTransport, debugLogger } from '@didim/agent-cli-core';
+import { createTransport, debugLogger } from '@didim365/agent-cli-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { ExtensionStorage } from '../../config/extensions/storage.js';
 import { ExtensionManager } from '../../config/extension-manager.js';
@@ -26,9 +26,9 @@ vi.mock('../../config/extensions/storage.js', () => ({
   },
 }));
 vi.mock('../../config/extension-manager.js');
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@didim/agent-cli-core')>();
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...original,
     createTransport: vi.fn(),

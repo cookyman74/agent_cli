@@ -2,7 +2,7 @@
 
 [![Gemini CLI CI](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml)
 [![Gemini CLI E2E (Chained)](https://github.com/google-gemini/gemini-cli/actions/workflows/chained_e2e.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/chained_e2e.yml)
-[![Version](https://img.shields.io/npm/v/@didim/agent-cli)](https://www.npmjs.com/package/@didim/agent-cli)
+[![Version](https://img.shields.io/npm/v/@didim365/agent-cli)](https://www.npmjs.com/package/@didim365/agent-cli)
 [![License](https://img.shields.io/github/license/google-gemini/gemini-cli)](https://github.com/google-gemini/gemini-cli/blob/main/LICENSE)
 [![View Code Wiki](https://assets.codewiki.google/readme-badge/static.svg)](https://codewiki.google/github.com/google-gemini/gemini-cli?utm_source=badge&utm_medium=github&utm_campaign=github.com/google-gemini/gemini-cli)
 
@@ -40,13 +40,13 @@ Learn all about Gemini CLI in our [documentation](https://geminicli.com/docs/).
 
 ```bash
 # Using npx (no installation required)
-npx @didim/agent-cli
+npx @didim365/agent-cli
 ```
 
 #### Install globally with npm
 
 ```bash
-npm install -g @didim/agent-cli
+npm install -g @didim365/agent-cli
 ```
 
 #### Install globally with Homebrew (macOS/Linux)
@@ -69,7 +69,7 @@ conda create -y -n gemini_env -c conda-forge nodejs
 conda activate gemini_env
 
 # Install Gemini CLI globally via npm (inside the environment)
-npm install -g @didim/agent-cli
+npm install -g @didim365/agent-cli
 ```
 
 ## Release Cadence and Tags
@@ -83,7 +83,7 @@ releases will not have been fully vetted and may contain regressions or other
 outstanding issues. Please help us test and install with `preview` tag.
 
 ```bash
-npm install -g @didim/agent-cli@preview
+npm install -g @didim365/agent-cli@preview
 ```
 
 ### Stable
@@ -93,7 +93,7 @@ npm install -g @didim/agent-cli@preview
   and validations. Use `latest` tag.
 
 ```bash
-npm install -g @didim/agent-cli@latest
+npm install -g @didim365/agent-cli@latest
 ```
 
 ### Nightly
@@ -103,7 +103,7 @@ npm install -g @didim/agent-cli@latest
   there are pending validations and issues. Use `nightly` tag.
 
 ```bash
-npm install -g @didim/agent-cli@nightly
+npm install -g @didim365/agent-cli@nightly
 ```
 
 ## 📋 Key Features
@@ -387,7 +387,7 @@ for planned features and priorities.
 
 - **[Official Roadmap](./ROADMAP.md)** - See what's coming next.
 - **[Changelog](./docs/changelogs/index.md)** - See recent notable updates.
-- **[NPM Package](https://www.npmjs.com/package/@didim/agent-cli)** - Package
+- **[NPM Package](https://www.npmjs.com/package/@didim365/agent-cli)** - Package
   registry.
 - **[GitHub Issues](https://github.com/google-gemini/gemini-cli/issues)** -
   Report bugs or request features.

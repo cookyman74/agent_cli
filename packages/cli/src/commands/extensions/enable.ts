@@ -12,7 +12,7 @@ import {
   debugLogger,
   FatalConfigError,
   getErrorMessage,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
 import { exitCli } from '../utils.js';
 import { McpServerEnablementManager } from '../../config/mcp/mcpServerEnablement.js';

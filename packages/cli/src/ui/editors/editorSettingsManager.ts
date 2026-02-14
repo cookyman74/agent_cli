@@ -9,7 +9,7 @@ import {
   checkHasEditorType,
   type EditorType,
   EDITOR_DISPLAY_NAMES,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export interface EditorDisplay {
   name: string;

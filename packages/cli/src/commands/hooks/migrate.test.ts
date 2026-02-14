@@ -16,7 +16,7 @@ import {
 } from 'vitest';
 import * as fs from 'node:fs';
 import { loadSettings, SettingScope } from '../../config/settings.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 import { handleMigrateFromClaude } from './migrate.js';
 
 vi.mock('node:fs');

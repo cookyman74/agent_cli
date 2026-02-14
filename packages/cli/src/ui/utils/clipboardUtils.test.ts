@@ -33,8 +33,9 @@ vi.mock('node:child_process', async (importOriginal) => {
     execSync: vi.fn(),
   };
 });
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     spawnAsync: vi.fn(),
@@ -48,7 +49,7 @@ vi.mock('@didim/agent-cli-core', async (importOriginal) => {
   };
 });
 
-import { spawnAsync } from '@didim/agent-cli-core';
+import { spawnAsync } from '@didim365/agent-cli-core';
 // Keep static imports for stateless functions
 import {
   cleanupOldClipboardImages,

@@ -24,7 +24,7 @@ import { computeSessionStats } from '../utils/computeStats.js';
 import {
   type RetrieveUserQuotaResponse,
   VALID_GEMINI_MODELS,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 // A more flexible and powerful StatRow component
 interface StatRowProps {

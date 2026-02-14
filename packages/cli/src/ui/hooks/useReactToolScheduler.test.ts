@@ -4,14 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CoreToolScheduler } from '@didim/agent-cli-core';
-import type { Config } from '@didim/agent-cli-core';
+import { CoreToolScheduler } from '@didim365/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 import { renderHook } from '../../test-utils/render.js';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useReactToolScheduler } from './useReactToolScheduler.js';
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     CoreToolScheduler: vi.fn(),

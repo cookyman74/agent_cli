@@ -8,7 +8,7 @@ import {
   getPackageJson,
   type SandboxConfig,
   FatalSandboxError,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import commandExists from 'command-exists';
 import * as os from 'node:os';
 import type { Settings } from './settings.js';

@@ -20,7 +20,7 @@ import {
 import type { SlashCommand, SlashCommandActionReturn } from './types.js';
 import { CommandKind } from './types.js';
 import { getUrlOpenCommand } from '../../ui/utils/commandUtils.js';
-import { debugLogger } from '@didim/agent-cli-core';
+import { debugLogger } from '@didim365/agent-cli-core';
 
 export const GITHUB_WORKFLOW_PATHS = [
   'gemini-dispatch/gemini-dispatch.yml',

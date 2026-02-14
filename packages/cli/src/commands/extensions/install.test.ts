@@ -16,7 +16,7 @@ import {
 } from 'vitest';
 import { handleInstall, installCommand } from './install.js';
 import yargs from 'yargs';
-import { debugLogger, type GeminiCLIExtension } from '@didim/agent-cli-core';
+import { debugLogger, type GeminiCLIExtension } from '@didim365/agent-cli-core';
 import type {
   ExtensionManager,
   inferInstallMetadata,

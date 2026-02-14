@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ThoughtSummary } from '@didim/agent-cli-core';
+import type { ThoughtSummary } from '@didim365/agent-cli-core';
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';

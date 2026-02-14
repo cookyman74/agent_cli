@@ -10,7 +10,7 @@ import {
   type CodeAssistServer,
   UserTierId,
   getCodeAssistServer,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 
 export interface PrivacyState {
   isLoading: boolean;

@@ -9,7 +9,7 @@ import {
   listMemoryFiles,
   refreshMemory,
   showMemory,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { MessageType } from '../types.js';
 import type { SlashCommand, SlashCommandActionReturn } from './types.js';
 import { CommandKind } from './types.js';

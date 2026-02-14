@@ -18,7 +18,7 @@ import {
   decodeTagName,
   type MessageActionReturn,
   INITIAL_HISTORY_LENGTH,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import path from 'node:path';
 import type {
   HistoryItemWithoutId,
@@ -27,7 +27,7 @@ import type {
 } from '../types.js';
 import { MessageType } from '../types.js';
 import { exportHistoryToFile } from '../utils/historyExportUtils.js';
-import { convertToRestPayload } from '@didim/agent-cli-core';
+import { convertToRestPayload } from '@didim365/agent-cli-core';
 
 const getSavedChatTags = async (
   context: CommandContext,

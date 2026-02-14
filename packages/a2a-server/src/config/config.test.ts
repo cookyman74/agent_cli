@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loadConfig } from './config.js';
-import type { ExtensionLoader } from '@didim/agent-cli-core';
+import type { ExtensionLoader } from '@didim365/agent-cli-core';
 import type { Settings } from './settings.js';
 
 const {
@@ -23,7 +23,7 @@ const {
   mockVerifyGitAvailability: vi.fn(),
 }));
 
-vi.mock('@didim/agent-cli-core', async () => ({
+vi.mock('@didim365/agent-cli-core', async () => ({
   Config: class MockConfig {
     constructor(params: unknown) {
       mockConfigConstructor(params);

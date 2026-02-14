@@ -5,7 +5,7 @@
  */
 
 import * as path from 'node:path';
-import { homedir } from '@didim/agent-cli-core';
+import { homedir } from '@didim365/agent-cli-core';
 
 export function resolvePath(p: string): string {
   if (!p) {

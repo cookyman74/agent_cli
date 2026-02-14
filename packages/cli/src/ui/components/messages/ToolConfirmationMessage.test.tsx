@@ -9,7 +9,7 @@ import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import type {
   ToolCallConfirmationDetails,
   Config,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   renderWithProviders,
   createMockSettings,

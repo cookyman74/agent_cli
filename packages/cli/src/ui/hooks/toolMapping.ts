@@ -11,7 +11,7 @@ import {
   type SerializableConfirmationDetails,
   type ToolResultDisplay,
   debugLogger,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   ToolCallStatus,
   type HistoryItemToolGroup,

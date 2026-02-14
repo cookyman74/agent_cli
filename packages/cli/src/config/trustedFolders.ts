@@ -13,7 +13,7 @@ import {
   ideContextStore,
   GEMINI_DIR,
   homedir,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { Settings } from './settings.js';
 import stripJsonComments from 'strip-json-comments';
 

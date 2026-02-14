@@ -13,7 +13,7 @@ import {
   StartSessionEvent,
   logCliConfiguration,
   startupProfiler,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { type LoadedSettings } from '../config/settings.js';
 import { performInitialAuth } from './auth.js';
 import { validateTheme } from './theme.js';

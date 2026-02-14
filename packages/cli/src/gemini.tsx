@@ -64,7 +64,7 @@ import {
   ValidationCancelledError,
   ValidationRequiredError,
   type FetchAdminControlsResponse,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   initializeApp,
   type InitializationResult,

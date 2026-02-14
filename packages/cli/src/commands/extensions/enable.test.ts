@@ -22,7 +22,7 @@ import {
   SettingScope,
   type LoadedSettings,
 } from '../../config/settings.js';
-import { FatalConfigError } from '@didim/agent-cli-core';
+import { FatalConfigError } from '@didim365/agent-cli-core';
 
 // Mock dependencies
 const emitConsoleLog = vi.hoisted(() => vi.fn());
@@ -35,8 +35,9 @@ const debugLogger = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     coreEvents: {

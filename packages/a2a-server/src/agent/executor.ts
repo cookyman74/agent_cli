@@ -12,8 +12,8 @@ import type {
   RequestContext,
   ExecutionEventBus,
 } from '@a2a-js/sdk/server';
-import type { ToolCallRequestInfo, Config } from '@didim/agent-cli-core';
-import { LlmEventType, SimpleExtensionLoader } from '@didim/agent-cli-core';
+import type { ToolCallRequestInfo, Config } from '@didim365/agent-cli-core';
+import { LlmEventType, SimpleExtensionLoader } from '@didim365/agent-cli-core';
 import { v4 as uuidv4 } from 'uuid';
 
 import { logger } from '../utils/logger.js';

@@ -10,7 +10,7 @@ import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import { MessageType } from '../types.js';
 import { formatDuration } from '../utils/formatters.js';
-import type { Config } from '@didim/agent-cli-core';
+import type { Config } from '@didim365/agent-cli-core';
 
 describe('statsCommand', () => {
   let mockContext: CommandContext;

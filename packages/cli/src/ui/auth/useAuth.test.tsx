@@ -510,6 +510,27 @@ describe('useAuth', () => {
       });
     });
 
+    it('should redirect to ConfiguringVertex when vertexConfig is missing on restart', async () => {
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_VERTEX_AI,
+              selectedProvider: 'vertex-ai',
+              // vertexConfig is empty — simulates settings corruption or manual edit
+              vertexConfig: {},
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(result.current.authState).toBe(AuthState.ConfiguringVertex);
+      });
+    });
+
     it('should clean sLM env vars when restarting with Claude provider', async () => {
       // Simulate sLM env vars left over from previous session
       process.env['LLM_MODEL'] = 'llama3';

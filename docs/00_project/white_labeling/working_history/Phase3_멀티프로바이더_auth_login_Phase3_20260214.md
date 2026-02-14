@@ -188,11 +188,47 @@ LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_API_KEY_HEADER, LLM_CUSTOM_HEADERS
 `'restores buffer to project value when Esc is pressed on step 2'` — Step 2에서
 Esc 후 `buffer.setText`가 `'my-gcp-project'`로 호출되는지 검증.
 
+### Issue 3 (중간): Vertex 설정 누락 시 복구 경로 부재
+
+**문제**: `useAuth.ts`에서 `selectedType=USE_VERTEX_AI`인데
+`vertexConfig.project`가 없으면(설정 손상/수동 편집), env var 설정을 건너뛰고
+`validateAuthMethod` 에러로 `Updating` 상태로 떨어진다. sLM은 동일 상황에서
+`ConfiguringSlm`으로 유도하는 복구 분기가 있음 (line 245-248).
+
+**수정**: `useAuth.ts`의 `USE_VERTEX_AI` 블록에서 `!vertexConfig?.project` 시
+`setAuthState(AuthState.ConfiguringVertex)` + `return` 추가. 기존
+`if (vertexConfig?.project)` 조건 분기를
+`if (!vertexConfig?.project) { recovery }` + `unconditional set`으로 변경.
+
+**테스트 추가**:
+`'should redirect to ConfiguringVertex when vertexConfig is missing on restart'`
+— `vertexConfig: {}` 상태에서 `ConfiguringVertex`로 전이되는지 검증 (useAuth: 28
+tests).
+
+### Issue 4 (낮음): env cleanup 회귀 테스트 부재
+
+**문제**: `handleVertexConfigComplete`의 env var 정리 로직이 회귀 테스트 없이
+존재. 추후 리팩토링 시 동일 문제가 재발할 가능성.
+
+**수정**: `AppContainer.test.tsx` Regression Tests에 회귀 테스트 추가. 9개 stale
+env var 설정 후 `handleVertexConfigComplete` 호출, 모두 `undefined` 검증 +
+`GOOGLE_CLOUD_*` 설정 검증 (AppContainer: 71 tests).
+
 ### 리뷰 반영 후 테스트 결과
 
 ```
 VertexConfigDialog:  14 passed (13→14, +1 buffer restore)
-전체:               140 passed (139→140)
-Typecheck:           ✅
-Lint:                ✅
+useAuth:             28 passed (27→28, +1 vertex config recovery)
+AppContainer:        71 passed (70→71, +1 env cleanup regression)
+ProviderSelectDialog: 20 passed
+DialogManager:       21 passed
+SlmConfigDialog:     13 passed
+ApiAuthDialog:       10 passed
+AuthDialog:          26 passed
+AuthInProgress:       5 passed
+LoginWithGoogleRestart: 4 passed
+────────────────────────────────────
+Total:               212 passed
+Typecheck:            ✅
+Lint:                 ✅
 ```

@@ -2501,6 +2501,65 @@ describe('AppContainer State Management', () => {
   });
 
   describe('Regression Tests', () => {
+    it('clears stale non-Vertex env vars when handleVertexConfigComplete is called', async () => {
+      // Simulate stale env vars from a previous provider session
+      const staleVars = [
+        'LLM_PROVIDER',
+        'ENABLE_MULTI_PROVIDER',
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'LLM_API_KEY',
+        'LLM_BASE_URL',
+        'LLM_MODEL',
+        'LLM_API_KEY_HEADER',
+        'LLM_CUSTOM_HEADERS',
+      ] as const;
+      process.env['LLM_PROVIDER'] = 'claude';
+      process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+      process.env['ANTHROPIC_API_KEY'] = 'sk-ant-old';
+      process.env['OPENAI_API_KEY'] = 'sk-old';
+      process.env['LLM_API_KEY'] = 'old-key';
+      process.env['LLM_BASE_URL'] = 'http://localhost:11434/v1';
+      process.env['LLM_MODEL'] = 'llama3';
+      process.env['LLM_API_KEY_HEADER'] = 'X-API-Key';
+      process.env['LLM_CUSTOM_HEADERS'] = '{"X-Old": "val"}';
+
+      // settings.setValue must be available for the handler
+      const settingsWithSetValue = {
+        ...mockSettings,
+        setValue: vi.fn(),
+      } as unknown as LoadedSettings;
+
+      let unmount: () => void;
+      await act(async () => {
+        const result = renderAppContainer({ settings: settingsWithSetValue });
+        unmount = result.unmount;
+      });
+      await waitFor(() => expect(capturedUIActions).toBeTruthy());
+
+      // Call handleVertexConfigComplete
+      await act(async () => {
+        await capturedUIActions.handleVertexConfigComplete({
+          project: 'my-gcp-project',
+          location: 'us-central1',
+        });
+      });
+
+      // All non-Vertex env vars should be cleared
+      for (const varName of staleVars) {
+        expect(process.env[varName]).toBeUndefined();
+      }
+
+      // Vertex env vars should be set
+      expect(process.env['GOOGLE_CLOUD_PROJECT']).toBe('my-gcp-project');
+      expect(process.env['GOOGLE_CLOUD_LOCATION']).toBe('us-central1');
+
+      // Cleanup
+      delete process.env['GOOGLE_CLOUD_PROJECT'];
+      delete process.env['GOOGLE_CLOUD_LOCATION'];
+      unmount!();
+    });
+
     it('does not refresh static on startup if banner text is empty', async () => {
       // Mock banner text to be empty strings
       vi.spyOn(mockConfig, 'getBannerTextNoCapacityIssues').mockResolvedValue(

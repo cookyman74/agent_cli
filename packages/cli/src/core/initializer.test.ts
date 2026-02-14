@@ -14,7 +14,7 @@ import {
 } from '@didim365/agent-cli-core';
 import { performInitialAuth } from './auth.js';
 import { validateTheme } from './theme.js';
-import { type LoadedSettings } from '../config/settings.js';
+import { type LoadedSettings, SettingScope } from '../config/settings.js';
 
 vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const actual =
@@ -65,6 +65,16 @@ describe('initializer', () => {
           },
         },
       },
+      user: {
+        settings: {
+          security: {
+            auth: {
+              selectedType: 'oauth',
+            },
+          },
+        },
+      },
+      setValue: vi.fn(),
     } as unknown as LoadedSettings;
     mockIdeClient = {
       connect: vi.fn(),
@@ -144,5 +154,386 @@ describe('initializer', () => {
     );
 
     expect(result.themeError).toBe('Theme not found');
+  });
+
+  // --- migrateAuthSettings ---
+
+  describe('migrateAuthSettings', () => {
+    it('should set selectedProvider to gemini when selectedType exists without selectedProvider', async () => {
+      // Existing Gemini user: selectedType='oauth', no selectedProvider (user scope)
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'oauth',
+              // no selectedProvider
+            },
+          },
+        },
+        user: {
+          settings: {
+            security: {
+              auth: {
+                selectedType: 'oauth',
+              },
+            },
+          },
+        },
+        setValue: vi.fn(),
+      } as unknown as LoadedSettings;
+
+      await initializeApp(mockConfig as unknown as Config, mockSettings);
+
+      expect(
+        (mockSettings as unknown as { setValue: ReturnType<typeof vi.fn> })
+          .setValue,
+      ).toHaveBeenCalledWith(
+        SettingScope.User,
+        'security.auth.selectedProvider',
+        'gemini',
+      );
+    });
+
+    it('should set selectedProvider to vertex-ai when selectedType is USE_VERTEX_AI', async () => {
+      // Existing Vertex AI user: selectedType='vertex-ai', no selectedProvider
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'vertex-ai',
+            },
+          },
+        },
+        user: {
+          settings: {
+            security: {
+              auth: {
+                selectedType: 'vertex-ai',
+              },
+            },
+          },
+        },
+        setValue: vi.fn(),
+      } as unknown as LoadedSettings;
+
+      await initializeApp(mockConfig as unknown as Config, mockSettings);
+
+      expect(
+        (mockSettings as unknown as { setValue: ReturnType<typeof vi.fn> })
+          .setValue,
+      ).toHaveBeenCalledWith(
+        SettingScope.User,
+        'security.auth.selectedProvider',
+        'vertex-ai',
+      );
+    });
+
+    it('should not migrate when both selectedType and selectedProvider exist', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'oauth',
+              selectedProvider: 'gemini',
+            },
+          },
+        },
+        user: {
+          settings: {
+            security: {
+              auth: {
+                selectedType: 'oauth',
+                selectedProvider: 'gemini',
+              },
+            },
+          },
+        },
+        setValue: vi.fn(),
+      } as unknown as LoadedSettings;
+
+      await initializeApp(mockConfig as unknown as Config, mockSettings);
+
+      expect(
+        (mockSettings as unknown as { setValue: ReturnType<typeof vi.fn> })
+          .setValue,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should not migrate when neither selectedType nor selectedProvider exist', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {},
+          },
+        },
+        user: {
+          settings: {
+            security: {
+              auth: {},
+            },
+          },
+        },
+        setValue: vi.fn(),
+      } as unknown as LoadedSettings;
+
+      await initializeApp(mockConfig as unknown as Config, mockSettings);
+
+      expect(
+        (mockSettings as unknown as { setValue: ReturnType<typeof vi.fn> })
+          .setValue,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should not migrate when selectedType exists only in workspace/system scope, not user scope', async () => {
+      // selectedType comes from workspace scope, not user scope
+      // Migration should NOT write to user scope to avoid settings pollution
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'oauth',
+              // no selectedProvider in merged
+            },
+          },
+        },
+        user: {
+          settings: {
+            // user scope has no auth settings at all
+          },
+        },
+        setValue: vi.fn(),
+      } as unknown as LoadedSettings;
+
+      await initializeApp(mockConfig as unknown as Config, mockSettings);
+
+      expect(
+        (mockSettings as unknown as { setValue: ReturnType<typeof vi.fn> })
+          .setValue,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- Non-Gemini provider startup auth skip ---
+
+  describe('non-Gemini provider startup', () => {
+    it('should skip performInitialAuth for Claude provider', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'use-gemini',
+              selectedProvider: 'claude',
+            },
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      const result = await initializeApp(
+        mockConfig as unknown as Config,
+        mockSettings,
+      );
+
+      expect(performInitialAuth).not.toHaveBeenCalled();
+      expect(result.authError).toBeNull();
+    });
+
+    it('should skip performInitialAuth for OpenAI provider', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'use-gemini',
+              selectedProvider: 'openai',
+            },
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      const result = await initializeApp(
+        mockConfig as unknown as Config,
+        mockSettings,
+      );
+
+      expect(performInitialAuth).not.toHaveBeenCalled();
+      expect(result.authError).toBeNull();
+    });
+
+    it('should skip performInitialAuth for Vertex AI provider', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'use-vertex-ai',
+              selectedProvider: 'vertex-ai',
+            },
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      const result = await initializeApp(
+        mockConfig as unknown as Config,
+        mockSettings,
+      );
+
+      expect(performInitialAuth).not.toHaveBeenCalled();
+      expect(result.authError).toBeNull();
+    });
+
+    it('should call performInitialAuth for Gemini provider', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'oauth',
+              selectedProvider: 'gemini',
+            },
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      await initializeApp(mockConfig as unknown as Config, mockSettings);
+
+      expect(performInitialAuth).toHaveBeenCalledWith(mockConfig, 'oauth');
+    });
+
+    it('should call performInitialAuth when selectedProvider is undefined', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'oauth',
+              // no selectedProvider — migration will add 'gemini'
+            },
+          },
+        },
+        user: {
+          settings: {
+            security: {
+              auth: {
+                selectedType: 'oauth',
+              },
+            },
+          },
+        },
+        setValue: vi.fn(),
+      } as unknown as LoadedSettings;
+
+      await initializeApp(mockConfig as unknown as Config, mockSettings);
+
+      // After migration, selectedProvider='gemini' → performInitialAuth called
+      expect(performInitialAuth).toHaveBeenCalledWith(mockConfig, 'oauth');
+    });
+  });
+
+  // --- shouldOpenAuthDialog ---
+
+  describe('shouldOpenAuthDialog', () => {
+    it('should be false when both selectedType and selectedProvider are set', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'oauth',
+              selectedProvider: 'gemini',
+            },
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      const result = await initializeApp(
+        mockConfig as unknown as Config,
+        mockSettings,
+      );
+
+      expect(result.shouldOpenAuthDialog).toBe(false);
+    });
+
+    it('should be true when both selectedType and selectedProvider are missing', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {},
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      const result = await initializeApp(
+        mockConfig as unknown as Config,
+        mockSettings,
+      );
+
+      expect(result.shouldOpenAuthDialog).toBe(true);
+    });
+
+    it('should be false for non-Gemini provider with selectedType', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'use-gemini',
+              selectedProvider: 'claude',
+            },
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      const result = await initializeApp(
+        mockConfig as unknown as Config,
+        mockSettings,
+      );
+
+      expect(result.shouldOpenAuthDialog).toBe(false);
+    });
+
+    it('should be true when selectedProvider exists without selectedType (incomplete state)', async () => {
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedProvider: 'claude',
+              // no selectedType — incomplete/corrupted state
+            },
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      const result = await initializeApp(
+        mockConfig as unknown as Config,
+        mockSettings,
+      );
+
+      // Dialog should open to let user reconfigure
+      expect(result.shouldOpenAuthDialog).toBe(true);
+    });
+
+    it('should be true when authError exists regardless of provider', async () => {
+      vi.mocked(performInitialAuth).mockResolvedValue('Auth failed');
+      mockSettings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: 'oauth',
+              selectedProvider: 'gemini',
+            },
+          },
+        },
+        user: { settings: {} },
+      } as unknown as LoadedSettings;
+
+      const result = await initializeApp(
+        mockConfig as unknown as Config,
+        mockSettings,
+      );
+
+      expect(result.shouldOpenAuthDialog).toBe(true);
+    });
   });
 });

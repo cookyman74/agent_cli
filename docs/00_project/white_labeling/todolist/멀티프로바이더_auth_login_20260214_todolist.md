@@ -340,8 +340,8 @@
 
 ### 4.0 사전작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** Phase 1~3 작업 결과서 리뷰
-- [ ] **[ANALYSIS]** 마이그레이션 시나리오 확인
+- [x] **[CONTEXT]** Phase 1~3 작업 결과서 리뷰
+- [x] **[ANALYSIS]** 마이그레이션 시나리오 확인
   - 기존 Gemini 사용자: selectedType 있음 + selectedProvider 없음
   - 환경변수 사용자: ANTHROPIC_API_KEY, OPENAI_API_KEY, LLM_PROVIDER
   - 신규 사용자: 아무 설정 없음 → SelectingProvider
@@ -350,64 +350,96 @@
 
 **파일**: `packages/cli/src/core/initializer.ts`
 
-- [ ] **🔴 RED**: 마이그레이션 시나리오 테스트 작성
-- [ ] **🟢 GREEN**: `migrateAuthSettings()` 구현
+- [x] **🔴 RED**: 마이그레이션 시나리오 테스트 작성 (15개 테스트)
+- [x] **🟢 GREEN**: `migrateAuthSettings()` + `resolveProviderFromAuthType()`
+      구현
   ```typescript
+  function resolveProviderFromAuthType(selectedType: string): string {
+    if (selectedType === 'vertex-ai') return 'vertex-ai';
+    return 'gemini';
+  }
   function migrateAuthSettings(settings: LoadedSettings): void {
-    const auth = settings.merged.security.auth;
-    if (auth.selectedType && !auth.selectedProvider) {
+    const userAuth = settings.user.settings.security?.auth;
+    if (userAuth?.selectedType && !userAuth?.selectedProvider) {
       settings.setValue(
         SettingScope.User,
         'security.auth.selectedProvider',
-        'gemini',
+        resolveProviderFromAuthType(userAuth.selectedType),
       );
     }
   }
   ```
-- [ ] **[VERIFY]** 테스트 통과
+  - 리뷰 1차: `settings.merged` → `settings.user.settings` (user scope only)
+  - 리뷰 1차: `gemini.tsx` 선행 auth에 `shouldSkipEarlyAuth` 추가
+  - 리뷰 2차: Vertex 레거시 사용자 `selectedType=vertex-ai` →
+    `selectedProvider=vertex-ai` 매핑
+  - 리뷰 2차: non-interactive 모드 non-Gemini env var 복원 + 직접 `refreshAuth`
+    분기
+  - 리뷰 3차: `restoreNonGeminiEnvVars()` Vertex AI 설정 복원 추가
+    (GOOGLE_CLOUD_PROJECT/LOCATION)
+  - 리뷰 3차: env 우선순위 보정 — 모든 `process.env` 설정에 `!process.env[key]`
+    가드
+  - 리뷰 3차: `restoreNonGeminiEnvVars.test.ts` 신규 작성 (11개 테스트)
+- [x] **[VERIFY]** 20개 initializer 테스트 + 11개 restoreNonGeminiEnvVars 테스트
+      통과
 
 ### 4.2 본작업 — Step 4.1: 환경변수 자동 감지
 
 **파일**: `packages/cli/src/ui/auth/useAuth.ts`
 
-- [ ] **[TASK]** selectedProvider + selectedType 모두 없을 때 env var 자동 감지:
+- [x] **[TASK]** selectedProvider + selectedType 모두 없을 때 env var 자동 감지:
   - `LLM_PROVIDER` → Authenticated 직행
   - `ANTHROPIC_API_KEY` → `LLM_PROVIDER=claude` → Authenticated
   - `OPENAI_API_KEY` → `LLM_PROVIDER=openai` → Authenticated
   - 없으면 → SelectingProvider
-- [ ] **[VERIFY]** 테스트 통과
+  - ⚠️ **Phase 1에서 이미 구현 완료** (useAuth.ts determineInitialState + main
+    effect)
+- [x] **[VERIFY]** 테스트 4개 이미 존재 (useAuth.test.tsx lines 333-410)
 
 ### 4.3 본작업 — Step 4.2: auth 검증 + initializer 보강
 
-**파일**: `packages/cli/src/config/auth.ts`,
-`packages/cli/src/core/initializer.ts`
+**파일**: `packages/cli/src/core/initializer.ts`
 
-- [ ] **[TASK]** `validateProviderAuth(provider)` — 비-Gemini env var 존재 확인
-- [ ] **[TASK]** `shouldOpenAuthDialog` 로직 수정
-- [ ] **[VERIFY]** 통합 테스트
+- [x] **[TASK]** `validateProviderAuth(provider)` — 불필요 (useAuth.ts가 이미
+      암묵적 검증: Claude/OpenAI→AwaitingApiKeyInput, sLM→ConfiguringSlm,
+      Vertex→ConfiguringVertex)
+- [x] **[TASK]** `shouldOpenAuthDialog` — 기존 로직 유지 (리뷰 반영)
+  - 유지: `!selectedType || !!authError`
+  - 비-Gemini: `selectedType=USE_GEMINI` → `!selectedType`=false → dialog 미표시
+    (정상)
+  - 불완전 상태: `selectedType=undefined` → dialog 표시 (정상)
+- [x] **[VERIFY]** auth 전체 152+ 테스트 통과
 
 ### 4.4 사후작업 (Post-Work)
 
-- [ ] **[LINT]** 린트 통과
-- [ ] **[TYPECHECK]** 타입체크 통과
-- [ ] **[TEST]** 전체 테스트 회귀 확인
-- [ ] **[E2E]** 수동 E2E 테스트 5개 시나리오
+- [x] **[LINT]** 린트 통과
+- [x] **[TYPECHECK]** 타입체크 통과
+- [x] **[TEST]** 전체 테스트 회귀 확인 (initializer 20 + restoreNonGeminiEnvVars
+      11 + auth 121 = 152+)
+- [ ] **[E2E]** 수동 E2E 테스트 5개 시나리오 (사용자 확인 필요)
   1. 설정 초기화 → `didim` → Step 1 표시 확인
   2. Claude 선택 → API Key 입력 → Authenticated
   3. `/auth login` → Step 1 재표시 → Gemini 선택 → Step 2A
   4. `/auth logout` → 설정 클리어 → Step 1 표시
   5. `ANTHROPIC_API_KEY=xxx didim` → 자동 감지 → 다이얼로그 건너뛰기
-- [ ] **[COMMIT]**
-      `feat(cli): add auth settings migration and env var auto-detection`
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[COMMIT]**
+      `feat(cli): add auth settings migration and non-Gemini startup skip`
+- [x] **[DOC]** 작업 결과서 작성
 
 ### Phase 4 Quality Gates
 
-- [ ] 모든 단위 테스트 통과
-- [ ] TypeScript 컴파일 에러 없음
-- [ ] ESLint 경고 없음
-- [ ] 기존 테스트 회귀 없음
-- [ ] E2E 시나리오 5개 통과
+- [x] 모든 단위 테스트 통과 (initializer 20개 + restoreNonGeminiEnvVars 11개 +
+      auth 121개)
+- [x] TypeScript 컴파일 에러 없음
+- [x] ESLint 경고 없음
+- [x] 기존 테스트 회귀 없음
+- [x] 리뷰 1차: 3개 이슈 반영 (Issue 1-3: gemini.tsx 선행 auth,
+      shouldOpenAuthDialog, scope 오염)
+- [x] 리뷰 2차: 2개 이슈 반영 (Issue 4-5: Vertex 마이그레이션 오분류,
+      non-interactive non-Gemini)
+- [x] 리뷰 3차: 3개 이슈 반영 (Issue 6-8: Vertex non-interactive 복원, env
+      우선순위, 테스트 부재)
+- [ ] E2E 시나리오 5개 통과 (수동 확인 필요)
 
 ---
 
@@ -420,7 +452,7 @@
 | Phase 1 | 프로바이더 선택 + API Key MVP | ✅     | ✅       | ✅          | ✅     | `1984d47` | ✅   |
 | Phase 2 | sLM 대화형 설정               | ✅     | ✅       | ✅          | ✅     | `898bcb3` | ✅   |
 | Phase 3 | Vertex AI + Google Login      | ✅     | ✅       | ✅          | ✅     | `3f90f2a` | ✅   |
-| Phase 4 | 하위 호환 + 마이그레이션      | ⬜     | ⬜       | ⬜          | ⬜     | ⬜        | ⬜   |
+| Phase 4 | 하위 호환 + 마이그레이션      | ✅     | ✅       | N/A         | ✅     | (pending) | ✅   |
 
 ### Phase 의존성
 
@@ -462,9 +494,14 @@ isSelectingProvider, selectedProvider | | 14 |
 15 | `packages/cli/src/ui/commands/authCommand.ts` | logout 멀티프로바이더
 클리어 | | 16 | `packages/cli/src/test-utils/render.tsx` | mock 업데이트 |
 
-**미구현 (Phase 4)**: | # | 파일 | 설명 | |---|------|------| | 1 |
-`packages/cli/src/core/initializer.ts` | Phase 4: 마이그레이션 로직 | | 2 |
-`packages/cli/src/config/auth.ts` | Phase 4: validateProviderAuth |
+**수정 (Phase 4 완료)**: | # | 파일 | 수정 내용 | |---|------|-----------| | 1 |
+`packages/cli/src/core/initializer.ts` | migrateAuthSettings +
+resolveProviderFromAuthType + shouldSkipStartupAuth | | 2 |
+`packages/cli/src/core/initializer.test.ts` | 15개 테스트 추가 (마이그레이션 5 +
+스킵 5 + shouldOpenAuthDialog 5) | | 3 | `packages/cli/src/gemini.tsx` |
+shouldSkipEarlyAuth + restoreNonGeminiEnvVars + non-interactive 분기 | | 4 |
+`packages/cli/src/restoreNonGeminiEnvVars.test.ts` | 신규 — 11개 테스트 (env
+복원 + 우선순위 + Vertex + sLM) |
 
 ---
 
@@ -479,5 +516,5 @@ isSelectingProvider, selectedProvider | | 14 |
 
 ---
 
-**작성일**: 2026-02-14 **최종 수정일**: 2026-02-14 **상태**: 🔄 Phase 1-3 완료,
-Phase 4 대기
+**작성일**: 2026-02-14 **최종 수정일**: 2026-02-14 **상태**: ✅ Phase 1-4 완료
+(리뷰 3차 반영 포함, E2E 수동 확인 대기)

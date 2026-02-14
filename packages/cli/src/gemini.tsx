@@ -63,6 +63,7 @@ import {
   getVersion,
   ValidationCancelledError,
   ValidationRequiredError,
+  loadProviderApiKey,
   type FetchAdminControlsResponse,
 } from '@didim365/agent-cli-core';
 import {
@@ -285,6 +286,75 @@ export async function startInteractiveUI(
   registerCleanup(() => instance.unmount());
 }
 
+/**
+ * Restore env vars for non-Gemini providers in non-interactive mode.
+ * Interactive mode uses useAuth.ts for this; non-interactive needs it here.
+ * Respects existing env vars (user-set) over keychain values.
+ */
+export async function restoreNonGeminiEnvVars(
+  provider: string,
+  settings: LoadedSettings,
+): Promise<void> {
+  if (provider === 'vertex-ai') {
+    // Vertex AI — restore project/location from saved settings
+    const vertexConfig = settings.merged.security.auth.vertexConfig as
+      | { project?: string; location?: string }
+      | undefined;
+    if (vertexConfig?.project && !process.env['GOOGLE_CLOUD_PROJECT']) {
+      process.env['GOOGLE_CLOUD_PROJECT'] = vertexConfig.project;
+    }
+    if (vertexConfig?.location && !process.env['GOOGLE_CLOUD_LOCATION']) {
+      process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;
+    }
+    return;
+  }
+
+  // Claude, OpenAI, sLM, didim — multi-provider env vars
+  process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+  if (!process.env['LLM_PROVIDER']) {
+    process.env['LLM_PROVIDER'] = provider;
+  }
+
+  // Restore provider-specific API key from keychain (only if not already set)
+  const envVarMap: Record<string, string> = {
+    claude: 'ANTHROPIC_API_KEY',
+    openai: 'OPENAI_API_KEY',
+    'openai-compatible': 'LLM_API_KEY',
+    didim: 'DIDIM_API_KEY',
+  };
+  const envVarName = envVarMap[provider];
+  if (envVarName && !process.env[envVarName]) {
+    const key = await loadProviderApiKey(provider);
+    if (key) {
+      process.env[envVarName] = key;
+    }
+  }
+
+  // Restore sLM-specific env vars from settings (only if not already set)
+  if (provider === 'openai-compatible') {
+    const slmConfig = settings.merged.security.auth.slmConfig as
+      | {
+          baseUrl?: string;
+          model?: string;
+          apiKeyHeaderName?: string;
+          customHeaders?: string;
+        }
+      | undefined;
+    if (slmConfig?.baseUrl && !process.env['LLM_BASE_URL']) {
+      process.env['LLM_BASE_URL'] = slmConfig.baseUrl;
+    }
+    if (slmConfig?.model && !process.env['LLM_MODEL']) {
+      process.env['LLM_MODEL'] = slmConfig.model;
+    }
+    if (slmConfig?.apiKeyHeaderName && !process.env['LLM_API_KEY_HEADER']) {
+      process.env['LLM_API_KEY_HEADER'] = slmConfig.apiKeyHeaderName;
+    }
+    if (slmConfig?.customHeaders && !process.env['LLM_CUSTOM_HEADERS']) {
+      process.env['LLM_CUSTOM_HEADERS'] = slmConfig.customHeaders;
+    }
+  }
+}
+
 export async function main() {
   const cliStartupHandle = startupProfiler.start('cli_startup');
 
@@ -381,12 +451,20 @@ export async function main() {
   // Refresh auth to fetch remote admin settings from CCPA and before entering
   // the sandbox because the sandbox will interfere with the Oauth2 web
   // redirect.
+  // Non-Gemini providers (Claude, OpenAI, sLM, Vertex AI) need env var setup
+  // from useAuth.ts which runs after React renders. Skip early auth to avoid
+  // validateAuthMethod(USE_GEMINI) failing due to missing GEMINI_API_KEY.
+  const selectedProvider = settings.merged.security.auth.selectedProvider;
+  const shouldSkipEarlyAuth =
+    !!selectedProvider && selectedProvider !== 'gemini';
+
   let initialAuthFailed = false;
   if (!settings.merged.security.auth.useExternal) {
     try {
       if (
         partialConfig.isInteractive() &&
-        settings.merged.security.auth.selectedType
+        settings.merged.security.auth.selectedType &&
+        !shouldSkipEarlyAuth
       ) {
         const err = validateAuthMethod(
           settings.merged.security.auth.selectedType,
@@ -398,7 +476,7 @@ export async function main() {
         await partialConfig.refreshAuth(
           settings.merged.security.auth.selectedType,
         );
-      } else if (!partialConfig.isInteractive()) {
+      } else if (!partialConfig.isInteractive() && !shouldSkipEarlyAuth) {
         const authType = await validateNonInteractiveAuth(
           settings.merged.security.auth.selectedType,
           settings.merged.security.auth.useExternal,
@@ -717,13 +795,32 @@ export async function main() {
       ),
     );
 
-    const authType = await validateNonInteractiveAuth(
-      settings.merged.security.auth.selectedType,
-      settings.merged.security.auth.useExternal,
-      config,
-      settings,
-    );
-    await config.refreshAuth(authType);
+    // Non-Gemini providers need env var restoration before auth.
+    // validateNonInteractiveAuth only understands Gemini auth types, so we
+    // handle non-Gemini separately — matching the useAuth.ts env var restoration.
+    const nonInteractiveProvider =
+      settings.merged.security.auth.selectedProvider;
+    const isNonGeminiNonInteractive =
+      !!nonInteractiveProvider && nonInteractiveProvider !== 'gemini';
+
+    if (isNonGeminiNonInteractive) {
+      await restoreNonGeminiEnvVars(nonInteractiveProvider, settings);
+
+      // Vertex AI uses its own auth type; other non-Gemini use USE_GEMINI
+      const authType =
+        nonInteractiveProvider === 'vertex-ai'
+          ? AuthType.USE_VERTEX_AI
+          : AuthType.USE_GEMINI;
+      await config.refreshAuth(authType);
+    } else {
+      const authType = await validateNonInteractiveAuth(
+        settings.merged.security.auth.selectedType,
+        settings.merged.security.auth.useExternal,
+        config,
+        settings,
+      );
+      await config.refreshAuth(authType);
+    }
 
     if (config.getDebugMode()) {
       debugLogger.log('Session ID: %s', sessionId);

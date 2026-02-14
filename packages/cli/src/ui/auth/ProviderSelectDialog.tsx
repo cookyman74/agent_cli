@@ -38,8 +38,12 @@ export function ProviderSelectDialog({
   error,
   onError,
 }: ProviderSelectDialogProps): React.JSX.Element {
-  const initialIndex = currentProvider
-    ? items.findIndex((item) => item.value === currentProvider)
+  // Map stored provider keys to UI selection keys
+  // 'openai-compatible' is stored internally but shown as 'slm' in the UI
+  const mappedProvider =
+    currentProvider === 'openai-compatible' ? 'slm' : currentProvider;
+  const initialIndex = mappedProvider
+    ? items.findIndex((item) => item.value === mappedProvider)
     : 0;
 
   useKeypress(

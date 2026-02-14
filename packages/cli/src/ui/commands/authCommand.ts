@@ -48,12 +48,15 @@ const authLogoutCommand: SlashCommand = {
       undefined,
     );
     // Clear provider-related runtime env vars to prevent stale routing
+    delete process.env['ENABLE_MULTI_PROVIDER'];
     delete process.env['LLM_PROVIDER'];
     delete process.env['ANTHROPIC_API_KEY'];
     delete process.env['OPENAI_API_KEY'];
     delete process.env['LLM_API_KEY'];
     delete process.env['LLM_BASE_URL'];
     delete process.env['LLM_MODEL'];
+    delete process.env['LLM_API_KEY_HEADER'];
+    delete process.env['LLM_CUSTOM_HEADERS'];
     // Strip thoughts from history instead of clearing completely
     context.services.config?.getGeminiClient()?.stripThoughtsFromHistory();
     // Return logout action to signal explicit state change

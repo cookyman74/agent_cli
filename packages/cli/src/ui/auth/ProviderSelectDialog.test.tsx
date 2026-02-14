@@ -121,6 +121,13 @@ describe('ProviderSelectDialog', () => {
       expect(initialIndex).toBe(2);
     });
 
+    it('maps openai-compatible to slm (index 3)', () => {
+      props.currentProvider = 'openai-compatible';
+      renderWithProviders(<ProviderSelectDialog {...props} />);
+      const { initialIndex } = mockedRadioButtonSelect.mock.calls[0][0];
+      expect(initialIndex).toBe(3);
+    });
+
     it('falls back to index 0 for unknown currentProvider', () => {
       props.currentProvider = 'unknown';
       renderWithProviders(<ProviderSelectDialog {...props} />);

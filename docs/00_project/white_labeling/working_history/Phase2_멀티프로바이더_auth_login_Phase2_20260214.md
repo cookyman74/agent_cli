@@ -222,4 +222,106 @@ if (provider === 'openai-compatible') {
 
 ---
 
-**작성일**: 2026-02-14 **상태**: ✅ Phase 2 완료
+---
+
+## 8. 리뷰 반영 (Phase 1 + Phase 2)
+
+> **리뷰 일시**: 2026-02-14 **이슈 총 5건**: 높음 2건 + 중간 3건 → **전부 확인
+> 후 수정 완료**
+
+### 이슈 목록 및 수정 결과
+
+| #   | 심각도 | 이슈                                                     | 관련 파일                                                   | 수정 내용                                                                                                                       |
+| --- | ------ | -------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 높음   | SlmConfigDialog 멀티 TextInput 포커스 문제               | `SlmConfigDialog.tsx`                                       | `focusedField` 상태 + Tab 키 전환 + `focus` prop 적용 + 시각적 border 표시                                                      |
+| 2   | 높음   | Step 3 고급 설정(apiKeyHeaderName, customHeaders) 미매핑 | `AppContainer.tsx`, `useAuth.ts`                            | `handleSlmConfigComplete`에 `LLM_API_KEY_HEADER`/`LLM_CUSTOM_HEADERS` env var 매핑 추가, useAuth 재시작 경로에도 동일 매핑 추가 |
+| 3   | 중간   | sLM 재설정 시 이전 env var 잔존                          | `AppContainer.tsx`, `useAuth.ts`, `authCommand.ts`          | 설정 전 `delete process.env[...]`로 optional env vars 명시적 정리, logout에 `LLM_API_KEY_HEADER`/`LLM_CUSTOM_HEADERS` 추가      |
+| 4   | 중간   | 저장값(openai-compatible) vs UI값(slm) 매핑 누락         | `ProviderSelectDialog.tsx`, `ProviderSelectDialog.test.tsx` | `currentProvider === 'openai-compatible'` → `slm` 매핑 추가, 테스트 1건 추가                                                    |
+| 5   | 중간   | `ENABLE_MULTI_PROVIDER` 플래그 누락으로 비-Gemini 무동작 | `AppContainer.tsx`, `useAuth.ts`, `authCommand.ts`          | 모든 비-Gemini 인증 경로(7곳)에 `ENABLE_MULTI_PROVIDER=true` 추가, Gemini 경로/logout에 `delete` 추가                           |
+
+### 이슈 상세
+
+#### Issue 1: SlmConfigDialog 멀티 TextInput 포커스 관리
+
+**문제**: Step 2(API Key + Model)와 Step 3(Header + Custom Headers)에서 여러
+TextInput이 동시에 `focus=true`가 되어 키 입력이 양쪽에 모두 전달되는 문제.
+`useKeypress`는 broadcast 모델이므로 `isActive`/`focus` prop으로 제어 필수.
+
+**수정**:
+
+- `focusedField` 상태 (`'primary' | 'secondary'`) 추가
+- Tab 키 핸들러로 포커스 전환
+- 각 TextInput에 `focus={focusedField === 'primary'|'secondary'}` prop 적용
+- 포커스된 필드에 `theme.border.focused` 색상 표시
+- Step 전환 시 `focusedField` → `'primary'`로 리셋
+- Footer에 "Tab to switch fields" 안내 추가
+
+**참조 패턴**: `BaseSettingsDialog.tsx`, `EditorSettingsDialog.tsx`의 Tab 기반
+포커스 전환
+
+#### Issue 2: Step 3 고급 설정 env var 미매핑
+
+**문제**: `SlmConfigDialog`가 `apiKeyHeaderName`과 `customHeaders`를 수집하지만,
+`handleSlmConfigComplete`에서 해당 값을 env var(`LLM_API_KEY_HEADER`,
+`LLM_CUSTOM_HEADERS`)로 설정하지 않아 `bootstrap.ts`에 전달되지 않음.
+
+**수정**:
+
+- `AppContainer.tsx` `handleSlmConfigComplete`: `slmConfig.apiKeyHeaderName` →
+  `LLM_API_KEY_HEADER`, `slmConfig.customHeaders` → `LLM_CUSTOM_HEADERS` 매핑
+- `useAuth.ts` openai-compatible 재시작 경로: 동일 매핑 추가
+
+#### Issue 3: sLM 재설정 시 stale env var
+
+**문제**: sLM 재설정 시 이전 설정의 optional env var(LLM_MODEL, LLM_API_KEY
+등)가 잔존하여 의도치 않은 동작 유발.
+
+**수정**:
+
+- `handleSlmConfigComplete`에서 새 값 설정 전 optional env vars 일괄 `delete`
+- `useAuth.ts` 재시작 경로에도 동일 패턴 적용
+- `authCommand.ts` logout에 `LLM_API_KEY_HEADER`, `LLM_CUSTOM_HEADERS` 정리 추가
+
+#### Issue 4: 저장값 vs UI값 매핑 누락
+
+**문제**: settings에 `selectedProvider='openai-compatible'`로 저장되지만,
+ProviderSelectDialog의 items는 `value='slm'` 사용. `/auth login` 재진입 시 초기
+선택이 맞지 않음.
+
+**수정**:
+
+- `ProviderSelectDialog.tsx`: `currentProvider === 'openai-compatible'` → `slm`
+  매핑 추가
+- 테스트 1건 추가: `'maps openai-compatible to slm (index 3)'`
+
+#### Issue 5: ENABLE_MULTI_PROVIDER 플래그 미설정
+
+**문제**: `isMultiProviderEnabled()` (featureFlag.ts)가 `ENABLE_MULTI_PROVIDER`
+env var를 확인하며 기본값 `false`. 비-Gemini 프로바이더 선택 시 이 플래그를
+설정하지 않으면 `contentGenerator.ts:299`에서 ProviderFactory 경로가 아닌 Gemini
+SDK 경로로 폴스루.
+
+**수정**:
+
+- `AppContainer.tsx`: `handleApiKeySubmit` (비-Gemini),
+  `handleSlmConfigComplete`에 `ENABLE_MULTI_PROVIDER=true` 추가
+- `AppContainer.tsx`: Gemini 경로에
+  `delete process.env['ENABLE_MULTI_PROVIDER']` 추가
+- `useAuth.ts`: env var 자동감지 3곳(LLM_PROVIDER, ANTHROPIC_API_KEY,
+  OPENAI_API_KEY) + 재시작 2곳(openai-compatible, claude/openai)에
+  `ENABLE_MULTI_PROVIDER=true` 추가
+- `authCommand.ts`: logout에 `delete process.env['ENABLE_MULTI_PROVIDER']` 추가
+
+### 리뷰 반영 검증 결과
+
+| 항목                             | 결과         |
+| -------------------------------- | ------------ |
+| `npm run typecheck`              | ✅ PASS      |
+| `npm run lint`                   | ✅ PASS      |
+| auth 테스트 (107건)              | ✅ 전부 통과 |
+| authCommand 테스트               | ✅ 전부 통과 |
+| ProviderSelectDialog 신규 테스트 | ✅ 통과      |
+
+---
+
+**작성일**: 2026-02-14 **상태**: ✅ Phase 2 완료 + 리뷰 반영 완료

@@ -663,6 +663,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
         const provider = selectedProvider || 'gemini';
         if (provider === 'gemini') {
           // Legacy Gemini path — clear non-Gemini env vars
+          delete process.env['ENABLE_MULTI_PROVIDER'];
           delete process.env['LLM_PROVIDER'];
           delete process.env['ANTHROPIC_API_KEY'];
           delete process.env['OPENAI_API_KEY'];
@@ -672,6 +673,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
           await config.refreshAuth(AuthType.USE_GEMINI);
         } else {
           // Non-Gemini provider path
+          // Enable multi-provider routing so contentGenerator uses ProviderFactory
+          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           await saveProviderApiKey(provider, apiKey);
           await reloadProviderApiKey(provider);
 
@@ -751,15 +754,31 @@ Logging in with Google... Restarting Gemini CLI to continue.
           AuthType.USE_GEMINI,
         );
 
+        // Enable multi-provider routing so contentGenerator uses ProviderFactory
+        process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+
         // Set env vars for providerSelector routing
         process.env['LLM_PROVIDER'] = 'openai-compatible';
         process.env['LLM_BASE_URL'] = slmConfig.baseUrl;
+
+        // Clear optional env vars first to prevent stale values from previous config
+        delete process.env['LLM_API_KEY'];
+        delete process.env['LLM_MODEL'];
+        delete process.env['LLM_API_KEY_HEADER'];
+        delete process.env['LLM_CUSTOM_HEADERS'];
+
         if (slmConfig.apiKey) {
           await saveProviderApiKey('openai-compatible', slmConfig.apiKey);
           process.env['LLM_API_KEY'] = slmConfig.apiKey;
         }
         if (slmConfig.model) {
           process.env['LLM_MODEL'] = slmConfig.model;
+        }
+        if (slmConfig.apiKeyHeaderName) {
+          process.env['LLM_API_KEY_HEADER'] = slmConfig.apiKeyHeaderName;
+        }
+        if (slmConfig.customHeaders) {
+          process.env['LLM_CUSTOM_HEADERS'] = slmConfig.customHeaders;
         }
 
         await config.refreshAuth(AuthType.USE_GEMINI);

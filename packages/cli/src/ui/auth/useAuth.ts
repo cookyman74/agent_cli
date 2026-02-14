@@ -156,6 +156,7 @@ export const useAuthCommand = (
         const llmProvider = process.env['LLM_PROVIDER'];
         if (llmProvider) {
           // LLM_PROVIDER is set — route directly to that provider
+          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           try {
             await config.refreshAuth(AuthType.USE_GEMINI);
             debugLogger.log(
@@ -170,6 +171,7 @@ export const useAuthCommand = (
         }
         if (process.env['ANTHROPIC_API_KEY']) {
           // Auto-detect Claude provider from env var
+          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           process.env['LLM_PROVIDER'] = 'claude';
           try {
             await config.refreshAuth(AuthType.USE_GEMINI);
@@ -183,6 +185,7 @@ export const useAuthCommand = (
         }
         if (process.env['OPENAI_API_KEY']) {
           // Auto-detect OpenAI provider from env var
+          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           process.env['LLM_PROVIDER'] = 'openai';
           try {
             await config.refreshAuth(AuthType.USE_GEMINI);
@@ -208,6 +211,7 @@ export const useAuthCommand = (
         const provider = settings.merged.security.auth.selectedProvider;
         if (provider === 'openai-compatible') {
           // sLM (OpenAI-compatible) — load config from settings
+          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           const slmConfig = settings.merged.security.auth.slmConfig as
             | {
                 baseUrl?: string;
@@ -223,8 +227,21 @@ export const useAuthCommand = (
           }
           process.env['LLM_PROVIDER'] = 'openai-compatible';
           process.env['LLM_BASE_URL'] = slmConfig.baseUrl;
+
+          // Clear optional env vars first to prevent stale values
+          delete process.env['LLM_MODEL'];
+          delete process.env['LLM_API_KEY'];
+          delete process.env['LLM_API_KEY_HEADER'];
+          delete process.env['LLM_CUSTOM_HEADERS'];
+
           if (slmConfig.model) {
             process.env['LLM_MODEL'] = slmConfig.model;
+          }
+          if (slmConfig.apiKeyHeaderName) {
+            process.env['LLM_API_KEY_HEADER'] = slmConfig.apiKeyHeaderName;
+          }
+          if (slmConfig.customHeaders) {
+            process.env['LLM_CUSTOM_HEADERS'] = slmConfig.customHeaders;
           }
           // API key is optional for sLM
           const key = await reloadProviderApiKey(provider);
@@ -233,6 +250,7 @@ export const useAuthCommand = (
           }
         } else if (provider && provider !== 'gemini') {
           // Non-Gemini provider (Claude/OpenAI) saved with selectedType=USE_GEMINI
+          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           // Load the provider-specific key and set env vars for providerSelector
           const key = await reloadProviderApiKey(provider);
           if (!key) {

@@ -47,6 +47,12 @@ export function SlmConfigDialog({
   const [currentStep, setCurrentStep] = useState<Step>('endpoint');
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // Focus management: which field is focused in multi-field steps (Tab to switch)
+  // 'primary' = first field (API Key / Header Name), 'secondary' = second field (Model / Custom Headers)
+  const [focusedField, setFocusedField] = useState<'primary' | 'secondary'>(
+    'primary',
+  );
+
   // Accumulated config across steps
   const [baseUrl, setBaseUrl] = useState(defaultConfig?.baseUrl ?? '');
   const [apiKey, setApiKey] = useState(defaultConfig?.apiKey ?? '');
@@ -121,6 +127,7 @@ export function SlmConfigDialog({
       setValidationError(null);
       setBaseUrl(value);
       setCurrentStep('credentials');
+      setFocusedField('primary');
       buffer.setText('');
     },
     [buffer],
@@ -132,6 +139,7 @@ export function SlmConfigDialog({
       setModel(modelBuffer.text);
       setValidationError(null);
       setCurrentStep('advanced');
+      setFocusedField('primary');
       buffer.setText('');
     },
     [buffer, modelBuffer.text],
@@ -210,6 +218,15 @@ export function SlmConfigDialog({
       if (key.name === 'escape') {
         handleCancel();
       }
+      // Tab switches focus between primary/secondary fields in multi-field steps
+      if (
+        key.name === 'tab' &&
+        (currentStep === 'credentials' || currentStep === 'advanced')
+      ) {
+        setFocusedField((prev) =>
+          prev === 'primary' ? 'secondary' : 'primary',
+        );
+      }
     },
     { isActive: true },
   );
@@ -267,7 +284,11 @@ export function SlmConfigDialog({
           <Box marginTop={1} flexDirection="row">
             <Box
               borderStyle="round"
-              borderColor={theme.border.default}
+              borderColor={
+                focusedField === 'primary'
+                  ? theme.border.focused
+                  : theme.border.default
+              }
               paddingX={1}
               flexGrow={1}
             >
@@ -276,6 +297,7 @@ export function SlmConfigDialog({
                 onSubmit={handleSubmit}
                 onCancel={handleCancel}
                 placeholder="(optional) API key"
+                focus={focusedField === 'primary'}
               />
             </Box>
           </Box>
@@ -289,7 +311,11 @@ export function SlmConfigDialog({
             <Box marginTop={1} flexDirection="row">
               <Box
                 borderStyle="round"
-                borderColor={theme.border.default}
+                borderColor={
+                  focusedField === 'secondary'
+                    ? theme.border.focused
+                    : theme.border.default
+                }
                 paddingX={1}
                 flexGrow={1}
               >
@@ -298,6 +324,7 @@ export function SlmConfigDialog({
                   onSubmit={() => handleSubmit(buffer.text)}
                   onCancel={handleCancel}
                   placeholder="(optional) e.g., llama3, mistral"
+                  focus={focusedField === 'secondary'}
                 />
               </Box>
             </Box>
@@ -316,7 +343,11 @@ export function SlmConfigDialog({
           <Box marginTop={1} flexDirection="row">
             <Box
               borderStyle="round"
-              borderColor={theme.border.default}
+              borderColor={
+                focusedField === 'primary'
+                  ? theme.border.focused
+                  : theme.border.default
+              }
               paddingX={1}
               flexGrow={1}
             >
@@ -325,6 +356,7 @@ export function SlmConfigDialog({
                 onSubmit={handleSubmit}
                 onCancel={handleCancel}
                 placeholder="(optional) e.g., X-API-Key"
+                focus={focusedField === 'primary'}
               />
             </Box>
           </Box>
@@ -338,7 +370,11 @@ export function SlmConfigDialog({
             <Box marginTop={1} flexDirection="row">
               <Box
                 borderStyle="round"
-                borderColor={theme.border.default}
+                borderColor={
+                  focusedField === 'secondary'
+                    ? theme.border.focused
+                    : theme.border.default
+                }
                 paddingX={1}
                 flexGrow={1}
               >
@@ -347,6 +383,7 @@ export function SlmConfigDialog({
                   onSubmit={() => handleSubmit(buffer.text)}
                   onCancel={handleCancel}
                   placeholder='(optional) {"key": "value"}'
+                  focus={focusedField === 'secondary'}
                 />
               </Box>
             </Box>
@@ -363,7 +400,8 @@ export function SlmConfigDialog({
       <Box marginTop={1}>
         <Text color={theme.text.secondary}>
           (Press Enter to {currentStep === 'advanced' ? 'complete' : 'continue'}
-          , Esc to {currentStep === 'endpoint' ? 'cancel' : 'go back'})
+          , Esc to {currentStep === 'endpoint' ? 'cancel' : 'go back'}
+          {currentStep !== 'endpoint' ? ', Tab to switch fields' : ''})
         </Text>
       </Box>
     </Box>

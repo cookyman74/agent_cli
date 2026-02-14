@@ -122,14 +122,15 @@ export function VertexConfigDialog({
     if (currentStep === 'project') {
       onCancel();
     } else {
-      // Go back to previous step
+      // Go back to previous step and restore buffer to saved project value
       const prevIndex = stepIndex - 1;
       if (prevIndex >= 0) {
         setCurrentStep(STEPS[prevIndex]);
         setValidationError(null);
+        buffer.setText(project);
       }
     }
-  }, [currentStep, stepIndex, onCancel]);
+  }, [currentStep, stepIndex, onCancel, buffer, project]);
 
   useKeypress(
     (key) => {

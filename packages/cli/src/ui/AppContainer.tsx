@@ -830,6 +830,18 @@ Logging in with Google... Restarting Gemini CLI to continue.
           AuthType.USE_VERTEX_AI,
         );
 
+        // Clear non-Vertex env vars to prevent stale provider routing
+        // (LLM_PROVIDER takes priority in providerSelector, so must be removed)
+        delete process.env['ENABLE_MULTI_PROVIDER'];
+        delete process.env['LLM_PROVIDER'];
+        delete process.env['ANTHROPIC_API_KEY'];
+        delete process.env['OPENAI_API_KEY'];
+        delete process.env['LLM_API_KEY'];
+        delete process.env['LLM_BASE_URL'];
+        delete process.env['LLM_MODEL'];
+        delete process.env['LLM_API_KEY_HEADER'];
+        delete process.env['LLM_CUSTOM_HEADERS'];
+
         // Set env vars for Vertex AI routing in contentGenerator
         process.env['GOOGLE_CLOUD_PROJECT'] = vertexConfig.project;
         process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;

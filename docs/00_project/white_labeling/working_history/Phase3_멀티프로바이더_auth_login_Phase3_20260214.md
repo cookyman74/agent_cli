@@ -22,7 +22,7 @@ Phase 3은 멀티프로바이더 `/auth login` 흐름에 Vertex AI를 추가하�
 | #   | 파일                                                   | 설명                                  |
 | --- | ------------------------------------------------------ | ------------------------------------- |
 | 1   | `packages/cli/src/ui/auth/VertexConfigDialog.tsx`      | Vertex AI 설정 다이얼로그 (2-step)    |
-| 2   | `packages/cli/src/ui/auth/VertexConfigDialog.test.tsx` | VertexConfigDialog 단위 테스트 (13개) |
+| 2   | `packages/cli/src/ui/auth/VertexConfigDialog.test.tsx` | VertexConfigDialog 단위 테스트 (14개) |
 
 ---
 
@@ -57,7 +57,7 @@ Phase 3은 멀티프로바이더 `/auth login` 흐름에 Vertex AI를 추가하�
 
 - **Enter**: 현재 스텝 제출 (검증 통과 시 다음 스텝 / 완료)
 - **Esc (Step 1)**: `onCancel()` 호출 → ProviderSelectDialog 복귀
-- **Esc (Step 2)**: Step 1로 돌아감
+- **Esc (Step 2)**: Step 1로 돌아감 + buffer를 project 값으로 복원
 
 ### 4.3 TextInput useCallback 클로저 이슈
 
@@ -80,6 +80,10 @@ ProviderSelectDialog → vertex-ai 선택
       settings.setValue('vertexConfig', { project, location })
       settings.setValue('selectedProvider', 'vertex-ai')
       settings.setValue('selectedType', USE_VERTEX_AI)
+      // 이전 프로바이더 env var 정리 (stale routing 방지)
+      delete ENABLE_MULTI_PROVIDER, LLM_PROVIDER, ANTHROPIC_API_KEY,
+             OPENAI_API_KEY, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL,
+             LLM_API_KEY_HEADER, LLM_CUSTOM_HEADERS
       process.env['GOOGLE_CLOUD_PROJECT'] = project
       process.env['GOOGLE_CLOUD_LOCATION'] = location
       config.refreshAuth(USE_VERTEX_AI)
@@ -115,7 +119,7 @@ authType === USE_VERTEX_AI
 ## 8. 테스트 결과
 
 ```
-VertexConfigDialog:       13 passed
+VertexConfigDialog:       14 passed (+1 buffer restore on Esc)
 ProviderSelectDialog:     20 passed (snapshot 업데이트)
 DialogManager:            21 passed (+1 vertex)
 useAuth:                  27 passed (+1 vertex restart)
@@ -125,7 +129,7 @@ AuthDialog:               26 passed
 AuthInProgress:            5 passed
 LoginWithGoogleRestart:    4 passed
 ────────────────────────────────────
-Total:                   139 passed
+Total:                   140 passed
 Typecheck:                ✅
 Lint:                     ✅
 ```
@@ -147,3 +151,48 @@ UI에서는 'vertex-ai'를 사용하여 ProviderSelectDialog의 currentProvider�
 항목을 하이라이트하도록 한다. 내부적으로 providerMetadata의
 `providerType: 'gemini'`은 참조용이며, 실제 라우팅은 `AuthType.USE_VERTEX_AI`가
 담당한다.
+
+---
+
+## 10. 리뷰 반영
+
+### Issue 1 (높음): Vertex 전환 시 이전 provider 환경변수 잔존
+
+**문제**: `handleVertexConfigComplete`에서 `GOOGLE_CLOUD_*` env var만 설정하고
+이전 프로바이더 env var (`LLM_PROVIDER`, `ANTHROPIC_API_KEY` 등)를 정리하지
+않아, `providerSelector.selectProvider()`가 `LLM_PROVIDER` 우선 감지 → 의도와
+다른 프로바이더로 라우팅될 수 있었다.
+
+**수정**: `AppContainer.tsx`의 `handleVertexConfigComplete`에서 `GOOGLE_CLOUD_*`
+설정 전에 비-Vertex env var 9개를 `delete`하도록 추가:
+
+```
+ENABLE_MULTI_PROVIDER, LLM_PROVIDER, ANTHROPIC_API_KEY, OPENAI_API_KEY,
+LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_API_KEY_HEADER, LLM_CUSTOM_HEADERS
+```
+
+이는 `handleApiKeySubmit`의 Gemini 경로 (line 666-675)와 동일한 패턴이다.
+
+### Issue 2 (중간): Step2 → Esc 시 buffer에 location 값 잔존
+
+**문제**: Step 2에서 Esc를 눌러 Step 1로 돌아갈 때, `handleCancel`이
+`setCurrentStep`과 `setValidationError(null)`만 호출하고
+`buffer.setText(project)`를 호출하지 않아, buffer에 location
+기본값(`us-central1`)이 남아 있었다.
+
+**수정**: `VertexConfigDialog.tsx`의 `handleCancel`에서 Step 2 → Step 1 복귀 시
+`buffer.setText(project)` 호출 추가. `useCallback` 의존성 배열에 `buffer`,
+`project` 추가 (기존 `stepIndex`, `onCancel`에 추가).
+
+**테스트 추가**:
+`'restores buffer to project value when Esc is pressed on step 2'` — Step 2에서
+Esc 후 `buffer.setText`가 `'my-gcp-project'`로 호출되는지 검증.
+
+### 리뷰 반영 후 테스트 결과
+
+```
+VertexConfigDialog:  14 passed (13→14, +1 buffer restore)
+전체:               140 passed (139→140)
+Typecheck:           ✅
+Lint:                ✅
+```

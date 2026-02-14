@@ -250,6 +250,33 @@ describe('VertexConfigDialog', () => {
       expect(lastFrame()!).toContain('Step 1 of 2');
       expect(onCancel).not.toHaveBeenCalled();
     });
+
+    it('restores buffer to project value when Esc is pressed on step 2', () => {
+      mockBuffer.text = 'my-gcp-project';
+      render(
+        <VertexConfigDialog onComplete={onComplete} onCancel={onCancel} />,
+      );
+
+      // Advance to step 2 (buffer.setText is called with 'us-central1')
+      act(() => {
+        pressEnterInTextInput();
+      });
+      expect(mockBuffer.setText).toHaveBeenCalledWith('us-central1');
+
+      // Press Esc — should restore buffer to the saved project value
+      const vertexKeypress = mockedUseKeypress.mock.calls.at(-2);
+      act(() => {
+        vertexKeypress![0]({
+          name: 'escape',
+          shift: false,
+          ctrl: false,
+          cmd: false,
+          sequence: '\u001b',
+        });
+      });
+
+      expect(mockBuffer.setText).toHaveBeenCalledWith('my-gcp-project');
+    });
   });
 
   describe('Completion', () => {

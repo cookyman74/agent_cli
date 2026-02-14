@@ -777,8 +777,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
         delete process.env['LLM_API_KEY_HEADER'];
         delete process.env['LLM_CUSTOM_HEADERS'];
 
+        // Always sync API key to keychain — empty/undefined triggers deletion
+        await saveProviderApiKey('openai-compatible', slmConfig.apiKey);
         if (slmConfig.apiKey) {
-          await saveProviderApiKey('openai-compatible', slmConfig.apiKey);
           process.env['LLM_API_KEY'] = slmConfig.apiKey;
         }
         if (slmConfig.model) {

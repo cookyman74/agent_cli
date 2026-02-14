@@ -389,4 +389,46 @@ var cleanup 추가
 
 ---
 
-**작성일**: 2026-02-14 **상태**: ✅ Phase 2 완료 + 리뷰 1차·2차 반영 완료
+---
+
+## 10. 추가 리뷰 반영 (3차)
+
+> **리뷰 일시**: 2026-02-14 **이슈 1건**: 중간
+
+### 이슈: sLM API Key를 비워서 저장해도 키체인에 이전 키가 잔존
+
+**문제**: `handleSlmConfigComplete`에서 `slmConfig.apiKey`가 truthy일 때만
+`saveProviderApiKey`를 호출. 사용자가 API key를 의도적으로 비우면 키체인 삭제가
+수행되지 않아, 재시작 시 `reloadProviderApiKey('openai-compatible')`가 이전 키를
+다시 로드.
+
+**수정**: `if (slmConfig.apiKey)` 가드 제거 → 항상
+`saveProviderApiKey('openai-compatible', slmConfig.apiKey)` 호출.
+`saveProviderApiKey`는 빈값/undefined 전달 시 `deleteCredentials`를 실행하므로
+키체인이 올바르게 동기화됨.
+
+```typescript
+// Before (buggy)
+if (slmConfig.apiKey) {
+  await saveProviderApiKey('openai-compatible', slmConfig.apiKey);
+  process.env['LLM_API_KEY'] = slmConfig.apiKey;
+}
+
+// After (fixed)
+await saveProviderApiKey('openai-compatible', slmConfig.apiKey);
+if (slmConfig.apiKey) {
+  process.env['LLM_API_KEY'] = slmConfig.apiKey;
+}
+```
+
+### 검증 결과
+
+| 항목                | 결과             |
+| ------------------- | ---------------- |
+| `npm run typecheck` | ✅ PASS          |
+| `npm run lint`      | ✅ PASS          |
+| **전체 (130건)**    | ✅ **전부 통과** |
+
+---
+
+**작성일**: 2026-02-14 **상태**: ✅ Phase 2 완료 + 리뷰 1차·2차·3차 반영 완료

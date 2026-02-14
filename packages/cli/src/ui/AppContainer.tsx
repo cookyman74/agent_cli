@@ -573,6 +573,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const isSelectingProvider = authState === AuthState.SelectingProvider;
   const isConfiguringSlm = authState === AuthState.ConfiguringSlm;
   const isConfiguringVertex = authState === AuthState.ConfiguringVertex;
+  const isPreviewingDidimStudio = authState === AuthState.PreviewingDidimStudio;
 
   // Session browser and resume functionality
   const isGeminiClientInitialized = config.getGeminiClient()?.isInitialized();
@@ -879,6 +880,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
       } else if (providerKey === 'slm') {
         // sLM → Step 2D: sLM configuration dialog
         setAuthState(AuthState.ConfiguringSlm);
+      } else if (providerKey === 'didim-studio') {
+        // DidimAIStudio → Step 2E: Coming soon preview
+        setAuthState(AuthState.PreviewingDidimStudio);
       }
     },
     [setSelectedProvider, setAuthState],
@@ -1333,6 +1337,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       !isAuthenticating &&
       !isAuthDialogOpen &&
       !isSelectingProvider &&
+      !isPreviewingDidimStudio &&
       !isThemeDialogOpen &&
       !isEditorDialogOpen &&
       !showPrivacyNotice &&
@@ -1348,6 +1353,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     isAuthenticating,
     isAuthDialogOpen,
     isSelectingProvider,
+    isPreviewingDidimStudio,
     isThemeDialogOpen,
     isEditorDialogOpen,
     showPrivacyNotice,
@@ -1790,6 +1796,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     isSelectingProvider ||
     isConfiguringSlm ||
     isConfiguringVertex ||
+    isPreviewingDidimStudio ||
     isAuthDialogOpen ||
     isEditorDialogOpen ||
     showPrivacyNotice ||
@@ -1874,6 +1881,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isSelectingProvider,
       isConfiguringSlm,
       isConfiguringVertex,
+      isPreviewingDidimStudio,
       selectedProvider,
       apiKeyDefaultValue,
       editorError,
@@ -1974,6 +1982,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isSelectingProvider,
       isConfiguringSlm,
       isConfiguringVertex,
+      isPreviewingDidimStudio,
       selectedProvider,
       isConfigInitialized,
       authError,

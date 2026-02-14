@@ -68,6 +68,14 @@ export const PROVIDER_DISPLAY_MAP: Record<string, ProviderDisplayInfo> = {
     apiKeyUrl: '',
     keychainEntry: 'slm-api-key',
   },
+  'didim-studio': {
+    providerType: 'didim-studio',
+    label: 'DidimAIStudio',
+    description: 'Scenario',
+    envVarName: '',
+    apiKeyUrl: 'https://aistudio.didim365.com/',
+    keychainEntry: '',
+  },
 };
 
 /**
@@ -81,6 +89,7 @@ export const PROVIDER_SELECT_ITEMS = [
   'openai',
   'vertex-ai',
   'slm',
+  'didim-studio',
 ] as const;
 
 /**

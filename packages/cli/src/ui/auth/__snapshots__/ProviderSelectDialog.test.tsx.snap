@@ -7,8 +7,9 @@ exports[`ProviderSelectDialog > Snapshots > renders correctly with default props
 │                                                                                                                      │
 │  Which AI provider would you like to use?                                                                            │
 │                                                                                                                      │
-│  (selected) Gemini  (not selected) Claude(not selected) OpenA(not selected) Vertex AI (not selected) sLM             │
-│  (Google AI)        (Anthropic)          (OpenAI)            (Google Cloud)           (Self-hosted / Local LLM)      │
+│  (selected)     (not selected)    (not selected)  (not selected) Vertex(not selected) sLM     (not selected)         │
+│  Gemini (Google Claude (Anthropic)OpenAI (OpenAI) AI (Google Cloud)    (Self-hosted / Local LLDidimAIStudio          │
+│  AI)                                                                                          (Scenario)             │
 │                                                                                                                      │
 │  (Use Enter to select)                                                                                               │
 │                                                                                                                      │
@@ -22,8 +23,9 @@ exports[`ProviderSelectDialog > Snapshots > renders correctly with error 1`] = `
 │                                                                                                                      │
 │  Which AI provider would you like to use?                                                                            │
 │                                                                                                                      │
-│  (selected) Gemini  (not selected) Claude(not selected) OpenA(not selected) Vertex AI (not selected) sLM             │
-│  (Google AI)        (Anthropic)          (OpenAI)            (Google Cloud)           (Self-hosted / Local LLM)      │
+│  (selected)     (not selected)    (not selected)  (not selected) Vertex(not selected) sLM     (not selected)         │
+│  Gemini (Google Claude (Anthropic)OpenAI (OpenAI) AI (Google Cloud)    (Self-hosted / Local LLDidimAIStudio          │
+│  AI)                                                                                          (Scenario)             │
 │                                                                                                                      │
 │  Must select a provider                                                                                              │
 │                                                                                                                      │

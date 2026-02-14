@@ -50,10 +50,10 @@ describe('ProviderSelectDialog', () => {
   });
 
   describe('Rendering', () => {
-    it('renders 5 provider items', () => {
+    it('renders 6 provider items', () => {
       renderWithProviders(<ProviderSelectDialog {...props} />);
       const { items } = mockedRadioButtonSelect.mock.calls[0][0];
-      expect(items).toHaveLength(5);
+      expect(items).toHaveLength(6);
     });
 
     it('renders all expected providers in order', () => {
@@ -68,6 +68,7 @@ describe('ProviderSelectDialog', () => {
         'openai',
         'vertex-ai',
         'slm',
+        'didim-studio',
       ]);
     });
 
@@ -79,6 +80,7 @@ describe('ProviderSelectDialog', () => {
       expect(items[2].label).toBe('OpenAI (OpenAI)');
       expect(items[3].label).toBe('Vertex AI (Google Cloud)');
       expect(items[4].label).toBe('sLM (Self-hosted / Local LLM)');
+      expect(items[5].label).toBe('DidimAIStudio (Scenario)');
     });
 
     it('renders title and instruction text', () => {

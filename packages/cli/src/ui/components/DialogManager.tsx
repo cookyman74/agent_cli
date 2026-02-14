@@ -17,6 +17,7 @@ import { ApiAuthDialog } from '../auth/ApiAuthDialog.js';
 import { ProviderSelectDialog } from '../auth/ProviderSelectDialog.js';
 import { SlmConfigDialog } from '../auth/SlmConfigDialog.js';
 import { VertexConfigDialog } from '../auth/VertexConfigDialog.js';
+import { DidimStudioComingSoonDialog } from '../auth/DidimStudioComingSoonDialog.js';
 import { AuthState } from '../types.js';
 import { EditorSettingsDialog } from './EditorSettingsDialog.js';
 import { PrivacyNotice } from '../privacy/PrivacyNotice.js';
@@ -252,6 +253,15 @@ export const DialogManager = ({
           onComplete={uiActions.handleVertexConfigComplete}
           onCancel={uiActions.handleVertexConfigCancel}
           defaultConfig={vertexConfig}
+        />
+      </Box>
+    );
+  }
+  if (uiState.isPreviewingDidimStudio) {
+    return (
+      <Box flexDirection="column">
+        <DidimStudioComingSoonDialog
+          onBack={() => uiActions.setAuthState(AuthState.SelectingProvider)}
         />
       </Box>
     );

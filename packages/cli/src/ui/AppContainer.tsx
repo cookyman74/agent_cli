@@ -680,6 +680,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
             'security.auth.selectedProvider',
             provider,
           );
+          // Save selectedType so that useAuth can authenticate on restart
+          // (LLM_PROVIDER env var triggers providerSelector to route correctly)
+          settings.setValue(
+            SettingScope.User,
+            'security.auth.selectedType',
+            AuthType.USE_GEMINI,
+          );
           await config.refreshAuth(AuthType.USE_GEMINI);
         }
 
@@ -717,14 +724,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
       } else if (providerKey === 'claude' || providerKey === 'openai') {
         // Claude/OpenAI → Direct to API key input
         setAuthState(AuthState.AwaitingApiKeyInput);
-      } else if (providerKey === 'vertex-ai') {
-        // Vertex AI → Step 2C (future: ConfiguringVertex)
-        // For now, route to Gemini Updating with Vertex AI auth type
-        setAuthState(AuthState.Updating);
-      } else if (providerKey === 'slm') {
-        // sLM → Step 2D (future: ConfiguringSlm)
-        setAuthState(AuthState.ConfiguringSlm);
       }
+      // vertex-ai and slm routing will be added in Phase 2-3
+      // when ConfiguringVertex and ConfiguringSlm dialogs are implemented
     },
     [setSelectedProvider, setAuthState],
   );

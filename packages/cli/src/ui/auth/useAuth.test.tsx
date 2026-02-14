@@ -22,6 +22,7 @@ import { waitFor } from '../../test-utils/async.js';
 
 // Mock dependencies
 const mockLoadApiKey = vi.fn();
+const mockLoadProviderApiKey = vi.fn();
 const mockValidateAuthMethod = vi.fn();
 
 vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
@@ -30,6 +31,7 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   return {
     ...actual,
     loadApiKey: () => mockLoadApiKey(),
+    loadProviderApiKey: (provider: string) => mockLoadProviderApiKey(provider),
   };
 });
 
@@ -42,6 +44,9 @@ describe('useAuth', () => {
     vi.resetAllMocks();
     delete process.env['GEMINI_API_KEY'];
     delete process.env['GEMINI_DEFAULT_AUTH_TYPE'];
+    delete process.env['ANTHROPIC_API_KEY'];
+    delete process.env['OPENAI_API_KEY'];
+    delete process.env['LLM_PROVIDER'];
   });
 
   afterEach(() => {
@@ -127,12 +132,16 @@ describe('useAuth', () => {
       refreshAuth: vi.fn(),
     } as unknown as Config;
 
-    const createSettings = (selectedType?: AuthType) =>
+    const createSettings = (
+      selectedType?: AuthType,
+      selectedProvider?: string,
+    ) =>
       ({
         merged: {
           security: {
             auth: {
               selectedType,
+              selectedProvider,
             },
           },
         },
@@ -280,6 +289,88 @@ describe('useAuth', () => {
       await waitFor(() => {
         expect(result.current.authError).toContain('Failed to login');
         expect(result.current.authState).toBe(AuthState.Updating);
+      });
+    });
+
+    // --- Issue 2: API Key default value should load per-provider ---
+
+    it('should load provider-specific API key when AwaitingApiKeyInput with non-Gemini provider', async () => {
+      mockLoadProviderApiKey.mockResolvedValue('sk-claude-key');
+      const settings = createSettings(undefined, 'claude');
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      // Simulate transition to AwaitingApiKeyInput
+      result.current.setAuthState(AuthState.AwaitingApiKeyInput);
+
+      await waitFor(() => {
+        expect(mockLoadProviderApiKey).toHaveBeenCalledWith('claude');
+        expect(result.current.apiKeyDefaultValue).toBe('sk-claude-key');
+      });
+    });
+
+    it('should load Gemini API key when AwaitingApiKeyInput with gemini provider', async () => {
+      mockLoadApiKey.mockResolvedValue('gemini-stored-key');
+      const settings = createSettings(undefined, 'gemini');
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      // Simulate transition to AwaitingApiKeyInput
+      result.current.setAuthState(AuthState.AwaitingApiKeyInput);
+
+      await waitFor(() => {
+        expect(mockLoadApiKey).toHaveBeenCalled();
+        expect(result.current.apiKeyDefaultValue).toBe('gemini-stored-key');
+      });
+    });
+
+    // --- Issue 3: env-based non-Gemini auto-detection ---
+
+    it('should auto-detect Claude from ANTHROPIC_API_KEY env var', async () => {
+      process.env['ANTHROPIC_API_KEY'] = 'sk-ant-test';
+      const { result } = renderHook(() =>
+        useAuthCommand(createSettings(undefined), mockConfig),
+      );
+
+      await waitFor(() => {
+        expect(process.env['LLM_PROVIDER']).toBe('claude');
+        expect(mockConfig.refreshAuth).toHaveBeenCalledWith(
+          AuthType.USE_GEMINI,
+        );
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+        expect(result.current.authError).toBeNull();
+      });
+    });
+
+    it('should auto-detect OpenAI from OPENAI_API_KEY env var', async () => {
+      process.env['OPENAI_API_KEY'] = 'sk-openai-test';
+      const { result } = renderHook(() =>
+        useAuthCommand(createSettings(undefined), mockConfig),
+      );
+
+      await waitFor(() => {
+        expect(process.env['LLM_PROVIDER']).toBe('openai');
+        expect(mockConfig.refreshAuth).toHaveBeenCalledWith(
+          AuthType.USE_GEMINI,
+        );
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+        expect(result.current.authError).toBeNull();
+      });
+    });
+
+    it('should authenticate directly when LLM_PROVIDER env var is set', async () => {
+      process.env['LLM_PROVIDER'] = 'claude';
+      process.env['ANTHROPIC_API_KEY'] = 'sk-ant-test';
+      const { result } = renderHook(() =>
+        useAuthCommand(createSettings(undefined), mockConfig),
+      );
+
+      await waitFor(() => {
+        expect(mockConfig.refreshAuth).toHaveBeenCalledWith(
+          AuthType.USE_GEMINI,
+        );
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+        expect(result.current.authError).toBeNull();
       });
     });
   });

@@ -132,10 +132,16 @@ export const useAuthCommand = (
 
   useEffect(() => {
     if (authState === AuthState.AwaitingApiKeyInput) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      reloadApiKey();
+      // Load the correct provider's API key as default value
+      if (selectedProvider && selectedProvider !== 'gemini') {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        reloadProviderApiKey(selectedProvider);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        reloadApiKey();
+      }
     }
-  }, [authState, reloadApiKey]);
+  }, [authState, reloadApiKey, reloadProviderApiKey, selectedProvider]);
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -146,6 +152,48 @@ export const useAuthCommand = (
 
       const authType = settings.merged.security.auth.selectedType;
       if (!authType) {
+        // Check for env-based non-Gemini providers before showing error
+        const llmProvider = process.env['LLM_PROVIDER'];
+        if (llmProvider) {
+          // LLM_PROVIDER is set — route directly to that provider
+          try {
+            await config.refreshAuth(AuthType.USE_GEMINI);
+            debugLogger.log(
+              `Authenticated via env LLM_PROVIDER="${llmProvider}".`,
+            );
+            setAuthError(null);
+            setAuthState(AuthState.Authenticated);
+          } catch (e) {
+            onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+          }
+          return;
+        }
+        if (process.env['ANTHROPIC_API_KEY']) {
+          // Auto-detect Claude provider from env var
+          process.env['LLM_PROVIDER'] = 'claude';
+          try {
+            await config.refreshAuth(AuthType.USE_GEMINI);
+            debugLogger.log('Authenticated via env ANTHROPIC_API_KEY.');
+            setAuthError(null);
+            setAuthState(AuthState.Authenticated);
+          } catch (e) {
+            onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+          }
+          return;
+        }
+        if (process.env['OPENAI_API_KEY']) {
+          // Auto-detect OpenAI provider from env var
+          process.env['LLM_PROVIDER'] = 'openai';
+          try {
+            await config.refreshAuth(AuthType.USE_GEMINI);
+            debugLogger.log('Authenticated via env OPENAI_API_KEY.');
+            setAuthError(null);
+            setAuthState(AuthState.Authenticated);
+          } catch (e) {
+            onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+          }
+          return;
+        }
         if (process.env['GEMINI_API_KEY']) {
           onAuthError(
             'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.',

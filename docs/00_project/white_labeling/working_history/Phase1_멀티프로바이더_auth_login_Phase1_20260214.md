@@ -307,10 +307,36 @@ export const PROVIDER_SELECT_ITEMS = [
 
 ### 전달 이슈
 
-- Phase 1에서 `ConfiguringSlm`/`ConfiguringVertex` AuthState는 추가했으나 실제
-  다이얼로그는 미구현 (선택 시 해당 상태로 전환만 됨)
-- `useAuth.ts`의 env var 자동 감지는 `determineInitialState`에서
-  `Unauthenticated`로만 라우팅 → Phase 4에서 직접 Authenticated로 전이하도록
-  보강 필요
 - authCommand logout에서 `clearProviderApiKey(provider)` 호출은 Phase 4에서 추가
   (현재는 `selectedProvider` 설정 클리어만)
+
+---
+
+## 9. 리뷰 반영 — 1차 수정 (2026-02-14)
+
+### 9.1 리뷰 피드백 4건
+
+| #   | 심각도 | 이슈                                      | 원인                                                                                                    | 조치                                                                                                                                  |
+| --- | ------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 높음   | 비-Gemini 로그인 상태 영속성 불일치       | `AppContainer.tsx`에서 non-Gemini 저장 시 `selectedProvider`만 저장, `selectedType` 미저장              | `selectedType = USE_GEMINI`도 함께 저장하여 재시작 시 `useAuth` 인증 경로 정상 진입                                                   |
+| 2   | 중간   | API Key 입력 기본값 Gemini 고정           | `useAuth.ts`의 `AwaitingApiKeyInput` useEffect에서 항상 `reloadApiKey()` (Gemini 전용) 호출             | `selectedProvider`에 따라 `reloadProviderApiKey(provider)` / `reloadApiKey()` 분기                                                    |
+| 3   | 중간   | env 기반 non-Gemini 자동감지 후 에러 경로 | `determineInitialState()`가 `Unauthenticated` 반환 → `Unauthenticated` useEffect에서 `!authType` → 에러 | `Unauthenticated` useEffect에서 `LLM_PROVIDER`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY` 감지 시 직접 `refreshAuth` → `Authenticated` 전이 |
+| 4   | 낮음   | 미완성 플로우 노출 (vertex-ai, slm)       | `PROVIDER_SELECT_ITEMS`에 노출되나 `DialogManager`에 렌더 분기 없음 → 선택 후 UI 멈춤                   | Phase 1에서 `PROVIDER_SELECT_ITEMS`에서 제거 (Phase 2-3에서 복원)                                                                     |
+
+### 9.2 변경 파일
+
+| #   | 파일                                                     | 변경 내용                                                                         |
+| --- | -------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1   | `packages/cli/src/ui/AppContainer.tsx`                   | non-Gemini 저장 시 `selectedType = USE_GEMINI` 추가; slm/vertex-ai 분기 제거      |
+| 2   | `packages/cli/src/ui/auth/useAuth.ts`                    | `AwaitingApiKeyInput` provider별 키 로딩; env var 자동감지 → 직접 `Authenticated` |
+| 3   | `packages/cli/src/ui/auth/providerMetadata.ts`           | `PROVIDER_SELECT_ITEMS`에서 vertex-ai, slm 제거                                   |
+| 4   | `packages/cli/src/ui/auth/ProviderSelectDialog.test.tsx` | 5→3 항목 반영, vertex-ai 테스트 제거, 스냅샷 갱신                                 |
+| 5   | `packages/cli/src/ui/auth/useAuth.test.tsx`              | provider별 키 로딩 테스트 2건, env var 자동감지 테스트 3건 추가                   |
+
+### 9.3 검증 결과
+
+| 항목                | 결과                                                     |
+| ------------------- | -------------------------------------------------------- |
+| auth 테스트         | ✅ 84 passed (기존 80 + 신규 5, vertex-ai 테스트 1 제거) |
+| `npm run lint`      | ✅ PASS                                                  |
+| `npm run typecheck` | ✅ PASS                                                  |

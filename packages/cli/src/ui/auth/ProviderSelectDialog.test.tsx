@@ -50,10 +50,10 @@ describe('ProviderSelectDialog', () => {
   });
 
   describe('Rendering', () => {
-    it('renders 5 provider items', () => {
+    it('renders 3 provider items', () => {
       renderWithProviders(<ProviderSelectDialog {...props} />);
       const { items } = mockedRadioButtonSelect.mock.calls[0][0];
-      expect(items).toHaveLength(5);
+      expect(items).toHaveLength(3);
     });
 
     it('renders all expected providers in order', () => {
@@ -62,13 +62,7 @@ describe('ProviderSelectDialog', () => {
       const values = items.map(
         (item: { value: string; label: string }) => item.value,
       );
-      expect(values).toEqual([
-        'gemini',
-        'claude',
-        'openai',
-        'vertex-ai',
-        'slm',
-      ]);
+      expect(values).toEqual(['gemini', 'claude', 'openai']);
     });
 
     it('renders provider labels with descriptions', () => {
@@ -77,8 +71,6 @@ describe('ProviderSelectDialog', () => {
       expect(items[0].label).toBe('Gemini (Google AI)');
       expect(items[1].label).toBe('Claude (Anthropic)');
       expect(items[2].label).toBe('OpenAI (OpenAI)');
-      expect(items[3].label).toBe('Vertex AI (Google Cloud)');
-      expect(items[4].label).toBe('sLM (Self-hosted / Local LLM)');
     });
 
     it('renders title and instruction text', () => {
@@ -126,13 +118,6 @@ describe('ProviderSelectDialog', () => {
       renderWithProviders(<ProviderSelectDialog {...props} />);
       const { initialIndex } = mockedRadioButtonSelect.mock.calls[0][0];
       expect(initialIndex).toBe(2);
-    });
-
-    it('selects vertex-ai when currentProvider is vertex-ai', () => {
-      props.currentProvider = 'vertex-ai';
-      renderWithProviders(<ProviderSelectDialog {...props} />);
-      const { initialIndex } = mockedRadioButtonSelect.mock.calls[0][0];
-      expect(initialIndex).toBe(3);
     });
 
     it('falls back to index 0 for unknown currentProvider', () => {

@@ -3,14 +3,13 @@
 exports[`ProviderSelectDialog > Snapshots > renders correctly with default props 1`] = `
 "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │                                                                                                                      │
-│ ?Select LLM Provider                                                                                                 │
+│ ? Select LLM Provider                                                                                                │
 │                                                                                                                      │
-│  Which AI provider would you like to use?                                                                            │
+│   Which AI provider would you like to use?                                                                           │
 │                                                                                                                      │
-│  (selected) Gemini  (not selected) Claude(not selected) OpenA(not selected) Vertex AI (not selected) sLM             │
-│  (Google AI)        (Anthropic)          (OpenAI)            (Google Cloud)           (Self-hosted / Local LLM)      │
+│   (selected) Gemini (Google AI)(not selected) Claude (Anthropic)(not selected) OpenAI (OpenAI)                       │
 │                                                                                                                      │
-│  (Use Enter to select)                                                                                               │
+│   (Use Enter to select)                                                                                              │
 │                                                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -18,16 +17,15 @@ exports[`ProviderSelectDialog > Snapshots > renders correctly with default props
 exports[`ProviderSelectDialog > Snapshots > renders correctly with error 1`] = `
 "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │                                                                                                                      │
-│ ?Select LLM Provider                                                                                                 │
+│ ? Select LLM Provider                                                                                                │
 │                                                                                                                      │
-│  Which AI provider would you like to use?                                                                            │
+│   Which AI provider would you like to use?                                                                           │
 │                                                                                                                      │
-│  (selected) Gemini  (not selected) Claude(not selected) OpenA(not selected) Vertex AI (not selected) sLM             │
-│  (Google AI)        (Anthropic)          (OpenAI)            (Google Cloud)           (Self-hosted / Local LLM)      │
+│   (selected) Gemini (Google AI)(not selected) Claude (Anthropic)(not selected) OpenAI (OpenAI)                       │
 │                                                                                                                      │
-│  Must select a provider                                                                                              │
+│   Must select a provider                                                                                             │
 │                                                                                                                      │
-│  (Use Enter to select)                                                                                               │
+│   (Use Enter to select)                                                                                              │
 │                                                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;

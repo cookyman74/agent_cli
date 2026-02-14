@@ -48,9 +48,10 @@ export const useAuthCommand = (
     const selectedProvider = settings.merged.security.auth.selectedProvider;
     const selectedType = settings.merged.security.auth.selectedType;
 
-    // Auto-migration: existing Gemini user with selectedType but no selectedProvider
+    // Existing user with selectedType but no selectedProvider → show provider selection
+    // so they can explicitly choose their provider in the multi-provider model.
     if (selectedType && !selectedProvider) {
-      return AuthState.Unauthenticated;
+      return AuthState.SelectingProvider;
     }
     // No provider and no type → need provider selection
     if (!selectedProvider && !selectedType) {

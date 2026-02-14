@@ -1787,6 +1787,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
     isAgentConfigDialogOpen ||
     isPermissionsDialogOpen ||
     isAuthenticating ||
+    isSelectingProvider ||
+    isConfiguringSlm ||
+    isConfiguringVertex ||
     isAuthDialogOpen ||
     isEditorDialogOpen ||
     showPrivacyNotice ||
@@ -1795,7 +1798,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
     !!validationRequest ||
     isSessionBrowserOpen ||
     authState === AuthState.AwaitingApiKeyInput ||
-    isConfiguringSlm ||
     !!newAgents;
 
   const pendingHistoryItems = useMemo(

@@ -153,9 +153,20 @@ describe('useAuth', () => {
         },
       }) as LoadedSettings;
 
-    it('should initialize with Unauthenticated state', () => {
+    it('should initialize with SelectingProvider when selectedType exists without selectedProvider', () => {
+      // Existing user with selectedType but no selectedProvider → show provider selection
       const { result } = renderHook(() =>
         useAuthCommand(createSettings(AuthType.LOGIN_WITH_GOOGLE), mockConfig),
+      );
+      expect(result.current.authState).toBe(AuthState.SelectingProvider);
+    });
+
+    it('should initialize with Unauthenticated state when both selectedType and selectedProvider exist', () => {
+      const { result } = renderHook(() =>
+        useAuthCommand(
+          createSettings(AuthType.LOGIN_WITH_GOOGLE, 'gemini'),
+          mockConfig,
+        ),
       );
       expect(result.current.authState).toBe(AuthState.Unauthenticated);
     });
@@ -188,7 +199,10 @@ describe('useAuth', () => {
     it('should transition to AwaitingApiKeyInput if USE_GEMINI and no key found', async () => {
       mockLoadApiKey.mockResolvedValue(null);
       const { result } = renderHook(() =>
-        useAuthCommand(createSettings(AuthType.USE_GEMINI), mockConfig),
+        useAuthCommand(
+          createSettings(AuthType.USE_GEMINI, 'gemini'),
+          mockConfig,
+        ),
       );
 
       await waitFor(() => {
@@ -199,7 +213,10 @@ describe('useAuth', () => {
     it('should authenticate if USE_GEMINI and key is found', async () => {
       mockLoadApiKey.mockResolvedValue('stored-key');
       const { result } = renderHook(() =>
-        useAuthCommand(createSettings(AuthType.USE_GEMINI), mockConfig),
+        useAuthCommand(
+          createSettings(AuthType.USE_GEMINI, 'gemini'),
+          mockConfig,
+        ),
       );
 
       await waitFor(() => {
@@ -215,7 +232,10 @@ describe('useAuth', () => {
       mockLoadApiKey.mockResolvedValue(null);
       process.env['GEMINI_API_KEY'] = 'env-key';
       const { result } = renderHook(() =>
-        useAuthCommand(createSettings(AuthType.USE_GEMINI), mockConfig),
+        useAuthCommand(
+          createSettings(AuthType.USE_GEMINI, 'gemini'),
+          mockConfig,
+        ),
       );
 
       await waitFor(() => {
@@ -231,7 +251,10 @@ describe('useAuth', () => {
       mockLoadApiKey.mockResolvedValue('stored-key');
       process.env['GEMINI_API_KEY'] = 'env-key';
       const { result } = renderHook(() =>
-        useAuthCommand(createSettings(AuthType.USE_GEMINI), mockConfig),
+        useAuthCommand(
+          createSettings(AuthType.USE_GEMINI, 'gemini'),
+          mockConfig,
+        ),
       );
 
       await waitFor(() => {
@@ -247,7 +270,10 @@ describe('useAuth', () => {
     it('should set error if validation fails', async () => {
       mockValidateAuthMethod.mockReturnValue('Validation Failed');
       const { result } = renderHook(() =>
-        useAuthCommand(createSettings(AuthType.LOGIN_WITH_GOOGLE), mockConfig),
+        useAuthCommand(
+          createSettings(AuthType.LOGIN_WITH_GOOGLE, 'gemini'),
+          mockConfig,
+        ),
       );
 
       await waitFor(() => {
@@ -259,7 +285,10 @@ describe('useAuth', () => {
     it('should set error if GEMINI_DEFAULT_AUTH_TYPE is invalid', async () => {
       process.env['GEMINI_DEFAULT_AUTH_TYPE'] = 'INVALID_TYPE';
       const { result } = renderHook(() =>
-        useAuthCommand(createSettings(AuthType.LOGIN_WITH_GOOGLE), mockConfig),
+        useAuthCommand(
+          createSettings(AuthType.LOGIN_WITH_GOOGLE, 'gemini'),
+          mockConfig,
+        ),
       );
 
       await waitFor(() => {
@@ -272,7 +301,10 @@ describe('useAuth', () => {
 
     it('should authenticate successfully for valid auth type', async () => {
       const { result } = renderHook(() =>
-        useAuthCommand(createSettings(AuthType.LOGIN_WITH_GOOGLE), mockConfig),
+        useAuthCommand(
+          createSettings(AuthType.LOGIN_WITH_GOOGLE, 'gemini'),
+          mockConfig,
+        ),
       );
 
       await waitFor(() => {
@@ -289,7 +321,10 @@ describe('useAuth', () => {
         new Error('Auth Failed'),
       );
       const { result } = renderHook(() =>
-        useAuthCommand(createSettings(AuthType.LOGIN_WITH_GOOGLE), mockConfig),
+        useAuthCommand(
+          createSettings(AuthType.LOGIN_WITH_GOOGLE, 'gemini'),
+          mockConfig,
+        ),
       );
 
       await waitFor(() => {

@@ -1141,7 +1141,13 @@ describe('gemini.tsx main function exit codes', () => {
     vi.mocked(loadSettings).mockReturnValue(
       createMockSettings({
         merged: {
-          security: { auth: { selectedType: 'google', useExternal: false } },
+          security: {
+            auth: {
+              selectedType: 'google',
+              selectedProvider: 'gemini',
+              useExternal: false,
+            },
+          },
         },
       }),
     );

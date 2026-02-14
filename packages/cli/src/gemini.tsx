@@ -455,8 +455,10 @@ export async function main() {
   // from useAuth.ts which runs after React renders. Skip early auth to avoid
   // validateAuthMethod(USE_GEMINI) failing due to missing GEMINI_API_KEY.
   const selectedProvider = settings.merged.security.auth.selectedProvider;
+  // Skip early auth when selectedProvider is not set (unmigrated user or fresh user)
+  // or when the provider is not Gemini (Claude, OpenAI, sLM use env vars set by useAuth.ts).
   const shouldSkipEarlyAuth =
-    !!selectedProvider && selectedProvider !== 'gemini';
+    !selectedProvider || selectedProvider !== 'gemini';
 
   let initialAuthFailed = false;
   if (!settings.merged.security.auth.useExternal) {

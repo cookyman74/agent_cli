@@ -42,6 +42,7 @@ Key 인증 (Step 2)
 | Step 1.7-1.9 | useAuth + AppContainer + wiring | 10        | 80개 합산 | ✅   |
 
 **총 변경 파일**: 22개 (신규 4 + 수정 18) **총 테스트**: 80개 auth 테스트 통과
+(리뷰 반영 후 최종: 86개 — 신규 7, 제거 1)
 
 ---
 
@@ -142,13 +143,8 @@ export const PROVIDER_DISPLAY_MAP: Record<string, ProviderDisplayInfo> = {
   'vertex-ai': { label: 'Vertex AI', envVarName: '', apiKeyUrl: '' },
   slm: { label: 'sLM', envVarName: 'LLM_API_KEY', apiKeyUrl: '' },
 };
-export const PROVIDER_SELECT_ITEMS = [
-  'gemini',
-  'claude',
-  'openai',
-  'vertex-ai',
-  'slm',
-];
+// Phase 1: vertex-ai/slm은 미구현으로 제외, Phase 2-3에서 복원
+export const PROVIDER_SELECT_ITEMS = ['gemini', 'claude', 'openai'];
 ```
 
 ### 3.6 Step 1.4: ProviderSelectDialog (TDD)
@@ -156,8 +152,8 @@ export const PROVIDER_SELECT_ITEMS = [
 **파일**: 신규 `packages/cli/src/ui/auth/ProviderSelectDialog.tsx`,
 `ProviderSelectDialog.test.tsx`
 
-**TDD 사이클**: 20개 테스트 (렌더링 5항목, 초기 선택, onSelect, Esc 처리,
-스냅샷)
+**TDD 사이클**: 19개 테스트 (렌더링 3항목, 초기 선택, onSelect, Esc 처리,
+스냅샷) — 초기 20개에서 리뷰 반영으로 vertex-ai 테스트 1개 제거
 
 **주요 구현**:
 
@@ -221,15 +217,15 @@ export const PROVIDER_SELECT_ITEMS = [
 
 ### 단위 테스트
 
-| 테스트 파일                       | 테스트 수 | 결과 |
-| --------------------------------- | --------- | ---- |
-| `ProviderSelectDialog.test.tsx`   | 20        | ✅   |
-| `ApiAuthDialog.test.tsx`          | 10        | ✅   |
-| `AuthDialog.test.tsx`             | 26        | ✅   |
-| `useAuth.test.tsx`                | 15        | ✅   |
-| `AuthInProgress.test.tsx`         | 4         | ✅   |
-| `apiKeyCredentialStorage.test.ts` | 5 (신규)  | ✅   |
-| **합계**                          | **80**    | ✅   |
+| 테스트 파일                       | 테스트 수                       | 결과 |
+| --------------------------------- | ------------------------------- | ---- |
+| `ProviderSelectDialog.test.tsx`   | 19 (초기 20, 리뷰 -1)           | ✅   |
+| `ApiAuthDialog.test.tsx`          | 10                              | ✅   |
+| `AuthDialog.test.tsx`             | 26                              | ✅   |
+| `useAuth.test.tsx`                | 22 (초기 15, 리뷰 +7)           | ✅   |
+| `AuthInProgress.test.tsx`         | 4                               | ✅   |
+| `apiKeyCredentialStorage.test.ts` | 5 (신규)                        | ✅   |
+| **합계**                          | **86** (초기 80 → 리뷰 반영 후) | ✅   |
 
 ### 통합 검증
 
@@ -340,3 +336,30 @@ export const PROVIDER_SELECT_ITEMS = [
 | auth 테스트         | ✅ 84 passed (기존 80 + 신규 5, vertex-ai 테스트 1 제거) |
 | `npm run lint`      | ✅ PASS                                                  |
 | `npm run typecheck` | ✅ PASS                                                  |
+
+---
+
+## 10. 리뷰 반영 — 2차 수정 (2026-02-14)
+
+### 10.1 리뷰 피드백 2건
+
+| #   | 심각도 | 이슈                                              | 원인                                                                                                          | 조치                                                                                    |
+| --- | ------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1   | 중간   | 비-Gemini 재시작 자동 인증 미완성                 | `useAuth.ts:207`에서 `selectedType=USE_GEMINI`일 때 항상 `reloadApiKey()` (Gemini 전용) → 비-Gemini 키 미로드 | `selectedProvider`가 비-Gemini면 `reloadProviderApiKey` + env var 설정 후 `refreshAuth` |
+| 2   | 낮음   | 문서-코드 불일치 (vertex-ai/slm 5항목, 테스트 수) | 작업결과서 본문이 1차 리뷰 반영 전 상태로 기술                                                                | PROVIDER_SELECT_ITEMS 코드 블록, 테스트 수 표, TDD 사이클 기술 업데이트                 |
+
+### 10.2 변경 파일
+
+| #   | 파일                                        | 변경 내용                                                                                |
+| --- | ------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 1   | `packages/cli/src/ui/auth/useAuth.ts`       | `Unauthenticated` useEffect에서 `selectedProvider` 기반 비-Gemini 키 로드 + env var 설정 |
+| 2   | `packages/cli/src/ui/auth/useAuth.test.tsx` | 재시작 자동인증 테스트 2건 추가 (키 있음 → Authenticated, 키 없음 → AwaitingApiKeyInput) |
+| 3   | 작업결과서 (본 파일)                        | PROVIDER_SELECT_ITEMS 3항목 반영, 테스트 수 현행화                                       |
+
+### 10.3 검증 결과
+
+| 항목                | 결과                                              |
+| ------------------- | ------------------------------------------------- |
+| auth 테스트         | ✅ 86 passed (기존 84 + 재시작 자동인증 2건 추가) |
+| `npm run lint`      | ✅ PASS                                           |
+| `npm run typecheck` | ✅ PASS                                           |

@@ -373,5 +373,38 @@ describe('useAuth', () => {
         expect(result.current.authError).toBeNull();
       });
     });
+
+    // --- Issue: non-Gemini restart auto-authentication ---
+
+    it('should auto-authenticate non-Gemini provider on restart with saved key', async () => {
+      // Simulates restart: selectedType=USE_GEMINI + selectedProvider=claude + stored key
+      mockLoadProviderApiKey.mockResolvedValue('sk-ant-saved');
+      const settings = createSettings(AuthType.USE_GEMINI, 'claude');
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(mockLoadProviderApiKey).toHaveBeenCalledWith('claude');
+        expect(process.env['LLM_PROVIDER']).toBe('claude');
+        expect(process.env['ANTHROPIC_API_KEY']).toBe('sk-ant-saved');
+        expect(mockConfig.refreshAuth).toHaveBeenCalledWith(
+          AuthType.USE_GEMINI,
+        );
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+      });
+    });
+
+    it('should fall to AwaitingApiKeyInput when non-Gemini provider has no saved key', async () => {
+      // Simulates restart: selectedType=USE_GEMINI + selectedProvider=openai + no stored key
+      mockLoadProviderApiKey.mockResolvedValue('');
+      const settings = createSettings(AuthType.USE_GEMINI, 'openai');
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(mockLoadProviderApiKey).toHaveBeenCalledWith('openai');
+        expect(result.current.authState).toBe(AuthState.AwaitingApiKeyInput);
+      });
+    });
   });
 });

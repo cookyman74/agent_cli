@@ -205,10 +205,33 @@ export const useAuthCommand = (
       }
 
       if (authType === AuthType.USE_GEMINI) {
-        const key = await reloadApiKey(); // Use the unified function
-        if (!key) {
-          setAuthState(AuthState.AwaitingApiKeyInput);
-          return;
+        const provider = settings.merged.security.auth.selectedProvider;
+        if (provider && provider !== 'gemini') {
+          // Non-Gemini provider saved with selectedType=USE_GEMINI
+          // Load the provider-specific key and set env vars for providerSelector
+          const key = await reloadProviderApiKey(provider);
+          if (!key) {
+            setAuthState(AuthState.AwaitingApiKeyInput);
+            return;
+          }
+          // Set env vars so providerSelector routes to the correct adapter
+          const envVarMap: Record<string, string> = {
+            claude: 'ANTHROPIC_API_KEY',
+            openai: 'OPENAI_API_KEY',
+            'openai-compatible': 'LLM_API_KEY',
+          };
+          const envVarName = envVarMap[provider];
+          if (envVarName) {
+            process.env[envVarName] = key;
+          }
+          process.env['LLM_PROVIDER'] = provider;
+        } else {
+          // Gemini path (legacy)
+          const key = await reloadApiKey();
+          if (!key) {
+            setAuthState(AuthState.AwaitingApiKeyInput);
+            return;
+          }
         }
       }
 
@@ -248,6 +271,7 @@ export const useAuthCommand = (
     setAuthError,
     onAuthError,
     reloadApiKey,
+    reloadProviderApiKey,
   ]);
 
   return {

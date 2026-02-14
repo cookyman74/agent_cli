@@ -206,8 +206,33 @@ export const useAuthCommand = (
 
       if (authType === AuthType.USE_GEMINI) {
         const provider = settings.merged.security.auth.selectedProvider;
-        if (provider && provider !== 'gemini') {
-          // Non-Gemini provider saved with selectedType=USE_GEMINI
+        if (provider === 'openai-compatible') {
+          // sLM (OpenAI-compatible) — load config from settings
+          const slmConfig = settings.merged.security.auth.slmConfig as
+            | {
+                baseUrl?: string;
+                model?: string;
+                apiKeyHeaderName?: string;
+                customHeaders?: string;
+              }
+            | undefined;
+          if (!slmConfig?.baseUrl) {
+            // No baseUrl configured — need sLM configuration dialog
+            setAuthState(AuthState.ConfiguringSlm);
+            return;
+          }
+          process.env['LLM_PROVIDER'] = 'openai-compatible';
+          process.env['LLM_BASE_URL'] = slmConfig.baseUrl;
+          if (slmConfig.model) {
+            process.env['LLM_MODEL'] = slmConfig.model;
+          }
+          // API key is optional for sLM
+          const key = await reloadProviderApiKey(provider);
+          if (key) {
+            process.env['LLM_API_KEY'] = key;
+          }
+        } else if (provider && provider !== 'gemini') {
+          // Non-Gemini provider (Claude/OpenAI) saved with selectedType=USE_GEMINI
           // Load the provider-specific key and set env vars for providerSelector
           const key = await reloadProviderApiKey(provider);
           if (!key) {
@@ -218,7 +243,6 @@ export const useAuthCommand = (
           const envVarMap: Record<string, string> = {
             claude: 'ANTHROPIC_API_KEY',
             openai: 'OPENAI_API_KEY',
-            'openai-compatible': 'LLM_API_KEY',
           };
           const envVarName = envVarMap[provider];
           if (envVarName) {

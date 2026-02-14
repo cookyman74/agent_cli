@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SlmConfigDialog > snapshot > matches snapshot for initial render 1`] = `
+"╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                  │
+│ sLM Configuration                                                                    Step 1 of 3 │
+│                                                                                                  │
+│ API Endpoint URL                                                                                 │
+│ Enter the base URL for your OpenAI-compatible API endpoint.                                      │
+│                                                                                                  │
+│ ╭──────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ http://localhost:11434/v1                                                                    │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                                  │
+│ (Press Enter to continue, Esc to cancel)                                                         │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
+`;

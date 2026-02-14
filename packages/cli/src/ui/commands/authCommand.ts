@@ -41,11 +41,19 @@ const authLogoutCommand: SlashCommand = {
       'security.auth.selectedProvider',
       undefined,
     );
+    // Clear sLM config so user must re-configure on next login
+    context.services.settings.setValue(
+      SettingScope.User,
+      'security.auth.slmConfig',
+      undefined,
+    );
     // Clear provider-related runtime env vars to prevent stale routing
     delete process.env['LLM_PROVIDER'];
     delete process.env['ANTHROPIC_API_KEY'];
     delete process.env['OPENAI_API_KEY'];
     delete process.env['LLM_API_KEY'];
+    delete process.env['LLM_BASE_URL'];
+    delete process.env['LLM_MODEL'];
     // Strip thoughts from history instead of clearing completely
     context.services.config?.getGeminiClient()?.stripThoughtsFromHistory();
     // Return logout action to signal explicit state change

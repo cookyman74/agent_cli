@@ -157,6 +157,7 @@ const baseMockUiState = {
   currentModel: 'gemini-pro',
   terminalBackgroundColor: undefined,
   isSelectingProvider: false,
+  isConfiguringSlm: false,
   selectedProvider: undefined,
 };
 
@@ -201,6 +202,8 @@ const mockUIActions: UIActions = {
   handleApiKeySubmit: vi.fn(),
   handleApiKeyCancel: vi.fn(),
   handleProviderSelect: vi.fn(),
+  handleSlmConfigComplete: vi.fn(),
+  handleSlmConfigCancel: vi.fn(),
   setBannerVisible: vi.fn(),
   setEmbeddedShellFocused: vi.fn(),
   setAuthContext: vi.fn(),

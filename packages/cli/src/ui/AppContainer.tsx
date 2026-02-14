@@ -571,6 +571,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const isAuthDialogOpen = authState === AuthState.Updating;
   const isAuthenticating = authState === AuthState.Unauthenticated;
   const isSelectingProvider = authState === AuthState.SelectingProvider;
+  const isConfiguringSlm = authState === AuthState.ConfiguringSlm;
 
   // Session browser and resume functionality
   const isGeminiClientInitialized = config.getGeminiClient()?.isInitialized();
@@ -723,6 +724,60 @@ Logging in with Google... Restarting Gemini CLI to continue.
     setAuthState(AuthState.SelectingProvider);
   }, [setAuthState]);
 
+  const handleSlmConfigComplete = useCallback(
+    async (slmConfig: {
+      baseUrl: string;
+      model?: string;
+      apiKey?: string;
+      apiKeyHeaderName?: string;
+      customHeaders?: string;
+    }) => {
+      try {
+        onAuthError(null);
+        // Save sLM config to settings
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.slmConfig',
+          slmConfig,
+        );
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.selectedProvider',
+          'openai-compatible',
+        );
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.selectedType',
+          AuthType.USE_GEMINI,
+        );
+
+        // Set env vars for providerSelector routing
+        process.env['LLM_PROVIDER'] = 'openai-compatible';
+        process.env['LLM_BASE_URL'] = slmConfig.baseUrl;
+        if (slmConfig.apiKey) {
+          await saveProviderApiKey('openai-compatible', slmConfig.apiKey);
+          process.env['LLM_API_KEY'] = slmConfig.apiKey;
+        }
+        if (slmConfig.model) {
+          process.env['LLM_MODEL'] = slmConfig.model;
+        }
+
+        await config.refreshAuth(AuthType.USE_GEMINI);
+        setAuthState(AuthState.Authenticated);
+      } catch (e) {
+        onAuthError(
+          `Failed to configure sLM: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    },
+    [settings, config, setAuthState, onAuthError],
+  );
+
+  const handleSlmConfigCancel = useCallback(() => {
+    // Go back to provider selection (Step 1)
+    setAuthState(AuthState.SelectingProvider);
+  }, [setAuthState]);
+
   const handleProviderSelect = useCallback(
     (providerKey: string) => {
       setSelectedProvider(providerKey);
@@ -734,9 +789,12 @@ Logging in with Google... Restarting Gemini CLI to continue.
       } else if (providerKey === 'claude' || providerKey === 'openai') {
         // Claude/OpenAI → Direct to API key input
         setAuthState(AuthState.AwaitingApiKeyInput);
+      } else if (providerKey === 'slm') {
+        // sLM → Step 2D: sLM configuration dialog
+        setAuthState(AuthState.ConfiguringSlm);
       }
-      // vertex-ai and slm routing will be added in Phase 2-3
-      // when ConfiguringVertex and ConfiguringSlm dialogs are implemented
+      // vertex-ai routing will be added in Phase 3
+      // when ConfiguringVertex dialog is implemented
     },
     [setSelectedProvider, setAuthState],
   );
@@ -1652,6 +1710,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     !!validationRequest ||
     isSessionBrowserOpen ||
     authState === AuthState.AwaitingApiKeyInput ||
+    isConfiguringSlm ||
     !!newAgents;
 
   const pendingHistoryItems = useMemo(
@@ -1726,6 +1785,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isAuthDialogOpen,
       isAwaitingApiKeyInput: authState === AuthState.AwaitingApiKeyInput,
       isSelectingProvider,
+      isConfiguringSlm,
       selectedProvider,
       apiKeyDefaultValue,
       editorError,
@@ -1824,6 +1884,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       themeError,
       isAuthenticating,
       isSelectingProvider,
+      isConfiguringSlm,
       selectedProvider,
       isConfigInitialized,
       authError,
@@ -1966,6 +2027,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleApiKeySubmit,
       handleApiKeyCancel,
       handleProviderSelect,
+      handleSlmConfigComplete,
+      handleSlmConfigCancel,
       setBannerVisible,
       setEmbeddedShellFocused,
       setAuthContext,
@@ -2030,6 +2093,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleApiKeySubmit,
       handleApiKeyCancel,
       handleProviderSelect,
+      handleSlmConfigComplete,
+      handleSlmConfigCancel,
       setBannerVisible,
       setEmbeddedShellFocused,
       setAuthContext,

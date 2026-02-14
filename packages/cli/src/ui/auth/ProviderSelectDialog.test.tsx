@@ -50,10 +50,10 @@ describe('ProviderSelectDialog', () => {
   });
 
   describe('Rendering', () => {
-    it('renders 3 provider items', () => {
+    it('renders 4 provider items', () => {
       renderWithProviders(<ProviderSelectDialog {...props} />);
       const { items } = mockedRadioButtonSelect.mock.calls[0][0];
-      expect(items).toHaveLength(3);
+      expect(items).toHaveLength(4);
     });
 
     it('renders all expected providers in order', () => {
@@ -62,7 +62,7 @@ describe('ProviderSelectDialog', () => {
       const values = items.map(
         (item: { value: string; label: string }) => item.value,
       );
-      expect(values).toEqual(['gemini', 'claude', 'openai']);
+      expect(values).toEqual(['gemini', 'claude', 'openai', 'slm']);
     });
 
     it('renders provider labels with descriptions', () => {
@@ -71,6 +71,7 @@ describe('ProviderSelectDialog', () => {
       expect(items[0].label).toBe('Gemini (Google AI)');
       expect(items[1].label).toBe('Claude (Anthropic)');
       expect(items[2].label).toBe('OpenAI (OpenAI)');
+      expect(items[3].label).toBe('sLM (Self-hosted / Local LLM)');
     });
 
     it('renders title and instruction text', () => {

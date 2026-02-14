@@ -7,7 +7,8 @@ exports[`ProviderSelectDialog > Snapshots > renders correctly with default props
 │                                                                                                                      │
 │   Which AI provider would you like to use?                                                                           │
 │                                                                                                                      │
-│   (selected) Gemini (Google AI)(not selected) Claude (Anthropic)(not selected) OpenAI (OpenAI)                       │
+│   (selected) Gemini (Googl(not selected) Claude       (not selected) OpenAI    (not selected) sLM (Self-hosted /     │
+│   AI)                     (Anthropic)                 (OpenAI)                 Local LLM)                            │
 │                                                                                                                      │
 │   (Use Enter to select)                                                                                              │
 │                                                                                                                      │
@@ -21,7 +22,8 @@ exports[`ProviderSelectDialog > Snapshots > renders correctly with error 1`] = `
 │                                                                                                                      │
 │   Which AI provider would you like to use?                                                                           │
 │                                                                                                                      │
-│   (selected) Gemini (Google AI)(not selected) Claude (Anthropic)(not selected) OpenAI (OpenAI)                       │
+│   (selected) Gemini (Googl(not selected) Claude       (not selected) OpenAI    (not selected) sLM (Self-hosted /     │
+│   AI)                     (Anthropic)                 (OpenAI)                 Local LLM)                            │
 │                                                                                                                      │
 │   Must select a provider                                                                                             │
 │                                                                                                                      │

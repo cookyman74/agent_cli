@@ -15,6 +15,7 @@ import { AuthInProgress } from '../auth/AuthInProgress.js';
 import { AuthDialog } from '../auth/AuthDialog.js';
 import { ApiAuthDialog } from '../auth/ApiAuthDialog.js';
 import { ProviderSelectDialog } from '../auth/ProviderSelectDialog.js';
+import { SlmConfigDialog } from '../auth/SlmConfigDialog.js';
 import { AuthState } from '../types.js';
 import { EditorSettingsDialog } from './EditorSettingsDialog.js';
 import { PrivacyNotice } from '../privacy/PrivacyNotice.js';
@@ -222,6 +223,16 @@ export const DialogManager = ({
           }}
           error={uiState.authError}
           onError={uiActions.onAuthError}
+        />
+      </Box>
+    );
+  }
+  if (uiState.isConfiguringSlm) {
+    return (
+      <Box flexDirection="column">
+        <SlmConfigDialog
+          onComplete={uiActions.handleSlmConfigComplete}
+          onCancel={uiActions.handleSlmConfigCancel}
         />
       </Box>
     );

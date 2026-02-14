@@ -67,6 +67,14 @@ export interface UIActions {
   handleApiKeySubmit: (apiKey: string) => Promise<void>;
   handleApiKeyCancel: () => void;
   handleProviderSelect: (providerKey: string) => void;
+  handleSlmConfigComplete: (config: {
+    baseUrl: string;
+    model?: string;
+    apiKey?: string;
+    apiKeyHeaderName?: string;
+    customHeaders?: string;
+  }) => Promise<void>;
+  handleSlmConfigCancel: () => void;
   setBannerVisible: (visible: boolean) => void;
   setEmbeddedShellFocused: (value: boolean) => void;
   setAuthContext: (context: { requiresRestart?: boolean }) => void;

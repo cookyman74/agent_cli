@@ -33,13 +33,13 @@
 
 ## 🚨 핵심 리스크 요약
 
-| 리스크                                    | 영향      | 대응 방안                                                  | 상태 |
-| ----------------------------------------- | --------- | ---------------------------------------------------------- | ---- |
-| `config.refreshAuth()`가 비-Gemini 미동작 | 🟠 Medium | `LLM_PROVIDER` env var 선설정 → providerSelector 우선 감지 | ✅   |
-| 기존 Gemini 인증 깨짐                     | 🔴 High   | Phase 4 마이그레이션 + 기존 테스트 전수 통과               | ✅   |
-| Settings 스키마 하위 비호환               | 🟢 Low    | 새 필드 default=`undefined`, 기존 필드 미변경              | ✅   |
-| DialogManager 렌더링 우선순위 충돌        | 🟡 Medium | `SelectingProvider`를 기존 auth 분기 앞에 배치             | ✅   |
-| sLM/Vertex AI 설정 UI 복잡도              | 🟡 Medium | Phase 2/3으로 분리, Phase 1은 API Key만 지원               | ⬜   |
+| 리스크                                    | 영향      | 대응 방안                                                  | 상태      |
+| ----------------------------------------- | --------- | ---------------------------------------------------------- | --------- |
+| `config.refreshAuth()`가 비-Gemini 미동작 | 🟠 Medium | `LLM_PROVIDER` env var 선설정 → providerSelector 우선 감지 | ✅        |
+| 기존 Gemini 인증 깨짐                     | 🔴 High   | Phase 4 마이그레이션 + 기존 테스트 전수 통과               | ✅        |
+| Settings 스키마 하위 비호환               | 🟢 Low    | 새 필드 default=`undefined`, 기존 필드 미변경              | ✅        |
+| DialogManager 렌더링 우선순위 충돌        | 🟡 Medium | `SelectingProvider`를 기존 auth 분기 앞에 배치             | ✅        |
+| sLM/Vertex AI 설정 UI 복잡도              | 🟡 Medium | Phase 2/3으로 분리, Phase 1은 API Key만 지원               | 🔄 sLM ✅ |
 
 ---
 
@@ -188,11 +188,11 @@
 
 ### 2.0 사전작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** Phase 1 작업 결과서 리뷰
-- [ ] **[ANALYSIS]** sLM 프로바이더 요구사항 확인
+- [x] **[CONTEXT]** Phase 1 작업 결과서 리뷰
+- [x] **[ANALYSIS]** sLM 프로바이더 요구사항 확인
   - 필수: API Endpoint URL (baseUrl)
   - 선택: API Key, Model 이름, 커스텀 헤더, API Key 헤더명
-- [ ] **[DEPENDENCY]** AppContainer의 `ConfiguringSlm` 분기 확인 (Phase 1에서
+- [x] **[DEPENDENCY]** AppContainer의 `ConfiguringSlm` 분기 확인 (Phase 1에서
       라우팅만 구현)
 
 ### 2.1 본작업 — Step 2.0: SlmConfigDialog (TDD)
@@ -200,48 +200,57 @@
 **파일**: 신규 `packages/cli/src/ui/auth/SlmConfigDialog.tsx`,
 `SlmConfigDialog.test.tsx`
 
-- [ ] **🔴 RED**: 3단계 폼 렌더링 + 입력 검증 테스트 작성
+- [x] **🔴 RED**: 3단계 폼 렌더링 + 입력 검증 테스트 작성 (11개)
   - Step A: API Endpoint URL 입력 (http/https 검증)
-  - Step B: API Key (선택) + Model 이름 (선택, default: `default`)
+  - Step B: API Key (선택) + Model 이름 (선택)
   - Step C: 고급 설정 (커스텀 헤더/API Key 헤더명)
-- [ ] **🟢 GREEN**: useTextBuffer + TextInput 패턴 재사용
+- [x] **🟢 GREEN**: useTextBuffer + TextInput 패턴 재사용
   ```typescript
   interface SlmConfigDialogProps {
     onComplete: (config: SlmConfig) => void;
     onCancel: () => void;
-    defaultConfig?: SlmConfig;
+    defaultConfig?: Partial<SlmConfig>;
   }
   ```
-- [ ] **🔵 REFACTOR**: 입력 유효성 검증 로직 정리
-- [ ] **[VERIFY]** 테스트 통과
+- [x] **🔵 REFACTOR**: switch default case 추가 (ESLint)
+- [x] **[VERIFY]** 11개 테스트 통과
 
 ### 2.2 본작업 — Step 2.1: sLM 플로우 와이어링
 
 **파일**: `AppContainer.tsx`, `DialogManager.tsx`
 
-- [ ] **[TASK]** AppContainer: `handleSlmConfigComplete` 콜백 추가
-  - settings에 slmConfig 저장
+- [x] **[TASK]** AppContainer: `handleSlmConfigComplete`/`Cancel` 콜백 추가
+  - settings에 slmConfig 저장 (selectedProvider='openai-compatible')
   - `LLM_PROVIDER=openai-compatible` 환경변수 설정
   - `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` 설정
   - `config.refreshAuth()` 호출 → Authenticated
-- [ ] **[TASK]** DialogManager: `ConfiguringSlm` 렌더링 분기 추가
-- [ ] **[VERIFY]** 통합 테스트
+- [x] **[TASK]** DialogManager: `ConfiguringSlm` → SlmConfigDialog 렌더링 분기
+- [x] **[TASK]** UIStateContext: `isConfiguringSlm` 추가
+- [x] **[TASK]** UIActionsContext: `handleSlmConfigComplete`/`Cancel` 추가
+- [x] **[TASK]** providerMetadata: PROVIDER_SELECT_ITEMS에 'slm' 복원 (3→4항목)
+- [x] **[TASK]** useAuth: openai-compatible 재시작 자동인증 (slmConfig → env
+      vars)
+- [x] **[TASK]** authCommand: logout시 slmConfig 클리어 + LLM_BASE_URL/LLM_MODEL
+      삭제
+- [x] **[TASK]** render.tsx: mock 업데이트
+- [x] **[TASK]** ProviderSelectDialog.test.tsx: 4항목 반영 + 스냅샷 갱신
+- [x] **[VERIFY]** 97개 auth 테스트 통과, typecheck + lint clean
 
 ### 2.3 사후작업 (Post-Work)
 
-- [ ] **[LINT]** 린트 통과
-- [ ] **[TYPECHECK]** 타입체크 통과
-- [ ] **[TEST]** 테스트 회귀 없음
-- [ ] **[COMMIT]**
-      `feat(cli): add SlmConfigDialog and wire sLM configuration flow`
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[LINT]** 린트 통과
+- [x] **[TYPECHECK]** 타입체크 통과
+- [x] **[TEST]** 테스트 회귀 없음 (97개 auth 테스트 전수 통과)
+- [x] **[COMMIT]**
+      `feat(cli): Phase 2 sLM 대화형 설정 — SlmConfigDialog + 플로우 와이어링`
+- [x] **[DOC]** 작업 결과서 작성
 
 ### Phase 2 Quality Gates
 
-- [ ] 모든 단위 테스트 통과
-- [ ] TypeScript 컴파일 에러 없음
-- [ ] ESLint 경고 없음
-- [ ] 기존 테스트 회귀 없음
+- [x] 모든 단위 테스트 통과 (97개 auth)
+- [x] TypeScript 컴파일 에러 없음
+- [x] ESLint 경고 없음
+- [x] 기존 테스트 회귀 없음
 
 ---
 
@@ -391,7 +400,7 @@
 | Phase   | 내용                          | 🔴 Red | 🟢 Green | 🔵 Refactor | 결과서 | 커밋      | 상태 |
 | ------- | ----------------------------- | ------ | -------- | ----------- | ------ | --------- | ---- |
 | Phase 1 | 프로바이더 선택 + API Key MVP | ✅     | ✅       | ✅          | ✅     | `1984d47` | ✅   |
-| Phase 2 | sLM 대화형 설정               | ⬜     | ⬜       | ⬜          | ⬜     | ⬜        | ⬜   |
+| Phase 2 | sLM 대화형 설정               | ✅     | ✅       | ✅          | ✅     | `898bcb3` | ✅   |
 | Phase 3 | Vertex AI + Google Login      | ⬜     | ⬜       | ⬜          | ⬜     | ⬜        | ⬜   |
 | Phase 4 | 하위 호환 + 마이그레이션      | ⬜     | ⬜       | ⬜          | ⬜     | ⬜        | ⬜   |
 
@@ -454,5 +463,5 @@ isSelectingProvider, selectedProvider | | 14 |
 
 ---
 
-**작성일**: 2026-02-14 **최종 수정일**: 2026-02-14 **상태**: 🔄 Phase 1 완료,
-Phase 2~4 대기
+**작성일**: 2026-02-14 **최종 수정일**: 2026-02-14 **상태**: 🔄 Phase 1-2 완료,
+Phase 3-4 대기

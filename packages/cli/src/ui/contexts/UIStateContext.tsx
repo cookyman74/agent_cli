@@ -62,6 +62,7 @@ export interface UIState {
   isAuthDialogOpen: boolean;
   isAwaitingApiKeyInput: boolean;
   isSelectingProvider: boolean;
+  isConfiguringSlm: boolean;
   selectedProvider?: string;
   apiKeyDefaultValue?: string;
   editorError: string | null;

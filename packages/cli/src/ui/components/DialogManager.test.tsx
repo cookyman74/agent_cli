@@ -61,6 +61,12 @@ vi.mock('./IdeTrustChangeDialog.js', () => ({
 vi.mock('./AgentConfigDialog.js', () => ({
   AgentConfigDialog: () => <Text>AgentConfigDialog</Text>,
 }));
+vi.mock('../auth/ProviderSelectDialog.js', () => ({
+  ProviderSelectDialog: () => <Text>ProviderSelectDialog</Text>,
+}));
+vi.mock('../auth/SlmConfigDialog.js', () => ({
+  SlmConfigDialog: () => <Text>SlmConfigDialog</Text>,
+}));
 
 describe('DialogManager', () => {
   const defaultProps = {
@@ -93,6 +99,8 @@ describe('DialogManager', () => {
     selectedAgentName: undefined,
     selectedAgentDisplayName: undefined,
     selectedAgentDefinition: undefined,
+    isSelectingProvider: false,
+    isConfiguringSlm: false,
   };
 
   it('renders nothing by default', () => {
@@ -149,6 +157,8 @@ describe('DialogManager', () => {
     [{ isThemeDialogOpen: true }, 'ThemeDialog'],
     [{ isSettingsDialogOpen: true }, 'SettingsDialog'],
     [{ isModelDialogOpen: true }, 'ModelDialog'],
+    [{ isSelectingProvider: true }, 'ProviderSelectDialog'],
+    [{ isConfiguringSlm: true }, 'SlmConfigDialog'],
     [{ isAuthenticating: true }, 'AuthInProgress'],
     [{ isAwaitingApiKeyInput: true }, 'ApiAuthDialog'],
     [{ isAuthDialogOpen: true }, 'AuthDialog'],

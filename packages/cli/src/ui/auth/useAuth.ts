@@ -250,6 +250,12 @@ export const useAuthCommand = (
           }
         } else if (provider && provider !== 'gemini') {
           // Non-Gemini provider (Claude/OpenAI) saved with selectedType=USE_GEMINI
+          // Clean up sLM-specific env vars to prevent cross-provider leakage
+          delete process.env['LLM_MODEL'];
+          delete process.env['LLM_BASE_URL'];
+          delete process.env['LLM_API_KEY'];
+          delete process.env['LLM_API_KEY_HEADER'];
+          delete process.env['LLM_CUSTOM_HEADERS'];
           process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           // Load the provider-specific key and set env vars for providerSelector
           const key = await reloadProviderApiKey(provider);

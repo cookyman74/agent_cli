@@ -324,4 +324,69 @@ SDK 경로로 폴스루.
 
 ---
 
-**작성일**: 2026-02-14 **상태**: ✅ Phase 2 완료 + 리뷰 반영 완료
+---
+
+## 9. 추가 리뷰 반영 (2차)
+
+> **리뷰 일시**: 2026-02-14 **이슈 총 5건**: 높음 2건 + 중간 2건 + 낮음 1건
+
+### 코드 기반 검증 결과
+
+| #   | 심각도 | 이슈                                      | 검증 결과                        | 수정 내용                                                |
+| --- | ------ | ----------------------------------------- | -------------------------------- | -------------------------------------------------------- |
+| 1   | 높음   | SlmConfigDialog 다중 포커스               | ✅ 이전 커밋(3c3f694)에서 수정됨 | `focus` prop + `focusedField` 상태 이미 적용             |
+| 2   | 높음   | Step3 고급 설정 env var 미매핑            | ✅ 이전 커밋(3c3f694)에서 수정됨 | `LLM_API_KEY_HEADER`/`LLM_CUSTOM_HEADERS` 매핑 이미 적용 |
+| 3   | 중간   | LLM_MODEL env var 프로바이더 전환 시 누수 | ❌ **실제 버그 확인**            | 3곳에 sLM env var 정리 추가                              |
+| 4   | 중간   | slm/openai-compatible 키 불일치           | ✅ 이전 커밋(3c3f694)에서 수정됨 | `openai-compatible→slm` 매핑 이미 적용                   |
+| 5   | 낮음   | 테스트 갭                                 | ❌ **확인됨**                    | useAuth 3건 + DialogManager 2건 테스트 추가              |
+
+### Issue 3 상세: LLM_MODEL env var 프로바이더 전환 시 누수
+
+**문제**: sLM 설정 완료 시 `LLM_MODEL` 등 env var를 설정하지만, 이후
+`/auth login`으로 Claude/OpenAI나 Gemini로 전환 시 이를 정리하지 않음.
+`providerSelector.ts:262`에서 `LLM_MODEL`이 non-Gemini 모델 결정에 최우선
+사용되므로, sLM에서 설정한 모델명(e.g., `llama3`)이 Claude/OpenAI에도 적용되는
+심각한 버그.
+
+**수정 (3곳)**:
+
+1. `AppContainer.tsx` `handleApiKeySubmit` Gemini 경로: `LLM_MODEL`,
+   `LLM_BASE_URL`, `LLM_API_KEY_HEADER`, `LLM_CUSTOM_HEADERS` delete 추가
+2. `AppContainer.tsx` `handleApiKeySubmit` non-Gemini 경로: sLM-specific env
+   vars 5개 delete 후 새 값 설정
+3. `useAuth.ts` Claude/OpenAI 재시작 경로: sLM-specific env vars 5개 delete 추가
+
+**영향받는 env vars**: `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY`,
+`LLM_API_KEY_HEADER`, `LLM_CUSTOM_HEADERS`
+
+### Issue 5 상세: 테스트 갭 보강
+
+**추가된 테스트**:
+
+| 파일                     | 테스트명                                                            | 검증 내용                                      |
+| ------------------------ | ------------------------------------------------------------------- | ---------------------------------------------- |
+| `useAuth.test.tsx`       | openai-compatible restart with slmConfig including advanced headers | sLM 재기동 시 전체 env var (6개) 올바르게 설정 |
+| `useAuth.test.tsx`       | ConfiguringSlm when openai-compatible has no baseUrl                | baseUrl 없으면 ConfiguringSlm 상태 전이        |
+| `useAuth.test.tsx`       | clean sLM env vars when restarting with Claude provider             | Claude 재시작 시 sLM env vars 5개 정리 확인    |
+| `DialogManager.test.tsx` | isSelectingProvider → ProviderSelectDialog                          | 프로바이더 선택 다이얼로그 렌더 확인           |
+| `DialogManager.test.tsx` | isConfiguringSlm → SlmConfigDialog                                  | sLM 설정 다이얼로그 렌더 확인                  |
+
+**테스트 beforeEach 보강**: `ENABLE_MULTI_PROVIDER`, `LLM_MODEL`,
+`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_API_KEY_HEADER`, `LLM_CUSTOM_HEADERS` env
+var cleanup 추가
+
+### 검증 결과
+
+| 항목                        | 결과             |
+| --------------------------- | ---------------- |
+| `npm run typecheck`         | ✅ PASS          |
+| `npm run lint`              | ✅ PASS          |
+| auth 테스트 (110건)         | ✅ 전부 통과     |
+| authCommand 테스트 (9건)    | ✅ 전부 통과     |
+| DialogManager 테스트 (20건) | ✅ 전부 통과     |
+| useAuth 신규 테스트 (3건)   | ✅ 전부 통과     |
+| **전체 (130건)**            | ✅ **전부 통과** |
+
+---
+
+**작성일**: 2026-02-14 **상태**: ✅ Phase 2 완료 + 리뷰 1차·2차 반영 완료

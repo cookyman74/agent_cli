@@ -47,6 +47,12 @@ describe('useAuth', () => {
     delete process.env['ANTHROPIC_API_KEY'];
     delete process.env['OPENAI_API_KEY'];
     delete process.env['LLM_PROVIDER'];
+    delete process.env['ENABLE_MULTI_PROVIDER'];
+    delete process.env['LLM_MODEL'];
+    delete process.env['LLM_BASE_URL'];
+    delete process.env['LLM_API_KEY'];
+    delete process.env['LLM_API_KEY_HEADER'];
+    delete process.env['LLM_CUSTOM_HEADERS'];
   });
 
   afterEach(() => {
@@ -404,6 +410,88 @@ describe('useAuth', () => {
       await waitFor(() => {
         expect(mockLoadProviderApiKey).toHaveBeenCalledWith('openai');
         expect(result.current.authState).toBe(AuthState.AwaitingApiKeyInput);
+      });
+    });
+
+    // --- Issue: openai-compatible (sLM) restart with advanced headers ---
+
+    it('should auto-authenticate openai-compatible provider on restart with slmConfig including advanced headers', async () => {
+      mockLoadProviderApiKey.mockResolvedValue('slm-api-key');
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_GEMINI,
+              selectedProvider: 'openai-compatible',
+              slmConfig: {
+                baseUrl: 'http://localhost:11434/v1',
+                model: 'llama3',
+                apiKeyHeaderName: 'X-API-Key',
+                customHeaders: '{"X-Custom": "value"}',
+              },
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(process.env['LLM_PROVIDER']).toBe('openai-compatible');
+        expect(process.env['LLM_BASE_URL']).toBe('http://localhost:11434/v1');
+        expect(process.env['LLM_MODEL']).toBe('llama3');
+        expect(process.env['LLM_API_KEY_HEADER']).toBe('X-API-Key');
+        expect(process.env['LLM_CUSTOM_HEADERS']).toBe('{"X-Custom": "value"}');
+        expect(process.env['LLM_API_KEY']).toBe('slm-api-key');
+        expect(process.env['ENABLE_MULTI_PROVIDER']).toBe('true');
+        expect(mockConfig.refreshAuth).toHaveBeenCalledWith(
+          AuthType.USE_GEMINI,
+        );
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+      });
+    });
+
+    it('should go to ConfiguringSlm when openai-compatible has no baseUrl', async () => {
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_GEMINI,
+              selectedProvider: 'openai-compatible',
+              slmConfig: {},
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(result.current.authState).toBe(AuthState.ConfiguringSlm);
+      });
+    });
+
+    it('should clean sLM env vars when restarting with Claude provider', async () => {
+      // Simulate sLM env vars left over from previous session
+      process.env['LLM_MODEL'] = 'llama3';
+      process.env['LLM_BASE_URL'] = 'http://localhost:11434/v1';
+      process.env['LLM_API_KEY'] = 'old-slm-key';
+      process.env['LLM_API_KEY_HEADER'] = 'X-API-Key';
+      process.env['LLM_CUSTOM_HEADERS'] = '{"X-Old": "val"}';
+
+      mockLoadProviderApiKey.mockResolvedValue('sk-ant-saved');
+      const settings = createSettings(AuthType.USE_GEMINI, 'claude');
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+        // sLM-specific env vars should be cleaned
+        expect(process.env['LLM_MODEL']).toBeUndefined();
+        expect(process.env['LLM_BASE_URL']).toBeUndefined();
+        expect(process.env['LLM_API_KEY']).toBeUndefined();
+        expect(process.env['LLM_API_KEY_HEADER']).toBeUndefined();
+        expect(process.env['LLM_CUSTOM_HEADERS']).toBeUndefined();
       });
     });
   });

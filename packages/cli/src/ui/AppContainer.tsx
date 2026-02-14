@@ -662,17 +662,27 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
         const provider = selectedProvider || 'gemini';
         if (provider === 'gemini') {
-          // Legacy Gemini path — clear non-Gemini env vars
+          // Legacy Gemini path — clear all non-Gemini env vars (including sLM-specific)
           delete process.env['ENABLE_MULTI_PROVIDER'];
           delete process.env['LLM_PROVIDER'];
           delete process.env['ANTHROPIC_API_KEY'];
           delete process.env['OPENAI_API_KEY'];
           delete process.env['LLM_API_KEY'];
+          delete process.env['LLM_MODEL'];
+          delete process.env['LLM_BASE_URL'];
+          delete process.env['LLM_API_KEY_HEADER'];
+          delete process.env['LLM_CUSTOM_HEADERS'];
           await saveApiKey(apiKey);
           await reloadApiKey();
           await config.refreshAuth(AuthType.USE_GEMINI);
         } else {
-          // Non-Gemini provider path
+          // Non-Gemini provider path (Claude/OpenAI)
+          // Clean up sLM-specific env vars to prevent cross-provider leakage
+          delete process.env['LLM_MODEL'];
+          delete process.env['LLM_BASE_URL'];
+          delete process.env['LLM_API_KEY'];
+          delete process.env['LLM_API_KEY_HEADER'];
+          delete process.env['LLM_CUSTOM_HEADERS'];
           // Enable multi-provider routing so contentGenerator uses ProviderFactory
           process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           await saveProviderApiKey(provider, apiKey);

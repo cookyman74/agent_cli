@@ -363,3 +363,31 @@ export const PROVIDER_SELECT_ITEMS = ['gemini', 'claude', 'openai'];
 | auth 테스트         | ✅ 86 passed (기존 84 + 재시작 자동인증 2건 추가) |
 | `npm run lint`      | ✅ PASS                                           |
 | `npm run typecheck` | ✅ PASS                                           |
+
+---
+
+## 11. 리뷰 반영 — 3차 수정 (2026-02-14)
+
+### 11.1 리뷰 피드백 3건
+
+| #   | 심각도 | 이슈                                      | 원인                                                                                                                        | 조치                                                                                         |
+| --- | ------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | 높음   | 프로바이더 전환 시 `LLM_PROVIDER` 잔존    | non-Gemini 로그인 시 설정한 `LLM_PROVIDER`가 Gemini 전환 경로에서 해제되지 않음 → `selectProvider()` 우선순위로 잘못 라우팅 | `handleAuthSelect`/`handleApiKeySubmit` Gemini 경로에서 `LLM_PROVIDER` 및 관련 env var 삭제  |
+| 2   | 중간   | `/auth logout`이 런타임 env var 미정리    | logout은 설정값만 클리어, `process.env`의 `LLM_PROVIDER`/`ANTHROPIC_API_KEY` 등 유지                                        | `authCommand.ts` logout에서 provider 관련 env var 4개 삭제                                   |
+| 3   | 중간   | Esc로 인증 우회 → Authenticated 전이 가능 | `selectedProvider` 존재만으로 Esc → `Authenticated` 허용, 실제 인증 완료 여부 미검증                                        | `DialogManager` onCancel에서 `settings.selectedType` 존재 여부로 실제 인증 완료 확인 후 허용 |
+
+### 11.2 변경 파일
+
+| #   | 파일                                               | 변경 내용                                                                       |
+| --- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1   | `packages/cli/src/ui/AppContainer.tsx`             | `handleAuthSelect` + `handleApiKeySubmit` Gemini 경로에 env var 정리 추가       |
+| 2   | `packages/cli/src/ui/commands/authCommand.ts`      | logout에 `LLM_PROVIDER`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`LLM_API_KEY` 삭제 |
+| 3   | `packages/cli/src/ui/components/DialogManager.tsx` | `onCancel`에서 `settings.selectedType` 존재 시에만 `Authenticated` 전이         |
+
+### 11.3 검증 결과
+
+| 항목                | 결과         |
+| ------------------- | ------------ |
+| auth 테스트         | ✅ 86 passed |
+| `npm run lint`      | ✅ PASS      |
+| `npm run typecheck` | ✅ PASS      |

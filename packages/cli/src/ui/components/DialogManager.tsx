@@ -209,8 +209,15 @@ export const DialogManager = ({
           onSelect={uiActions.handleProviderSelect}
           currentProvider={uiState.selectedProvider}
           onCancel={() => {
-            if (uiState.selectedProvider) {
+            // Only allow Esc → Authenticated if previously authenticated
+            // (settings has savedType, meaning a successful login was completed)
+            const savedType = settings.merged.security.auth.selectedType;
+            if (uiState.selectedProvider && savedType) {
               uiActions.setAuthState(AuthState.Authenticated);
+            } else {
+              uiActions.onAuthError(
+                'You must select a provider to proceed. Press Ctrl+C twice to exit.',
+              );
             }
           }}
           error={uiState.authError}

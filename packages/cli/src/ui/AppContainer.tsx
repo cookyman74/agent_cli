@@ -611,6 +611,12 @@ export const AppContainer = (props: AppContainerProps) => {
         await clearCachedCredentialFile();
         settings.setValue(scope, 'security.auth.selectedType', authType);
 
+        // Clear non-Gemini env vars to prevent providerSelector mis-routing
+        delete process.env['LLM_PROVIDER'];
+        delete process.env['ANTHROPIC_API_KEY'];
+        delete process.env['OPENAI_API_KEY'];
+        delete process.env['LLM_API_KEY'];
+
         try {
           await config.refreshAuth(authType);
           setAuthState(AuthState.Authenticated);
@@ -655,7 +661,11 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
         const provider = selectedProvider || 'gemini';
         if (provider === 'gemini') {
-          // Legacy Gemini path
+          // Legacy Gemini path — clear non-Gemini env vars
+          delete process.env['LLM_PROVIDER'];
+          delete process.env['ANTHROPIC_API_KEY'];
+          delete process.env['OPENAI_API_KEY'];
+          delete process.env['LLM_API_KEY'];
           await saveApiKey(apiKey);
           await reloadApiKey();
           await config.refreshAuth(AuthType.USE_GEMINI);

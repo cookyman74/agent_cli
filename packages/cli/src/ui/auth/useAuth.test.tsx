@@ -380,6 +380,20 @@ describe('useAuth', () => {
       });
     });
 
+    it('should show error when LLM_PROVIDER is set but required API key env var is missing', async () => {
+      process.env['LLM_PROVIDER'] = 'claude';
+      // ANTHROPIC_API_KEY is NOT set
+      const { result } = renderHook(() =>
+        useAuthCommand(createSettings(undefined), mockConfig),
+      );
+
+      await waitFor(() => {
+        expect(result.current.authError).toContain('ANTHROPIC_API_KEY');
+        expect(result.current.authError).toContain('missing');
+        expect(mockConfig.refreshAuth).not.toHaveBeenCalled();
+      });
+    });
+
     // --- Issue: non-Gemini restart auto-authentication ---
 
     it('should auto-authenticate non-Gemini provider on restart with saved key', async () => {

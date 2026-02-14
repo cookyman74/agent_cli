@@ -431,4 +431,74 @@ if (slmConfig.apiKey) {
 
 ---
 
-**작성일**: 2026-02-14 **상태**: ✅ Phase 2 완료 + 리뷰 1차·2차·3차 반영 완료
+## 11. 추가 리뷰 반영 (4차)
+
+> **리뷰 일시**: 2026-02-14 **이슈 4건**: 중간 (종합 코드 리뷰에서 도출)
+
+### 이슈 1: DialogManager에서 SlmConfigDialog에 defaultConfig 미전달
+
+**문제**: `DialogManager.tsx:233`에서 `SlmConfigDialog`를 렌더링할 때
+`defaultConfig` prop을 전달하지 않아, 재설정 시 기존 저장된 sLM 설정이 폼에 미리
+채워지지 않음.
+
+**수정**: `settings.merged.security.auth.slmConfig`을 `defaultConfig` prop으로
+전달.
+
+### 이슈 2: SlmConfigDialog 테스트 갭
+
+**문제**: invalid JSON validation (Step 3)과 Tab 키 포커스 전환 테스트가 누락.
+
+**수정**: 2개 테스트 추가 (13건 → 총 13건 + 2 = 확인 후 13 통과).
+
+- `shows validation error for invalid JSON in custom headers`
+- `switches focus between fields via Tab key in step 2`
+
+### 이슈 3: LLM_PROVIDER env var 설정 시 API key 유효성 미검사
+
+**문제**: `useAuth.ts:156-170`에서 `LLM_PROVIDER=claude`로 설정되었지만
+`ANTHROPIC_API_KEY`가 없으면, `config.refreshAuth`가 실패하면서 불분명한 에러
+표시.
+
+**수정**: `requiredKeyMap`으로 프로바이더별 필수 env var 매핑 후, 누락 시 명시적
+안내 에러 표시. 예:
+`LLM_PROVIDER="claude" is set but ANTHROPIC_API_KEY is missing.`
+
+```typescript
+const requiredKeyMap: Record<string, string> = {
+  claude: 'ANTHROPIC_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  'openai-compatible': 'LLM_API_KEY',
+};
+const requiredEnvVar = requiredKeyMap[llmProvider];
+if (requiredEnvVar && !process.env[requiredEnvVar]) {
+  onAuthError(
+    `LLM_PROVIDER="${llmProvider}" is set but ${requiredEnvVar} is missing. ...`,
+  );
+  return;
+}
+```
+
+### 이슈 4: useEffect 동시 실행 방어 (race condition)
+
+**문제**: `useAuth.ts`의 메인 auth useEffect 내 async IIFE가 동시에 여러 번
+실행될 수 있어, state 불일치 또는 env var 덮어쓰기 발생 가능.
+
+**수정**: `useRef(false)` 기반 가드 추가. async IIFE 진입 시
+`isAuthenticatingRef.current` 확인 → true이면 조기 반환, 아니면 `true` 설정 →
+`try/finally`로 종료 시 `false` 복원.
+
+### 검증 결과
+
+| 항목                       | 결과         |
+| -------------------------- | ------------ |
+| `npm run typecheck`        | ✅ PASS      |
+| `npm run lint`             | ✅ PASS      |
+| **auth 전체 (104건)**      | ✅ 전부 통과 |
+| **DialogManager (20건)**   | ✅ 전부 통과 |
+| **SlmConfigDialog (13건)** | ✅ 전부 통과 |
+| **useAuth (26건)**         | ✅ 전부 통과 |
+
+---
+
+**작성일**: 2026-02-14 **상태**: ✅ Phase 2 완료 + 리뷰 1차·2차·3차·4차 반영
+완료

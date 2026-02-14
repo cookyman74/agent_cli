@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { LoadedSettings } from '../../config/settings.js';
 import {
   AuthType,
@@ -85,6 +85,9 @@ export const useAuthCommand = (
     settings.merged.security.auth.selectedProvider,
   );
 
+  // Guard against concurrent async execution of the main auth useEffect
+  const isAuthenticatingRef = useRef(false);
+
   const onAuthError = useCallback(
     (error: string | null) => {
       setAuthError(error);
@@ -149,166 +152,188 @@ export const useAuthCommand = (
       if (authState !== AuthState.Unauthenticated) {
         return;
       }
-
-      const authType = settings.merged.security.auth.selectedType;
-      if (!authType) {
-        // Check for env-based non-Gemini providers before showing error
-        const llmProvider = process.env['LLM_PROVIDER'];
-        if (llmProvider) {
-          // LLM_PROVIDER is set — route directly to that provider
-          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
-          try {
-            await config.refreshAuth(AuthType.USE_GEMINI);
-            debugLogger.log(
-              `Authenticated via env LLM_PROVIDER="${llmProvider}".`,
-            );
-            setAuthError(null);
-            setAuthState(AuthState.Authenticated);
-          } catch (e) {
-            onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
-          }
-          return;
-        }
-        if (process.env['ANTHROPIC_API_KEY']) {
-          // Auto-detect Claude provider from env var
-          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
-          process.env['LLM_PROVIDER'] = 'claude';
-          try {
-            await config.refreshAuth(AuthType.USE_GEMINI);
-            debugLogger.log('Authenticated via env ANTHROPIC_API_KEY.');
-            setAuthError(null);
-            setAuthState(AuthState.Authenticated);
-          } catch (e) {
-            onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
-          }
-          return;
-        }
-        if (process.env['OPENAI_API_KEY']) {
-          // Auto-detect OpenAI provider from env var
-          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
-          process.env['LLM_PROVIDER'] = 'openai';
-          try {
-            await config.refreshAuth(AuthType.USE_GEMINI);
-            debugLogger.log('Authenticated via env OPENAI_API_KEY.');
-            setAuthError(null);
-            setAuthState(AuthState.Authenticated);
-          } catch (e) {
-            onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
-          }
-          return;
-        }
-        if (process.env['GEMINI_API_KEY']) {
-          onAuthError(
-            'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.',
-          );
-        } else {
-          onAuthError('No authentication method selected.');
-        }
+      if (isAuthenticatingRef.current) {
         return;
       }
-
-      if (authType === AuthType.USE_GEMINI) {
-        const provider = settings.merged.security.auth.selectedProvider;
-        if (provider === 'openai-compatible') {
-          // sLM (OpenAI-compatible) — load config from settings
-          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
-          const slmConfig = settings.merged.security.auth.slmConfig as
-            | {
-                baseUrl?: string;
-                model?: string;
-                apiKeyHeaderName?: string;
-                customHeaders?: string;
-              }
-            | undefined;
-          if (!slmConfig?.baseUrl) {
-            // No baseUrl configured — need sLM configuration dialog
-            setAuthState(AuthState.ConfiguringSlm);
-            return;
-          }
-          process.env['LLM_PROVIDER'] = 'openai-compatible';
-          process.env['LLM_BASE_URL'] = slmConfig.baseUrl;
-
-          // Clear optional env vars first to prevent stale values
-          delete process.env['LLM_MODEL'];
-          delete process.env['LLM_API_KEY'];
-          delete process.env['LLM_API_KEY_HEADER'];
-          delete process.env['LLM_CUSTOM_HEADERS'];
-
-          if (slmConfig.model) {
-            process.env['LLM_MODEL'] = slmConfig.model;
-          }
-          if (slmConfig.apiKeyHeaderName) {
-            process.env['LLM_API_KEY_HEADER'] = slmConfig.apiKeyHeaderName;
-          }
-          if (slmConfig.customHeaders) {
-            process.env['LLM_CUSTOM_HEADERS'] = slmConfig.customHeaders;
-          }
-          // API key is optional for sLM
-          const key = await reloadProviderApiKey(provider);
-          if (key) {
-            process.env['LLM_API_KEY'] = key;
-          }
-        } else if (provider && provider !== 'gemini') {
-          // Non-Gemini provider (Claude/OpenAI) saved with selectedType=USE_GEMINI
-          // Clean up sLM-specific env vars to prevent cross-provider leakage
-          delete process.env['LLM_MODEL'];
-          delete process.env['LLM_BASE_URL'];
-          delete process.env['LLM_API_KEY'];
-          delete process.env['LLM_API_KEY_HEADER'];
-          delete process.env['LLM_CUSTOM_HEADERS'];
-          process.env['ENABLE_MULTI_PROVIDER'] = 'true';
-          // Load the provider-specific key and set env vars for providerSelector
-          const key = await reloadProviderApiKey(provider);
-          if (!key) {
-            setAuthState(AuthState.AwaitingApiKeyInput);
-            return;
-          }
-          // Set env vars so providerSelector routes to the correct adapter
-          const envVarMap: Record<string, string> = {
-            claude: 'ANTHROPIC_API_KEY',
-            openai: 'OPENAI_API_KEY',
-          };
-          const envVarName = envVarMap[provider];
-          if (envVarName) {
-            process.env[envVarName] = key;
-          }
-          process.env['LLM_PROVIDER'] = provider;
-        } else {
-          // Gemini path (legacy)
-          const key = await reloadApiKey();
-          if (!key) {
-            setAuthState(AuthState.AwaitingApiKeyInput);
-            return;
-          }
-        }
-      }
-
-      const error = validateAuthMethodWithSettings(authType, settings);
-      if (error) {
-        onAuthError(error);
-        return;
-      }
-
-      const defaultAuthType = process.env['GEMINI_DEFAULT_AUTH_TYPE'];
-      if (
-        defaultAuthType &&
-        !Object.values(AuthType).includes(defaultAuthType as AuthType)
-      ) {
-        onAuthError(
-          `Invalid value for GEMINI_DEFAULT_AUTH_TYPE: "${defaultAuthType}". ` +
-            `Valid values are: ${Object.values(AuthType).join(', ')}.`,
-        );
-        return;
-      }
-
+      isAuthenticatingRef.current = true;
       try {
-        await config.refreshAuth(authType);
+        const authType = settings.merged.security.auth.selectedType;
+        if (!authType) {
+          // Check for env-based non-Gemini providers before showing error
+          const llmProvider = process.env['LLM_PROVIDER'];
+          if (llmProvider) {
+            // Validate that the corresponding API key env var is set
+            const requiredKeyMap: Record<string, string> = {
+              claude: 'ANTHROPIC_API_KEY',
+              openai: 'OPENAI_API_KEY',
+              'openai-compatible': 'LLM_API_KEY',
+            };
+            const requiredEnvVar = requiredKeyMap[llmProvider];
+            if (requiredEnvVar && !process.env[requiredEnvVar]) {
+              onAuthError(
+                `LLM_PROVIDER="${llmProvider}" is set but ${requiredEnvVar} is missing. ` +
+                  `Set the ${requiredEnvVar} environment variable or remove LLM_PROVIDER.`,
+              );
+              return;
+            }
 
-        debugLogger.log(`Authenticated via "${authType}".`);
-        setAuthError(null);
-        setAuthState(AuthState.Authenticated);
-      } catch (e) {
-        onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+            // LLM_PROVIDER is set — route directly to that provider
+            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+            try {
+              await config.refreshAuth(AuthType.USE_GEMINI);
+              debugLogger.log(
+                `Authenticated via env LLM_PROVIDER="${llmProvider}".`,
+              );
+              setAuthError(null);
+              setAuthState(AuthState.Authenticated);
+            } catch (e) {
+              onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+            }
+            return;
+          }
+          if (process.env['ANTHROPIC_API_KEY']) {
+            // Auto-detect Claude provider from env var
+            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+            process.env['LLM_PROVIDER'] = 'claude';
+            try {
+              await config.refreshAuth(AuthType.USE_GEMINI);
+              debugLogger.log('Authenticated via env ANTHROPIC_API_KEY.');
+              setAuthError(null);
+              setAuthState(AuthState.Authenticated);
+            } catch (e) {
+              onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+            }
+            return;
+          }
+          if (process.env['OPENAI_API_KEY']) {
+            // Auto-detect OpenAI provider from env var
+            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+            process.env['LLM_PROVIDER'] = 'openai';
+            try {
+              await config.refreshAuth(AuthType.USE_GEMINI);
+              debugLogger.log('Authenticated via env OPENAI_API_KEY.');
+              setAuthError(null);
+              setAuthState(AuthState.Authenticated);
+            } catch (e) {
+              onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+            }
+            return;
+          }
+          if (process.env['GEMINI_API_KEY']) {
+            onAuthError(
+              'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.',
+            );
+          } else {
+            onAuthError('No authentication method selected.');
+          }
+          return;
+        }
+
+        if (authType === AuthType.USE_GEMINI) {
+          const provider = settings.merged.security.auth.selectedProvider;
+          if (provider === 'openai-compatible') {
+            // sLM (OpenAI-compatible) — load config from settings
+            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+            const slmConfig = settings.merged.security.auth.slmConfig as
+              | {
+                  baseUrl?: string;
+                  model?: string;
+                  apiKeyHeaderName?: string;
+                  customHeaders?: string;
+                }
+              | undefined;
+            if (!slmConfig?.baseUrl) {
+              // No baseUrl configured — need sLM configuration dialog
+              setAuthState(AuthState.ConfiguringSlm);
+              return;
+            }
+            process.env['LLM_PROVIDER'] = 'openai-compatible';
+            process.env['LLM_BASE_URL'] = slmConfig.baseUrl;
+
+            // Clear optional env vars first to prevent stale values
+            delete process.env['LLM_MODEL'];
+            delete process.env['LLM_API_KEY'];
+            delete process.env['LLM_API_KEY_HEADER'];
+            delete process.env['LLM_CUSTOM_HEADERS'];
+
+            if (slmConfig.model) {
+              process.env['LLM_MODEL'] = slmConfig.model;
+            }
+            if (slmConfig.apiKeyHeaderName) {
+              process.env['LLM_API_KEY_HEADER'] = slmConfig.apiKeyHeaderName;
+            }
+            if (slmConfig.customHeaders) {
+              process.env['LLM_CUSTOM_HEADERS'] = slmConfig.customHeaders;
+            }
+            // API key is optional for sLM
+            const key = await reloadProviderApiKey(provider);
+            if (key) {
+              process.env['LLM_API_KEY'] = key;
+            }
+          } else if (provider && provider !== 'gemini') {
+            // Non-Gemini provider (Claude/OpenAI) saved with selectedType=USE_GEMINI
+            // Clean up sLM-specific env vars to prevent cross-provider leakage
+            delete process.env['LLM_MODEL'];
+            delete process.env['LLM_BASE_URL'];
+            delete process.env['LLM_API_KEY'];
+            delete process.env['LLM_API_KEY_HEADER'];
+            delete process.env['LLM_CUSTOM_HEADERS'];
+            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+            // Load the provider-specific key and set env vars for providerSelector
+            const key = await reloadProviderApiKey(provider);
+            if (!key) {
+              setAuthState(AuthState.AwaitingApiKeyInput);
+              return;
+            }
+            // Set env vars so providerSelector routes to the correct adapter
+            const envVarMap: Record<string, string> = {
+              claude: 'ANTHROPIC_API_KEY',
+              openai: 'OPENAI_API_KEY',
+            };
+            const envVarName = envVarMap[provider];
+            if (envVarName) {
+              process.env[envVarName] = key;
+            }
+            process.env['LLM_PROVIDER'] = provider;
+          } else {
+            // Gemini path (legacy)
+            const key = await reloadApiKey();
+            if (!key) {
+              setAuthState(AuthState.AwaitingApiKeyInput);
+              return;
+            }
+          }
+        }
+
+        const error = validateAuthMethodWithSettings(authType, settings);
+        if (error) {
+          onAuthError(error);
+          return;
+        }
+
+        const defaultAuthType = process.env['GEMINI_DEFAULT_AUTH_TYPE'];
+        if (
+          defaultAuthType &&
+          !Object.values(AuthType).includes(defaultAuthType as AuthType)
+        ) {
+          onAuthError(
+            `Invalid value for GEMINI_DEFAULT_AUTH_TYPE: "${defaultAuthType}". ` +
+              `Valid values are: ${Object.values(AuthType).join(', ')}.`,
+          );
+          return;
+        }
+
+        try {
+          await config.refreshAuth(authType);
+
+          debugLogger.log(`Authenticated via "${authType}".`);
+          setAuthError(null);
+          setAuthState(AuthState.Authenticated);
+        } catch (e) {
+          onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+        }
+      } finally {
+        isAuthenticatingRef.current = false;
       }
     })();
   }, [

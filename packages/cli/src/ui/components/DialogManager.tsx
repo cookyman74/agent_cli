@@ -228,11 +228,15 @@ export const DialogManager = ({
     );
   }
   if (uiState.isConfiguringSlm) {
+    const slmConfig = settings?.merged?.security?.auth?.slmConfig as
+      | Record<string, string>
+      | undefined;
     return (
       <Box flexDirection="column">
         <SlmConfigDialog
           onComplete={uiActions.handleSlmConfigComplete}
           onCancel={uiActions.handleSlmConfigCancel}
+          defaultConfig={slmConfig}
         />
       </Box>
     );

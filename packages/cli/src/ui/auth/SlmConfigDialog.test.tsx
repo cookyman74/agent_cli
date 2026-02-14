@@ -261,6 +261,87 @@ describe('SlmConfigDialog', () => {
     });
   });
 
+  describe('Step C: validation', () => {
+    it('shows validation error for invalid JSON in custom headers', () => {
+      // Step 1: valid URL
+      mockBuffer.text = 'http://localhost:11434/v1';
+      const { lastFrame } = render(
+        <SlmConfigDialog onComplete={onComplete} onCancel={onCancel} />,
+      );
+
+      // Step 1 → Step 2
+      act(() => {
+        pressEnterInTextInput();
+      });
+      expect(lastFrame()!).toContain('Step 2 of 3');
+
+      // Step 2 → Step 3
+      act(() => {
+        pressEnterInTextInput();
+      });
+      expect(lastFrame()!).toContain('Step 3 of 3');
+
+      // Set invalid JSON in the headers buffer
+      // headersBuffer is the secondary field in step 3
+      // The headers buffer is passed to handleAdvancedSubmit
+      const headersBuffer = mockedUseTextBuffer.mock.results.at(-1)
+        ?.value as TextBuffer;
+      headersBuffer.text = '{invalid json}';
+
+      // Submit step 3
+      act(() => {
+        pressEnterInTextInput();
+      });
+
+      const frame = lastFrame()!;
+      expect(frame).toContain('Custom headers must be valid JSON');
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Tab focus switching', () => {
+    it('switches focus between fields via Tab key in step 2', () => {
+      // Step 1: valid URL
+      mockBuffer.text = 'http://localhost:11434/v1';
+      const { lastFrame } = render(
+        <SlmConfigDialog onComplete={onComplete} onCancel={onCancel} />,
+      );
+
+      // Step 1 → Step 2
+      act(() => {
+        pressEnterInTextInput();
+      });
+      expect(lastFrame()!).toContain('Step 2 of 3');
+
+      // Press Tab — should switch from primary (API Key) to secondary (Model Name)
+      const slmKeypress = mockedUseKeypress.mock.calls.at(-2);
+      act(() => {
+        slmKeypress![0]({
+          name: 'tab',
+          shift: false,
+          ctrl: false,
+          cmd: false,
+          sequence: '\t',
+        });
+      });
+
+      // Press Tab again — should switch back to primary
+      const slmKeypress2 = mockedUseKeypress.mock.calls.at(-2);
+      act(() => {
+        slmKeypress2![0]({
+          name: 'tab',
+          shift: false,
+          ctrl: false,
+          cmd: false,
+          sequence: '\t',
+        });
+      });
+
+      // Still on step 2 (Tab doesn't advance steps)
+      expect(lastFrame()!).toContain('Step 2 of 3');
+    });
+  });
+
   describe('snapshot', () => {
     it('matches snapshot for initial render', () => {
       const { lastFrame } = render(

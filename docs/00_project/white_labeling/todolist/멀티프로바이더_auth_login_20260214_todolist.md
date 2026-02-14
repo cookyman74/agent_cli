@@ -260,59 +260,77 @@
 
 ### 3.0 사전작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** Phase 1 작업 결과서 리뷰
-- [ ] **[ANALYSIS]** Vertex AI 인증 요구사항 확인
-  - 인증 방법: Google Login 또는 API Key
+- [x] **[CONTEXT]** Phase 1 작업 결과서 리뷰
+- [x] **[ANALYSIS]** Vertex AI 인증 요구사항 확인
+  - Vertex AI는 Gemini 변형 → `AuthType.USE_VERTEX_AI`로 직접 라우팅
   - 필수: Project ID, Location
-- [ ] **[DEPENDENCY]** AppContainer의 `ConfiguringVertex` 분기 확인
+  - `ENABLE_MULTI_PROVIDER`/`LLM_PROVIDER` 불필요
+- [x] **[DEPENDENCY]** AppContainer의 `ConfiguringVertex` 분기 확인
 
 ### 3.1 본작업 — Step 3.0: VertexConfigDialog (TDD)
 
 **파일**: 신규 `packages/cli/src/ui/auth/VertexConfigDialog.tsx`,
 `VertexConfigDialog.test.tsx`
 
-- [ ] **🔴 RED**: 2단계 폼 테스트 작성
-  - Step A: 인증 방법 선택 (Google Login / API Key)
-  - Step B: Project ID + Location 입력
-- [ ] **🟢 GREEN**: RadioButtonSelect + TextInput 패턴 재사용
+- [x] **🔴 RED**: 2단계 폼 테스트 작성 (14개)
+  - Step 1: Google Cloud Project ID 입력 (비어있으면 에러)
+  - Step 2: Google Cloud Location 입력 (기본값 us-central1)
+  - Esc 키: Step 1=onCancel, Step 2=Step 1 복귀 + buffer 복원
+- [x] **🟢 GREEN**: useTextBuffer + TextInput 패턴 재사용
   ```typescript
   interface VertexConfigDialogProps {
-    onComplete: (
-      config: VertexConfig,
-      authMethod: 'google-login' | 'api-key',
-    ) => void;
+    onComplete: (config: VertexConfig) => void;
     onCancel: () => void;
-    config?: Config;
-    defaultConfig?: VertexConfig;
+    defaultConfig?: Partial<VertexConfig>;
   }
   ```
-- [ ] **🔵 REFACTOR**: 코드 정리
-- [ ] **[VERIFY]** 테스트 통과
+- [x] **🔵 REFACTOR**: handleCancel buffer 복원, useCallback 의존성 정리
+- [x] **[VERIFY]** 14개 테스트 통과
 
 ### 3.2 본작업 — Step 3.1: Vertex AI 플로우 와이어링
 
-**파일**: `AppContainer.tsx`, `DialogManager.tsx`
+**파일**: `AppContainer.tsx`, `DialogManager.tsx`, `UIStateContext.tsx`,
+`UIActionsContext.tsx`, `useAuth.ts`, `authCommand.ts`, `providerMetadata.ts`,
+`render.tsx`
 
-- [ ] **[TASK]** AppContainer: `handleVertexConfigComplete` 콜백 추가
-  - `selectedProvider='gemini'` + `selectedType=AuthType.USE_VERTEX_AI` +
-    vertexConfig 저장
-- [ ] **[TASK]** DialogManager: `ConfiguringVertex` 렌더링 분기 추가
-- [ ] **[VERIFY]** 통합 테스트
+- [x] **[TASK]** providerMetadata: PROVIDER_SELECT_ITEMS에 'vertex-ai' 추가
+      (4→5항목)
+- [x] **[TASK]** UIStateContext: `isConfiguringVertex` 추가
+- [x] **[TASK]** UIActionsContext: `handleVertexConfigComplete`/`Cancel` 추가
+- [x] **[TASK]** AppContainer: `handleVertexConfigComplete` 콜백 추가
+  - `selectedProvider='vertex-ai'` + `selectedType=USE_VERTEX_AI` + vertexConfig
+    저장
+  - 이전 프로바이더 env var 9개 정리 (stale routing 방지)
+  - `GOOGLE_CLOUD_PROJECT`/`GOOGLE_CLOUD_LOCATION` 설정
+- [x] **[TASK]** DialogManager: `ConfiguringVertex` → VertexConfigDialog 렌더링
+      분기
+- [x] **[TASK]** useAuth: USE*VERTEX_AI 재시작 시 GOOGLE_CLOUD*\* env var 복원 +
+      project/location 누락 시 ConfiguringVertex 복구
+- [x] **[TASK]** authCommand: logout시 vertexConfig 클리어 + GOOGLE*CLOUD*\*
+      삭제
+- [x] **[TASK]** render.tsx: mock 업데이트 (vertex 필드 추가)
+- [x] **[TASK]** ProviderSelectDialog.test.tsx: 5항목 반영 + 스냅샷 갱신
+- [x] **[TASK]** DialogManager.test.tsx: VertexConfigDialog mock + 테스트 추가
+- [x] **[TASK]** useAuth.test.tsx: Vertex AI 재시작 복원 + config 누락 복구
+      테스트
+- [x] **[TASK]** AppContainer.test.tsx: env cleanup 회귀 테스트 추가
+- [x] **[VERIFY]** 213개 auth+AppContainer 테스트 통과
 
 ### 3.3 사후작업 (Post-Work)
 
-- [ ] **[LINT]** 린트 통과
-- [ ] **[TYPECHECK]** 타입체크 통과
-- [ ] **[TEST]** 테스트 회귀 없음
-- [ ] **[COMMIT]** `feat(cli): add VertexConfigDialog and wire Vertex AI flow`
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[LINT]** 린트 통과
+- [x] **[TYPECHECK]** 타입체크 통과
+- [x] **[TEST]** 테스트 회귀 없음 (213개 통과)
+- [x] **[COMMIT]** `3f90f2a` — 초기 구현, `21198a1` — 리뷰 1차, `cbb6664` — 리뷰
+      2차, `22882e7` — 리뷰 3차
+- [x] **[DOC]** 작업 결과서 작성 + 리뷰 반영 기록
 
 ### Phase 3 Quality Gates
 
-- [ ] 모든 단위 테스트 통과
-- [ ] TypeScript 컴파일 에러 없음
-- [ ] ESLint 경고 없음
-- [ ] 기존 테스트 회귀 없음
+- [x] 모든 단위 테스트 통과 (213개)
+- [x] TypeScript 컴파일 에러 없음
+- [x] ESLint 경고 없음
+- [x] 기존 테스트 회귀 없음
 
 ---
 
@@ -401,7 +419,7 @@
 | ------- | ----------------------------- | ------ | -------- | ----------- | ------ | --------- | ---- |
 | Phase 1 | 프로바이더 선택 + API Key MVP | ✅     | ✅       | ✅          | ✅     | `1984d47` | ✅   |
 | Phase 2 | sLM 대화형 설정               | ✅     | ✅       | ✅          | ✅     | `898bcb3` | ✅   |
-| Phase 3 | Vertex AI + Google Login      | ⬜     | ⬜       | ⬜          | ⬜     | ⬜        | ⬜   |
+| Phase 3 | Vertex AI + Google Login      | ✅     | ✅       | ✅          | ✅     | `3f90f2a` | ✅   |
 | Phase 4 | 하위 호환 + 마이그레이션      | ⬜     | ⬜       | ⬜          | ⬜     | ⬜        | ⬜   |
 
 ### Phase 의존성
@@ -444,11 +462,9 @@ isSelectingProvider, selectedProvider | | 14 |
 15 | `packages/cli/src/ui/commands/authCommand.ts` | logout 멀티프로바이더
 클리어 | | 16 | `packages/cli/src/test-utils/render.tsx` | mock 업데이트 |
 
-**미구현 (Phase 2~4)**: | # | 파일 | 설명 | |---|------|------| | 1 |
-`packages/cli/src/ui/auth/SlmConfigDialog.tsx` | Phase 2: sLM 설정 UI | | 2 |
-`packages/cli/src/ui/auth/VertexConfigDialog.tsx` | Phase 3: Vertex AI 설정 UI |
-| 3 | `packages/cli/src/core/initializer.ts` | Phase 4: 마이그레이션 로직 | | 4
-| `packages/cli/src/config/auth.ts` | Phase 4: validateProviderAuth |
+**미구현 (Phase 4)**: | # | 파일 | 설명 | |---|------|------| | 1 |
+`packages/cli/src/core/initializer.ts` | Phase 4: 마이그레이션 로직 | | 2 |
+`packages/cli/src/config/auth.ts` | Phase 4: validateProviderAuth |
 
 ---
 
@@ -463,5 +479,5 @@ isSelectingProvider, selectedProvider | | 14 |
 
 ---
 
-**작성일**: 2026-02-14 **최종 수정일**: 2026-02-14 **상태**: 🔄 Phase 1-2 완료,
-Phase 3-4 대기
+**작성일**: 2026-02-14 **최종 수정일**: 2026-02-14 **상태**: 🔄 Phase 1-3 완료,
+Phase 4 대기

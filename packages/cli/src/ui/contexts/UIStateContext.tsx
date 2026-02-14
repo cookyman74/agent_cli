@@ -25,7 +25,7 @@ import type {
   FallbackIntent,
   ValidationIntent,
   AgentDefinition,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { DOMElement } from 'ink';
 import type { SessionStatsState } from '../contexts/SessionContext.js';
 import type { ExtensionUpdateState } from '../state/extensions.js';
@@ -61,6 +61,8 @@ export interface UIState {
   authError: string | null;
   isAuthDialogOpen: boolean;
   isAwaitingApiKeyInput: boolean;
+  isSelectingProvider: boolean;
+  selectedProvider?: string;
   apiKeyDefaultValue?: string;
   editorError: string | null;
   isEditorDialogOpen: boolean;

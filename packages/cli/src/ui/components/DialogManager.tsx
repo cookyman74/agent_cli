@@ -14,6 +14,8 @@ import { SettingsDialog } from './SettingsDialog.js';
 import { AuthInProgress } from '../auth/AuthInProgress.js';
 import { AuthDialog } from '../auth/AuthDialog.js';
 import { ApiAuthDialog } from '../auth/ApiAuthDialog.js';
+import { ProviderSelectDialog } from '../auth/ProviderSelectDialog.js';
+import { AuthState } from '../types.js';
 import { EditorSettingsDialog } from './EditorSettingsDialog.js';
 import { PrivacyNotice } from '../privacy/PrivacyNotice.js';
 import { ProQuotaDialog } from './ProQuotaDialog.js';
@@ -200,6 +202,23 @@ export const DialogManager = ({
       </Box>
     );
   }
+  if (uiState.isSelectingProvider) {
+    return (
+      <Box flexDirection="column">
+        <ProviderSelectDialog
+          onSelect={uiActions.handleProviderSelect}
+          currentProvider={uiState.selectedProvider}
+          onCancel={() => {
+            if (uiState.selectedProvider) {
+              uiActions.setAuthState(AuthState.Authenticated);
+            }
+          }}
+          error={uiState.authError}
+          onError={uiActions.onAuthError}
+        />
+      </Box>
+    );
+  }
   if (uiState.isAuthenticating) {
     return (
       <AuthInProgress
@@ -218,6 +237,7 @@ export const DialogManager = ({
           onCancel={uiActions.handleApiKeyCancel}
           error={uiState.authError}
           defaultValue={uiState.apiKeyDefaultValue}
+          provider={uiState.selectedProvider}
         />
       </Box>
     );
@@ -232,6 +252,7 @@ export const DialogManager = ({
           authError={uiState.authError}
           onAuthError={uiActions.onAuthError}
           setAuthContext={uiActions.setAuthContext}
+          onBack={() => uiActions.setAuthState(AuthState.SelectingProvider)}
         />
       </Box>
     );

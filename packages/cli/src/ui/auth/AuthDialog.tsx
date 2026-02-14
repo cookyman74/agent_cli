@@ -18,7 +18,7 @@ import {
   AuthType,
   clearCachedCredentialFile,
   type Config,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { AuthState } from '../types.js';
 import { runExitCleanup } from '../../utils/cleanup.js';
@@ -32,6 +32,8 @@ interface AuthDialogProps {
   authError: string | null;
   onAuthError: (error: string | null) => void;
   setAuthContext: (context: { requiresRestart?: boolean }) => void;
+  /** Callback to navigate back to provider selection (Step 1). */
+  onBack?: () => void;
 }
 
 export function AuthDialog({
@@ -41,6 +43,7 @@ export function AuthDialog({
   authError,
   onAuthError,
   setAuthContext,
+  onBack,
 }: AuthDialogProps): React.JSX.Element {
   const [exiting, setExiting] = useState(false);
   let items = [
@@ -70,11 +73,6 @@ export function AuthDialog({
       label: 'Use Gemini API Key',
       value: AuthType.USE_GEMINI,
       key: AuthType.USE_GEMINI,
-    },
-    {
-      label: 'Vertex AI',
-      value: AuthType.USE_VERTEX_AI,
-      key: AuthType.USE_VERTEX_AI,
     },
   ];
 
@@ -169,6 +167,11 @@ export function AuthDialog({
         // Prevent exit if there is an error message.
         // This means they user is not authenticated yet.
         if (authError) {
+          return;
+        }
+        // Navigate back to provider selection if onBack is provided
+        if (onBack) {
+          onBack();
           return;
         }
         if (settings.merged.security.auth.selectedType === undefined) {

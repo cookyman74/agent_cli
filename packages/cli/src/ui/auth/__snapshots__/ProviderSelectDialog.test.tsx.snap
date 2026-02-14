@@ -1,0 +1,33 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ProviderSelectDialog > Snapshots > renders correctly with default props 1`] = `
+"╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                      │
+│ ?Select LLM Provider                                                                                                 │
+│                                                                                                                      │
+│  Which AI provider would you like to use?                                                                            │
+│                                                                                                                      │
+│  (selected) Gemini  (not selected) Claude(not selected) OpenA(not selected) Vertex AI (not selected) sLM             │
+│  (Google AI)        (Anthropic)          (OpenAI)            (Google Cloud)           (Self-hosted / Local LLM)      │
+│                                                                                                                      │
+│  (Use Enter to select)                                                                                               │
+│                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯"
+`;
+
+exports[`ProviderSelectDialog > Snapshots > renders correctly with error 1`] = `
+"╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                      │
+│ ?Select LLM Provider                                                                                                 │
+│                                                                                                                      │
+│  Which AI provider would you like to use?                                                                            │
+│                                                                                                                      │
+│  (selected) Gemini  (not selected) Claude(not selected) OpenA(not selected) Vertex AI (not selected) sLM             │
+│  (Google AI)        (Anthropic)          (OpenAI)            (Google Cloud)           (Self-hosted / Local LLM)      │
+│                                                                                                                      │
+│  Must select a provider                                                                                              │
+│                                                                                                                      │
+│  (Use Enter to select)                                                                                               │
+│                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯"
+`;

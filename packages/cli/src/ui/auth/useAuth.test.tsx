@@ -15,7 +15,7 @@ import {
 } from 'vitest';
 import { renderHook } from '../../test-utils/render.js';
 import { useAuthCommand, validateAuthMethodWithSettings } from './useAuth.js';
-import { AuthType, type Config } from '@didim/agent-cli-core';
+import { AuthType, type Config } from '@didim365/agent-cli-core';
 import { AuthState } from '../types.js';
 import type { LoadedSettings } from '../../config/settings.js';
 import { waitFor } from '../../test-utils/async.js';
@@ -24,8 +24,9 @@ import { waitFor } from '../../test-utils/async.js';
 const mockLoadApiKey = vi.fn();
 const mockValidateAuthMethod = vi.fn();
 
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     loadApiKey: () => mockLoadApiKey(),
@@ -144,17 +145,15 @@ describe('useAuth', () => {
       expect(result.current.authState).toBe(AuthState.Unauthenticated);
     });
 
-    it('should set error if no auth type is selected and no env key', async () => {
+    it('should go to SelectingProvider if no auth type is selected and no env key', async () => {
       const { result } = renderHook(() =>
         useAuthCommand(createSettings(undefined), mockConfig),
       );
 
-      await waitFor(() => {
-        expect(result.current.authError).toBe(
-          'No authentication method selected.',
-        );
-        expect(result.current.authState).toBe(AuthState.Updating);
-      });
+      // With multi-provider support, when no auth method and no provider is selected,
+      // the hook starts in SelectingProvider state instead of showing an error
+      expect(result.current.authState).toBe(AuthState.SelectingProvider);
+      expect(result.current.authError).toBeNull();
     });
 
     it('should set error if no auth type is selected but env key exists', async () => {

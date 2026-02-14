@@ -15,7 +15,7 @@ import {
   type Mock,
 } from 'vitest';
 import { AuthDialog } from './AuthDialog.js';
-import { AuthType, type Config, debugLogger } from '@didim/agent-cli-core';
+import { AuthType, type Config, debugLogger } from '@didim365/agent-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 import { AuthState } from '../types.js';
 import { RadioButtonSelect } from '../components/shared/RadioButtonSelect.js';
@@ -26,8 +26,9 @@ import { Text } from 'ink';
 import { RELAUNCH_EXIT_CODE } from '../../utils/processUtils.js';
 
 // Mocks
-vi.mock('@didim/agent-cli-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@didim/agent-cli-core')>();
+vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
     clearCachedCredentialFile: vi.fn(),
@@ -72,6 +73,7 @@ describe('AuthDialog', () => {
     authError: string | null;
     onAuthError: (error: string | null) => void;
     setAuthContext: (context: { requiresRestart?: boolean }) => void;
+    onBack?: () => void;
   };
   beforeEach(() => {
     vi.resetAllMocks();
@@ -173,9 +175,9 @@ describe('AuthDialog', () => {
       {
         setup: () => {
           props.settings.merged.security.auth.selectedType =
-            AuthType.USE_VERTEX_AI;
+            AuthType.USE_GEMINI;
         },
-        expected: AuthType.USE_VERTEX_AI,
+        expected: AuthType.USE_GEMINI,
         desc: 'from settings',
       },
       {
@@ -378,6 +380,24 @@ describe('AuthDialog', () => {
       const keypressHandler = mockedUseKeypress.mock.calls[0][0];
       keypressHandler({ name: 'escape' });
       expectations(props);
+    });
+
+    it('calls onBack on escape when onBack is provided', () => {
+      props.onBack = vi.fn();
+      renderWithProviders(<AuthDialog {...props} />);
+      const keypressHandler = mockedUseKeypress.mock.calls[0][0];
+      keypressHandler({ name: 'escape' });
+      expect(props.onBack).toHaveBeenCalled();
+      expect(props.setAuthState).not.toHaveBeenCalled();
+    });
+
+    it('does not call onBack on escape when authError is present', () => {
+      props.onBack = vi.fn();
+      props.authError = 'Some error';
+      renderWithProviders(<AuthDialog {...props} />);
+      const keypressHandler = mockedUseKeypress.mock.calls[0][0];
+      keypressHandler({ name: 'escape' });
+      expect(props.onBack).not.toHaveBeenCalled();
     });
   });
 

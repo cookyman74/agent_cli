@@ -11,15 +11,18 @@ import { theme } from '../semantic-colors.js';
 import { TextInput } from '../components/shared/TextInput.js';
 import { useTextBuffer } from '../components/shared/text-buffer.js';
 import { useUIState } from '../contexts/UIStateContext.js';
-import { clearApiKey, debugLogger } from '@didim/agent-cli-core';
+import { clearProviderApiKey, debugLogger } from '@didim365/agent-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { keyMatchers, Command } from '../keyMatchers.js';
+import { getProviderDisplayInfo } from './providerMetadata.js';
 
 interface ApiAuthDialogProps {
   onSubmit: (apiKey: string) => void;
   onCancel: () => void;
   error?: string | null;
   defaultValue?: string;
+  /** Provider key for dynamic labels/URLs. Defaults to 'gemini' for backward compatibility. */
+  provider?: string;
 }
 
 export function ApiAuthDialog({
@@ -27,7 +30,9 @@ export function ApiAuthDialog({
   onCancel,
   error,
   defaultValue = '',
+  provider,
 }: ApiAuthDialogProps): React.JSX.Element {
+  const providerInfo = getProviderDisplayInfo(provider);
   const { terminalWidth } = useUIState();
   const viewportWidth = terminalWidth - 8;
 
@@ -64,7 +69,7 @@ export function ApiAuthDialog({
 
     let isCancelled = false;
     const wrappedPromise = new Promise<void>((resolve, reject) => {
-      clearApiKey().then(
+      clearProviderApiKey(providerInfo.providerType).then(
         () => !isCancelled && resolve(),
         (error) => !isCancelled && reject(error),
       );
@@ -103,19 +108,19 @@ export function ApiAuthDialog({
       width="100%"
     >
       <Text bold color={theme.text.primary}>
-        Enter Gemini API Key
+        Enter {providerInfo.label} API Key
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Text color={theme.text.primary}>
-          Please enter your Gemini API key. It will be securely stored in your
-          system keychain.
+          Please enter your {providerInfo.label} API key. It will be securely
+          stored in your system keychain.
         </Text>
-        <Text color={theme.text.secondary}>
-          You can get an API key from{' '}
-          <Text color={theme.text.link}>
-            https://aistudio.google.com/app/apikey
+        {providerInfo.apiKeyUrl && (
+          <Text color={theme.text.secondary}>
+            You can get an API key from{' '}
+            <Text color={theme.text.link}>{providerInfo.apiKeyUrl}</Text>
           </Text>
-        </Text>
+        )}
       </Box>
       <Box marginTop={1} flexDirection="row">
         <Box

@@ -10,7 +10,7 @@ import type {
   LogoutActionReturn,
 } from './types.js';
 import { CommandKind } from './types.js';
-import { clearCachedCredentialFile } from '@didim/agent-cli-core';
+import { clearCachedCredentialFile } from '@didim365/agent-cli-core';
 import { SettingScope } from '../../config/settings.js';
 
 const authLoginCommand: SlashCommand = {
@@ -30,10 +30,15 @@ const authLogoutCommand: SlashCommand = {
   kind: CommandKind.BUILT_IN,
   action: async (context, _args): Promise<LogoutActionReturn> => {
     await clearCachedCredentialFile();
-    // Clear the selected auth type so user sees the auth selection menu
+    // Clear the selected auth type and provider so user sees the provider selection menu
     context.services.settings.setValue(
       SettingScope.User,
       'security.auth.selectedType',
+      undefined,
+    );
+    context.services.settings.setValue(
+      SettingScope.User,
+      'security.auth.selectedProvider',
       undefined,
     );
     // Strip thoughts from history instead of clearing completely

@@ -10,9 +10,10 @@ import {
   AuthType,
   type Config,
   loadApiKey,
+  loadProviderApiKey,
   debugLogger,
-} from '@didim/agent-cli-core';
-import { getErrorMessage } from '@didim/agent-cli-core';
+  getErrorMessage,
+} from '@didim365/agent-cli-core';
 import { AuthState } from '../types.js';
 import { validateAuthMethod } from '../../config/auth.js';
 
@@ -39,14 +40,50 @@ export const useAuthCommand = (
   config: Config,
   initialAuthError: string | null = null,
 ) => {
+  // Determine initial auth state considering multi-provider settings
+  const determineInitialState = (): AuthState => {
+    if (initialAuthError) {
+      return AuthState.Updating;
+    }
+    const selectedProvider = settings.merged.security.auth.selectedProvider;
+    const selectedType = settings.merged.security.auth.selectedType;
+
+    // Auto-migration: existing Gemini user with selectedType but no selectedProvider
+    if (selectedType && !selectedProvider) {
+      return AuthState.Unauthenticated;
+    }
+    // No provider and no type → need provider selection
+    if (!selectedProvider && !selectedType) {
+      // Check for env var auto-detection
+      if (process.env['LLM_PROVIDER']) {
+        return AuthState.Unauthenticated;
+      }
+      if (process.env['ANTHROPIC_API_KEY']) {
+        return AuthState.Unauthenticated;
+      }
+      if (process.env['OPENAI_API_KEY']) {
+        return AuthState.Unauthenticated;
+      }
+      // Fall through to original behavior if GEMINI_API_KEY is set
+      if (process.env['GEMINI_API_KEY']) {
+        return AuthState.Unauthenticated;
+      }
+      return AuthState.SelectingProvider;
+    }
+    return AuthState.Unauthenticated;
+  };
+
   const [authState, setAuthState] = useState<AuthState>(
-    initialAuthError ? AuthState.Updating : AuthState.Unauthenticated,
+    determineInitialState(),
   );
 
   const [authError, setAuthError] = useState<string | null>(initialAuthError);
   const [apiKeyDefaultValue, setApiKeyDefaultValue] = useState<
     string | undefined
   >(undefined);
+  const [selectedProvider, setSelectedProvider] = useState<string | undefined>(
+    settings.merged.security.auth.selectedProvider,
+  );
 
   const onAuthError = useCallback(
     (error: string | null) => {
@@ -66,6 +103,29 @@ export const useAuthCommand = (
     }
 
     const storedKey = (await loadApiKey()) ?? '';
+    setApiKeyDefaultValue(storedKey);
+    return storedKey;
+  }, []);
+
+  const reloadProviderApiKey = useCallback(async (provider: string) => {
+    // Map provider to env var name
+    const envVarMap: Record<string, string> = {
+      gemini: 'GEMINI_API_KEY',
+      claude: 'ANTHROPIC_API_KEY',
+      openai: 'OPENAI_API_KEY',
+      'openai-compatible': 'LLM_API_KEY',
+      didim: 'DIDIM_API_KEY',
+    };
+    const envVarName = envVarMap[provider];
+    if (envVarName) {
+      const envKey = process.env[envVarName];
+      if (envKey !== undefined) {
+        setApiKeyDefaultValue(envKey);
+        return envKey;
+      }
+    }
+
+    const storedKey = (await loadProviderApiKey(provider)) ?? '';
     setApiKeyDefaultValue(storedKey);
     return storedKey;
   }, []);
@@ -149,5 +209,8 @@ export const useAuthCommand = (
     onAuthError,
     apiKeyDefaultValue,
     reloadApiKey,
+    reloadProviderApiKey,
+    selectedProvider,
+    setSelectedProvider,
   };
 };

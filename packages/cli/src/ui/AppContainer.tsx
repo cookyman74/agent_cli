@@ -48,6 +48,7 @@ import {
   recordExitFail,
   ShellExecutionService,
   saveApiKey,
+  saveProviderApiKey,
   debugLogger,
   coreEvents,
   CoreEvent,
@@ -65,7 +66,7 @@ import {
   generateSummary,
   type AgentsDiscoveredPayload,
   ChangeAuthRequestedError,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import process from 'node:process';
 import { useHistory } from './hooks/useHistoryManager.js';
@@ -538,6 +539,9 @@ export const AppContainer = (props: AppContainerProps) => {
     onAuthError,
     apiKeyDefaultValue,
     reloadApiKey,
+    reloadProviderApiKey,
+    selectedProvider,
+    setSelectedProvider,
   } = useAuthCommand(settings, config, initializationResult.authError);
   const [authContext, setAuthContext] = useState<{ requiresRestart?: boolean }>(
     {},
@@ -566,6 +570,7 @@ export const AppContainer = (props: AppContainerProps) => {
   // Derive auth state variables for backward compatibility with UIStateContext
   const isAuthDialogOpen = authState === AuthState.Updating;
   const isAuthenticating = authState === AuthState.Unauthenticated;
+  const isSelectingProvider = authState === AuthState.SelectingProvider;
 
   // Session browser and resume functionality
   const isGeminiClientInitialized = config.getGeminiClient()?.isInitialized();
@@ -648,9 +653,36 @@ Logging in with Google... Restarting Gemini CLI to continue.
           return;
         }
 
-        await saveApiKey(apiKey);
-        await reloadApiKey();
-        await config.refreshAuth(AuthType.USE_GEMINI);
+        const provider = selectedProvider || 'gemini';
+        if (provider === 'gemini') {
+          // Legacy Gemini path
+          await saveApiKey(apiKey);
+          await reloadApiKey();
+          await config.refreshAuth(AuthType.USE_GEMINI);
+        } else {
+          // Non-Gemini provider path
+          await saveProviderApiKey(provider, apiKey);
+          await reloadProviderApiKey(provider);
+
+          // Map provider to env var and set it
+          const envVarMap: Record<string, string> = {
+            claude: 'ANTHROPIC_API_KEY',
+            openai: 'OPENAI_API_KEY',
+            'openai-compatible': 'LLM_API_KEY',
+          };
+          const envVarName = envVarMap[provider];
+          if (envVarName) {
+            process.env[envVarName] = apiKey;
+          }
+          process.env['LLM_PROVIDER'] = provider;
+          settings.setValue(
+            SettingScope.User,
+            'security.auth.selectedProvider',
+            provider,
+          );
+          await config.refreshAuth(AuthType.USE_GEMINI);
+        }
+
         setAuthState(AuthState.Authenticated);
       } catch (e) {
         onAuthError(
@@ -658,13 +690,44 @@ Logging in with Google... Restarting Gemini CLI to continue.
         );
       }
     },
-    [setAuthState, onAuthError, reloadApiKey, config],
+    [
+      setAuthState,
+      onAuthError,
+      reloadApiKey,
+      reloadProviderApiKey,
+      config,
+      selectedProvider,
+      settings,
+    ],
   );
 
   const handleApiKeyCancel = useCallback(() => {
-    // Go back to auth method selection
-    setAuthState(AuthState.Updating);
+    // Go back to provider selection (Step 1)
+    setAuthState(AuthState.SelectingProvider);
   }, [setAuthState]);
+
+  const handleProviderSelect = useCallback(
+    (providerKey: string) => {
+      setSelectedProvider(providerKey);
+
+      // Route to appropriate Step 2 based on provider
+      if (providerKey === 'gemini') {
+        // Gemini → Step 2A: Gemini auth method dialog
+        setAuthState(AuthState.Updating);
+      } else if (providerKey === 'claude' || providerKey === 'openai') {
+        // Claude/OpenAI → Direct to API key input
+        setAuthState(AuthState.AwaitingApiKeyInput);
+      } else if (providerKey === 'vertex-ai') {
+        // Vertex AI → Step 2C (future: ConfiguringVertex)
+        // For now, route to Gemini Updating with Vertex AI auth type
+        setAuthState(AuthState.Updating);
+      } else if (providerKey === 'slm') {
+        // sLM → Step 2D (future: ConfiguringSlm)
+        setAuthState(AuthState.ConfiguringSlm);
+      }
+    },
+    [setSelectedProvider, setAuthState],
+  );
 
   // Sync user tier from config when authentication changes
   useEffect(() => {
@@ -728,7 +791,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
   const slashCommandActions = useMemo(
     () => ({
-      openAuthDialog: () => setAuthState(AuthState.Updating),
+      openAuthDialog: () => setAuthState(AuthState.SelectingProvider),
       openThemeDialog,
       openEditorDialog,
       openPrivacyNotice: () => setShowPrivacyNotice(true),
@@ -1114,6 +1177,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       !initialPromptSubmitted.current &&
       !isAuthenticating &&
       !isAuthDialogOpen &&
+      !isSelectingProvider &&
       !isThemeDialogOpen &&
       !isEditorDialogOpen &&
       !showPrivacyNotice &&
@@ -1128,6 +1192,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     handleFinalSubmit,
     isAuthenticating,
     isAuthDialogOpen,
+    isSelectingProvider,
     isThemeDialogOpen,
     isEditorDialogOpen,
     showPrivacyNotice,
@@ -1648,6 +1713,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       authError,
       isAuthDialogOpen,
       isAwaitingApiKeyInput: authState === AuthState.AwaitingApiKeyInput,
+      isSelectingProvider,
+      selectedProvider,
       apiKeyDefaultValue,
       editorError,
       isEditorDialogOpen,
@@ -1744,6 +1811,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isThemeDialogOpen,
       themeError,
       isAuthenticating,
+      isSelectingProvider,
+      selectedProvider,
       isConfigInitialized,
       authError,
       isAuthDialogOpen,
@@ -1884,6 +1953,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       popAllMessages,
       handleApiKeySubmit,
       handleApiKeyCancel,
+      handleProviderSelect,
       setBannerVisible,
       setEmbeddedShellFocused,
       setAuthContext,
@@ -1947,6 +2017,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       popAllMessages,
       handleApiKeySubmit,
       handleApiKeyCancel,
+      handleProviderSelect,
       setBannerVisible,
       setEmbeddedShellFocused,
       setAuthContext,

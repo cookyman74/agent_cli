@@ -12,7 +12,7 @@ import {
   type AuthType,
   type EditorType,
   type AgentDefinition,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import { type LoadableSettingScope } from '../../config/settings.js';
 import type { AuthState } from '../types.js';
 import { type PermissionsDialogProps } from '../components/PermissionsModifyTrustDialog.js';
@@ -66,6 +66,7 @@ export interface UIActions {
   popAllMessages: () => string | undefined;
   handleApiKeySubmit: (apiKey: string) => Promise<void>;
   handleApiKeyCancel: () => void;
+  handleProviderSelect: (providerKey: string) => void;
   setBannerVisible: (visible: boolean) => void;
   setEmbeddedShellFocused: (value: boolean) => void;
   setAuthContext: (context: { requiresRestart?: boolean }) => void;

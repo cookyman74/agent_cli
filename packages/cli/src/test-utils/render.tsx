@@ -27,7 +27,7 @@ import {
 import { type HistoryItemToolGroup, StreamingState } from '../ui/types.js';
 import { ToolActionsProvider } from '../ui/contexts/ToolActionsContext.js';
 
-import { makeFakeConfig, type Config } from '@didim/agent-cli-core';
+import { makeFakeConfig, type Config } from '@didim365/agent-cli-core';
 import { FakePersistentState } from './persistentStateFake.js';
 import { AppContext, type AppState } from '../ui/contexts/AppContext.js';
 
@@ -156,6 +156,8 @@ const baseMockUiState = {
   terminalHeight: 40,
   currentModel: 'gemini-pro',
   terminalBackgroundColor: undefined,
+  isSelectingProvider: false,
+  selectedProvider: undefined,
 };
 
 export const mockAppState: AppState = {
@@ -198,6 +200,7 @@ const mockUIActions: UIActions = {
   popAllMessages: vi.fn(),
   handleApiKeySubmit: vi.fn(),
   handleApiKeyCancel: vi.fn(),
+  handleProviderSelect: vi.fn(),
   setBannerVisible: vi.fn(),
   setEmbeddedShellFocused: vi.fn(),
   setAuthContext: vi.fn(),

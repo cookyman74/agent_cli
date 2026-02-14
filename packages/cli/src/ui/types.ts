@@ -15,7 +15,7 @@ import type {
   RetrieveUserQuotaResponse,
   SkillDefinition,
   AgentDefinition,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { PartListUnion } from '@google/genai';
 import { type ReactNode } from 'react';
 
@@ -32,6 +32,12 @@ export enum AuthState {
   Authenticated = 'authenticated',
   // Waiting for the user to restart after a Google login
   AwaitingGoogleLoginRestart = 'awaiting_google_login_restart',
+  // Step 1: Selecting LLM provider (multi-provider auth flow)
+  SelectingProvider = 'selecting_provider',
+  // Step 2D: Configuring sLM (Self-hosted / Local LLM) connection
+  ConfiguringSlm = 'configuring_slm',
+  // Step 2C: Configuring Vertex AI project settings
+  ConfiguringVertex = 'configuring_vertex',
 }
 
 // Only defining the state enum needed by the UI

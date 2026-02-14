@@ -15,12 +15,12 @@ import type {
   TelemetrySettings,
   AuthType,
   AgentOverride,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import {
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
   DEFAULT_MODEL_CONFIGS,
-} from '@didim/agent-cli-core';
+} from '@didim365/agent-cli-core';
 import type { CustomTheme } from '../ui/themes/theme.js';
 import type { SessionRetentionSettings } from './settings.js';
 import { DEFAULT_MIN_RETENTION } from '../utils/sessionCleanup.js';
@@ -1356,6 +1356,97 @@ const SETTINGS_SCHEMA = {
             default: undefined as boolean | undefined,
             description: 'Whether to use an external authentication flow.',
             showInDialog: false,
+          },
+          selectedProvider: {
+            type: 'string',
+            label: 'Selected Provider',
+            category: 'Security',
+            requiresRestart: true,
+            default: undefined as string | undefined,
+            description:
+              'The currently selected LLM provider (e.g., gemini, claude, openai, openai-compatible).',
+            showInDialog: false,
+          },
+          slmConfig: {
+            type: 'object',
+            label: 'sLM Configuration',
+            category: 'Security',
+            requiresRestart: true,
+            default: {},
+            description:
+              'Self-hosted / Local LLM (OpenAI-compatible) connection settings.',
+            showInDialog: false,
+            properties: {
+              baseUrl: {
+                type: 'string',
+                label: 'API Endpoint URL',
+                category: 'Security',
+                requiresRestart: true,
+                default: undefined as string | undefined,
+                description:
+                  'The base URL for the OpenAI-compatible API endpoint.',
+                showInDialog: false,
+              },
+              model: {
+                type: 'string',
+                label: 'Model Name',
+                category: 'Security',
+                requiresRestart: true,
+                default: undefined as string | undefined,
+                description: 'The model name to use with the sLM endpoint.',
+                showInDialog: false,
+              },
+              apiKeyHeaderName: {
+                type: 'string',
+                label: 'API Key Header Name',
+                category: 'Security',
+                requiresRestart: true,
+                default: undefined as string | undefined,
+                description:
+                  'Custom HTTP header name for the API key (default: Authorization).',
+                showInDialog: false,
+              },
+              customHeaders: {
+                type: 'string',
+                label: 'Custom Headers (JSON)',
+                category: 'Security',
+                requiresRestart: true,
+                default: undefined as string | undefined,
+                description:
+                  'Custom HTTP headers as a JSON string (e.g., {"X-Custom": "value"}).',
+                showInDialog: false,
+              },
+            },
+          },
+          vertexConfig: {
+            type: 'object',
+            label: 'Vertex AI Configuration',
+            category: 'Security',
+            requiresRestart: true,
+            default: {},
+            description: 'Vertex AI project and location settings.',
+            showInDialog: false,
+            properties: {
+              project: {
+                type: 'string',
+                label: 'Project ID',
+                category: 'Security',
+                requiresRestart: true,
+                default: undefined as string | undefined,
+                description: 'Google Cloud project ID for Vertex AI.',
+                showInDialog: false,
+              },
+              location: {
+                type: 'string',
+                label: 'Location',
+                category: 'Security',
+                requiresRestart: true,
+                default: undefined as string | undefined,
+                description:
+                  'Google Cloud region for Vertex AI (e.g., us-central1).',
+                showInDialog: false,
+              },
+            },
           },
         },
       },

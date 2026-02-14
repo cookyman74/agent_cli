@@ -195,15 +195,18 @@ Esc 후 `buffer.setText`가 `'my-gcp-project'`로 호출되는지 검증.
 `validateAuthMethod` 에러로 `Updating` 상태로 떨어진다. sLM은 동일 상황에서
 `ConfiguringSlm`으로 유도하는 복구 분기가 있음 (line 245-248).
 
-**수정**: `useAuth.ts`의 `USE_VERTEX_AI` 블록에서 `!vertexConfig?.project` 시
-`setAuthState(AuthState.ConfiguringVertex)` + `return` 추가. 기존
-`if (vertexConfig?.project)` 조건 분기를
-`if (!vertexConfig?.project) { recovery }` + `unconditional set`으로 변경.
+**수정**: `useAuth.ts`의 `USE_VERTEX_AI` 블록에서
+`!vertexConfig?.project || !vertexConfig?.location` 시
+`setAuthState(AuthState.ConfiguringVertex)` + `return`. project/location 둘 다
+있을 때만 env var 설정 진행.
 
 **테스트 추가**:
-`'should redirect to ConfiguringVertex when vertexConfig is missing on restart'`
-— `vertexConfig: {}` 상태에서 `ConfiguringVertex`로 전이되는지 검증 (useAuth: 28
-tests).
+
+- `'should redirect to ConfiguringVertex when vertexConfig.project is missing on restart'`
+  — `vertexConfig: {}` 상태에서 `ConfiguringVertex`로 전이 검증.
+- `'should redirect to ConfiguringVertex when vertexConfig.location is missing on restart'`
+  — `vertexConfig: { project: 'my-gcp-project' }` (location 누락) 상태에서
+  `ConfiguringVertex`로 전이 검증.
 
 ### Issue 4 (낮음): env cleanup 회귀 테스트 부재
 
@@ -218,7 +221,7 @@ env var 설정 후 `handleVertexConfigComplete` 호출, 모두 `undefined` 검�
 
 ```
 VertexConfigDialog:  14 passed (13→14, +1 buffer restore)
-useAuth:             28 passed (27→28, +1 vertex config recovery)
+useAuth:             29 passed (27→29, +2 vertex config recovery)
 AppContainer:        71 passed (70→71, +1 env cleanup regression)
 ProviderSelectDialog: 20 passed
 DialogManager:       21 passed
@@ -228,7 +231,7 @@ AuthDialog:          26 passed
 AuthInProgress:       5 passed
 LoginWithGoogleRestart: 4 passed
 ────────────────────────────────────
-Total:               212 passed
+Total:               213 passed
 Typecheck:            ✅
 Lint:                 ✅
 ```

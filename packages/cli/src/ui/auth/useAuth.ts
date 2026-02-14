@@ -310,15 +310,13 @@ export const useAuthCommand = (
           const vertexConfig = settings.merged.security.auth.vertexConfig as
             | { project?: string; location?: string }
             | undefined;
-          if (!vertexConfig?.project) {
-            // No project configured — need Vertex AI configuration dialog
+          if (!vertexConfig?.project || !vertexConfig?.location) {
+            // Missing project or location — need Vertex AI configuration dialog
             setAuthState(AuthState.ConfiguringVertex);
             return;
           }
           process.env['GOOGLE_CLOUD_PROJECT'] = vertexConfig.project;
-          if (vertexConfig.location) {
-            process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;
-          }
+          process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;
         }
 
         const error = validateAuthMethodWithSettings(authType, settings);

@@ -510,7 +510,7 @@ describe('useAuth', () => {
       });
     });
 
-    it('should redirect to ConfiguringVertex when vertexConfig is missing on restart', async () => {
+    it('should redirect to ConfiguringVertex when vertexConfig.project is missing on restart', async () => {
       const settings = {
         merged: {
           security: {
@@ -519,6 +519,27 @@ describe('useAuth', () => {
               selectedProvider: 'vertex-ai',
               // vertexConfig is empty — simulates settings corruption or manual edit
               vertexConfig: {},
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(result.current.authState).toBe(AuthState.ConfiguringVertex);
+      });
+    });
+
+    it('should redirect to ConfiguringVertex when vertexConfig.location is missing on restart', async () => {
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_VERTEX_AI,
+              selectedProvider: 'vertex-ai',
+              // project present but location missing
+              vertexConfig: { project: 'my-gcp-project' },
             },
           },
         },

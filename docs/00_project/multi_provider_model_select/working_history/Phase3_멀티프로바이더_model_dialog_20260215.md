@@ -188,12 +188,12 @@ FreeformModelInput 테스트 패턴:
 ModelDialog.test.tsx:          30 passed (15 기존 + 15 신규)
   - 기존 Gemini 동작:          15 passed (기대값 4개 업데이트)
   - 프로바이더 분기:            8 passed
-  - 영속화 동기화:              6 passed (리뷰 후 2개 추가)
+  - 영속화 동기화:              5 passed (2차 리뷰 후 재구성)
   - sLM FreeformModelInput:     1 passed
 FreeformModelInput.test.tsx:    5 passed (신규)
-DialogManager.test.tsx:        21 passed (회귀 없음)
+DialogManager.test.tsx:        22 passed (기존 21 + selectedProvider prop 검증 1)
 ────────────────────────────────────────
-Total:                         56 passed
+Total:                         56 passed (ModelDialog 29 + FreeformModel 5 + DialogManager 22)
 Typecheck:                     ✅
 Lint:                          ✅
 ```
@@ -214,65 +214,93 @@ Lint:                          ✅
 
 ## 8. 리뷰 반영 (2026-02-15)
 
-### 이슈 1 (높음): persistMode 가드 누락
+### 이슈 1 (높음): persistMode 가드 누락 → 이중 write 근본 수정
 
 **문제**: `saveModelForProvider()`가 `persistMode`와 무관하게 항상 호출되어,
 사용자가 "Remember model for future sessions: false" 상태에서도 settings 파일에
-영속화됨.
+영속화됨. 또한 `config.setModel(model, false)` → `onModelChange` 콜백
+(config.ts:818)이 이미 `saveModelForProvider`를 호출하므로 이중 write 발생.
 
-**수정**: `shouldPersist = persistMode || !!modelGroup?.freeformInput` 가드
-추가.
+**수정**: ModelDialog에서 `saveModelForProvider` 직접 호출을 **완전 제거**.
 
-- freeformInput 프로바이더(sLM)는 persist 토글 UI가 없으므로 항상 영속화
-- 일반 프로바이더는 persistMode=true일 때만 `saveModelForProvider` 호출
+- `config.setModel(model, isTemporary)` → isTemporary=false일 때 `onModelChange`
+  콜백에서 `saveModelForProvider` 자동 호출 (단일 경로)
+- `saveModelForProvider` import 제거, `shouldPersist` 변수는 slmConfig 동기화
+  가드로만 사용
 
 **검증 테스트**:
 
-- `saves model via saveModelForProvider when persistMode is true` — Tab 토글 후
-  선택 시 호출 확인
-- `does NOT call saveModelForProvider when persistMode is false` — 기본 상태에서
-  미호출 확인
+- `does NOT call saveModelForProvider directly (delegated to onModelChange)` —
+  persistMode=true 시 `config.setModel(model, false)` 호출 확인 + 직접 호출 없음
+- `calls config.setModel with isTemporary=true when persistMode is false` — 기본
+  상태에서 session-only 설정 확인
 
-### 이슈 2 (중간): sLM slmConfig.model 동기화 누락
+### 이슈 2 (중간): sLM slmConfig.model 동기화 누락 + scope 오염 방지
 
 **문제**: 시작 경로(gemini.tsx, useAuth.ts, AppContainer.tsx)는
 `slmConfig.model`을 읽어 `LLM_MODEL` env를 설정하지만, /model 다이얼로그에서
 모델 변경 시 `security.auth.slmConfig.model`에 기록하지 않아 재시작 시 이전
-모델로 복원됨.
+모델로 복원됨. 또한 `settings.merged`(전체 scope merge)에서 spread하면
+workspace/system scope 값이 user scope로 복사되는 scope 오염 발생 가능.
 
-**수정**: `handleSelect`에 openai-compatible 프로바이더 전용 분기 추가:
+**수정**: `handleSelect`에 openai-compatible 프로바이더 전용 분기 추가.
+`settings.forScope(SettingScope.User)` 패턴으로 user scope만 읽어 spread:
 
 ```typescript
 if (settings && shouldPersist && provider === 'openai-compatible') {
-  const currentSlmConfig = (settings.merged?.security?.auth?.slmConfig ??
-    {}) as Record<string, unknown>;
+  const userSlmConfig =
+    (
+      settings.forScope(SettingScope.User).settings as {
+        security?: { auth?: { slmConfig?: Record<string, unknown> } };
+      }
+    ).security?.auth?.slmConfig ?? {};
   settings.setValue(SettingScope.User, 'security.auth.slmConfig', {
-    ...currentSlmConfig,
+    ...userSlmConfig,
     model,
   });
 }
 ```
 
 - `SettingScope` import 추가 (`../../config/settings.js`)
-- 기존 `slmConfig` 필드(baseUrl 등) 보존을 위해 spread 패턴 사용
-- AppContainer.tsx:755의 기존 write 패턴과 동일한 경로 사용
+- `forScope(User)` 패턴으로 scope pollution 방지 (`saveModelForProvider`와 동일)
+- `onModelChange`는 slmConfig를 처리하지 않으므로 이 경로가 유일한 write site
 
 ### 이슈 3 (낮음): slmConfig 테스트 실질 검증 부재
 
 **문제**: 기존 테스트가 `toContain('Enter model name')`만 검증하여 실제
 `setValue` 호출 여부를 확인하지 않음.
 
-**수정**: 테스트 2개 추가로 영속화 로직 검증 강화:
+**수정**: 테스트를 재구성하여 간접 검증 강화:
 
-- `syncs slmConfig.model via setValue for sLM selection` — sLM 렌더링 + merged
-  slmConfig 설정
-- `does NOT call saveModelForProvider when persistMode is false` — 비영속 가드
-  검증
+- `does NOT call saveModelForProvider directly` — 이중 write 방지 검증
+- `does NOT sync slmConfig for non-sLM providers` — `setValue` 호출에서
+  `'security.auth.slmConfig'` 경로가 비-sLM에서 발생하지 않음을 assert
 
 **한계**: sLM의 FreeformModelInput은 useKeypress/useTextBuffer를 내부적으로
 사용하여 ModelDialog.test.tsx에서 직접 Enter 시뮬레이션이 어려움 (별도 mock 체계
 필요). FreeformModelInput → handleSelect 통합은 FreeformModelInput.test.tsx에서
 검증.
+
+### 이슈 4 (낮음): DialogManager selectedProvider prop 전달 미검증
+
+**문제**: DialogManager 테스트에서 ModelDialog mock이
+`() => <Text>ModelDialog</Text>`로 props를 캡처하지 않아 `selectedProvider` prop
+전달 회귀를 탐지할 수 없음.
+
+**수정**: ModelDialog mock을 props-aware로 변경하고 전용 테스트 추가:
+
+```typescript
+// Mock 변경: props 캡처
+ModelDialog: ({ selectedProvider }) => (
+  <Text>ModelDialog{selectedProvider ? ` provider=${selectedProvider}` : ''}</Text>
+)
+
+// 신규 테스트
+it('passes selectedProvider prop to ModelDialog', () => {
+  // uiState: { isModelDialogOpen: true, selectedProvider: 'claude' }
+  expect(lastFrame()).toContain('provider=claude');
+});
+```
 
 ---
 
@@ -281,6 +309,8 @@ if (settings && shouldPersist && provider === 'openai-compatible') {
 - **멀티프로바이더 /model 다이얼로그 리팩터링 완료**
 - Gemini 하드코딩 제거, `PROVIDER_MODEL_REGISTRY` 기반 동적 렌더링
 - 5개 프로바이더 모델 선택 UI 지원
-- 모델 선택 시 4중 영속화 (Config + LLM_MODEL env + byProvider settings +
-  slmConfig.model)
-- **리뷰 3건 반영 완료**: persistMode 가드, slmConfig 동기화, 테스트 보강
+- 모델 선택 시 영속화: Config + LLM_MODEL env + onModelChange→byProvider +
+  slmConfig.model
+- **1차 리뷰 3건 반영**: persistMode 가드, slmConfig 동기화, 테스트 보강
+- **2차 리뷰 4건 반영**: 이중 write 제거, scope 오염 방지, 테스트 실질 검증,
+  DialogManager prop 검증

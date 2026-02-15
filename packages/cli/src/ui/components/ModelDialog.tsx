@@ -22,7 +22,7 @@ import { ConfigContext } from '../contexts/ConfigContext.js';
 import { ThemedGradient } from './ThemedGradient.js';
 import { resolveActiveProvider } from '../utils/resolveActiveProvider.js';
 import { SettingsContext } from '../contexts/SettingsContext.js';
-import { saveModelForProvider, SettingScope } from '../../config/settings.js';
+import { SettingScope } from '../../config/settings.js';
 import { FreeformModelInput } from './FreeformModelInput.js';
 
 interface ModelDialogProps {
@@ -166,17 +166,24 @@ export function ModelDialog({
       // freeformInput providers (sLM) always persist — no toggle shown in UI
       const shouldPersist = persistMode || !!modelGroup?.freeformInput;
 
-      // Sync byProvider in settings (only when persisting)
-      if (settings && shouldPersist) {
-        saveModelForProvider(settings, provider, model);
-      }
+      // NOTE: saveModelForProvider is NOT called here directly.
+      // config.setModel(model, isTemporary=false) triggers onModelChange callback
+      // (config.ts:818→828) which already calls saveModelForProvider.
+      // Calling it here would cause duplicate writes + double events.
 
       // Sync slmConfig.model for openai-compatible (sLM) provider
+      // (onModelChange does NOT handle slmConfig, so this is the only write site)
       if (settings && shouldPersist && provider === 'openai-compatible') {
-        const currentSlmConfig = (settings.merged?.security?.auth?.slmConfig ??
-          {}) as Record<string, unknown>;
+        const userSlmConfig =
+          (
+            settings.forScope(SettingScope.User).settings as {
+              security?: {
+                auth?: { slmConfig?: Record<string, unknown> };
+              };
+            }
+          ).security?.auth?.slmConfig ?? {};
         settings.setValue(SettingScope.User, 'security.auth.slmConfig', {
-          ...currentSlmConfig,
+          ...userSlmConfig,
           model,
         });
       }

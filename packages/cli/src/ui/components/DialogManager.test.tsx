@@ -53,7 +53,12 @@ vi.mock('./PermissionsModifyTrustDialog.js', () => ({
   PermissionsModifyTrustDialog: () => <Text>PermissionsModifyTrustDialog</Text>,
 }));
 vi.mock('./ModelDialog.js', () => ({
-  ModelDialog: () => <Text>ModelDialog</Text>,
+  ModelDialog: ({ selectedProvider }: { selectedProvider?: string }) => (
+    <Text>
+      ModelDialog
+      {selectedProvider ? ` provider=${selectedProvider}` : ''}
+    </Text>
+  ),
 }));
 vi.mock('./IdeTrustChangeDialog.js', () => ({
   IdeTrustChangeDialog: () => <Text>IdeTrustChangeDialog</Text>,
@@ -202,4 +207,20 @@ describe('DialogManager', () => {
       expect(lastFrame()).toContain(expectedComponent);
     },
   );
+
+  it('passes selectedProvider prop to ModelDialog', () => {
+    const { lastFrame } = renderWithProviders(
+      <DialogManager {...defaultProps} />,
+      {
+        uiState: {
+          ...baseUiState,
+          isModelDialogOpen: true,
+          selectedProvider: 'claude',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      },
+    );
+    expect(lastFrame()).toContain('ModelDialog');
+    expect(lastFrame()).toContain('provider=claude');
+  });
 });

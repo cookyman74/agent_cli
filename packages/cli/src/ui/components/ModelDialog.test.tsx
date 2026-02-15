@@ -448,81 +448,46 @@ describe('<ModelDialog />', () => {
       expect(process.env['LLM_MODEL']).toBe('');
     });
 
-    it('updates slmConfig.model in settings for openai-compatible', async () => {
-      mockForScope.mockReturnValue({
-        settings: {
-          security: {
-            auth: { slmConfig: { baseUrl: 'http://localhost:11434' } },
-          },
-        },
-      });
-      // Provide merged slmConfig so handleSelect can spread it
-      (mockSettings as { merged: Record<string, unknown> }).merged = {
-        security: {
-          auth: { slmConfig: { baseUrl: 'http://localhost:11434' } },
-        },
-      };
-
-      const { lastFrame } = renderWithSettings('slm');
-      expect(lastFrame()).toContain('Enter model name');
-
-      // sLM uses FreeformModelInput — simulate handleSelect directly
-      // FreeformModelInput calls onSelect(model) which maps to handleSelect
-      // We need to trigger it via the component; use the mock useKeypress approach
-      // Instead, we verify the integration by checking that after model selection,
-      // setValue is called with slmConfig containing model.
-      // Since FreeformModelInput is tested separately, we test handleSelect
-      // by rendering a non-freeform provider to verify the slmConfig path won't fire,
-      // and trust integration test for sLM. But for correctness:
-
-      // The freeformInput path always persists, so saveModelForProvider should be called
-      // for sLM when handleSelect fires. We verify via FreeformModelInput.test.tsx
-      // that Enter triggers onSelect, which maps to handleSelect here.
-    });
-
-    it('syncs slmConfig.model via setValue for sLM selection', async () => {
-      // Provide merged slmConfig for spread
-      (mockSettings as { merged: Record<string, unknown> }).merged = {
-        security: {
-          auth: { slmConfig: { baseUrl: 'http://localhost:11434' } },
-        },
-      };
-
-      const { lastFrame } = renderWithSettings('slm');
-      expect(lastFrame()).toContain('Enter model name');
-
-      // FreeformModelInput calls onSelect → handleSelect
-      // We can't easily simulate TextInput Enter in this test context
-      // because ModelDialog.test doesn't mock useKeypress/useTextBuffer.
-      // Instead, verify handleSelect logic via a unit-style approach:
-      // We'll test the non-sLM path for saveModelForProvider gating below.
-    });
-
-    it('saves model via saveModelForProvider when persistMode is true (byProvider sync)', async () => {
+    it('does NOT call saveModelForProvider directly (delegated to onModelChange)', async () => {
+      // saveModelForProvider is called by config.setModel → onModelChange callback,
+      // NOT by ModelDialog directly. Verify no direct call from ModelDialog.
       mockGetModel.mockReturnValue('claude-opus-4-6');
       const { stdin } = renderWithSettings('claude');
-
-      // Toggle persistMode ON first
+      // Toggle persist ON
       stdin.write('\t');
       await waitForUpdate();
-
       // Select first preset
       stdin.write('\r');
       await waitForUpdate();
-      expect(mockSaveModelForProvider).toHaveBeenCalledWith(
-        mockSettings,
-        'claude',
-        'claude-opus-4-6',
-      );
+      // ModelDialog should NOT call saveModelForProvider directly
+      expect(mockSaveModelForProvider).not.toHaveBeenCalled();
+      // config.setModel is called with isTemporary=false → triggers onModelChange
+      expect(mockSetModel).toHaveBeenCalledWith('claude-opus-4-6', false);
     });
 
-    it('does NOT call saveModelForProvider when persistMode is false', async () => {
+    it('calls config.setModel with isTemporary=true when persistMode is false', async () => {
       mockGetModel.mockReturnValue('claude-opus-4-6');
       const { stdin } = renderWithSettings('claude');
       // persistMode defaults to false, select directly
       stdin.write('\r');
       await waitForUpdate();
+      expect(mockSetModel).toHaveBeenCalledWith('claude-opus-4-6', true);
       expect(mockSaveModelForProvider).not.toHaveBeenCalled();
+    });
+
+    it('does NOT sync slmConfig for non-sLM providers', async () => {
+      mockGetModel.mockReturnValue('claude-opus-4-6');
+      const { stdin } = renderWithSettings('claude');
+      // Toggle persist ON
+      stdin.write('\t');
+      await waitForUpdate();
+      stdin.write('\r');
+      await waitForUpdate();
+      // setValue should not be called with slmConfig path
+      const slmConfigCalls = mockSetValue.mock.calls.filter(
+        (c: unknown[]) => c[1] === 'security.auth.slmConfig',
+      );
+      expect(slmConfigCalls).toHaveLength(0);
     });
   });
 

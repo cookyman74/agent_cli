@@ -10,6 +10,10 @@ import {
   type AuthType,
 } from './providerTypes.js';
 import { LlmError, LlmErrorType } from './errors.js';
+import {
+  getDefaultModelFromRegistry,
+  isModelValidForProvider,
+} from '../config/providerModels.js';
 
 /**
  * Provider selection result.
@@ -191,15 +195,17 @@ export function validateProviderEnv(provider: ProviderType): void {
 /**
  * Default model names per provider type.
  *
- * When the CLI is configured with a Gemini-specific model (e.g., 'gemini-2.5-pro')
- * but a non-Gemini provider is selected, these defaults are used instead.
+ * Derived from PROVIDER_MODEL_REGISTRY (SSOT) to prevent dual-maintenance.
+ * When the CLI is configured with a Gemini-specific model but a non-Gemini
+ * provider is selected, these defaults are used instead.
  */
 const DEFAULT_PROVIDER_MODELS: Record<ProviderType, string> = {
-  [ProviderType.Gemini]: 'gemini-2.5-pro',
-  [ProviderType.Claude]: 'claude-sonnet-4-20250514',
-  [ProviderType.OpenAI]: 'gpt-4o',
-  [ProviderType.OpenAICompatible]: 'default',
-  [ProviderType.Didim]: 'didim-default',
+  [ProviderType.Gemini]: getDefaultModelFromRegistry('gemini'),
+  [ProviderType.Claude]: getDefaultModelFromRegistry('claude'),
+  [ProviderType.OpenAI]: getDefaultModelFromRegistry('openai'),
+  [ProviderType.OpenAICompatible]:
+    getDefaultModelFromRegistry('openai-compatible'),
+  [ProviderType.Didim]: getDefaultModelFromRegistry('didim'),
 };
 
 /**
@@ -235,13 +241,16 @@ export function isGeminiSpecificModel(model: string): boolean {
 /**
  * Resolve the model name for a given provider.
  *
- * Priority:
- * 1. If model is not Gemini-specific → pass through unchanged
+ * Gemini-specific models (gemini-*, auto-gemini*, aliases):
+ * 1. Gemini provider → pass through unchanged
  * 2. LLM_MODEL env var → use as explicit override
- * 3. Gemini-specific model + non-Gemini provider → provider's default model
- * 4. Gemini provider → pass through unchanged
+ * 3. Non-Gemini provider → provider's default model from registry
  *
- * @param model - Current model name (may be Gemini-specific)
+ * Non-Gemini models:
+ * 4. Valid for target provider → pass through
+ * 5. Cross-provider model (e.g., claude-* on openai) → provider default
+ *
+ * @param model - Current model name
  * @param provider - Target provider type or provider name string
  * @returns Resolved model name appropriate for the provider
  */
@@ -249,25 +258,24 @@ export function resolveProviderModel(
   model: string,
   provider: ProviderType | string,
 ): string {
-  // Non-Gemini model names always pass through
-  if (!isGeminiSpecificModel(model)) {
-    return model;
+  // Gemini-specific model handling
+  if (isGeminiSpecificModel(model)) {
+    if (provider === ProviderType.Gemini) return model;
+
+    // LLM_MODEL env var takes priority for non-Gemini providers
+    const llmModel = process.env['LLM_MODEL'];
+    if (llmModel) return llmModel;
+
+    // Gemini-specific model + non-Gemini provider → provider default
+    return getDefaultModelFromRegistry(provider);
   }
 
-  // Gemini provider uses Gemini models directly
-  if (provider === ProviderType.Gemini) {
-    return model;
+  // Non-Gemini model: validate against target provider
+  if (!isModelValidForProvider(model, provider)) {
+    return getDefaultModelFromRegistry(provider);
   }
 
-  // LLM_MODEL env var takes priority for non-Gemini providers
-  const llmModel = process.env['LLM_MODEL'];
-  if (llmModel) {
-    return llmModel;
-  }
-
-  // Gemini-specific model + non-Gemini provider → provider default
-  const providerKey = provider as ProviderType;
-  return DEFAULT_PROVIDER_MODELS[providerKey] ?? model;
+  return model;
 }
 
 /**

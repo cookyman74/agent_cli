@@ -251,6 +251,82 @@ describe('ProviderSelector', () => {
     });
   });
 
+  // ==========================================================================
+  // Phase 1 - Registry-derived DEFAULT_PROVIDER_MODELS
+  // ==========================================================================
+
+  describe('DEFAULT_PROVIDER_MODELS from registry', () => {
+    it('claude default matches registry (claude-opus-4-6)', () => {
+      expect(getDefaultModelForProvider(ProviderType.Claude)).toBe(
+        'claude-opus-4-6',
+      );
+    });
+
+    it('openai default matches registry (gpt-4.1)', () => {
+      expect(getDefaultModelForProvider(ProviderType.OpenAI)).toBe('gpt-4.1');
+    });
+
+    it('gemini default matches registry (gemini-2.5-pro)', () => {
+      expect(getDefaultModelForProvider(ProviderType.Gemini)).toBe(
+        'gemini-2.5-pro',
+      );
+    });
+
+    it('didim default matches registry (didim-default)', () => {
+      expect(getDefaultModelForProvider(ProviderType.Didim)).toBe(
+        'didim-default',
+      );
+    });
+  });
+
+  // ==========================================================================
+  // Phase 1 - resolveProviderModel cross-provider validation
+  // ==========================================================================
+
+  describe('resolveProviderModel - cross-provider validation', () => {
+    it('rejects claude model on openai and returns openai default', () => {
+      const result = resolveProviderModel(
+        'claude-opus-4-6',
+        ProviderType.OpenAI,
+      );
+      expect(result).toBe('gpt-4.1');
+    });
+
+    it('rejects gpt model on claude and returns claude default', () => {
+      const result = resolveProviderModel('gpt-4.1', ProviderType.Claude);
+      expect(result).toBe('claude-opus-4-6');
+    });
+
+    it('rejects o3 on claude and returns claude default', () => {
+      const result = resolveProviderModel('o3', ProviderType.Claude);
+      expect(result).toBe('claude-opus-4-6');
+    });
+
+    it('accepts custom model gpt-4o-2024-08-06 on openai', () => {
+      const result = resolveProviderModel(
+        'gpt-4o-2024-08-06',
+        ProviderType.OpenAI,
+      );
+      expect(result).toBe('gpt-4o-2024-08-06');
+    });
+
+    it('accepts unknown-prefix model on openai (allowCustomModels)', () => {
+      const result = resolveProviderModel(
+        'my-custom-model',
+        ProviderType.OpenAI,
+      );
+      expect(result).toBe('my-custom-model');
+    });
+
+    it('passes through valid registered model on its own provider', () => {
+      const result = resolveProviderModel(
+        'claude-opus-4-6',
+        ProviderType.Claude,
+      );
+      expect(result).toBe('claude-opus-4-6');
+    });
+  });
+
   describe('validateProviderEnv()', () => {
     it('should pass when Gemini API key is set', () => {
       vi.stubEnv('GEMINI_API_KEY', 'xxx');

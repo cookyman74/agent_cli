@@ -1,7 +1,7 @@
 # Phase 2: CLI 프로바이더 감지 + Settings 확장
 
-**작업일**: 2026-02-15 **작업자**: Claude Opus 4.6 **브랜치**: `DID/v0.1`
-**설계문서**:
+**작업일**: 2026-02-15 **작업자**: Claude Opus 4.6 **브랜치**:
+`v0.1.2/white_labelling` **설계문서**:
 `docs/00_project/multi_provider_model_select/02_Phase2_cli_provider_detect_and_settings.md`
 
 ---
@@ -93,7 +93,17 @@ dependency)
 | User scope only 읽기                    | workspace/system 값이 user scope로 역류 방지                   |
 | normalizeProviderKeyForStartup wrapper  | undefined 입력 안전 처리, inline 대비 의도 명확                |
 
-## 6. 파일 변경 목록
+## 6. 리스크 매트릭스 대응 결과
+
+| 리스크                                                         | 대응                                                                                                                                     | 상태                         |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `model.byProvider` 스키마 추가 시 기존 settings 파싱 오류      | optional 필드, default={}, 기존 181 config tests 전수 PASS                                                                               | ✅ 해소                      |
+| startup resolution 변경으로 기존 모델 선택 깨짐                | 기존 179 tests 유지 + 2 new behavioral tests PASS                                                                                        | ✅ 해소                      |
+| `saveModelForProvider` scope 오염 (이슈 #11)                   | user scope only 읽기 + 전용 테스트 (`scope 오염 방지`)                                                                                   | ✅ 해소                      |
+| `resolveActiveProvider()` vs Core `selectProvider()` drift     | API 키 감지 순서가 코드 수준에서 동일함을 확인 (ANTHROPIC→OPENAI→DIDIM). 명시적 cross-validation 테스트는 미작성                         | ⚠️ Phase 4 E2E에서 검증 예정 |
+| Didim env-only: `useAuth.ts`가 `DIDIM_API_KEY` 자동감지 미지원 | `resolveActiveProvider()`는 감지 가능하나 앱 진입(`useAuth`)에서 제한. Known limitation — E2E 전제조건을 `LLM_PROVIDER=didim`으로 명확화 | ⚠️ 기존 알려진 한계          |
+
+## 7. 파일 변경 목록
 
 ### 신규
 

@@ -80,8 +80,6 @@ describe('<ModelDialog />', () => {
     mockGetPreviewFeatures.mockReturnValue(false);
     mockGetHasAccessToPreviewModel.mockReturnValue(false);
 
-    mockSaveModelForProvider.mockClear();
-
     // Default implementation for getDisplayString
     mockGetDisplayString.mockImplementation((val: string) => {
       if (val === 'auto-gemini-2.5') return 'Auto (Gemini 2.5)';

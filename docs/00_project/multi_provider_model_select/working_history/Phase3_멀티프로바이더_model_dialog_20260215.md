@@ -302,6 +302,39 @@ it('passes selectedProvider prop to ModelDialog', () => {
 });
 ```
 
+### 3차 리뷰 반영
+
+#### 이슈 1 (높음): sLM `isTemporary` 불일치 — `onModelChange` 미발동
+
+**문제**: freeformInput 프로바이더(sLM)는 Tab 키 핸들러가
+비활성화(`isActive: !modelGroup?.freeformInput`)되어 `persistMode`가 항상
+`false`. 따라서 `config.setModel(model, true)` (isTemporary=true)가 항상
+호출되어 `onModelChange` → `saveModelForProvider`가 발동되지 않음.
+`shouldPersist`는 `config.setModel` 호출 후에 계산되어 `isTemporary` 파라미터에
+반영 불가.
+
+**수정**: `shouldPersist`를 `config.setModel` 호출 **전에** 계산하고,
+`!shouldPersist`를 `isTemporary` 파라미터로 전달:
+
+```typescript
+const shouldPersist = persistMode || !!modelGroup?.freeformInput;
+if (config) {
+  config.setModel(model, !shouldPersist);
+  ...
+}
+```
+
+- 비-freeformInput: `!(persistMode || false)` = `!persistMode` — 기존 동작 동일
+- freeformInput(sLM): `!(persistMode || true)` = `false` → isTemporary=false →
+  `onModelChange` 발동 → `saveModelForProvider` 호출
+
+#### 이슈 2 (낮음): `mockSaveModelForProvider.mockClear()` 중복
+
+**문제**: `vi.resetAllMocks()`가 이미 모든 mock 초기화 →
+`mockSaveModelForProvider.mockClear()` 중복.
+
+**수정**: line 83 제거.
+
 ---
 
 ## 9. 완료
@@ -314,3 +347,5 @@ it('passes selectedProvider prop to ModelDialog', () => {
 - **1차 리뷰 3건 반영**: persistMode 가드, slmConfig 동기화, 테스트 보강
 - **2차 리뷰 4건 반영**: 이중 write 제거, scope 오염 방지, 테스트 실질 검증,
   DialogManager prop 검증
+- **3차 리뷰 2건 반영**: sLM isTemporary 수정 (onModelChange 발동 보장), 중복
+  mockClear 제거

@@ -152,8 +152,12 @@ export function ModelDialog({
         return;
       }
 
+      // freeformInput providers (sLM) always persist — no toggle shown in UI
+      const shouldPersist = persistMode || !!modelGroup?.freeformInput;
+
       if (config) {
-        config.setModel(model, persistMode ? false : true);
+        // isTemporary=false triggers onModelChange → saveModelForProvider
+        config.setModel(model, !shouldPersist);
         const event = new ModelSlashCommandEvent(model);
         logModelSlashCommand(config, event);
       }
@@ -162,14 +166,6 @@ export function ModelDialog({
       if (!isGemini) {
         process.env['LLM_MODEL'] = model;
       }
-
-      // freeformInput providers (sLM) always persist — no toggle shown in UI
-      const shouldPersist = persistMode || !!modelGroup?.freeformInput;
-
-      // NOTE: saveModelForProvider is NOT called here directly.
-      // config.setModel(model, isTemporary=false) triggers onModelChange callback
-      // (config.ts:818→828) which already calls saveModelForProvider.
-      // Calling it here would cause duplicate writes + double events.
 
       // Sync slmConfig.model for openai-compatible (sLM) provider
       // (onModelChange does NOT handle slmConfig, so this is the only write site)

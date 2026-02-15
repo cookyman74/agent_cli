@@ -438,8 +438,6 @@ describe('<ModelDialog />', () => {
       );
 
     beforeEach(() => {
-      mockSetValue.mockClear();
-      mockForScope.mockClear();
       mockForScope.mockReturnValue({ settings: {} });
     });
 

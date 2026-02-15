@@ -11,48 +11,54 @@ import {
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_FLASH_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
-  DEFAULT_GEMINI_MODEL,
-  DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_GEMINI_FLASH_LITE_MODEL,
-  DEFAULT_GEMINI_MODEL_AUTO,
   ModelSlashCommandEvent,
   logModelSlashCommand,
-  getDisplayString,
+  PROVIDER_MODEL_REGISTRY,
 } from '@didim365/agent-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
 import { DescriptiveRadioButtonSelect } from './shared/DescriptiveRadioButtonSelect.js';
 import { ConfigContext } from '../contexts/ConfigContext.js';
 import { ThemedGradient } from './ThemedGradient.js';
+import { resolveActiveProvider } from '../utils/resolveActiveProvider.js';
+import { SettingsContext } from '../contexts/SettingsContext.js';
+import { saveModelForProvider } from '../../config/settings.js';
+import { FreeformModelInput } from './FreeformModelInput.js';
 
 interface ModelDialogProps {
   onClose: () => void;
+  selectedProvider?: string;
 }
 
-export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
+export function ModelDialog({
+  onClose,
+  selectedProvider,
+}: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
+  const settings = useContext(SettingsContext);
   const [view, setView] = useState<'main' | 'manual'>('main');
   const [persistMode, setPersistMode] = useState(false);
 
+  // Resolve active provider from multiple sources
+  const provider = resolveActiveProvider(selectedProvider);
+  const modelGroup = PROVIDER_MODEL_REGISTRY[provider];
+  const isGemini = provider === 'gemini';
+
   // Determine the Preferred Model (read once when the dialog opens).
-  const preferredModel = config?.getModel() || DEFAULT_GEMINI_MODEL_AUTO;
+  const preferredModel = config?.getModel() || '';
 
   const shouldShowPreviewModels =
-    config?.getPreviewFeatures() && config.getHasAccessToPreviewModel();
+    isGemini &&
+    config?.getPreviewFeatures() &&
+    config.getHasAccessToPreviewModel();
 
+  // Check if preferred model is in the manual model list
   const manualModelSelected = useMemo(() => {
-    const manualModels = [
-      DEFAULT_GEMINI_MODEL,
-      DEFAULT_GEMINI_FLASH_MODEL,
-      DEFAULT_GEMINI_FLASH_LITE_MODEL,
-      PREVIEW_GEMINI_MODEL,
-      PREVIEW_GEMINI_FLASH_MODEL,
-    ];
-    if (manualModels.includes(preferredModel)) {
-      return preferredModel;
-    }
-    return '';
-  }, [preferredModel]);
+    if (!modelGroup) return '';
+    return modelGroup.models.some((m) => m.id === preferredModel)
+      ? preferredModel
+      : '';
+  }, [modelGroup, preferredModel]);
 
   useKeypress(
     (key) => {
@@ -67,75 +73,61 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         setPersistMode((prev) => !prev);
       }
     },
-    { isActive: true },
+    { isActive: !modelGroup?.freeformInput },
   );
 
   const mainOptions = useMemo(() => {
-    const list = [
-      {
-        value: DEFAULT_GEMINI_MODEL_AUTO,
-        title: getDisplayString(DEFAULT_GEMINI_MODEL_AUTO),
-        description:
-          'Let Gemini CLI decide the best model for the task: gemini-2.5-pro, gemini-2.5-flash',
-        key: DEFAULT_GEMINI_MODEL_AUTO,
-      },
-      {
+    if (!modelGroup) return [];
+
+    let presets = [...modelGroup.presets];
+
+    // Gemini-specific: filter preview preset when preview features are off
+    if (isGemini && !shouldShowPreviewModels) {
+      presets = presets.filter((p) => p.value !== PREVIEW_GEMINI_MODEL_AUTO);
+    }
+
+    const list = presets.map((p) => ({
+      value: p.value,
+      title: p.title,
+      description: p.description,
+      key: p.value,
+    }));
+
+    // Add "Manual" option if there are individual models to choose from
+    if (modelGroup.models.length > 0) {
+      list.push({
         value: 'Manual',
         title: manualModelSelected
           ? `Manual (${manualModelSelected})`
           : 'Manual',
         description: 'Manually select a model',
         key: 'Manual',
-      },
-    ];
-
-    if (shouldShowPreviewModels) {
-      list.unshift({
-        value: PREVIEW_GEMINI_MODEL_AUTO,
-        title: getDisplayString(PREVIEW_GEMINI_MODEL_AUTO),
-        description:
-          'Let Gemini CLI decide the best model for the task: gemini-3-pro, gemini-3-flash',
-        key: PREVIEW_GEMINI_MODEL_AUTO,
       });
     }
+
     return list;
-  }, [shouldShowPreviewModels, manualModelSelected]);
+  }, [modelGroup, shouldShowPreviewModels, manualModelSelected, isGemini]);
 
   const manualOptions = useMemo(() => {
-    const list = [
-      {
-        value: DEFAULT_GEMINI_MODEL,
-        title: DEFAULT_GEMINI_MODEL,
-        key: DEFAULT_GEMINI_MODEL,
-      },
-      {
-        value: DEFAULT_GEMINI_FLASH_MODEL,
-        title: DEFAULT_GEMINI_FLASH_MODEL,
-        key: DEFAULT_GEMINI_FLASH_MODEL,
-      },
-      {
-        value: DEFAULT_GEMINI_FLASH_LITE_MODEL,
-        title: DEFAULT_GEMINI_FLASH_LITE_MODEL,
-        key: DEFAULT_GEMINI_FLASH_LITE_MODEL,
-      },
-    ];
+    if (!modelGroup) return [];
 
-    if (shouldShowPreviewModels) {
-      list.unshift(
-        {
-          value: PREVIEW_GEMINI_MODEL,
-          title: PREVIEW_GEMINI_MODEL,
-          key: PREVIEW_GEMINI_MODEL,
-        },
-        {
-          value: PREVIEW_GEMINI_FLASH_MODEL,
-          title: PREVIEW_GEMINI_FLASH_MODEL,
-          key: PREVIEW_GEMINI_FLASH_MODEL,
-        },
+    let models = [...modelGroup.models];
+
+    // Gemini-specific: filter preview models when preview features are off
+    if (isGemini && !shouldShowPreviewModels) {
+      models = models.filter(
+        (m) =>
+          m.id !== PREVIEW_GEMINI_MODEL && m.id !== PREVIEW_GEMINI_FLASH_MODEL,
       );
     }
-    return list;
-  }, [shouldShowPreviewModels]);
+
+    return models.map((m) => ({
+      value: m.id,
+      title: m.displayName || m.id,
+      description: m.description,
+      key: m.id,
+    }));
+  }, [modelGroup, shouldShowPreviewModels, isGemini]);
 
   const options = view === 'main' ? mainOptions : manualOptions;
 
@@ -165,27 +157,77 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         const event = new ModelSlashCommandEvent(model);
         logModelSlashCommand(config, event);
       }
+
+      // Sync LLM_MODEL env for non-Gemini providers
+      if (!isGemini) {
+        process.env['LLM_MODEL'] = model;
+      }
+
+      // Sync byProvider in settings
+      if (settings) {
+        saveModelForProvider(settings, provider, model);
+      }
+
       onClose();
     },
-    [config, onClose, persistMode],
+    [config, onClose, persistMode, isGemini, settings, provider],
   );
 
+  // Freeform input (e.g., openai-compatible / sLM)
+  if (modelGroup?.freeformInput) {
+    return (
+      <Box
+        borderStyle="round"
+        borderColor={theme.border.default}
+        flexDirection="column"
+        padding={1}
+        width="100%"
+      >
+        <FreeformModelInput
+          onSelect={handleSelect}
+          onClose={onClose}
+          currentModel={preferredModel}
+        />
+      </Box>
+    );
+  }
+
+  // Model selection disabled (e.g., DidimAIStudio)
+  if (modelGroup?.modelSelectionDisabled) {
+    return (
+      <Box
+        borderStyle="round"
+        borderColor={theme.border.default}
+        flexDirection="column"
+        padding={1}
+        width="100%"
+      >
+        <Text bold>Select Model</Text>
+        <Box marginTop={1}>
+          <Text>{modelGroup.disabledMessage}</Text>
+        </Box>
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.text.secondary}>(Press Esc to close)</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Header/subheader — Gemini-specific preview messaging
   let header;
   let subheader;
-
-  // Do not show any header or subheader since it's already showing preview model
-  // options
-  if (shouldShowPreviewModels) {
-    header = undefined;
-    subheader = undefined;
-    // When a user has the access but has not enabled the preview features.
-  } else if (config?.getHasAccessToPreviewModel()) {
-    header = 'Gemini 3 is now available.';
-    subheader =
-      'Enable "Preview features" in /settings.\nLearn more at https://goo.gle/enable-preview-features';
-  } else {
-    header = 'Gemini 3 is coming soon.';
-    subheader = undefined;
+  if (isGemini) {
+    if (shouldShowPreviewModels) {
+      header = undefined;
+      subheader = undefined;
+    } else if (config?.getHasAccessToPreviewModel()) {
+      header = 'Gemini 3 is now available.';
+      subheader =
+        'Enable "Preview features" in /settings.\nLearn more at https://goo.gle/enable-preview-features';
+    } else {
+      header = 'Gemini 3 is coming soon.';
+      subheader = undefined;
+    }
   }
 
   return (
@@ -229,7 +271,9 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       </Box>
       <Box marginTop={1} flexDirection="column">
         <Text color={theme.text.secondary}>
-          {'> To use a specific Gemini model on startup, use the --model flag.'}
+          {isGemini
+            ? '> To use a specific Gemini model on startup, use the --model flag.'
+            : '> To use a specific model on startup, use the --model flag or set LLM_MODEL env.'}
         </Text>
       </Box>
       <Box marginTop={1} flexDirection="column">

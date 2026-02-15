@@ -178,7 +178,12 @@ export const DialogManager = ({
     );
   }
   if (uiState.isModelDialogOpen) {
-    return <ModelDialog onClose={uiActions.closeModelDialog} />;
+    return (
+      <ModelDialog
+        onClose={uiActions.closeModelDialog}
+        selectedProvider={uiState.selectedProvider}
+      />
+    );
   }
   if (
     uiState.isAgentConfigDialogOpen &&

@@ -21,13 +21,13 @@ DidimAIStudio)의 모델 선택을 지원한다.
 
 ## 2. 수정 파일
 
-| #   | 파일                                                         | 변경 내용                                                                                |
-| --- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| 1   | `packages/cli/src/ui/components/ModelDialog.tsx`             | registry 기반 멀티프로바이더 렌더링, 영속화, freeformInput 분기                          |
-| 2   | `packages/cli/src/ui/components/ModelDialog.test.tsx`        | 15개 테스트 추가 (프로바이더 분기 8 + 영속화 6 + sLM 1), 기존 테스트 기대값 4개 업데이트 |
-| 3   | `packages/cli/src/ui/components/FreeformModelInput.tsx`      | **신규** — sLM 전용 텍스트 입력 컴포넌트                                                 |
-| 4   | `packages/cli/src/ui/components/FreeformModelInput.test.tsx` | **신규** — 5개 테스트 (mock useKeypress + useTextBuffer 패턴)                            |
-| 5   | `packages/cli/src/ui/components/DialogManager.tsx`           | `selectedProvider={uiState.selectedProvider}` prop 전달                                  |
+| #   | 파일                                                         | 변경 내용                                                                                                                     |
+| --- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `packages/cli/src/ui/components/ModelDialog.tsx`             | registry 기반 멀티프로바이더 렌더링, 영속화, freeformInput 분기                                                               |
+| 2   | `packages/cli/src/ui/components/ModelDialog.test.tsx`        | 15개 테스트 추가 (프로바이더 분기 8 + 영속화 6 + sLM 1), 기존 15개 기대값 업데이트, FreeformModelInput mock + act() 경고 개선 |
+| 3   | `packages/cli/src/ui/components/FreeformModelInput.tsx`      | **신규** — sLM 전용 텍스트 입력 컴포넌트                                                                                      |
+| 4   | `packages/cli/src/ui/components/FreeformModelInput.test.tsx` | **신규** — 5개 테스트 (mock useKeypress + useTextBuffer 패턴)                                                                 |
+| 5   | `packages/cli/src/ui/components/DialogManager.tsx`           | `selectedProvider={uiState.selectedProvider}` prop 전달                                                                       |
 
 ---
 
@@ -62,29 +62,38 @@ const isGemini = provider === 'gemini';
    `security.auth.slmConfig` 동기화
 
 ```typescript
+// freeformInput providers (sLM) always persist — no toggle shown in UI
+const shouldPersist = persistMode || !!modelGroup?.freeformInput;
+
+if (config) {
+  // isTemporary=false triggers onModelChange → saveModelForProvider
+  config.setModel(model, !shouldPersist);
+}
+
 // Sync LLM_MODEL env for non-Gemini providers
 if (!isGemini) {
   process.env['LLM_MODEL'] = model;
 }
 
-// freeformInput providers (sLM) always persist — no toggle shown in UI
-const shouldPersist = persistMode || !!modelGroup?.freeformInput;
-
-// Sync byProvider in settings (only when persisting)
-if (settings && shouldPersist) {
-  saveModelForProvider(settings, provider, model);
-}
-
 // Sync slmConfig.model for openai-compatible (sLM) provider
+// (onModelChange does NOT handle slmConfig, so this is the only write site)
 if (settings && shouldPersist && provider === 'openai-compatible') {
-  const currentSlmConfig = (settings.merged?.security?.auth?.slmConfig ??
-    {}) as Record<string, unknown>;
+  const userSlmConfig =
+    (
+      settings.forScope(SettingScope.User).settings as {
+        security?: { auth?: { slmConfig?: Record<string, unknown> } };
+      }
+    ).security?.auth?.slmConfig ?? {};
   settings.setValue(SettingScope.User, 'security.auth.slmConfig', {
-    ...currentSlmConfig,
+    ...userSlmConfig,
     model,
   });
 }
 ```
+
+> **Note**: `saveModelForProvider`는 ModelDialog에서 직접 호출하지 않는다.
+> `config.setModel(model, isTemporary=false)` → `onModelChange` 콜백
+> (config.ts:818→828)에서 자동 호출되는 단일 경로를 사용한다.
 
 ### 3.3 FreeformModelInput 컴포넌트 (Part B)
 
@@ -333,7 +342,71 @@ if (config) {
 **문제**: `vi.resetAllMocks()`가 이미 모든 mock 초기화 →
 `mockSaveModelForProvider.mockClear()` 중복.
 
-**수정**: line 83 제거.
+**수정**: 제거.
+
+### 4차 리뷰 반영
+
+#### 이슈 1 (중간): sLM slmConfig.model 동기화 "성공 경로" 테스트 부재
+
+**문제**: 비-sLM 부정 케이스 위주의 테스트만 존재하고, sLM에서 실제 모델 선택 후
+`settings.setValue('security.auth.slmConfig', ...)` 호출을 직접 검증하는
+테스트가 없음.
+
+**수정**: FreeformModelInput을 mock하여 `onSelect` 콜백을 캡처하고, handleSelect
+전체 경로를 직접 검증하는 통합 테스트 추가:
+
+```typescript
+// 모듈 레벨: onSelect 캡처를 위한 FreeformModelInput mock
+let capturedFreeformOnSelect: ((model: string) => void) | null = null;
+vi.mock('./FreeformModelInput.js', () => ({
+  FreeformModelInput: (props) => {
+    capturedFreeformOnSelect = props.onSelect;
+    return <Text>Enter model name</Text>;
+  },
+}));
+
+// 테스트: 5중 검증
+it('syncs slmConfig.model for sLM provider on model select', async () => {
+  renderWithSettings('slm');
+  await act(async () => { capturedFreeformOnSelect!('my-custom-model'); });
+
+  expect(mockSetModel).toHaveBeenCalledWith('my-custom-model', false);
+  expect(process.env['LLM_MODEL']).toBe('my-custom-model');
+  expect(mockForScope).toHaveBeenCalledWith(SettingScope.User);
+  expect(mockSetValue).toHaveBeenCalledWith(
+    SettingScope.User, 'security.auth.slmConfig', { model: 'my-custom-model' },
+  );
+  expect(mockOnClose).toHaveBeenCalled();
+});
+```
+
+#### 이슈 2 (낮음): act() 경고 다량 발생
+
+**문제**: `ink-testing-library` 직접 사용으로 초기 렌더링 시 `Root` 컴포넌트
+act() 경고 발생. 타이밍 회귀 시 flaky 가능성.
+
+**수정**: `import { render } from 'ink-testing-library'` →
+`import { render } from '../../test-utils/render.js'` 교체. test-utils render는
+초기 렌더/unmount/rerender를 `act()`로 래핑하여 `Root` 경고 제거. 잔여
+`BaseSelectionList`/`ModelDialog` 경고는 `stdin.write` 기반 입력에서 발생 — 개별
+write의 `act()` 래핑은 광범위 리팩터링 영역이므로 보류.
+
+#### 이슈 3 (낮음): 작업결과서 테스트 수치 불일치
+
+**문제**: 문서에 ModelDialog "30 passed"와 "ModelDialog 29"가 동시 존재.
+
+**수정**: sLM 성공 경로 테스트 추가 후 실제 30개로 통일. Total 56→57 보정.
+
+### 5차 리뷰 반영
+
+#### 이슈 1 (낮음): `mockSetValue.mockClear()` / `mockForScope.mockClear()` 중복
+
+**문제**: 외부 `beforeEach`의 `vi.resetAllMocks()`가 이미 모든 mock을 초기화.
+`handleSelect persistence sync` describe 내부의 `.mockClear()` 2건은 3차에서
+제거한 `mockSaveModelForProvider.mockClear()`과 동일한 패턴.
+
+**수정**: 중복 `.mockClear()` 2건 제거. `mockForScope.mockReturnValue(...)` 은
+리턴값 재설정이므로 유지.
 
 ---
 
@@ -349,3 +422,6 @@ if (config) {
   DialogManager prop 검증
 - **3차 리뷰 2건 반영**: sLM isTemporary 수정 (onModelChange 발동 보장), 중복
   mockClear 제거
+- **4차 리뷰 3건 반영**: sLM 성공 경로 테스트, act() 경고 감소
+  (ink-testing-library→test-utils), 수치 불일치 보정
+- **5차 리뷰 1건 반영**: handleSelect persistence sync 중복 mockClear 제거

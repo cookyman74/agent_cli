@@ -462,4 +462,34 @@ describe('SettingsSchema', () => {
       }
     });
   });
+
+  // ==========================================================================
+  // Phase 2 — model.byProvider schema
+  // ==========================================================================
+
+  describe('model.byProvider schema', () => {
+    it('model has byProvider property in schema', () => {
+      const schema = getSettingsSchema();
+      const modelDef = schema['model'] as SettingCollectionDefinition;
+      expect(modelDef.properties?.['byProvider']).toBeDefined();
+    });
+
+    it('byProvider is type object', () => {
+      const schema = getSettingsSchema();
+      const modelDef = schema['model'] as SettingCollectionDefinition;
+      expect(modelDef.properties?.['byProvider']?.type).toBe('object');
+    });
+
+    it('byProvider is not shown in dialog', () => {
+      const schema = getSettingsSchema();
+      const modelDef = schema['model'] as SettingCollectionDefinition;
+      expect(modelDef.properties?.['byProvider']?.showInDialog).toBe(false);
+    });
+
+    it('byProvider default is empty object', () => {
+      const schema = getSettingsSchema();
+      const modelDef = schema['model'] as SettingCollectionDefinition;
+      expect(modelDef.properties?.['byProvider']?.default).toEqual({});
+    });
+  });
 });

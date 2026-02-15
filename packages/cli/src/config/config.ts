@@ -46,6 +46,7 @@ import {
   loadSettings,
 } from './settings.js';
 
+import { normalizeProviderKey } from '../ui/utils/resolveActiveProvider.js';
 import { loadSandboxConfig } from './sandboxConfig.js';
 import { resolvePath } from '../utils/resolvePath.js';
 import { RESUME_LATEST } from '../utils/sessionUtils.js';
@@ -656,10 +657,20 @@ export async function loadCliConfig(
   const defaultModel = settings.general?.previewFeatures
     ? PREVIEW_GEMINI_MODEL_AUTO
     : DEFAULT_GEMINI_MODEL_AUTO;
+
+  // activeProvider: LLM_PROVIDER env → settings selectedProvider → undefined
+  const activeProvider =
+    process.env['LLM_PROVIDER'] ||
+    normalizeProviderKeyForStartup(settings.security?.auth?.selectedProvider) ||
+    undefined;
+
+  // Model resolution priority:
+  // argv.model > LLM_MODEL > GEMINI_MODEL > byProvider[activeProvider] > model.name
   const specifiedModel =
     argv.model ||
     process.env['LLM_MODEL'] ||
     process.env['GEMINI_MODEL'] ||
+    (activeProvider && settings.model?.byProvider?.[activeProvider]) ||
     settings.model?.name;
 
   const resolvedModel =
@@ -821,4 +832,14 @@ function mergeExcludeTools(
     ...extraExcludes,
   ]);
   return Array.from(allExcludeTools);
+}
+
+/**
+ * Normalize provider key for startup resolution, handling undefined input.
+ */
+function normalizeProviderKeyForStartup(
+  key: string | undefined,
+): string | undefined {
+  if (!key) return undefined;
+  return normalizeProviderKey(key);
 }

@@ -740,6 +740,16 @@ const SETTINGS_SCHEMA = {
         description: 'Skip the next speaker check.',
         showInDialog: true,
       },
+      byProvider: {
+        type: 'object',
+        label: 'Model By Provider',
+        category: 'Model',
+        requiresRestart: false,
+        default: {} as Record<string, string>,
+        description:
+          'Per-provider model memory. Stores the last selected model for each provider.',
+        showInDialog: false,
+      },
     },
   },
 

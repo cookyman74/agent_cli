@@ -861,6 +861,47 @@ export function saveModelChange(
   }
 }
 
+/**
+ * Save model selection for a specific provider.
+ *
+ * Updates both `model.name` (global, backward-compatible) and
+ * `model.byProvider[provider]` (per-provider memory).
+ *
+ * Reads from **user scope only** to prevent workspace/system values
+ * from being copied into the user settings file (scope pollution prevention).
+ *
+ * @param loadedSettings - LoadedSettings instance
+ * @param provider - Normalized provider key (e.g., 'claude', 'openai')
+ * @param model - Selected model ID
+ */
+export function saveModelForProvider(
+  loadedSettings: LoadedSettings,
+  provider: string,
+  model: string,
+): void {
+  try {
+    // Global model (backward-compatible)
+    loadedSettings.setValue(SettingScope.User, 'model.name', model);
+
+    // Per-provider memory — read from user scope only (scope pollution prevention)
+    const userSettings = loadedSettings.forScope(SettingScope.User)
+      .settings as {
+      model?: { byProvider?: Record<string, string> };
+    };
+    const userByProvider = userSettings.model?.byProvider ?? {};
+    loadedSettings.setValue(SettingScope.User, 'model.byProvider', {
+      ...userByProvider,
+      [provider]: model,
+    });
+  } catch (error) {
+    coreEvents.emitFeedback(
+      'error',
+      'There was an error saving your preferred model.',
+      error,
+    );
+  }
+}
+
 function migrateExperimentalSettings(
   settings: Settings,
   loadedSettings: LoadedSettings,

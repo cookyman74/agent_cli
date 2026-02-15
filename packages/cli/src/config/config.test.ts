@@ -1510,6 +1510,117 @@ describe('loadCliConfig model selection', () => {
   });
 });
 
+// ============================================================================
+// Phase 2 — startup model resolution with byProvider
+// ============================================================================
+
+describe('loadCliConfig model selection with byProvider', () => {
+  beforeEach(() => {
+    vi.spyOn(ExtensionManager.prototype, 'getExtensions').mockReturnValue([]);
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it('uses byProvider[activeProvider] over model.name', async () => {
+    vi.stubEnv('LLM_PROVIDER', 'claude');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          name: 'gpt-4.1',
+          byProvider: { claude: 'claude-haiku-4-5-20251001' },
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('claude-haiku-4-5-20251001');
+  });
+
+  it('falls back to model.name when byProvider is empty', async () => {
+    vi.stubEnv('LLM_PROVIDER', 'claude');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          name: 'gpt-4.1',
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('gpt-4.1');
+  });
+
+  it('LLM_MODEL still takes priority over byProvider', async () => {
+    vi.stubEnv('LLM_PROVIDER', 'claude');
+    vi.stubEnv('LLM_MODEL', 'custom-model');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          name: 'gpt-4.1',
+          byProvider: { claude: 'claude-haiku-4-5-20251001' },
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('custom-model');
+  });
+
+  it('uses selectedProvider from settings when LLM_PROVIDER is unset', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        security: {
+          auth: {
+            selectedProvider: 'claude',
+          },
+        },
+        model: {
+          byProvider: { claude: 'claude-haiku-4-5-20251001' },
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('claude-haiku-4-5-20251001');
+  });
+
+  it('skips byProvider when neither LLM_PROVIDER nor selectedProvider is set', async () => {
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          name: 'gpt-4.1',
+          byProvider: { claude: 'claude-haiku-4-5-20251001' },
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('gpt-4.1');
+  });
+});
+
 describe('loadCliConfig folderTrust', () => {
   beforeEach(() => {
     vi.resetAllMocks();

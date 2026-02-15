@@ -8,7 +8,7 @@ exports[`AlternateBufferQuittingDisplay > renders with a tool awaiting confirmat
 ██║  ██║██║██║  ██║██║██║╚██╔╝██║    ██║     ██║     ██║
 ██████╔╝██║██████╔╝██║██║ ╚═╝ ██║    ╚██████╗███████╗██║
 ╚═════╝ ╚═╝╚═════╝ ╚═╝╚═╝     ╚═╝     ╚═════╝╚══════╝╚═╝
-          DIDIM AI STUDIO
+          Didim Agent-cli
 
 Tips for getting started:
 1. Ask questions, edit files, or run commands.
@@ -30,7 +30,7 @@ exports[`AlternateBufferQuittingDisplay > renders with active and pending tool m
 ██║  ██║██║██║  ██║██║██║╚██╔╝██║    ██║     ██║     ██║
 ██████╔╝██║██████╔╝██║██║ ╚═╝ ██║    ╚██████╗███████╗██║
 ╚═════╝ ╚═╝╚═════╝ ╚═╝╚═╝     ╚═╝     ╚═════╝╚══════╝╚═╝
-          DIDIM AI STUDIO
+          Didim Agent-cli
 
 Tips for getting started:
 1. Ask questions, edit files, or run commands.
@@ -55,7 +55,7 @@ exports[`AlternateBufferQuittingDisplay > renders with empty history and no pend
 ██║  ██║██║██║  ██║██║██║╚██╔╝██║    ██║     ██║     ██║
 ██████╔╝██║██████╔╝██║██║ ╚═╝ ██║    ╚██████╗███████╗██║
 ╚═════╝ ╚═╝╚═════╝ ╚═╝╚═╝     ╚═╝     ╚═════╝╚══════╝╚═╝
-          DIDIM AI STUDIO
+          Didim Agent-cli
 
 Tips for getting started:
 1. Ask questions, edit files, or run commands.
@@ -72,7 +72,7 @@ exports[`AlternateBufferQuittingDisplay > renders with history but no pending it
 ██║  ██║██║██║  ██║██║██║╚██╔╝██║    ██║     ██║     ██║
 ██████╔╝██║██████╔╝██║██║ ╚═╝ ██║    ╚██████╗███████╗██║
 ╚═════╝ ╚═╝╚═════╝ ╚═╝╚═╝     ╚═╝     ╚═════╝╚══════╝╚═╝
-          DIDIM AI STUDIO
+          Didim Agent-cli
 
 Tips for getting started:
 1. Ask questions, edit files, or run commands.
@@ -97,7 +97,7 @@ exports[`AlternateBufferQuittingDisplay > renders with pending items but no hist
 ██║  ██║██║██║  ██║██║██║╚██╔╝██║    ██║     ██║     ██║
 ██████╔╝██║██████╔╝██║██║ ╚═╝ ██║    ╚██████╗███████╗██║
 ╚═════╝ ╚═╝╚═════╝ ╚═╝╚═╝     ╚═╝     ╚═════╝╚══════╝╚═╝
-          DIDIM AI STUDIO
+          Didim Agent-cli
 
 Tips for getting started:
 1. Ask questions, edit files, or run commands.
@@ -114,7 +114,7 @@ exports[`AlternateBufferQuittingDisplay > renders with user and gemini messages 
 ██║  ██║██║██║  ██║██║██║╚██╔╝██║    ██║     ██║     ██║
 ██████╔╝██║██████╔╝██║██║ ╚═╝ ██║    ╚██████╗███████╗██║
 ╚═════╝ ╚═╝╚═════╝ ╚═╝╚═╝     ╚═╝     ╚═════╝╚══════╝╚═╝
-          DIDIM AI STUDIO
+          Didim Agent-cli
 
 Tips for getting started:
 1. Ask questions, edit files, or run commands.

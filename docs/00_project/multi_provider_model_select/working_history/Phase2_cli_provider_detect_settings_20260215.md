@@ -103,7 +103,46 @@ dependency)
 | `resolveActiveProvider()` vs Core `selectProvider()` drift     | API 키 감지 순서가 코드 수준에서 동일함을 확인 (ANTHROPIC→OPENAI→DIDIM). 명시적 cross-validation 테스트는 미작성                         | ⚠️ Phase 4 E2E에서 검증 예정 |
 | Didim env-only: `useAuth.ts`가 `DIDIM_API_KEY` 자동감지 미지원 | `resolveActiveProvider()`는 감지 가능하나 앱 진입(`useAuth`)에서 제한. Known limitation — E2E 전제조건을 `LLM_PROVIDER=didim`으로 명확화 | ⚠️ 기존 알려진 한계          |
 
-## 7. 파일 변경 목록
+## 7. 외부 리뷰 반영 (2차)
+
+### 이슈 1 (중간): onModelChange가 saveModelForProvider를 호출하지 않음
+
+- **근거**: `config.ts:815`에서 `onModelChange` 콜백이 `saveModelChange`만 호출
+  → `model.byProvider` 미갱신
+- **수정**: `saveModelChange` → `saveModelForProvider` 교체. 콜백 내에서
+  `resolveActiveProvider(selectedProvider)`로 현재 프로바이더를 감지하여 전달
+- **검증**: 기존 `saveModelForProvider` 5 tests + config 181 tests = 모두 PASS
+
+### 이슈 2 (중간): startup activeProvider에서 LLM_PROVIDER 값 미정규화
+
+- **근거**: `config.ts:663`에서 `process.env['LLM_PROVIDER']` raw 사용. Core
+  `parseProviderEnv`는 `toLowerCase().trim()` + `anthropic`/`openai_compatible`
+  alias 처리
+- **수정**: (1) `normalizeProviderKey`에 `toLowerCase().trim()` + alias 추가.
+  (2) config.ts startup의 `activeProvider` 계산에서
+  `process.env['LLM_PROVIDER']` raw 사용 →
+  `normalizeProviderKeyForStartup(process.env['LLM_PROVIDER'])` 경유로 변경.
+  이로써 `LLM_PROVIDER=anthropic` → `claude`, `LLM_PROVIDER=OPENAI` → `openai`
+  등 byProvider 키 조회 정상화
+- **테스트**: config.test.ts +2 tests (alias 정규화, 대소문자 정규화)
+
+### 이슈 3 (낮음): normalizeProviderKey가 Core parseProviderEnv 대비 좁음
+
+- **근거**: `slm`, `vertex-ai`, `didim-studio` 3개만 처리, 대소문자/공백 미지원
+- **수정**: `toLowerCase().trim()` 추가 + `anthropic`→`claude`,
+  `openai_compatible`→`openai-compatible` alias 추가 (Core `parseProviderEnv`와
+  동일 커버리지)
+- **테스트**: +4 tests (23 → 현재 총 23 tests PASS)
+
+### 테스트 변경
+
+| 파일                          | 변경 전 | 변경 후  |
+| ----------------------------- | ------- | -------- |
+| resolveActiveProvider.test.ts | 19      | 23 (+4)  |
+| config.test.ts                | 181     | 183 (+2) |
+| Phase 2 합계                  | 231     | 237 (+6) |
+
+## 8. 파일 변경 목록
 
 ### 신규
 

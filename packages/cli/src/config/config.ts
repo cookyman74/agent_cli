@@ -42,11 +42,14 @@ import {
 import {
   type Settings,
   type MergedSettings,
-  saveModelChange,
+  saveModelForProvider,
   loadSettings,
 } from './settings.js';
 
-import { normalizeProviderKey } from '../ui/utils/resolveActiveProvider.js';
+import {
+  normalizeProviderKey,
+  resolveActiveProvider,
+} from '../ui/utils/resolveActiveProvider.js';
 import { loadSandboxConfig } from './sandboxConfig.js';
 import { resolvePath } from '../utils/resolvePath.js';
 import { RESUME_LATEST } from '../utils/sessionUtils.js';
@@ -658,9 +661,9 @@ export async function loadCliConfig(
     ? PREVIEW_GEMINI_MODEL_AUTO
     : DEFAULT_GEMINI_MODEL_AUTO;
 
-  // activeProvider: LLM_PROVIDER env → settings selectedProvider → undefined
+  // activeProvider: LLM_PROVIDER env (normalized) → settings selectedProvider → undefined
   const activeProvider =
-    process.env['LLM_PROVIDER'] ||
+    normalizeProviderKeyForStartup(process.env['LLM_PROVIDER']) ||
     normalizeProviderKeyForStartup(settings.security?.auth?.selectedProvider) ||
     undefined;
 
@@ -812,7 +815,12 @@ export async function loadCliConfig(
     hooks: settings.hooks || {},
     disabledHooks: settings.hooksConfig?.disabled || [],
     projectHooks: projectHooks || {},
-    onModelChange: (model: string) => saveModelChange(loadedSettings, model),
+    onModelChange: (model: string) => {
+      const provider = resolveActiveProvider(
+        settings.security?.auth?.selectedProvider,
+      );
+      saveModelForProvider(loadedSettings, provider, model);
+    },
     onReload: async () => {
       const refreshedSettings = loadSettings(cwd);
       return {

@@ -49,6 +49,33 @@ describe('resolveActiveProvider', () => {
         'some-future-provider',
       );
     });
+
+    // --- 이슈 2+3: Core parseProviderEnv 호환 alias + 대소문자/공백 정규화 ---
+
+    it('normalizes "anthropic" to "claude" (Core alias 호환)', () => {
+      expect(normalizeProviderKey('anthropic')).toBe('claude');
+    });
+
+    it('normalizes "openai_compatible" (underscore) to "openai-compatible"', () => {
+      expect(normalizeProviderKey('openai_compatible')).toBe(
+        'openai-compatible',
+      );
+    });
+
+    it('is case-insensitive', () => {
+      expect(normalizeProviderKey('Claude')).toBe('claude');
+      expect(normalizeProviderKey('OPENAI')).toBe('openai');
+      expect(normalizeProviderKey('SLM')).toBe('openai-compatible');
+      expect(normalizeProviderKey('Vertex-AI')).toBe('gemini');
+      expect(normalizeProviderKey('Anthropic')).toBe('claude');
+    });
+
+    it('trims whitespace', () => {
+      expect(normalizeProviderKey('  claude  ')).toBe('claude');
+      expect(normalizeProviderKey(' openai_compatible ')).toBe(
+        'openai-compatible',
+      );
+    });
   });
 
   // =========================================================================

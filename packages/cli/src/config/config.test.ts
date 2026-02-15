@@ -1619,6 +1619,42 @@ describe('loadCliConfig model selection with byProvider', () => {
 
     expect(config.getModel()).toBe('gpt-4.1');
   });
+
+  it('normalizes LLM_PROVIDER alias for byProvider lookup (anthropic → claude)', async () => {
+    vi.stubEnv('LLM_PROVIDER', 'anthropic');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          byProvider: { claude: 'claude-haiku-4-5-20251001' },
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('claude-haiku-4-5-20251001');
+  });
+
+  it('normalizes LLM_PROVIDER case for byProvider lookup (OPENAI → openai)', async () => {
+    vi.stubEnv('LLM_PROVIDER', 'OPENAI');
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          byProvider: { openai: 'gpt-4.1-mini' },
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('gpt-4.1-mini');
+  });
 });
 
 describe('loadCliConfig folderTrust', () => {

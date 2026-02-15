@@ -47,14 +47,19 @@ export function resolveActiveProvider(selectedProvider?: string): string {
  * @returns Normalized registry key
  */
 export function normalizeProviderKey(key: string): string {
-  switch (key) {
+  const normalized = key.toLowerCase().trim();
+
+  switch (normalized) {
     case 'slm':
+    case 'openai_compatible':
       return 'openai-compatible';
     case 'vertex-ai':
       return 'gemini';
     case 'didim-studio':
       return 'didim';
+    case 'anthropic':
+      return 'claude';
     default:
-      return key;
+      return normalized;
   }
 }

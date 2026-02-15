@@ -134,7 +134,7 @@ dependency)
   동일 커버리지)
 - **테스트**: +4 tests (23 → 현재 총 23 tests PASS)
 
-### 테스트 변경
+### 테스트 변경 (2차 리뷰)
 
 | 파일                          | 변경 전 | 변경 후  |
 | ----------------------------- | ------- | -------- |
@@ -142,7 +142,23 @@ dependency)
 | config.test.ts                | 181     | 183 (+2) |
 | Phase 2 합계                  | 231     | 237 (+6) |
 
-## 8. 파일 변경 목록
+## 8. 외부 리뷰 반영 (3차)
+
+### 이슈 1 (중간): onModelChange provider 우선순위가 startup과 불일치 + stale snapshot
+
+- **근거**: `onModelChange`에서
+  `resolveActiveProvider(settings.selectedProvider)`를 사용 → selectedProvider가
+  1순위. 반면 startup은 `LLM_PROVIDER` env가 1순위. 또한 클로저가 초기
+  `settings`를 캡처하여 런타임 provider 전환 후에도 옛 값 참조
+- **수정**:
+  1. stale `settings` → `loadedSettings.merged` (현재값) 기반으로 변경
+  2. 우선순위를 startup과 동일하게 env-first:
+     `normalizeProviderKeyForStartup(LLM_PROVIDER)` →
+     `normalizeProviderKeyForStartup(currentSettings.selectedProvider)` →
+     `resolveActiveProvider()` (API key fallback)
+- **검증**: 237 tests PASS, lint/typecheck PASS
+
+## 9. 파일 변경 목록
 
 ### 신규
 

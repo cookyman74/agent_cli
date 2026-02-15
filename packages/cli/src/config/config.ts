@@ -816,9 +816,15 @@ export async function loadCliConfig(
     disabledHooks: settings.hooksConfig?.disabled || [],
     projectHooks: projectHooks || {},
     onModelChange: (model: string) => {
-      const provider = resolveActiveProvider(
-        settings.security?.auth?.selectedProvider,
-      );
+      // Provider priority matches startup (env-first):
+      // LLM_PROVIDER → merged selectedProvider → API key detection → fallback
+      const currentSettings = loadedSettings.merged;
+      const provider =
+        normalizeProviderKeyForStartup(process.env['LLM_PROVIDER']) ||
+        normalizeProviderKeyForStartup(
+          currentSettings.security?.auth?.selectedProvider,
+        ) ||
+        resolveActiveProvider();
       saveModelForProvider(loadedSettings, provider, model);
     },
     onReload: async () => {

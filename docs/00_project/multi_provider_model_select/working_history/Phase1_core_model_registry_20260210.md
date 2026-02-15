@@ -45,15 +45,18 @@ Phase 1은 Multi-Provider `/model` Command의 Core 레이어 기반을 구축하
 - getDefaultModelFromRegistry: 6개
 - isModelValidForProvider: 16개
 
-### 신규 테스트 (providerSelector.test.ts 추가): 10 PASS
+### 신규 테스트 (providerSelector.test.ts 추가): 16 PASS
 
 - DEFAULT_PROVIDER_MODELS from registry: 4개
 - resolveProviderModel cross-provider validation: 6개
+- 리뷰 반영 — LLM_MODEL cross-provider 검증: 3개
+- 리뷰 반영 — Didim modelSelectionDisabled 강제: 3개
 
 ### 회귀 테스트
 
 - 기존 providerSelector.test.ts: 34 → 모두 PASS (회귀 없음)
 - Core 전체: 281 파일, 5339 PASS, 0 FAIL
+- 리뷰 반영 후 전체: 80 PASS (providerModels 30 + providerSelector 50)
 
 ### Quality Gates
 
@@ -93,10 +96,55 @@ cross-provider 차단 대상에 포함시켰다.
 
 ---
 
-## 5. Phase 2 인수 사항
+## 5. 리뷰 반영 (2026-02-10)
+
+### 5.1 [MEDIUM] LLM_MODEL cross-provider 검증 우회
+
+- **위치**: `providerSelector.ts` — `resolveProviderModel()` Gemini-specific
+  분기
+- **문제**: `LLM_MODEL` env를 `isModelValidForProvider()` 없이 반환 → OpenAI
+  provider에서 `LLM_MODEL=claude-opus-4-6`이 그대로 통과
+- **수정**: `LLM_MODEL` 반환 전 `isModelValidForProvider(llmModel, provider)`
+  검증 추가. `freeformInput` provider(openai-compatible)는
+  `isModelValidForProvider()`가 이미 `true` 반환하므로 별도 예외 불필요.
+- **테스트**: 3개 추가
+  - cross-provider LLM_MODEL 거부 (claude on openai → gpt-4.1)
+  - valid LLM_MODEL 허용 (gpt-4o-2024-08-06 on openai)
+  - unknown-prefix LLM_MODEL 허용 (my-local-llama on openai)
+
+### 5.2 [MEDIUM] Didim modelSelectionDisabled passthrough 허용
+
+- **위치**: `providerSelector.ts` — `resolveProviderModel()` 전체
+- **문제**: `isModelValidForProvider('gpt-4.1', 'didim')` → `true`
+  (modelSelectionDisabled 스킵) → 이전 provider 모델이 Didim에 전달
+- **수정**: `resolveProviderModel()` 최상단에
+  `group?.modelSelectionDisabled → getDefaultModelFromRegistry(provider)` 조기
+  반환 추가. `isModelValidForProvider()` 정책은 변경하지 않음 (validation과
+  resolution의 책임 분리 유지).
+- **테스트**: 3개 추가
+  - non-Gemini 모델(gpt-4.1) → didim-default 강제
+  - Gemini 모델(gemini-2.5-pro) → didim-default 강제
+  - LLM_MODEL 설정 시에도 → didim-default 강제
+
+### 5.3 Quality Gates (리뷰 반영 후)
+
+| Gate      | 결과            |
+| --------- | --------------- |
+| Tests     | 80 PASS (30+50) |
+| Build     | ✅              |
+| Lint      | ✅ 0 errors     |
+| Typecheck | ✅ 0 errors     |
+
+---
+
+## 6. Phase 2 인수 사항
 
 - `PROVIDER_MODEL_REGISTRY`는 `@didim365/agent-cli-core`에서 export됨
 - `getDefaultModelFromRegistry()`, `isModelValidForProvider()` 사용 가능
 - Phase 2에서 `resolveActiveProvider()`가 이 레지스트리 키와 매칭되어야 함
 - `DEFAULT_PROVIDER_MODELS` 값이 변경됨 (Claude: opus, OpenAI: gpt-4.1) — Phase
   2 테스트에서 이 값 기준으로 검증 필요
+- `LLM_MODEL`은 cross-provider 검증 대상 — Phase 2의 sLM env 동기화 시
+  `isModelValidForProvider()` 통과하는 모델만 설정해야 함
+- Didim provider는 `resolveProviderModel()`에서 항상 `didim-default` 반환 —
+  Phase 3 ModelDialog에서 Didim 모델 선택 비활성 처리와 일관

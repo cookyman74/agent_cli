@@ -11,6 +11,7 @@ import {
 } from './providerTypes.js';
 import { LlmError, LlmErrorType } from './errors.js';
 import {
+  PROVIDER_MODEL_REGISTRY,
   getDefaultModelFromRegistry,
   isModelValidForProvider,
 } from '../config/providerModels.js';
@@ -241,9 +242,11 @@ export function isGeminiSpecificModel(model: string): boolean {
 /**
  * Resolve the model name for a given provider.
  *
+ * 0. modelSelectionDisabled provider (Didim) → always return fixed default
+ *
  * Gemini-specific models (gemini-*, auto-gemini*, aliases):
  * 1. Gemini provider → pass through unchanged
- * 2. LLM_MODEL env var → use as explicit override
+ * 2. LLM_MODEL env var → use if valid for target provider (cross-provider validated)
  * 3. Non-Gemini provider → provider's default model from registry
  *
  * Non-Gemini models:
@@ -258,13 +261,21 @@ export function resolveProviderModel(
   model: string,
   provider: ProviderType | string,
 ): string {
+  // modelSelectionDisabled providers always use their fixed default
+  const group = PROVIDER_MODEL_REGISTRY[provider];
+  if (group?.modelSelectionDisabled) {
+    return getDefaultModelFromRegistry(provider);
+  }
+
   // Gemini-specific model handling
   if (isGeminiSpecificModel(model)) {
     if (provider === ProviderType.Gemini) return model;
 
-    // LLM_MODEL env var takes priority for non-Gemini providers
+    // LLM_MODEL env var: validate before use to prevent cross-provider leak
     const llmModel = process.env['LLM_MODEL'];
-    if (llmModel) return llmModel;
+    if (llmModel && isModelValidForProvider(llmModel, provider)) {
+      return llmModel;
+    }
 
     // Gemini-specific model + non-Gemini provider → provider default
     return getDefaultModelFromRegistry(provider);

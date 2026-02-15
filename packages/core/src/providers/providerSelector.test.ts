@@ -325,6 +325,53 @@ describe('ProviderSelector', () => {
       );
       expect(result).toBe('claude-opus-4-6');
     });
+
+    // --- Review issue 1: LLM_MODEL cross-provider validation ---
+
+    it('rejects cross-provider LLM_MODEL (claude model on openai via env)', () => {
+      vi.stubEnv('LLM_MODEL', 'claude-opus-4-6');
+      const result = resolveProviderModel(
+        'gemini-2.5-pro',
+        ProviderType.OpenAI,
+      );
+      expect(result).toBe('gpt-4.1'); // should NOT return claude-opus-4-6
+    });
+
+    it('accepts valid LLM_MODEL for target provider', () => {
+      vi.stubEnv('LLM_MODEL', 'gpt-4o-2024-08-06');
+      const result = resolveProviderModel(
+        'gemini-2.5-pro',
+        ProviderType.OpenAI,
+      );
+      expect(result).toBe('gpt-4o-2024-08-06');
+    });
+
+    it('accepts unknown-prefix LLM_MODEL on openai (allowCustomModels)', () => {
+      vi.stubEnv('LLM_MODEL', 'my-local-llama');
+      const result = resolveProviderModel(
+        'gemini-2.5-pro',
+        ProviderType.OpenAI,
+      );
+      expect(result).toBe('my-local-llama');
+    });
+
+    // --- Review issue 2: Didim modelSelectionDisabled ---
+
+    it('forces didim-default regardless of current non-Gemini model', () => {
+      const result = resolveProviderModel('gpt-4.1', ProviderType.Didim);
+      expect(result).toBe('didim-default');
+    });
+
+    it('forces didim-default regardless of current Gemini model', () => {
+      const result = resolveProviderModel('gemini-2.5-pro', ProviderType.Didim);
+      expect(result).toBe('didim-default');
+    });
+
+    it('forces didim-default even when LLM_MODEL is set', () => {
+      vi.stubEnv('LLM_MODEL', 'claude-opus-4-6');
+      const result = resolveProviderModel('gemini-2.5-pro', ProviderType.Didim);
+      expect(result).toBe('didim-default');
+    });
   });
 
   describe('validateProviderEnv()', () => {

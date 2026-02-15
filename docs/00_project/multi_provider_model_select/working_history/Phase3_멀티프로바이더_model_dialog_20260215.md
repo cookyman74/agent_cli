@@ -188,12 +188,12 @@ FreeformModelInput 테스트 패턴:
 ModelDialog.test.tsx:          30 passed (15 기존 + 15 신규)
   - 기존 Gemini 동작:          15 passed (기대값 4개 업데이트)
   - 프로바이더 분기:            8 passed
-  - 영속화 동기화:              5 passed (2차 리뷰 후 재구성)
+  - 영속화 동기화:              6 passed (3차 리뷰: sLM 성공 경로 추가)
   - sLM FreeformModelInput:     1 passed
 FreeformModelInput.test.tsx:    5 passed (신규)
 DialogManager.test.tsx:        22 passed (기존 21 + selectedProvider prop 검증 1)
 ────────────────────────────────────────
-Total:                         56 passed (ModelDialog 29 + FreeformModel 5 + DialogManager 22)
+Total:                         57 passed (ModelDialog 30 + FreeformModel 5 + DialogManager 22)
 Typecheck:                     ✅
 Lint:                          ✅
 ```

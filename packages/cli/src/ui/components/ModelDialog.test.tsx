@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { render } from 'ink-testing-library';
+import { act } from 'react';
+import { Text } from 'ink';
+import { render } from '../../test-utils/render.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ModelDialog } from './ModelDialog.js';
 import { ConfigContext } from '../contexts/ConfigContext.js';
@@ -20,7 +22,7 @@ import {
 } from '@didim365/agent-cli-core';
 import type { Config, ModelSlashCommandEvent } from '@didim365/agent-cli-core';
 import { SettingsContext } from '../contexts/SettingsContext.js';
-import type { LoadedSettings } from '../../config/settings.js';
+import { SettingScope, type LoadedSettings } from '../../config/settings.js';
 
 // Mock saveModelForProvider
 const mockSaveModelForProvider = vi.fn();
@@ -37,6 +39,19 @@ vi.mock('../../config/settings.js', async () => {
 const mockGetDisplayString = vi.fn();
 const mockLogModelSlashCommand = vi.fn();
 const mockModelSlashCommandEvent = vi.fn();
+
+// Mock FreeformModelInput to capture onSelect for sLM integration tests
+let capturedFreeformOnSelect: ((model: string) => void) | null = null;
+vi.mock('./FreeformModelInput.js', () => ({
+  FreeformModelInput: (props: {
+    onSelect: (model: string) => void;
+    onClose: () => void;
+    currentModel?: string;
+  }) => {
+    capturedFreeformOnSelect = props.onSelect;
+    return <Text>Enter model name</Text>;
+  },
+}));
 
 vi.mock('@didim365/agent-cli-core', async () => {
   const actual = await vi.importActual('@didim365/agent-cli-core');
@@ -76,6 +91,7 @@ describe('<ModelDialog />', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    capturedFreeformOnSelect = null;
     mockGetModel.mockReturnValue(DEFAULT_GEMINI_MODEL_AUTO);
     mockGetPreviewFeatures.mockReturnValue(false);
     mockGetHasAccessToPreviewModel.mockReturnValue(false);
@@ -486,6 +502,32 @@ describe('<ModelDialog />', () => {
         (c: unknown[]) => c[1] === 'security.auth.slmConfig',
       );
       expect(slmConfigCalls).toHaveLength(0);
+    });
+
+    it('syncs slmConfig.model for sLM provider on model select', async () => {
+      vi.stubEnv('LLM_MODEL', '');
+      mockGetModel.mockReturnValue('');
+      renderWithSettings('slm');
+
+      // FreeformModelInput mock captures onSelect = handleSelect
+      expect(capturedFreeformOnSelect).not.toBeNull();
+
+      await act(async () => {
+        capturedFreeformOnSelect!('my-custom-model');
+      });
+
+      // sLM always persists (freeformInput=true → shouldPersist=true → isTemporary=false)
+      expect(mockSetModel).toHaveBeenCalledWith('my-custom-model', false);
+      // LLM_MODEL env synced (non-Gemini provider)
+      expect(process.env['LLM_MODEL']).toBe('my-custom-model');
+      // slmConfig.model synced via settings.forScope(User)
+      expect(mockForScope).toHaveBeenCalledWith(SettingScope.User);
+      expect(mockSetValue).toHaveBeenCalledWith(
+        SettingScope.User,
+        'security.auth.slmConfig',
+        { model: 'my-custom-model' },
+      );
+      expect(mockOnClose).toHaveBeenCalled();
     });
   });
 

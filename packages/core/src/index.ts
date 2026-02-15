@@ -8,6 +8,13 @@
 export * from './config/config.js';
 export * from './config/defaultModelConfigs.js';
 export * from './config/models.js';
+export {
+  PROVIDER_MODEL_REGISTRY,
+  getDefaultModelFromRegistry,
+  isModelValidForProvider,
+  type ProviderModelInfo,
+  type ProviderModelGroup,
+} from './config/providerModels.js';
 export * from './output/types.js';
 export * from './output/json-formatter.js';
 export * from './output/stream-json-formatter.js';

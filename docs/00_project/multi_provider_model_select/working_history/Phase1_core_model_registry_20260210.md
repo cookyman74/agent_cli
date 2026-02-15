@@ -39,11 +39,12 @@ Phase 1은 Multi-Provider `/model` Command의 Core 레이어 기반을 구축하
 
 ## 3. 테스트 결과
 
-### 신규 테스트 (providerModels.test.ts): 30 PASS
+### 신규 테스트 (providerModels.test.ts): 33 PASS
 
 - PROVIDER_MODEL_REGISTRY 구조: 8개
 - getDefaultModelFromRegistry: 6개
 - isModelValidForProvider: 16개
+- 2차 리뷰 반영 — case-insensitive cross-provider 검증: 3개
 
 ### 신규 테스트 (providerSelector.test.ts 추가): 16 PASS
 
@@ -137,7 +138,44 @@ cross-provider 차단 대상에 포함시켰다.
 
 ---
 
-## 6. Phase 2 인수 사항
+## 6. 2차 리뷰 반영 (2026-02-15)
+
+### 6.1 [MEDIUM] Didim provider 런타임 어댑터 부재
+
+- **위치**: `packages/core/src/providers/` 전체
+- **문제**: `selectProvider()`에서 Didim 선택은 가능하나,
+  `bootstrapDidimProvider()`/`DidimAdapter`가 존재하지 않아
+  `factory.create('didim')` 시 런타임 PROVIDER_NOT_FOUND 에러 발생
+- **판단**: Phase 1(Core 모델 레지스트리) 범위 외. Didim 어댑터는 별도 Phase에서
+  구현 예정이며, 현재 CLI UI에서는 "Coming Soon"으로 표시 중.
+  `resolveProviderModel()`의 `modelSelectionDisabled` 조기 반환은 정상
+  동작하므로 코드 수정 없이 **known limitation으로 기록**.
+- **테스트**: 변경 없음
+
+### 6.2 [LOW] Cross-provider prefix 매칭 대소문자 미구분
+
+- **위치**: `providerModels.ts` — `isModelOwnedByOtherProvider()`
+- **문제**: prefix 매칭이 case-sensitive → `CLAUDE-OPUS-4-6`, `Gpt-4.1`, `O3` 등
+  대소문자 변형이 cross-provider 차단을 우회
+- **수정**: `model.toLowerCase()` 정규화 추가. 모든 prefix 검사가 normalized
+  소문자에 대해 수행됨.
+- **테스트**: 3개 추가
+  - `CLAUDE-OPUS-4-6` on openai → `false` (거부)
+  - `Gpt-4.1` on claude → `false` (거부)
+  - `O3` on claude → `false` (거부)
+
+### 6.3 Quality Gates (2차 리뷰 반영 후)
+
+| Gate      | 결과            |
+| --------- | --------------- |
+| Tests     | 83 PASS (33+50) |
+| Build     | ✅              |
+| Lint      | ✅ 0 errors     |
+| Typecheck | ✅ 0 errors     |
+
+---
+
+## 7. Phase 2 인수 사항
 
 - `PROVIDER_MODEL_REGISTRY`는 `@didim365/agent-cli-core`에서 export됨
 - `getDefaultModelFromRegistry()`, `isModelValidForProvider()` 사용 가능

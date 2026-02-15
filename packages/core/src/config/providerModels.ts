@@ -229,6 +229,9 @@ function isModelOwnedByOtherProvider(
   model: string,
   currentProvider: string,
 ): boolean {
+  // Normalize to lowercase for case-insensitive prefix matching
+  const normalized = model.toLowerCase();
+
   const providerPrefixes: Record<string, Array<(m: string) => boolean>> = {
     claude: [(m) => m.startsWith('claude-')],
     openai: [(m) => m.startsWith('gpt-'), (m) => /^o[0-9]/.test(m)],
@@ -240,7 +243,7 @@ function isModelOwnedByOtherProvider(
 
   for (const [provider, checks] of Object.entries(providerPrefixes)) {
     if (provider === currentProvider) continue;
-    if (checks.some((check) => check(model))) return true;
+    if (checks.some((check) => check(normalized))) return true;
   }
   return false;
 }

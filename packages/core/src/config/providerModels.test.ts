@@ -186,4 +186,17 @@ describe('isModelValidForProvider', () => {
       true,
     );
   });
+
+  // --- case-insensitive cross-provider detection ---
+  it('rejects uppercase CLAUDE-OPUS-4-6 on openai (case-insensitive)', () => {
+    expect(isModelValidForProvider('CLAUDE-OPUS-4-6', 'openai')).toBe(false);
+  });
+
+  it('rejects mixed-case Gpt-4.1 on claude (case-insensitive)', () => {
+    expect(isModelValidForProvider('Gpt-4.1', 'claude')).toBe(false);
+  });
+
+  it('rejects uppercase O3 on claude (case-insensitive)', () => {
+    expect(isModelValidForProvider('O3', 'claude')).toBe(false);
+  });
 });

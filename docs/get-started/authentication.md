@@ -1,22 +1,21 @@
-# Gemini CLI authentication setup
+# Authentication setup
 
-To use Gemini CLI, you'll need to authenticate with Google. This guide helps you
-quickly find the best way to sign in based on your account type and how you're
-using the CLI.
-
-For most users, we recommend starting Gemini CLI and logging in with your
-personal Google account.
+This CLI supports multiple AI providers. This guide helps you find the best way
+to authenticate based on your provider and account type.
 
 ## Choose your authentication method <a id="auth-methods"></a>
 
 Select the authentication method that matches your situation in the table below:
 
-| User Type / Scenario                                                   | Recommended Authentication Method                                | Google Cloud Project Required                               |
+| Provider / Scenario                                                    | Recommended Authentication Method                                | Google Cloud Project Required                               |
 | :--------------------------------------------------------------------- | :--------------------------------------------------------------- | :---------------------------------------------------------- |
-| Individual Google accounts                                             | [Login with Google](#login-google)                               | No, with exceptions                                         |
+| Individual Google accounts (Gemini)                                    | [Login with Google](#login-google)                               | No, with exceptions                                         |
 | Organization users with a company, school, or Google Workspace account | [Login with Google](#login-google)                               | [Yes](#set-gcp)                                             |
 | AI Studio user with a Gemini API key                                   | [Use Gemini API Key](#gemini-api)                                | No                                                          |
 | Google Cloud Vertex AI user                                            | [Vertex AI](#vertex-ai)                                          | [Yes](#set-gcp)                                             |
+| Anthropic Claude user                                                  | [Use Claude API Key](#claude-api)                                | No                                                          |
+| OpenAI user                                                            | [Use OpenAI API Key](#openai-api)                                | No                                                          |
+| Local/self-hosted model (sLM)                                          | [OpenAI-compatible endpoint](#openai-compatible)                 | No                                                          |
 | [Headless mode](#headless)                                             | [Use Gemini API Key](#gemini-api) or<br> [Vertex AI](#vertex-ai) | No (for Gemini API Key)<br> [Yes](#set-gcp) (for Vertex AI) |
 
 ### What is my Google account type?
@@ -97,6 +96,105 @@ To authenticate and use Gemini CLI with a Gemini API key:
 > **Warning:** Treat API keys, especially for services like Gemini, as sensitive
 > credentials. Protect them to prevent unauthorized access and potential misuse
 > of the service under your account.
+
+## Use Claude API key <a id="claude-api"></a>
+
+To use this CLI with Anthropic's Claude models:
+
+1. Obtain your API key from [Anthropic Console](https://console.anthropic.com/).
+
+2. Set the `ANTHROPIC_API_KEY` environment variable:
+
+   ```bash
+   export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_API_KEY"
+   ```
+
+   To make this setting persistent, see
+   [Persisting Environment Variables](#persisting-vars).
+
+3. Start the CLI:
+
+   ```bash
+   gemini
+   ```
+
+4. The CLI automatically detects your Anthropic API key and selects Claude as
+   the active provider. Use `/model` to choose between Claude models
+   (claude-opus-4-6, claude-sonnet-4-5, claude-haiku-4-5).
+
+### Using `/auth login` for Claude
+
+Alternatively, you can use the interactive auth flow:
+
+1. Start the CLI and run `/auth login`.
+2. Select **Claude** from the provider list.
+3. Enter your Anthropic API key when prompted.
+4. The key is saved to your user settings for future sessions.
+
+## Use OpenAI API key <a id="openai-api"></a>
+
+To use this CLI with OpenAI models:
+
+1. Obtain your API key from
+   [OpenAI Platform](https://platform.openai.com/api-keys).
+
+2. Set the `OPENAI_API_KEY` environment variable:
+
+   ```bash
+   export OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
+   ```
+
+   To make this setting persistent, see
+   [Persisting Environment Variables](#persisting-vars).
+
+3. Start the CLI:
+
+   ```bash
+   gemini
+   ```
+
+4. The CLI automatically detects your OpenAI API key and selects OpenAI as the
+   active provider. Use `/model` to choose between OpenAI models (gpt-4.1,
+   gpt-4.1-mini, o3, o4-mini, etc.).
+
+### Using `/auth login` for OpenAI
+
+Alternatively, you can use the interactive auth flow:
+
+1. Start the CLI and run `/auth login`.
+2. Select **OpenAI** from the provider list.
+3. Enter your OpenAI API key when prompted.
+4. The key is saved to your user settings for future sessions.
+
+## Use OpenAI-compatible endpoint (sLM) <a id="openai-compatible"></a>
+
+For local or self-hosted models (vLLM, Ollama, LM Studio, etc.) that expose an
+OpenAI-compatible API:
+
+1. Set the required environment variables:
+
+   ```bash
+   export ENABLE_MULTI_PROVIDER=true
+   export LLM_PROVIDER=openai-compatible
+   export LLM_BASE_URL="http://localhost:8000/v1"
+   ```
+
+   If your endpoint requires authentication:
+
+   ```bash
+   export LLM_API_KEY="your-key"
+   ```
+
+2. Start the CLI:
+
+   ```bash
+   gemini
+   ```
+
+3. Use `/model` to enter your model name in the freeform text input field.
+
+For detailed vLLM setup and troubleshooting, see the
+[Provider Guide](../providers.md).
 
 ## Use Vertex AI <a id="vertex-ai"></a>
 

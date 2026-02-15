@@ -132,7 +132,9 @@ Slash commands provide meta-level control over the CLI itself.
         available tools.
 
 - [**`/model`**](./model.md)
-  - **Description:** Opens a dialog to choose your Gemini model.
+  - **Description:** Opens a dialog to choose your model. Shows
+    provider-specific options based on your active provider (Gemini, Claude,
+    OpenAI, sLM, etc.).
 
 - **`/memory`**
   - **Description:** Manage the AI's instructional context (hierarchical memory
@@ -228,7 +230,12 @@ Slash commands provide meta-level control over the CLI itself.
 
 - **`/auth`**
   - **Description:** Open a dialog that lets you change the authentication
-    method.
+    method. Supports multi-provider selection (Gemini, Claude, OpenAI, sLM,
+    Vertex AI, DidimAIStudio).
+  - **Sub-commands:**
+    - **`login`**: Start the interactive provider selection and API key input
+      flow. Select a provider, enter your API key, and the CLI saves it for
+      future sessions.
 
 - **`/about`**
   - **Description:** Show version info. Please share this information when

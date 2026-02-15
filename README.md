@@ -8,9 +8,10 @@
 
 ![Gemini CLI Screenshot](./docs/assets/gemini-screenshot.png)
 
-Gemini CLI is an open-source AI agent that brings the power of Gemini directly
-into your terminal. It provides lightweight access to Gemini, giving you the
-most direct path from your prompt to our model.
+Gemini CLI is an open-source AI agent that brings the power of multiple AI
+providers directly into your terminal. It supports **Gemini**, **Claude**,
+**OpenAI**, and **OpenAI-compatible** (vLLM, Ollama, LM Studio) endpoints,
+giving you the most direct path from your prompt to your preferred model.
 
 Learn all about Gemini CLI in our [documentation](https://geminicli.com/docs/).
 
@@ -18,8 +19,8 @@ Learn all about Gemini CLI in our [documentation](https://geminicli.com/docs/).
 
 - **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google
   account.
-- **🧠 Powerful Gemini 3 models**: Access to improved reasoning and 1M token
-  context window.
+- **🧠 Multi-provider support**: Use Gemini, Claude, OpenAI, or local models
+  (vLLM/Ollama) — switch providers and models with `/model`.
 - **🔧 Built-in tools**: Google Search grounding, file operations, shell
   commands, web fetching.
 - **🔌 Extensible**: MCP (Model Context Protocol) support for custom
@@ -146,71 +147,77 @@ Integrate Gemini CLI directly into your GitHub workflows with
 
 ## 🔐 Authentication Options
 
-Choose the authentication method that best fits your needs:
+Choose the authentication method that best fits your needs. You can also use
+`/auth login` inside the CLI to interactively select a provider and enter your
+API key.
 
-### Option 1: Login with Google (OAuth login using your Google Account)
+### Option 1: Login with Google (Gemini)
 
-**✨ Best for:** Individual developers as well as anyone who has a Gemini Code
-Assist License. (see
-[quota limits and terms of service](https://cloud.google.com/gemini/docs/quotas)
-for details)
-
-**Benefits:**
-
-- **Free tier**: 60 requests/min and 1,000 requests/day
-- **Gemini 3 models** with 1M token context window
-- **No API key management** - just sign in with your Google account
-- **Automatic updates** to latest models
-
-#### Start Gemini CLI, then choose _Login with Google_ and follow the browser authentication flow when prompted
+**✨ Best for:** Individual developers and Gemini Code Assist license holders.
 
 ```bash
 gemini
+# Select "Login with Google" and follow the browser authentication flow
 ```
 
-#### If you are using a paid Code Assist License from your organization, remember to set the Google Cloud Project
+For organization accounts, set your Google Cloud project first:
 
 ```bash
-# Set your Google Cloud Project
 export GOOGLE_CLOUD_PROJECT="YOUR_PROJECT_ID"
 gemini
 ```
 
 ### Option 2: Gemini API Key
 
-**✨ Best for:** Developers who need specific model control or paid tier access
-
-**Benefits:**
-
-- **Free tier**: 1000 requests/day with Gemini 3 (mix of flash and pro)
-- **Model selection**: Choose specific Gemini models
-- **Usage-based billing**: Upgrade for higher limits when needed
+**✨ Best for:** Developers who need specific Gemini model control.
 
 ```bash
-# Get your key from https://aistudio.google.com/apikey
 export GEMINI_API_KEY="YOUR_API_KEY"
 gemini
 ```
 
-### Option 3: Vertex AI
+### Option 3: Claude (Anthropic)
 
-**✨ Best for:** Enterprise teams and production workloads
-
-**Benefits:**
-
-- **Enterprise features**: Advanced security and compliance
-- **Scalable**: Higher rate limits with billing account
-- **Integration**: Works with existing Google Cloud infrastructure
+**✨ Best for:** Developers who prefer Claude models (Opus, Sonnet, Haiku).
 
 ```bash
-# Get your key from Google Cloud Console
+export ANTHROPIC_API_KEY="YOUR_API_KEY"
+gemini
+```
+
+### Option 4: OpenAI
+
+**✨ Best for:** Developers who prefer OpenAI models (GPT-4.1, o3, o4-mini).
+
+```bash
+export OPENAI_API_KEY="YOUR_API_KEY"
+gemini
+```
+
+### Option 5: Vertex AI
+
+**✨ Best for:** Enterprise teams and production workloads.
+
+```bash
 export GOOGLE_API_KEY="YOUR_API_KEY"
 export GOOGLE_GENAI_USE_VERTEXAI=true
 gemini
 ```
 
-For Google Workspace accounts and other authentication methods, see the
-[authentication guide](./docs/get-started/authentication.md).
+### Option 6: OpenAI-compatible (vLLM, Ollama, LM Studio)
+
+**✨ Best for:** Local/self-hosted models and privacy-sensitive environments.
+
+```bash
+export ENABLE_MULTI_PROVIDER=true
+export LLM_PROVIDER=openai-compatible
+export LLM_BASE_URL="http://localhost:8000/v1"
+gemini
+```
+
+For detailed setup for each provider, see the
+[authentication guide](./docs/get-started/authentication.md) and
+[provider guide](./docs/providers.md).
 
 ## 🚀 Getting Started
 
@@ -231,7 +238,9 @@ gemini --include-directories ../lib,../docs
 #### Use specific model
 
 ```bash
-gemini -m gemini-2.5-flash
+gemini -m gemini-2.5-flash          # Gemini
+gemini -m claude-sonnet-4-5-20250929  # Claude
+gemini -m gpt-4.1                    # OpenAI
 ```
 
 #### Non-interactive mode for scripts

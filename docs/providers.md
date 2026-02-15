@@ -107,12 +107,12 @@ If your fork command is `didim`, use `didim` instead of `gemini`.
 When a Gemini-specific model is configured with a non-Gemini provider, the
 runtime resolves a provider-appropriate model:
 
-| Provider          | Default resolved model     |
-| ----------------- | -------------------------- |
-| Gemini            | `gemini-2.5-pro`           |
-| Claude            | `claude-sonnet-4-20250514` |
-| OpenAI            | `gpt-4o`                   |
-| OpenAI-compatible | `default`                  |
+| Provider          | Default resolved model | Available via `/model`                                                        |
+| ----------------- | ---------------------- | ----------------------------------------------------------------------------- |
+| Gemini            | `gemini-2.5-pro`       | gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro/flash/flash-lite |
+| Claude            | `claude-opus-4-6`      | claude-opus-4-6, claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001        |
+| OpenAI            | `gpt-4.1`              | gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o, o3, o4-mini                      |
+| OpenAI-compatible | `default`              | Freeform text input (any model name)                                          |
 
 Override with `LLM_MODEL` for non-Gemini providers when needed.
 

@@ -58,11 +58,14 @@ Provider selection precedence:
 2. `authType` (Gemini-only path)
 3. Gemini key fallback (`GEMINI_API_KEY` or `GOOGLE_API_KEY`)
 
-Model resolution precedence (non-Gemini providers):
+Model resolution precedence:
 
-1. If configured model is already non-Gemini, keep it.
-2. `LLM_MODEL` override.
-3. Provider default model (`claude-sonnet-4-20250514`, `gpt-4o`, `default`).
+1. `--model` flag (argv).
+2. `LLM_MODEL` environment variable.
+3. `GEMINI_MODEL` environment variable.
+4. Per-provider saved model (`model.byProvider[provider]` in user settings).
+5. Global saved model (`model.name` in user settings).
+6. Provider default model (`claude-opus-4-6`, `gpt-4.1`, `default`).
 
 ## Notes
 

@@ -15,7 +15,7 @@ import { SettingScope } from '../../config/settings.js';
 
 const authLoginCommand: SlashCommand = {
   name: 'login',
-  description: 'Login or change the auth method',
+  description: 'Select a provider and enter API key',
   kind: CommandKind.BUILT_IN,
   autoExecute: true,
   action: (_context, _args): OpenDialogActionReturn => ({
@@ -76,7 +76,7 @@ const authLogoutCommand: SlashCommand = {
 
 export const authCommand: SlashCommand = {
   name: 'auth',
-  description: 'Manage authentication',
+  description: 'Manage authentication and provider selection',
   kind: CommandKind.BUILT_IN,
   subCommands: [authLoginCommand, authLogoutCommand],
   action: (context, args) =>

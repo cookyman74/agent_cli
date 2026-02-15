@@ -12,7 +12,7 @@ import {
 
 export const modelCommand: SlashCommand = {
   name: 'model',
-  description: 'Opens a dialog to configure the model',
+  description: 'Select a model for the active provider',
   kind: CommandKind.BUILT_IN,
   autoExecute: true,
   action: async (context: CommandContext) => {

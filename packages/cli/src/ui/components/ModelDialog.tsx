@@ -22,7 +22,7 @@ import { ConfigContext } from '../contexts/ConfigContext.js';
 import { ThemedGradient } from './ThemedGradient.js';
 import { resolveActiveProvider } from '../utils/resolveActiveProvider.js';
 import { SettingsContext } from '../contexts/SettingsContext.js';
-import { saveModelForProvider } from '../../config/settings.js';
+import { saveModelForProvider, SettingScope } from '../../config/settings.js';
 import { FreeformModelInput } from './FreeformModelInput.js';
 
 interface ModelDialogProps {
@@ -163,14 +163,27 @@ export function ModelDialog({
         process.env['LLM_MODEL'] = model;
       }
 
-      // Sync byProvider in settings
-      if (settings) {
+      // freeformInput providers (sLM) always persist — no toggle shown in UI
+      const shouldPersist = persistMode || !!modelGroup?.freeformInput;
+
+      // Sync byProvider in settings (only when persisting)
+      if (settings && shouldPersist) {
         saveModelForProvider(settings, provider, model);
+      }
+
+      // Sync slmConfig.model for openai-compatible (sLM) provider
+      if (settings && shouldPersist && provider === 'openai-compatible') {
+        const currentSlmConfig = (settings.merged?.security?.auth?.slmConfig ??
+          {}) as Record<string, unknown>;
+        settings.setValue(SettingScope.User, 'security.auth.slmConfig', {
+          ...currentSlmConfig,
+          model,
+        });
       }
 
       onClose();
     },
-    [config, onClose, persistMode, isGemini, settings, provider],
+    [config, onClose, persistMode, isGemini, settings, provider, modelGroup],
   );
 
   // Freeform input (e.g., openai-compatible / sLM)

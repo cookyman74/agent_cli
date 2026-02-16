@@ -179,17 +179,18 @@
 
 ---
 
-## 🏗️ Phase 1: Core 경로 상수/Storage 전환
+## 🏗️ Phase 1: Core 경로 상수/Storage 전환 ✅ Complete (2026-02-16)
 
 ### 1.1 경로 상수 변경
 
-- [ ] `paths.ts`: `GEMINI_DIR = '.gemini'` → `DIDIM_DIR = '.didim'` 변경
-- [ ] `GEMINI_DIR` export를 `@deprecated` alias로 유지 (하위 호환)
-- [ ] 하드코딩 경로 조합이 없는지 재확인 (모두 Storage 경유 여부)
+- [x] `paths.ts`: `GEMINI_DIR = '.gemini'` → `DIDIM_DIR = '.didim'` 변경
+- [x] `GEMINI_DIR` export를 `@deprecated` alias로 유지 (하위 호환)
+- [x] 하드코딩 경로 조합이 없는지 재확인 (모두 Storage 경유 여부)
+- [x] `LEGACY_GEMINI_DIR = '.gemini'` 상수 추가 (resolver용)
 
 ### 1.2 Storage API — fallback resolver 도입
 
-- [ ] ✅ **A안 확정: 읽기/쓰기 resolver 분리** (정책 충돌 해결):
+- [x] ✅ **A안 확정 + 구현 완료: 읽기/쓰기 resolver 분리** (정책 충돌 해결):
   - 현재 `Storage.getGlobalGeminiDir()`은 단일 경로를 반환하므로, 읽기
     fallback(`.gemini`)으로 해석된 경로에 쓰기도 수행됨 → "쓰기: `.didim` only"
     정책과 충돌
@@ -204,24 +205,32 @@
   - ~~C안 (첫 접근 시 자동 마이그레이션)~~: 마이그레이션 실패/부분 성공/동시
     접근 복잡도 높음 → 기각
   - 보완: Phase 4에서 별도 `didim migrate-config` 명령 제공 (A안과 조합)
-- [ ] `getGlobalGeminiDir()` → 내부에 fallback resolver 적용 (메서드명 변경은
-      Phase 후반)
-- [ ] `getGeminiDir()` (workspace) → 동일 fallback 적용
-- [ ] commands/skills/agents/extensions/policies/trusted 파일 경로 — resolver
+- [x] `getGlobalGeminiDir()` → 내부에 `resolveReadDir` fallback 적용 (메서드명
+      변경은 Phase 후반)
+- [x] `getGeminiDir()` (workspace) → 동일 `resolveReadDir` fallback 적용
+- [x] commands/skills/agents/extensions/policies/trusted 파일 경로 — resolver
       자동 반영 확인
-- [ ] temp/history/checkpoints/logs 경로 — 쓰기 전용이므로 `.didim` 고정
+- [x] temp/history/checkpoints/logs 경로 — 쓰기 전용이므로 `.didim` 고정
+      (`getGlobalWriteDir()` 배선)
+- [x] `getGlobalWriteDir()` static 메서드 추가 (항상 `.didim`)
+- [x] `getWriteDir()` instance 메서드 추가 (항상 `.didim`)
 
-### 1.3 메서드명 Tidy (선택적, 별도 커밋)
+### 1.3 메서드명 Tidy (선택적, 별도 커밋) — 연기
 
 - [ ] `getGlobalGeminiDir()` → `getGlobalConfigDir()` (또는 유지 + deprecation)
 - [ ] `getGeminiDir()` → `getProjectConfigDir()` (또는 유지)
 - [ ] 호출자 일괄 업데이트
+- ℹ️ Phase 후반에서 일괄 결정 예정
 
 ### 1.4 테스트
 
-- [ ] `packages/core/src/config/storage.test.ts` 케이스 추가/수정
-- [ ] `.didim only`, `.gemini only`, `둘 다 존재` 시나리오 검증
-- [ ] 쓰기 경로가 항상 `.didim`인지 검증
+- [x] `packages/core/src/config/storage.test.ts` 케이스 추가/수정 (14→28→42
+      tests)
+- [x] `.didim only`, `.gemini only`, `둘 다 존재` 시나리오 검증
+- [x] 쓰기 경로가 항상 `.didim`인지 검증
+- [x] 회귀 테스트 4파일 수정 (config.test, memoryTool.test,
+      getFolderStructure.test, installationManager.test)
+- [x] 전체 core 테스트 통과: 281 files, 5362 passed, 0 failed
 
 ---
 
@@ -601,3 +610,4 @@
 | 2026-02-16 | Claude | 추가 리뷰 이슈 6건 검증 및 계획서 반영 | v2.3 — (1) 읽기 fallback vs 쓰기 .didim only 정책 충돌: resolver 읽기/쓰기 분리 설계 3안 추가, Core 난이도 🟢→🔴. (2) memoryDiscovery.ts 3곳 GEMINI_DIR 직접 조합→글로벌 AGENTS.md fallback 항목 추가. (3) settings.ts:447 isProjectEnvFile 판별 충돌 경고. (4) a2a config.ts:201 process.cwd()→homedir() 기존 버그 기록. (5) sandbox Docker 볼륨/bashrc/venv 3항목 추가. (6) .gemini-extension-install.json 전환 결정 추가 |
 | 2026-02-16 | Claude | 아키텍처 A안 확정 + 추가 이슈 2건 반영 | v2.4 — (1) Phase 1.2 읽기/쓰기 resolver 분리 A안 확정 (B/C안 기각 기록). (2) Extension 템플릿 파일 6개(`examples/*/gemini-extension.json`) + `validate.ts:65` 에러 문구 → Phase 3.4에 조건부 항목 추가. (3) UX 문자열 4곳(`restoreCommand.ts:49`, `atFileProcessor.ts:60`, `tips.ts:39`, `cli-help-agent.ts:89`) → Phase 3.8 신규 섹션 추가. (4) 영향도 요약 테이블: Extension 템플릿 행 추가, 사용자 메시지 행 구체화      |
 | 2026-02-16 | Claude | 재검증 이슈 3건 반영                   | v2.5 — (1) `mcpServerEnablement.ts:218,382` 쓰기 경로 — "자동 확인"→A안 `resolveWriteDir` 적용 대상으로 격상, 영향도 테이블 행 추가. (2) Extension 파일명 변경 시 문서/주석 동기화 3곳 추가 (README.md:18, extension.ts:17 JSDoc, a2a extension.ts:26 JSDoc). (3) `atFileProcessor.ts:60` — `.didimignore` 단독 표기→fallback 정책과 일관성 유지를 위해 병기 권장 기록                                                      |
+| 2026-02-16 | Claude | **Phase 1 구현 완료**                  | `5f5b5f0d4` — paths.ts 상수 3개 추가, storage.ts resolver 2함수 + Storage 메서드 4개 추가/변경, 테스트 14건 신규 + 회귀 4파일 수정. QG: 281 files 5362 passed, 0 lint/typecheck errors                                                                                                                                                                                                                                      |

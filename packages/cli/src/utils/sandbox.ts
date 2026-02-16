@@ -17,6 +17,7 @@ import {
   debugLogger,
   FatalSandboxError,
   GEMINI_DIR,
+  LEGACY_GEMINI_DIR,
   homedir,
   resolveReadPath,
   Storage,
@@ -315,6 +316,19 @@ export async function start_sandbox(
         '--volume',
         `${userSettingsDirOnHost}:${getContainerPath(userSettingsDirOnHost)}`,
       );
+    }
+
+    // mount legacy .gemini directory read-only if it exists and differs from primary
+    // so resolveReadPath inside the container can fall back to .gemini files
+    const legacyDirOnHost = path.join(userHomeDirOnHost, LEGACY_GEMINI_DIR);
+    if (
+      fs.existsSync(legacyDirOnHost) &&
+      userSettingsDirOnHost !== legacyDirOnHost
+    ) {
+      const legacyDirInSandbox = getContainerPath(
+        `/home/node/${LEGACY_GEMINI_DIR}`,
+      );
+      args.push('--volume', `${legacyDirOnHost}:${legacyDirInSandbox}:ro`);
     }
 
     // mount os.tmpdir() as os.tmpdir() inside container

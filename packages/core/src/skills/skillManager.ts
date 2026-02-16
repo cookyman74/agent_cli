@@ -60,9 +60,11 @@ export class SkillManager {
       }
     }
 
-    // 3. User skills
-    const userSkills = await loadSkillsFromDir(Storage.getUserSkillsDir());
-    this.addSkillsWithPrecedence(userSkills);
+    // 3. User skills (scan both legacy and primary directories)
+    for (const dir of Storage.getUserSkillsReadDirs()) {
+      const userSkills = await loadSkillsFromDir(dir);
+      this.addSkillsWithPrecedence(userSkills);
+    }
 
     // 4. Workspace skills (highest precedence)
     const projectSkills = await loadSkillsFromDir(

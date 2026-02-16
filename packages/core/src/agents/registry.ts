@@ -106,18 +106,22 @@ export class AgentRegistry {
       return;
     }
 
-    // Load user-level agents: ~/.didim/agents/
-    const userAgentsDir = Storage.getUserAgentsDir();
-    const userAgents = await loadAgentsFromDirectory(userAgentsDir);
-    for (const error of userAgents.errors) {
-      debugLogger.warn(
-        `[AgentRegistry] Error loading user agent: ${error.message}`,
+    // Load user-level agents from all read directories (legacy + primary)
+    for (const userAgentsDir of Storage.getUserAgentsReadDirs()) {
+      const userAgents = await loadAgentsFromDirectory(userAgentsDir);
+      for (const error of userAgents.errors) {
+        debugLogger.warn(
+          `[AgentRegistry] Error loading user agent: ${error.message}`,
+        );
+        coreEvents.emitFeedback(
+          'error',
+          `Agent loading error: ${error.message}`,
+        );
+      }
+      await Promise.allSettled(
+        userAgents.agents.map((agent) => this.registerAgent(agent)),
       );
-      coreEvents.emitFeedback('error', `Agent loading error: ${error.message}`);
     }
-    await Promise.allSettled(
-      userAgents.agents.map((agent) => this.registerAgent(agent)),
-    );
 
     // Load project-level agents: .didim/agents/ (relative to Project Root)
     const folderTrustEnabled = this.config.getFolderTrust();

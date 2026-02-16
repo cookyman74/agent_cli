@@ -10,7 +10,7 @@ import { OAUTH_FILE } from '../config/storage.js';
 import type { OAuthCredentials } from '../mcp/token-storage/types.js';
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { GEMINI_DIR, homedir } from '../utils/paths.js';
+import { LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import { coreEvents } from '../utils/events.js';
 
 const KEYCHAIN_SERVICE_NAME = 'gemini-cli-oauth';
@@ -90,7 +90,7 @@ export class OAuthCredentialStorage {
       await this.storage.deleteCredentials(MAIN_ACCOUNT_KEY);
 
       // Also try to remove the old file if it exists
-      const oldFilePath = path.join(homedir(), GEMINI_DIR, OAUTH_FILE);
+      const oldFilePath = path.join(homedir(), LEGACY_GEMINI_DIR, OAUTH_FILE);
       await fs.rm(oldFilePath, { force: true }).catch(() => {});
     } catch (error: unknown) {
       coreEvents.emitFeedback(
@@ -106,7 +106,7 @@ export class OAuthCredentialStorage {
    * Migrate credentials from old file-based storage to keychain
    */
   private static async migrateFromFileStorage(): Promise<Credentials | null> {
-    const oldFilePath = path.join(homedir(), GEMINI_DIR, OAUTH_FILE);
+    const oldFilePath = path.join(homedir(), LEGACY_GEMINI_DIR, OAUTH_FILE);
 
     let credsJson: string;
     try {

@@ -18,7 +18,12 @@ vi.mock('fs', async (importOriginal) => {
   };
 });
 
-import { Storage, resolveReadDir, resolveWriteDir } from './storage.js';
+import {
+  Storage,
+  resolveReadDir,
+  resolveWriteDir,
+  resolveReadPath,
+} from './storage.js';
 import { GEMINI_DIR, DIDIM_DIR, LEGACY_GEMINI_DIR } from '../utils/paths.js';
 
 const mockExistsSync = vi.mocked(fs.existsSync);
@@ -232,7 +237,7 @@ describe('Storage – write methods', () => {
   });
 });
 
-describe('Storage – read fallback', () => {
+describe('Storage – read fallback (directory-level)', () => {
   beforeEach(() => {
     mockExistsSync.mockReset();
     mockExistsSync.mockReturnValue(false);
@@ -268,5 +273,170 @@ describe('Storage – read fallback', () => {
     mockExistsSync.mockReturnValue(false);
     const result = Storage.getGlobalGeminiDir();
     expect(result).toBe(path.join(os.homedir(), DIDIM_DIR));
+  });
+});
+
+// ============================================================
+// resolveReadPath — file-level resolver (Issue 2 fix)
+// ============================================================
+
+describe('resolveReadPath', () => {
+  const base = '/home/user';
+
+  beforeEach(() => {
+    mockExistsSync.mockReset();
+    mockExistsSync.mockReturnValue(false);
+  });
+
+  it('returns .didim file when .didim file exists', () => {
+    const didimFile = path.join(base, DIDIM_DIR, 'settings.json');
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) => String(p) === didimFile,
+    );
+    expect(resolveReadPath(base, 'settings.json')).toBe(didimFile);
+  });
+
+  it('returns .gemini file when only .gemini file exists (legacy fallback)', () => {
+    const geminiFile = path.join(base, LEGACY_GEMINI_DIR, 'settings.json');
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) => String(p) === geminiFile,
+    );
+    expect(resolveReadPath(base, 'settings.json')).toBe(geminiFile);
+  });
+
+  it('returns .didim path when neither file exists (new user)', () => {
+    mockExistsSync.mockReturnValue(false);
+    const expected = path.join(base, DIDIM_DIR, 'settings.json');
+    expect(resolveReadPath(base, 'settings.json')).toBe(expected);
+  });
+
+  it('falls back to .gemini file even when .didim directory exists but target file does not (Issue 2)', () => {
+    // Core scenario: .didim/tmp/ created → .didim/ dir exists
+    // but settings.json only exists under .gemini/
+    const geminiFile = path.join(base, LEGACY_GEMINI_DIR, 'settings.json');
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) => String(p) === geminiFile,
+    );
+    // .didim/settings.json does NOT exist → should fallback to .gemini/settings.json
+    expect(resolveReadPath(base, 'settings.json')).toBe(geminiFile);
+  });
+
+  it('handles multi-level sub-paths (acknowledgments/agents.json)', () => {
+    const geminiFile = path.join(
+      base,
+      LEGACY_GEMINI_DIR,
+      'acknowledgments',
+      'agents.json',
+    );
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) => String(p) === geminiFile,
+    );
+    expect(resolveReadPath(base, 'acknowledgments', 'agents.json')).toBe(
+      geminiFile,
+    );
+  });
+
+  it('prefers .didim file when both exist', () => {
+    mockExistsSync.mockReturnValue(true);
+    const expected = path.join(base, DIDIM_DIR, 'settings.json');
+    expect(resolveReadPath(base, 'settings.json')).toBe(expected);
+  });
+});
+
+// ============================================================
+// Storage – read fallback (file-level via resolveReadPath)
+// ============================================================
+
+describe('Storage – file-level read fallback', () => {
+  const projectRoot = '/tmp/project';
+
+  beforeEach(() => {
+    mockExistsSync.mockReset();
+    mockExistsSync.mockReturnValue(false);
+  });
+
+  it('getGlobalSettingsPath falls back to .gemini when .didim file missing', () => {
+    const geminiFile = path.join(
+      os.homedir(),
+      LEGACY_GEMINI_DIR,
+      'settings.json',
+    );
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) => String(p) === geminiFile,
+    );
+    expect(Storage.getGlobalSettingsPath()).toBe(geminiFile);
+  });
+
+  it('getWorkspaceSettingsPath falls back to .gemini when .didim file missing', () => {
+    const geminiFile = path.join(
+      projectRoot,
+      LEGACY_GEMINI_DIR,
+      'settings.json',
+    );
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) => String(p) === geminiFile,
+    );
+    const storage = new Storage(projectRoot);
+    expect(storage.getWorkspaceSettingsPath()).toBe(geminiFile);
+  });
+
+  it('getExtensionsConfigPath falls back to .gemini for nested path', () => {
+    const geminiFile = path.join(
+      projectRoot,
+      LEGACY_GEMINI_DIR,
+      'extensions',
+      'gemini-extension.json',
+    );
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) => String(p) === geminiFile,
+    );
+    const storage = new Storage(projectRoot);
+    expect(storage.getExtensionsConfigPath()).toBe(geminiFile);
+  });
+
+  it('getAcknowledgedAgentsPath falls back to .gemini for multi-level path', () => {
+    const geminiFile = path.join(
+      os.homedir(),
+      LEGACY_GEMINI_DIR,
+      'acknowledgments',
+      'agents.json',
+    );
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) => String(p) === geminiFile,
+    );
+    expect(Storage.getAcknowledgedAgentsPath()).toBe(geminiFile);
+  });
+});
+
+// ============================================================
+// Storage – write settings paths (Phase 2 infrastructure)
+// ============================================================
+
+describe('Storage – write settings paths', () => {
+  beforeEach(() => {
+    mockExistsSync.mockReset();
+    mockExistsSync.mockReturnValue(false);
+  });
+
+  it('getGlobalWriteSettingsPath always returns .didim path', () => {
+    const expected = path.join(os.homedir(), DIDIM_DIR, 'settings.json');
+    expect(Storage.getGlobalWriteSettingsPath()).toBe(expected);
+  });
+
+  it('getWriteSettingsPath always returns .didim path', () => {
+    const projectRoot = '/tmp/project';
+    const storage = new Storage(projectRoot);
+    const expected = path.join(projectRoot, DIDIM_DIR, 'settings.json');
+    expect(storage.getWriteSettingsPath()).toBe(expected);
+  });
+
+  it('getGlobalWriteSettingsPath returns .didim even when .gemini settings exist', () => {
+    // Even when .gemini/settings.json exists, write always goes to .didim
+    mockExistsSync.mockImplementation((p: fs.PathLike) =>
+      String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const result = Storage.getGlobalWriteSettingsPath();
+    expect(result).toContain(DIDIM_DIR);
+    expect(result).not.toContain(LEGACY_GEMINI_DIR);
   });
 });

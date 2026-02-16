@@ -11,11 +11,13 @@ import * as dotenv from 'dotenv';
 import process from 'node:process';
 import {
   FatalConfigError,
-  GEMINI_DIR,
+  DIDIM_DIR,
+  LEGACY_GEMINI_DIR,
   getErrorMessage,
   Storage,
   coreEvents,
   homedir,
+  resolveReadPath,
   type FetchAdminControlsResponse,
 } from '@didim365/agent-cli-core';
 import stripJsonComments from 'strip-json-comments';
@@ -375,10 +377,10 @@ export class LoadedSettings {
 function findEnvFile(startDir: string): string | null {
   let currentDir = path.resolve(startDir);
   while (true) {
-    // prefer gemini-specific .env under GEMINI_DIR
-    const geminiEnvPath = path.join(currentDir, GEMINI_DIR, '.env');
-    if (fs.existsSync(geminiEnvPath)) {
-      return geminiEnvPath;
+    // prefer config-specific .env: .didim/.env first, .gemini/.env fallback
+    const configEnvPath = resolveReadPath(currentDir, '.env');
+    if (fs.existsSync(configEnvPath)) {
+      return configEnvPath;
     }
     const envPath = path.join(currentDir, '.env');
     if (fs.existsSync(envPath)) {
@@ -386,10 +388,10 @@ function findEnvFile(startDir: string): string | null {
     }
     const parentDir = path.dirname(currentDir);
     if (parentDir === currentDir || !parentDir) {
-      // check .env under home as fallback, again preferring gemini-specific .env
-      const homeGeminiEnvPath = path.join(homedir(), GEMINI_DIR, '.env');
-      if (fs.existsSync(homeGeminiEnvPath)) {
-        return homeGeminiEnvPath;
+      // check .env under home as fallback, again preferring config-specific .env
+      const homeConfigEnvPath = resolveReadPath(homedir(), '.env');
+      if (fs.existsSync(homeConfigEnvPath)) {
+        return homeConfigEnvPath;
       }
       const homeEnvPath = path.join(homedir(), '.env');
       if (fs.existsSync(homeEnvPath)) {
@@ -444,7 +446,9 @@ export function loadEnvironment(settings: Settings): void {
 
       const excludedVars =
         settings?.advanced?.excludedEnvVars || DEFAULT_EXCLUDED_ENV_VARS;
-      const isProjectEnvFile = !envFilePath.includes(GEMINI_DIR);
+      const isProjectEnvFile =
+        !envFilePath.includes(DIDIM_DIR) &&
+        !envFilePath.includes(LEGACY_GEMINI_DIR);
 
       for (const key in parsedEnv) {
         if (Object.hasOwn(parsedEnv, key)) {

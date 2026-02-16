@@ -36,11 +36,31 @@ export function resolveWriteDir(base: string): string {
   return path.join(base, DIDIM_DIR);
 }
 
+/**
+ * Resolves a specific config file/dir path for reading.
+ * Checks .didim path first, then .gemini fallback.
+ * Returns .didim path if neither exists (new user).
+ *
+ * Unlike resolveReadDir (directory-level), this resolves at file level,
+ * preventing empty .didim/ directory from shadowing .gemini/ files.
+ */
+export function resolveReadPath(base: string, ...subPaths: string[]): string {
+  const primary = path.join(base, DIDIM_DIR, ...subPaths);
+  if (fs.existsSync(primary)) return primary;
+  const legacy = path.join(base, LEGACY_GEMINI_DIR, ...subPaths);
+  if (fs.existsSync(legacy)) return legacy;
+  return primary;
+}
+
 export class Storage {
   private readonly targetDir: string;
 
   constructor(targetDir: string) {
     this.targetDir = targetDir;
+  }
+
+  private static getHomeBase(): string {
+    return homedir() || os.tmpdir();
   }
 
   static getGlobalGeminiDir(): string {
@@ -63,45 +83,53 @@ export class Storage {
     return resolveWriteDir(homeDir);
   }
 
+  /**
+   * Returns the global settings path for write operations.
+   * Always returns .didim path regardless of legacy .gemini existence.
+   */
+  static getGlobalWriteSettingsPath(): string {
+    return path.join(Storage.getGlobalWriteDir(), 'settings.json');
+  }
+
   static getMcpOAuthTokensPath(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'mcp-oauth-tokens.json');
+    return resolveReadPath(Storage.getHomeBase(), 'mcp-oauth-tokens.json');
   }
 
   static getGlobalSettingsPath(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'settings.json');
+    return resolveReadPath(Storage.getHomeBase(), 'settings.json');
   }
 
   static getInstallationIdPath(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'installation_id');
+    return resolveReadPath(Storage.getHomeBase(), 'installation_id');
   }
 
   static getGoogleAccountsPath(): string {
-    return path.join(Storage.getGlobalGeminiDir(), GOOGLE_ACCOUNTS_FILENAME);
+    return resolveReadPath(Storage.getHomeBase(), GOOGLE_ACCOUNTS_FILENAME);
   }
 
   static getUserCommandsDir(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'commands');
+    return resolveReadPath(Storage.getHomeBase(), 'commands');
   }
 
   static getUserSkillsDir(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'skills');
+    return resolveReadPath(Storage.getHomeBase(), 'skills');
   }
 
   static getGlobalMemoryFilePath(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'memory.md');
+    return resolveReadPath(Storage.getHomeBase(), 'memory.md');
   }
 
   static getUserPoliciesDir(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'policies');
+    return resolveReadPath(Storage.getHomeBase(), 'policies');
   }
 
   static getUserAgentsDir(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'agents');
+    return resolveReadPath(Storage.getHomeBase(), 'agents');
   }
 
   static getAcknowledgedAgentsPath(): string {
-    return path.join(
-      Storage.getGlobalGeminiDir(),
+    return resolveReadPath(
+      Storage.getHomeBase(),
       'acknowledgments',
       'agents.json',
     );
@@ -159,7 +187,7 @@ export class Storage {
   }
 
   static getOAuthCredsPath(): string {
-    return path.join(Storage.getGlobalGeminiDir(), OAUTH_FILE);
+    return resolveReadPath(Storage.getHomeBase(), OAUTH_FILE);
   }
 
   getProjectRoot(): string {
@@ -177,19 +205,27 @@ export class Storage {
   }
 
   getWorkspaceSettingsPath(): string {
-    return path.join(this.getGeminiDir(), 'settings.json');
+    return resolveReadPath(this.targetDir, 'settings.json');
+  }
+
+  /**
+   * Returns the workspace settings path for write operations.
+   * Always returns .didim path regardless of legacy .gemini existence.
+   */
+  getWriteSettingsPath(): string {
+    return path.join(this.getWriteDir(), 'settings.json');
   }
 
   getProjectCommandsDir(): string {
-    return path.join(this.getGeminiDir(), 'commands');
+    return resolveReadPath(this.targetDir, 'commands');
   }
 
   getProjectSkillsDir(): string {
-    return path.join(this.getGeminiDir(), 'skills');
+    return resolveReadPath(this.targetDir, 'skills');
   }
 
   getProjectAgentsDir(): string {
-    return path.join(this.getGeminiDir(), 'agents');
+    return resolveReadPath(this.targetDir, 'agents');
   }
 
   getProjectTempCheckpointsDir(): string {
@@ -205,11 +241,15 @@ export class Storage {
   }
 
   getExtensionsDir(): string {
-    return path.join(this.getGeminiDir(), 'extensions');
+    return resolveReadPath(this.targetDir, 'extensions');
   }
 
   getExtensionsConfigPath(): string {
-    return path.join(this.getExtensionsDir(), 'gemini-extension.json');
+    return resolveReadPath(
+      this.targetDir,
+      'extensions',
+      'gemini-extension.json',
+    );
   }
 
   getHistoryFilePath(): string {

@@ -442,7 +442,15 @@ Would you like to attempt to install via "git clone" instead?`,
       throw new Error(`Extension not found.`);
     }
     await this.unloadExtension(extension);
-    await fs.promises.rm(extension.path, {
+
+    // For link-type extensions, extension.path points to the original source
+    // directory. Delete the metadata directory instead to avoid destroying
+    // the user's source tree.
+    const pathToDelete =
+      extension.installMetadata?.type === 'link'
+        ? new ExtensionStorage(extension.name).getExtensionDir()
+        : extension.path;
+    await fs.promises.rm(pathToDelete, {
       recursive: true,
       force: true,
     });

@@ -175,7 +175,7 @@ if (options.useGeminiignore) {
 | 기존 `.gemini` 파일 존재 시 첫 저장 동작 (2.3) | ➡️ Phase 4 | 마이그레이션 도구에서 처리   |
 | `docs/cli/gemini-ignore.md` 문서 전환 (2.4)    | ⬜         | Phase 문서 업데이트에서 일괄 |
 | `settings.test.ts` 보강 (2.5)                  | ⬜         | settings 경로 시나리오       |
-| `fileDiscoveryService.test.ts` 시나리오 (2.5)  | ⬜         | `.didimignore` 통합 테스트   |
+| `fileDiscoveryService.test.ts` 시나리오 (2.5)  | ✅         | 리뷰 수정 Commit 3           |
 
 ---
 
@@ -187,6 +187,106 @@ if (options.useGeminiignore) {
   import 추가
 - **Tidy First stash 분리**: `git stash push` → Commit 1 적용 →
   `git stash pop`으로 behavioral 변경 복원. conflict 없이 성공
-- **filesearch vs parser fallback 차이**: GeminiIgnoreParser는 **내용 기반** (빈
-  파일 fall-through), filesearch/ignore.ts는 **존재 기반** (파일 있으면 로딩).
-  사용 맥락이 다르므로 의도된 차이
+- ~~**filesearch vs parser fallback 차이**: GeminiIgnoreParser는 **내용 기반**
+  (빈 파일 fall-through), filesearch/ignore.ts는 **존재 기반** (파일 있으면
+  로딩). 사용 맥락이 다르므로 의도된 차이~~ → **리뷰에서 불일치 확인됨, 수정
+  완료** (아래 섹션 6 참조)
+
+---
+
+## 6. 리뷰 수정 (2026-02-16)
+
+Phase 2 작업 결과서 리뷰에서 5건의 이슈가 제기됨. 코드 기반 검증 후 3커밋으로
+수정 완료.
+
+### 6.1 검증 결과 요약
+
+| #    | 이슈                                            | 심각도 | 검증 결과                               | 조치        |
+| ---- | ----------------------------------------------- | ------ | --------------------------------------- | ----------- |
+| 1    | filesearch/ignore.ts 빈 `.didimignore` fallback | MEDIUM | **확인** — existence vs content 불일치  | 코드 수정   |
+| 2    | filesearch/ignore.ts readFileSync 에러 전파     | MEDIUM | **확인** — try/catch 누락               | #1과 통합   |
+| 3    | 중립 alias barrel export 누락                   | LOW    | **확인** — `core/index.ts` 미포함       | export 추가 |
+| 4    | atFileProcessor `.geminiignore` fallback 미반영 | LOW    | **부분 확인** — settingsSchema와 불일치 | 메시지 병기 |
+| 추가 | fileDiscoveryService `.didimignore` 테스트 부재 | —      | **확인** — `.geminiignore`만 테스트     | 테스트 3건  |
+
+### 6.2 Issue 1+2: filesearch/ignore.ts fallback 불일치 + 에러 전파
+
+**문제**: `filesearch/ignore.ts`는 **존재 기반** 우선순위 (빈 `.didimignore` →
+그대로 로딩, `.geminiignore` 미확인), `GeminiIgnoreParser`는 **내용 기반** (빈
+파일 fall-through). readFileSync에도 try/catch 없어 권한 오류 시 예외 전파.
+
+**시나리오**: 빈 `.didimignore` + `.geminiignore` 패턴 존재 → ripGrep은
+`.geminiignore` 적용, `@` 자동완성은 패턴 미적용 → 무시 동작 불일치.
+
+**수정**: candidate loop + content-based + try/catch 패턴으로 변경
+(`GeminiIgnoreParser.loadPatterns()`와 동일):
+
+```typescript
+if (options.useGeminiignore) {
+  const candidates = [
+    path.join(options.projectRoot, DIDIM_IGNORE_FILE),
+    path.join(options.projectRoot, LEGACY_GEMINI_IGNORE_FILE),
+  ];
+  for (const candidatePath of candidates) {
+    let content: string;
+    try {
+      content = fs.readFileSync(candidatePath, 'utf8');
+    } catch {
+      continue;
+    }
+    const hasPatterns = content.split(/\r?\n/).some((line) => {
+      const trimmed = line.trim();
+      return trimmed !== '' && !trimmed.startsWith('#');
+    });
+    if (hasPatterns) {
+      ignorer.add(content);
+      break;
+    }
+  }
+}
+```
+
+### 6.3 Issue 3: barrel export 누락
+
+**수정**: `core/index.ts`에 `export * from './utils/geminiIgnoreParser.js'`
+추가. `IgnoreParser`/`IgnoreFilter` 중립 alias가 `@didim365/agent-cli-core` 루트
+import로 접근 가능.
+
+### 6.4 Issue 4: atFileProcessor 메시지
+
+**수정**: `.gitignore or .didimignore` →
+`.gitignore or .didimignore (or .geminiignore)`. settingsSchema.ts
+(`Respect .didimignore (or .geminiignore) files when searching.`)과 표현 통일.
+
+### 6.5 추가: fileDiscoveryService 테스트
+
+`.didimignore` 시나리오 3건 추가:
+
+- `.didimignore` 패턴 로딩
+- `.didimignore` 우선순위 (.geminiignore 대비)
+- 빈 `.didimignore` → `.geminiignore` fallback
+
+### 6.6 커밋 내역
+
+| 커밋        | 메시지                                                                                | 파일 수 |
+| ----------- | ------------------------------------------------------------------------------------- | ------- |
+| `8605a17d4` | `fix(core): align filesearch ignore fallback with parser (content-based + try/catch)` | 2       |
+| `21a39801c` | `fix(core): export geminiIgnoreParser from barrel and update UI message`              | 3       |
+| `2d076cb55` | `test(core): add .didimignore scenarios to fileDiscoveryService tests`                | 1       |
+
+### 6.7 품질 게이트
+
+| 항목                 | 결과                                 |
+| -------------------- | ------------------------------------ |
+| Core 테스트          | 281 files, **5395 passed**, 0 failed |
+| CLI 테스트           | 351 files, **4758 passed**, 0 failed |
+| TypeScript typecheck | ✅ 0 errors                          |
+| Pre-commit hooks     | ✅ 3/3 커밋 모두 통과                |
+
+### 6.8 Lessons Learned (리뷰 수정)
+
+- **모듈간 fallback 일관성**: 동일 기능의 다른 구현(parser vs filesearch)은
+  fallback 전략도 일치시켜야 함. "사용 맥락이 다르므로 의도된 차이"로 기록한
+  것이 실제 버그였음
+- **barrel export 누락 방지**: 중립 alias를 추가하면서 barrel에 빠뜨리면 실제
+  사용이 불가능. alias 추가 시 export 경로도 동시 확인 필요

@@ -387,6 +387,95 @@ describe('sandbox', () => {
       );
     });
 
+    it('should mount legacy .gemini directory read-only when it exists alongside .didim', async () => {
+      const config: SandboxConfig = {
+        command: 'docker',
+        image: 'gemini-cli-sandbox',
+      };
+      // Both .didim and .gemini exist — fs.existsSync returns true by default
+      // Storage.getGlobalGeminiDir returns .didim (primary)
+
+      interface MockProcessWithStdout extends EventEmitter {
+        stdout: EventEmitter;
+      }
+      const mockImageCheckProcess = new EventEmitter() as MockProcessWithStdout;
+      mockImageCheckProcess.stdout = new EventEmitter();
+      vi.mocked(spawn).mockImplementationOnce(() => {
+        setTimeout(() => {
+          mockImageCheckProcess.stdout.emit('data', Buffer.from('image-id'));
+          mockImageCheckProcess.emit('close', 0);
+        }, 1);
+        return mockImageCheckProcess as unknown as ReturnType<typeof spawn>;
+      });
+
+      const mockSpawnProcess = new EventEmitter() as unknown as ReturnType<
+        typeof spawn
+      >;
+      mockSpawnProcess.on = vi.fn().mockImplementation((event, cb) => {
+        if (event === 'close') {
+          setTimeout(() => cb(0), 10);
+        }
+        return mockSpawnProcess;
+      });
+      vi.mocked(spawn).mockImplementationOnce(() => mockSpawnProcess);
+
+      await start_sandbox(config);
+
+      // docker run args should include legacy .gemini mount with :ro
+      const runArgs = vi.mocked(spawn).mock.calls[1][1] as string[];
+      const legacyMountIndex = runArgs.findIndex(
+        (arg) =>
+          arg.includes('.gemini') && arg.includes(':ro') && arg !== '--volume',
+      );
+      expect(legacyMountIndex).toBeGreaterThan(-1);
+      expect(runArgs[legacyMountIndex - 1]).toBe('--volume');
+    });
+
+    it('should not mount legacy .gemini directory when it does not exist', async () => {
+      const config: SandboxConfig = {
+        command: 'docker',
+        image: 'gemini-cli-sandbox',
+      };
+      // .gemini does NOT exist
+      vi.mocked(fs.existsSync).mockImplementation((p) => {
+        if (String(p).includes('.gemini')) return false;
+        return true;
+      });
+
+      interface MockProcessWithStdout extends EventEmitter {
+        stdout: EventEmitter;
+      }
+      const mockImageCheckProcess = new EventEmitter() as MockProcessWithStdout;
+      mockImageCheckProcess.stdout = new EventEmitter();
+      vi.mocked(spawn).mockImplementationOnce(() => {
+        setTimeout(() => {
+          mockImageCheckProcess.stdout.emit('data', Buffer.from('image-id'));
+          mockImageCheckProcess.emit('close', 0);
+        }, 1);
+        return mockImageCheckProcess as unknown as ReturnType<typeof spawn>;
+      });
+
+      const mockSpawnProcess = new EventEmitter() as unknown as ReturnType<
+        typeof spawn
+      >;
+      mockSpawnProcess.on = vi.fn().mockImplementation((event, cb) => {
+        if (event === 'close') {
+          setTimeout(() => cb(0), 10);
+        }
+        return mockSpawnProcess;
+      });
+      vi.mocked(spawn).mockImplementationOnce(() => mockSpawnProcess);
+
+      await start_sandbox(config);
+
+      // docker run args should NOT include legacy .gemini mount
+      const runArgs = vi.mocked(spawn).mock.calls[1][1] as string[];
+      const hasLegacyMount = runArgs.some(
+        (arg) => arg.includes('.gemini') && arg.includes(':ro'),
+      );
+      expect(hasLegacyMount).toBe(false);
+    });
+
     it('should handle user creation on Linux if needed', async () => {
       const config: SandboxConfig = {
         command: 'docker',

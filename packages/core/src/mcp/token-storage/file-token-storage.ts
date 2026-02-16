@@ -10,7 +10,7 @@ import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { BaseTokenStorage } from './base-token-storage.js';
 import type { OAuthCredentials } from './types.js';
-import { homedir } from '../../utils/paths.js';
+import { DIDIM_DIR, LEGACY_GEMINI_DIR, homedir } from '../../utils/paths.js';
 import { resolveReadPath, Storage } from '../../config/storage.js';
 
 export class FileTokenStorage extends BaseTokenStorage {
@@ -176,9 +176,15 @@ export class FileTokenStorage extends BaseTokenStorage {
   }
 
   private async deleteTokenFiles(): Promise<void> {
+    const home = homedir();
+    const tokenFileName = 'mcp-oauth-tokens-v2.json';
+    // Explicitly include both primary and legacy paths to prevent
+    // legacy token re-exposure after deleting only the primary file.
     for (const tokenPath of new Set([
       this.tokenWritePath,
       this.tokenReadPath,
+      path.join(home, DIDIM_DIR, tokenFileName),
+      path.join(home, LEGACY_GEMINI_DIR, tokenFileName),
     ])) {
       try {
         await fs.unlink(tokenPath);

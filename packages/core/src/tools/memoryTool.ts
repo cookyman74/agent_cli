@@ -268,6 +268,7 @@ class MemoryToolInvocation extends BaseToolInvocation<
             writeFile: fs.writeFile,
             mkdir: fs.mkdir,
           },
+          getGlobalMemoryFilePath(),
         );
         const successMessage = `Okay, I've remembered that: "${fact}"`;
         return {
@@ -354,6 +355,8 @@ export class MemoryTool
         options: { recursive: boolean },
       ) => Promise<string | undefined>;
     },
+    /** Optional read path (may differ from write path for legacy fallback). */
+    memoryFileReadPath?: string,
   ): Promise<void> {
     try {
       await fsAdapter.mkdir(path.dirname(memoryFilePath), { recursive: true });
@@ -361,7 +364,17 @@ export class MemoryTool
       try {
         currentContent = await fsAdapter.readFile(memoryFilePath, 'utf-8');
       } catch (_e) {
-        // File doesn't exist, which is fine. currentContent will be empty.
+        // Write path file doesn't exist — try legacy read path if provided.
+        if (memoryFileReadPath && memoryFileReadPath !== memoryFilePath) {
+          try {
+            currentContent = await fsAdapter.readFile(
+              memoryFileReadPath,
+              'utf-8',
+            );
+          } catch (_e2) {
+            // Neither file exists, which is fine. currentContent stays empty.
+          }
+        }
       }
 
       const newContent = computeNewContent(currentContent, text);

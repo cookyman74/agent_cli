@@ -73,10 +73,10 @@ export function loadSettings(workspaceDir: string): Settings {
   const settingsErrors: SettingsError[] = [];
 
   // Load user settings — .didim first, .gemini fallback
+  const userSettingsPath = fs.existsSync(USER_SETTINGS_PATH)
+    ? USER_SETTINGS_PATH
+    : LEGACY_USER_SETTINGS_PATH;
   try {
-    const userSettingsPath = fs.existsSync(USER_SETTINGS_PATH)
-      ? USER_SETTINGS_PATH
-      : LEGACY_USER_SETTINGS_PATH;
     if (fs.existsSync(userSettingsPath)) {
       const userContent = fs.readFileSync(userSettingsPath, 'utf-8');
       const parsedUserSettings = JSON.parse(
@@ -87,7 +87,7 @@ export function loadSettings(workspaceDir: string): Settings {
   } catch (error: unknown) {
     settingsErrors.push({
       message: getErrorMessage(error),
-      path: USER_SETTINGS_PATH,
+      path: userSettingsPath,
     });
   }
 
@@ -103,10 +103,10 @@ export function loadSettings(workspaceDir: string): Settings {
   );
 
   // Load workspace settings — .didim first, .gemini fallback
+  const resolvedWorkspacePath = fs.existsSync(workspaceSettingsPath)
+    ? workspaceSettingsPath
+    : legacyWorkspaceSettingsPath;
   try {
-    const resolvedWorkspacePath = fs.existsSync(workspaceSettingsPath)
-      ? workspaceSettingsPath
-      : legacyWorkspaceSettingsPath;
     if (fs.existsSync(resolvedWorkspacePath)) {
       const projectContent = fs.readFileSync(resolvedWorkspacePath, 'utf-8');
       const parsedWorkspaceSettings = JSON.parse(
@@ -117,7 +117,7 @@ export function loadSettings(workspaceDir: string): Settings {
   } catch (error: unknown) {
     settingsErrors.push({
       message: getErrorMessage(error),
-      path: workspaceSettingsPath,
+      path: resolvedWorkspacePath,
     });
   }
 

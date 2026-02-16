@@ -9,6 +9,7 @@
 import {
   DEFAULT_CONTEXT_FILENAME,
   GEMINI_DIR,
+  LEGACY_GEMINI_DIR,
   type MCPServerConfig,
   type ExtensionInstallMetadata,
   type GeminiCLIExtension,
@@ -19,6 +20,10 @@ import * as path from 'node:path';
 import { logger } from '../utils/logger.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
+const LEGACY_EXTENSIONS_DIRECTORY_NAME = path.join(
+  LEGACY_GEMINI_DIR,
+  'extensions',
+);
 export const EXTENSIONS_CONFIG_FILENAME = 'didim-extension.json';
 export const INSTALL_METADATA_FILENAME = '.didim-extension-install.json';
 export const LEGACY_EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
@@ -62,18 +67,19 @@ export function loadExtensions(workspaceDir: string): GeminiCLIExtension[] {
 }
 
 function loadExtensionsFromDir(dir: string): GeminiCLIExtension[] {
-  const extensionsDir = path.join(dir, EXTENSIONS_DIRECTORY_NAME);
-  if (!fs.existsSync(extensionsDir)) {
-    return [];
-  }
-
   const extensions: GeminiCLIExtension[] = [];
-  for (const subdir of fs.readdirSync(extensionsDir)) {
-    const extensionDir = path.join(extensionsDir, subdir);
-
-    const extension = loadExtension(extensionDir);
-    if (extension != null) {
-      extensions.push(extension);
+  for (const extDirName of [
+    EXTENSIONS_DIRECTORY_NAME,
+    LEGACY_EXTENSIONS_DIRECTORY_NAME,
+  ]) {
+    const extensionsDir = path.join(dir, extDirName);
+    if (!fs.existsSync(extensionsDir)) continue;
+    for (const subdir of fs.readdirSync(extensionsDir)) {
+      const extensionDir = path.join(extensionsDir, subdir);
+      const extension = loadExtension(extensionDir);
+      if (extension != null) {
+        extensions.push(extension);
+      }
     }
   }
   return extensions;

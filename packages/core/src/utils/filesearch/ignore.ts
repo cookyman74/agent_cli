@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ignore from 'ignore';
 import picomatch from 'picomatch';
+import { DIDIM_IGNORE_FILE, LEGACY_GEMINI_IGNORE_FILE } from '../paths.js';
 
 const hasFileExtension = picomatch('**/*[*.]*');
 
@@ -28,9 +29,14 @@ export function loadIgnoreRules(options: LoadIgnoreRulesOptions): Ignore {
   }
 
   if (options.useGeminiignore) {
-    const geminiignorePath = path.join(options.projectRoot, '.geminiignore');
-    if (fs.existsSync(geminiignorePath)) {
-      ignorer.add(fs.readFileSync(geminiignorePath, 'utf8'));
+    const didimPath = path.join(options.projectRoot, DIDIM_IGNORE_FILE);
+    const geminiPath = path.join(
+      options.projectRoot,
+      LEGACY_GEMINI_IGNORE_FILE,
+    );
+    const ignorePath = fs.existsSync(didimPath) ? didimPath : geminiPath;
+    if (fs.existsSync(ignorePath)) {
+      ignorer.add(fs.readFileSync(ignorePath, 'utf8'));
     }
   }
 

@@ -157,4 +157,50 @@ describe('loadIgnoreRules', () => {
     const dirFilter = ignore.getDirectoryFilter();
     expect(dirFilter('.git/')).toBe(true);
   });
+
+  it('should load rules from .didimignore', async () => {
+    tmpDir = await createTmpDir({
+      '.didimignore': '*.secret',
+    });
+    const ignore = loadIgnoreRules({
+      projectRoot: tmpDir,
+      useGitignore: false,
+      useGeminiignore: true,
+      ignoreDirs: [],
+    });
+    const fileFilter = ignore.getFileFilter();
+    expect(fileFilter('test.secret')).toBe(true);
+    expect(fileFilter('test.txt')).toBe(false);
+  });
+
+  it('should prioritize .didimignore over .geminiignore', async () => {
+    tmpDir = await createTmpDir({
+      '.didimignore': '*.didim',
+      '.geminiignore': '*.gemini',
+    });
+    const ignore = loadIgnoreRules({
+      projectRoot: tmpDir,
+      useGitignore: false,
+      useGeminiignore: true,
+      ignoreDirs: [],
+    });
+    const fileFilter = ignore.getFileFilter();
+    expect(fileFilter('test.didim')).toBe(true);
+    expect(fileFilter('test.gemini')).toBe(false);
+  });
+
+  it('should fall back to .geminiignore when .didimignore does not exist', async () => {
+    tmpDir = await createTmpDir({
+      '.geminiignore': '*.legacy',
+    });
+    const ignore = loadIgnoreRules({
+      projectRoot: tmpDir,
+      useGitignore: false,
+      useGeminiignore: true,
+      ignoreDirs: [],
+    });
+    const fileFilter = ignore.getFileFilter();
+    expect(fileFilter('test.legacy')).toBe(true);
+    expect(fileFilter('test.txt')).toBe(false);
+  });
 });

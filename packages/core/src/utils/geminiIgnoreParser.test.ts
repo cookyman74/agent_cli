@@ -113,6 +113,77 @@ describe('GeminiIgnoreParser', () => {
     });
   });
 
+  describe('when .didimignore exists (priority over .geminiignore)', () => {
+    beforeEach(async () => {
+      await createTestFile('.didimignore', 'didim_ignored.txt\n');
+      await createTestFile('.geminiignore', 'gemini_ignored.txt\n');
+      await createTestFile('didim_ignored.txt', 'content');
+      await createTestFile('gemini_ignored.txt', 'content');
+      await createTestFile('not_ignored.txt', 'content');
+    });
+
+    it('should use .didimignore patterns, not .geminiignore', () => {
+      const parser = new GeminiIgnoreParser(projectRoot);
+      expect(parser.getPatterns()).toEqual(['didim_ignored.txt']);
+      expect(parser.isIgnored('didim_ignored.txt')).toBe(true);
+      expect(parser.isIgnored('gemini_ignored.txt')).toBe(false);
+      expect(parser.isIgnored('not_ignored.txt')).toBe(false);
+    });
+
+    it('should return .didimignore path from getIgnoreFilePath', () => {
+      const parser = new GeminiIgnoreParser(projectRoot);
+      expect(parser.getIgnoreFilePath()).toBe(
+        path.join(projectRoot, '.didimignore'),
+      );
+    });
+
+    it('should return true for hasPatterns', () => {
+      const parser = new GeminiIgnoreParser(projectRoot);
+      expect(parser.hasPatterns()).toBe(true);
+    });
+  });
+
+  describe('when only .didimignore exists', () => {
+    beforeEach(async () => {
+      await createTestFile('.didimignore', 'secret.txt\n');
+      await createTestFile('secret.txt', 'content');
+    });
+
+    it('should load patterns from .didimignore', () => {
+      const parser = new GeminiIgnoreParser(projectRoot);
+      expect(parser.getPatterns()).toEqual(['secret.txt']);
+      expect(parser.isIgnored('secret.txt')).toBe(true);
+    });
+
+    it('should return .didimignore path from getIgnoreFilePath', () => {
+      const parser = new GeminiIgnoreParser(projectRoot);
+      expect(parser.getIgnoreFilePath()).toBe(
+        path.join(projectRoot, '.didimignore'),
+      );
+    });
+  });
+
+  describe('when .didimignore is empty and .geminiignore has patterns', () => {
+    beforeEach(async () => {
+      await createTestFile('.didimignore', '');
+      await createTestFile('.geminiignore', 'fallback.txt\n');
+      await createTestFile('fallback.txt', 'content');
+    });
+
+    it('should fall through to .geminiignore when .didimignore is empty', () => {
+      const parser = new GeminiIgnoreParser(projectRoot);
+      expect(parser.getPatterns()).toEqual(['fallback.txt']);
+      expect(parser.isIgnored('fallback.txt')).toBe(true);
+    });
+
+    it('should return .geminiignore path', () => {
+      const parser = new GeminiIgnoreParser(projectRoot);
+      expect(parser.getIgnoreFilePath()).toBe(
+        path.join(projectRoot, '.geminiignore'),
+      );
+    });
+  });
+
   describe('when .geminiignore only has comments', () => {
     beforeEach(async () => {
       await createTestFile(

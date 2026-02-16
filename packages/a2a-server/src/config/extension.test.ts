@@ -8,7 +8,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { DEFAULT_CONTEXT_FILENAME, GEMINI_DIR } from '@didim365/agent-cli-core';
+import {
+  DEFAULT_CONTEXT_FILENAME,
+  GEMINI_DIR,
+  LEGACY_GEMINI_DIR,
+} from '@didim365/agent-cli-core';
 import { loadExtensions, EXTENSIONS_CONFIG_FILENAME } from './extension.js';
 
 vi.mock('../utils/logger.js', () => ({
@@ -140,6 +144,86 @@ describe('extension loading', () => {
       expect(extensions[0].contextFiles).toEqual([
         path.join(extensionsDir, 'custom-ext', 'CUSTOM.md'),
       ]);
+    });
+  });
+
+  describe('.gemini extension directory fallback', () => {
+    let legacyExtensionsDir: string;
+
+    beforeEach(() => {
+      legacyExtensionsDir = path.join(tempDir, LEGACY_GEMINI_DIR, 'extensions');
+    });
+
+    function createLegacyExtensionDir(
+      name: string,
+      config: Record<string, unknown>,
+    ): string {
+      const extDir = path.join(legacyExtensionsDir, name);
+      fs.mkdirSync(extDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(extDir, EXTENSIONS_CONFIG_FILENAME),
+        JSON.stringify(config),
+      );
+      return extDir;
+    }
+
+    it('should load extensions from .gemini/extensions when .didim/extensions does not exist', () => {
+      createLegacyExtensionDir('legacy-ext', {
+        name: 'legacy-ext',
+        version: '2.0.0',
+      });
+
+      const extensions = loadExtensions(tempDir);
+
+      expect(extensions).toHaveLength(1);
+      expect(extensions[0].name).toBe('legacy-ext');
+      expect(extensions[0].version).toBe('2.0.0');
+    });
+
+    it('should prioritize .didim/extensions over .gemini/extensions when both exist', () => {
+      createExtensionDir('shared-ext', {
+        name: 'shared-ext',
+        version: '2.0.0',
+      });
+      createLegacyExtensionDir('shared-ext', {
+        name: 'shared-ext',
+        version: '1.0.0',
+      });
+
+      const extensions = loadExtensions(tempDir);
+
+      expect(extensions).toHaveLength(1);
+      expect(extensions[0].name).toBe('shared-ext');
+      expect(extensions[0].version).toBe('2.0.0');
+    });
+
+    it('should deduplicate extensions across .didim and .gemini directories', () => {
+      createExtensionDir('primary-only', {
+        name: 'primary-only',
+        version: '1.0.0',
+      });
+      createLegacyExtensionDir('legacy-only', {
+        name: 'legacy-only',
+        version: '1.0.0',
+      });
+      createExtensionDir('both-ext', {
+        name: 'both-ext',
+        version: '2.0.0',
+      });
+      createLegacyExtensionDir('both-ext', {
+        name: 'both-ext',
+        version: '1.0.0',
+      });
+
+      const extensions = loadExtensions(tempDir);
+
+      expect(extensions).toHaveLength(3);
+      const names = extensions.map((e) => e.name);
+      expect(names).toContain('primary-only');
+      expect(names).toContain('legacy-only');
+      expect(names).toContain('both-ext');
+      const bothExt = extensions.find((e) => e.name === 'both-ext');
+      expect(bothExt?.version).toBe('2.0.0');
     });
   });
 });

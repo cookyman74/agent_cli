@@ -165,6 +165,11 @@ describe('Extension Update Logic', () => {
         mockDispatch,
       );
 
+      // Verify backup was created before update
+      expect(copyExtension).toHaveBeenCalledWith(
+        mockExtension.path,
+        '/tmp/mock-dir',
+      );
       expect(mockExtensionManager.installOrUpdateExtension).toHaveBeenCalled();
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_STATE',
@@ -235,10 +240,26 @@ describe('Extension Update Logic', () => {
         ),
       ).rejects.toThrow('Updated extension not found after installation');
 
+      // Verify backup was created before update attempt
+      expect(copyExtension).toHaveBeenCalledWith(
+        mockExtension.path,
+        '/tmp/mock-dir',
+      );
+      // Verify rollback restores from backup
       expect(copyExtension).toHaveBeenCalledWith(
         '/tmp/mock-dir',
         mockExtension.path,
       );
+      // Verify backup happens before rollback (correct order)
+      const copyCalls = vi.mocked(copyExtension).mock.calls;
+      const backupCallIndex = copyCalls.findIndex(
+        (call) => call[0] === mockExtension.path && call[1] === '/tmp/mock-dir',
+      );
+      const rollbackCallIndex = copyCalls.findIndex(
+        (call) => call[0] === '/tmp/mock-dir' && call[1] === mockExtension.path,
+      );
+      expect(backupCallIndex).toBeLessThan(rollbackCallIndex);
+
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_STATE',
         payload: {

@@ -2022,6 +2022,40 @@ ${INSTALL_WARNING_MESSAGE}`,
         ),
       ).rejects.toThrow('Extension not found.');
     });
+
+    it('should not delete the source directory when uninstalling a link-type extension', async () => {
+      // Create a source directory (simulates the user's original project)
+      const sourceDir = path.join(tempHomeDir, 'my-project');
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sourceDir, EXTENSIONS_CONFIG_FILENAME),
+        JSON.stringify({ name: 'linked-ext', version: '1.0.0' }),
+      );
+
+      // Create the metadata directory in extensions dir with link install metadata
+      const metadataDir = createExtension({
+        extensionsDir: userExtensionsDir,
+        name: 'linked-ext',
+        version: '1.0.0',
+        installMetadata: {
+          source: sourceDir,
+          type: 'link',
+        },
+      });
+
+      await extensionManager.loadExtensions();
+      const extensions = extensionManager.getExtensions();
+      expect(extensions).toHaveLength(1);
+      // For link-type, extension.path should point to source dir
+      expect(extensions[0].path).toBe(sourceDir);
+
+      await extensionManager.uninstallExtension('linked-ext', false);
+
+      // Source directory must NOT be deleted
+      expect(fs.existsSync(sourceDir)).toBe(true);
+      // Metadata directory should be deleted
+      expect(fs.existsSync(metadataDir)).toBe(false);
+    });
   });
 
   describe('disableExtension', () => {

@@ -9,7 +9,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { FileTokenStorage } from './file-token-storage.js';
 import type { OAuthCredentials } from './types.js';
-import { GEMINI_DIR } from '../../utils/paths.js';
+import { GEMINI_DIR, LEGACY_GEMINI_DIR } from '../../utils/paths.js';
 
 const mockReadPath = path.join(
   '/home/test',
@@ -307,6 +307,22 @@ describe('FileTokenStorage', () => {
       mockFs.unlink.mockRejectedValue({ code: 'ENOENT' });
 
       await expect(storage.clearAll()).resolves.not.toThrow();
+    });
+
+    it('should delete both primary and legacy token files', async () => {
+      mockFs.unlink.mockResolvedValue(undefined);
+
+      await storage.clearAll();
+
+      const unlinkCalls = mockFs.unlink.mock.calls.map(
+        (call: [string]) => call[0],
+      );
+      expect(unlinkCalls).toContain(
+        path.join('/home/test', GEMINI_DIR, 'mcp-oauth-tokens-v2.json'),
+      );
+      expect(unlinkCalls).toContain(
+        path.join('/home/test', LEGACY_GEMINI_DIR, 'mcp-oauth-tokens-v2.json'),
+      );
     });
   });
 

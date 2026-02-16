@@ -56,7 +56,7 @@ describe('extension reloading', () => {
           experimental: { extensionReloading: true },
         },
       });
-      const testServerPath = join(rig.testDir!, 'gemini-extension.json');
+      const testServerPath = join(rig.testDir!, 'didim-extension.json');
       writeFileSync(testServerPath, safeJsonStringify(extension, 2));
       // defensive cleanup from previous tests.
       try {

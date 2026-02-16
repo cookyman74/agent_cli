@@ -59,7 +59,7 @@ describe('ExtensionManager Settings Scope', () => {
 
     fs.mkdirSync(extensionDir, { recursive: true });
 
-    // Create gemini-extension.json
+    // Create didim-extension.json
     const extensionConfig = {
       name: extensionName,
       version: '1.0.0',
@@ -72,7 +72,7 @@ describe('ExtensionManager Settings Scope', () => {
       ],
     };
     fs.writeFileSync(
-      path.join(extensionDir, 'gemini-extension.json'),
+      path.join(extensionDir, 'didim-extension.json'),
       JSON.stringify(extensionConfig),
     );
 

@@ -385,7 +385,7 @@ describe('Storage – file-level read fallback', () => {
       projectRoot,
       LEGACY_GEMINI_DIR,
       'extensions',
-      'gemini-extension.json',
+      'didim-extension.json',
     );
     mockExistsSync.mockImplementation(
       (p: fs.PathLike) => String(p) === geminiFile,

@@ -10,7 +10,7 @@ import type { CommandModule } from 'yargs';
 import { fileURLToPath } from 'node:url';
 import { debugLogger } from '@didim365/agent-cli-core';
 import { exitCli } from '../utils.js';
-import { EXTENSIONS_CONFIG_FILENAME } from './variables.js';
+import { EXTENSIONS_CONFIG_FILENAME } from '../../config/extensions/variables.js';
 
 interface NewArgs {
   path: string;

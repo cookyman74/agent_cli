@@ -41,6 +41,7 @@ import { ExtensionEnablementManager } from './extensions/extensionEnablement.js'
 import { join } from 'node:path';
 import {
   EXTENSIONS_CONFIG_FILENAME,
+  LEGACY_EXTENSIONS_CONFIG_FILENAME,
   EXTENSIONS_DIRECTORY_NAME,
   INSTALL_METADATA_FILENAME,
 } from './extensions/variables.js';
@@ -989,7 +990,7 @@ describe('extension tests', () => {
         );
 
         fs.writeFileSync(
-          path.join(sourceExtDir, 'gemini-extension.json'),
+          path.join(sourceExtDir, 'didim-extension.json'),
           JSON.stringify({
             name: 'hook-extension-install',
             version: '1.0.0',
@@ -1056,23 +1057,28 @@ describe('extension tests', () => {
       );
     });
 
-    it('should throw an error and cleanup if gemini-extension.json is missing', async () => {
+    it('should throw an error and cleanup if didim-extension.json is missing', async () => {
       const sourceExtDir = path.join(tempHomeDir, 'bad-extension');
       fs.mkdirSync(sourceExtDir, { recursive: true });
-      const configPath = path.join(sourceExtDir, EXTENSIONS_CONFIG_FILENAME);
+      // When both didim-extension.json and gemini-extension.json are missing,
+      // the error message contains the legacy fallback path
+      const legacyConfigPath = path.join(
+        sourceExtDir,
+        LEGACY_EXTENSIONS_CONFIG_FILENAME,
+      );
 
       await expect(
         extensionManager.installOrUpdateExtension({
           source: sourceExtDir,
           type: 'local',
         }),
-      ).rejects.toThrow(`Configuration file not found at ${configPath}`);
+      ).rejects.toThrow(`Configuration file not found at ${legacyConfigPath}`);
 
       const targetExtDir = path.join(userExtensionsDir, 'bad-extension');
       expect(fs.existsSync(targetExtDir)).toBe(false);
     });
 
-    it('should throw an error for invalid JSON in gemini-extension.json', async () => {
+    it('should throw an error for invalid JSON in didim-extension.json', async () => {
       const sourceExtDir = path.join(tempHomeDir, 'bad-json-ext');
       fs.mkdirSync(sourceExtDir, { recursive: true });
       const configPath = path.join(sourceExtDir, EXTENSIONS_CONFIG_FILENAME);
@@ -1093,7 +1099,7 @@ describe('extension tests', () => {
       );
     });
 
-    it('should throw an error for missing name in gemini-extension.json', async () => {
+    it('should throw an error for missing name in didim-extension.json', async () => {
       const sourceExtDir = createExtension({
         extensionsDir: tempHomeDir,
         name: 'missing-name-ext',

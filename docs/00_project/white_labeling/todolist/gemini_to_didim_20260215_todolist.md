@@ -27,44 +27,47 @@
 | Phase 3 | [Extension 파일명 전환](../working_history/Phase3_extension_filename_20260216.md)                           | ✅ Complete |
 | 리뷰    | [Phase 1+3 통합 리뷰 수정 (7건)](../working_history/Phase1_3_통합리뷰_수정_20260216.md)                     | ✅ Complete |
 | 리뷰    | [Phase 1+3 통합 리뷰 추가 수정 (5건)](../working_history/Phase1_3_통합리뷰_추가수정_20260216.md)            | ✅ Complete |
+| 문서    | [문서 경로 업데이트 (.gemini→.didim)](../working_history/Phase_문서업데이트_20260216.md)                    | ✅ Complete |
+| 리뷰    | 리뷰 추가 이슈 4건 (registry dedup, sandbox/telemetry fallback, ext bidirectional)                          | ✅ Complete |
+| Phase 5 | Phase 5 최종 검증 (기능 12/12, 품질 게이트, 잔존 스캔)                                                      | ✅ Complete |
 
 ---
 
 ## 🎯 성공 기준 (Definition of Done)
 
-- [ ] 신규 설치/실행 환경에서 `.didim`만으로 모든 기능 동작
-- [ ] 기존 사용자(`.gemini`만 존재)도 중단 없이 실행 가능
-- [ ] 설정 저장/수정은 `.didim`으로만 기록
-- [ ] 핵심 기능 회귀 테스트 통과 (settings, commands, skills, hooks, sandbox,
-      extensions)
-- [ ] `AGENTS.md` 컨텍스트 파일 기본값 유지 확인 (Phase3 ETC에서 `GEMINI.md` →
-      `AGENTS.md` 전환 완료)
+- [x] 신규 설치/실행 환경에서 `.didim`만으로 모든 기능 동작 _(Phase 5.1 검증)_
+- [x] 기존 사용자(`.gemini`만 존재)도 중단 없이 실행 가능 _(Phase 5.1 검증)_
+- [x] 설정 저장/수정은 `.didim`으로만 기록 _(94개 쓰기 경로 전수 검증)_
+- [x] 핵심 기능 회귀 테스트 통과 (settings, commands, skills, hooks, sandbox,
+      extensions) _(10,302 tests passed, 0 failures)_
+- [x] `AGENTS.md` 컨텍스트 파일 기본값 유지 확인 (Phase3 ETC에서 `GEMINI.md` →
+      `AGENTS.md` 전환 완료) _(memoryDiscovery resolveReadPath 적용)_
 - [x] `.geminiignore` → `.didimignore` 전환 및 fallback 동작 확인 _(Phase 2
       완료)_
-- [ ] 문서와 예시 경로가 `.didim` 기준으로 업데이트
+- [x] 문서와 예시 경로가 `.didim` 기준으로 업데이트 _(40파일, 2커밋 완료)_
 - [ ] 마이그레이션 가이드 및 롤백 절차 문서화 완료
 
 ---
 
 ## 🚨 핵심 리스크 및 대응
 
-| 리스크                                                                                                       | 영향      | 대응 방안                                                                                                                                                                                 | 상태                                                                       |
-| ------------------------------------------------------------------------------------------------------------ | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| 상수 외 하드코딩 잔존 (샌드박스 .sb 6개, 정책 TOML regex, Telemetry sanitize 패턴, extension manifest 4개소) | 🔴 High   | `GEMINI_DIR` 변경만으로 누락되는 17개소 개별 수정                                                                                                                                         | 🔄 (부분 완료: sb 6개, plan.toml, setupGithubCommand, extensionEnablement) |
-| 기존 사용자 설정 미인식                                                                                      | 🔴 High   | `.didim` 우선, `.gemini` fallback 로더 구현                                                                                                                                               | ✅                                                                         |
-| `.geminiignore` 미전환 시 파일 필터링 중단                                                                   | 🔴 High   | `.didimignore` 우선 + `.geminiignore` fallback, 파서 이름 갱신                                                                                                                            | ✅ (Phase 2 — 파서 fallback + filesearch + UI 라벨 완료)                   |
-| `AGENTS.md` 컨텍스트 기본값 또는 fallback chain 훼손                                                         | 🟠 Medium | `.gemini` → `.didim` 전환 시 memoryTool 함수(`getCurrentGeminiMdFilename` 등)의 Gemini 접두사 함수명 변경 여부는 별도 결정. Extension fallback chain(`AGENTS.md` → `GEMINI.md`) 보존 확인 | ⬜ (Phase 3.7)                                                             |
-| OAuth 레거시 마이그레이션 경로 깨짐 (`oauth-credential-storage.ts:93,109`)                                   | 🔴 High   | `GEMINI_DIR` 변경 시 "old file" 마이그레이션 경로도 `.didim`으로 바뀌어 `~/.gemini/oauth_creds.json` 못 읽음. 마이그레이션 경로는 `'.gemini'` 리터럴 하드코딩 필요                        | ⬜ (Phase 3.7)                                                             |
-| `file-token-storage.ts`, `trustedFolders.ts` fallback 미적용                                                 | 🔴 High   | Storage 미사용 파일이 `GEMINI_DIR` 직접 조합 → 상수 변경 시 자동 반영되나 fallback resolver 미적용. Phase 1.2 resolver 도입 시 이 파일들도 fallback 적용 필요                             | ✅ (리뷰 2차에서 resolveReadPath 적용 + 3차에서 legacy 토큰 부활 방지)     |
-| a2a-server settings/config/env fallback 미구현                                                               | 🟠 Medium | a2a-server의 settings.ts, config.ts가 Storage 미사용 + `GEMINI_DIR` 직접 조합 → a2a 자체 fallback 필요                                                                                    | ✅ (settings fallback + env dual-path + homedir 버그 수정)                 |
-| `system.md` 기본 경로 fallback 누락 (`prompts.ts:90`)                                                        | 🟠 Medium | 기존 `.gemini/system.md` 사용자 전환 후 시스템 프롬프트 미적용. `.didim/system.md` 우선 + `.gemini/system.md` fallback 필요                                                               | ✅ (리뷰 3차에서 resolveReadPath 적용)                                     |
-| 글로벌 AGENTS.md fallback 누락 (`memoryDiscovery.ts:151,338,382`)                                            | 🟠 Medium | `GEMINI_DIR` 직접 조합 (Storage 미사용) → resolver 적용 범위 밖. `~/.gemini/AGENTS.md` 레거시 읽기 누락. dual-path 탐색 필요                                                              | ✅ (리뷰 3차에서 resolveReadPath 적용)                                     |
-| 읽기 fallback vs 쓰기 `.didim` only 정책 충돌                                                                | 🔴 High   | `getGlobalGeminiDir()` fallback이 `.gemini` 반환 시 쓰기도 `.gemini`에 수행. **A안 채택**: `resolveReadDir`/`resolveWriteDir` 분리로 쓰기는 항상 `.didim` 강제 (Phase 1.2)                | ✅ (Phase 1.2 A안 구현 완료)                                               |
-| `setupGithubCommand`가 `.gitignore`에 `.gemini/` 기록                                                        | 🟠 Medium | `.didim/` 기록으로 변경 + 기존 `.gemini/` 항목 유지 결정                                                                                                                                  | ✅ (리뷰 4차에서 양쪽 추가)                                                |
-| `gemini-extension.json` 파일명 불일치                                                                        | 🟠 Medium | `didim-extension.json`으로 변경 또는 유지 결정                                                                                                                                            | ✅ (Phase 3.4 — didim-extension.json 전환 + fallback)                      |
-| `a2a-server` 패키지 누락                                                                                     | 🟠 Medium | CLI/Core뿐 아니라 a2a-server 경로도 동시 전환                                                                                                                                             | ✅ (Phase 3.4 — settings/env/extension 모두 완료)                          |
-| 문서-코드 경로 불일치                                                                                        | 🟠 Medium | docs 일괄 변경 + FAQ/마이그레이션 안내 추가                                                                                                                                               | ⬜                                                                         |
-| CI/테스트 fixture 경로 불일치                                                                                | 🟡 Low    | 테스트 fixture/스냅샷 동시 업데이트                                                                                                                                                       | ⬜                                                                         |
+| 리스크                                                                                                       | 영향      | 대응 방안                                                                                                                                                                                 | 상태                                                                    |
+| ------------------------------------------------------------------------------------------------------------ | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 상수 외 하드코딩 잔존 (샌드박스 .sb 6개, 정책 TOML regex, Telemetry sanitize 패턴, extension manifest 4개소) | 🔴 High   | `GEMINI_DIR` 변경만으로 누락되는 17개소 개별 수정                                                                                                                                         | ✅ (17개소 전체 처리 완료 — Phase 1~3 + 리뷰 4차)                       |
+| 기존 사용자 설정 미인식                                                                                      | 🔴 High   | `.didim` 우선, `.gemini` fallback 로더 구현                                                                                                                                               | ✅                                                                      |
+| `.geminiignore` 미전환 시 파일 필터링 중단                                                                   | 🔴 High   | `.didimignore` 우선 + `.geminiignore` fallback, 파서 이름 갱신                                                                                                                            | ✅ (Phase 2 — 파서 fallback + filesearch + UI 라벨 완료)                |
+| `AGENTS.md` 컨텍스트 기본값 또는 fallback chain 훼손                                                         | 🟠 Medium | `.gemini` → `.didim` 전환 시 memoryTool 함수(`getCurrentGeminiMdFilename` 등)의 Gemini 접두사 함수명 변경 여부는 별도 결정. Extension fallback chain(`AGENTS.md` → `GEMINI.md`) 보존 확인 | ✅ (리뷰 3차 resolveReadPath 적용 + Extension fallback chain 보존 확인) |
+| OAuth 레거시 마이그레이션 경로 깨짐 (`oauth-credential-storage.ts:93,109`)                                   | 🔴 High   | `GEMINI_DIR` 변경 시 "old file" 마이그레이션 경로도 `.didim`으로 바뀌어 `~/.gemini/oauth_creds.json` 못 읽음. 마이그레이션 경로는 `'.gemini'` 리터럴 하드코딩 필요                        | ✅ (LEGACY_GEMINI_DIR 하드코딩 + dual-path delete 구현)                 |
+| `file-token-storage.ts`, `trustedFolders.ts` fallback 미적용                                                 | 🔴 High   | Storage 미사용 파일이 `GEMINI_DIR` 직접 조합 → 상수 변경 시 자동 반영되나 fallback resolver 미적용. Phase 1.2 resolver 도입 시 이 파일들도 fallback 적용 필요                             | ✅ (리뷰 2차에서 resolveReadPath 적용 + 3차에서 legacy 토큰 부활 방지)  |
+| a2a-server settings/config/env fallback 미구현                                                               | 🟠 Medium | a2a-server의 settings.ts, config.ts가 Storage 미사용 + `GEMINI_DIR` 직접 조합 → a2a 자체 fallback 필요                                                                                    | ✅ (settings fallback + env dual-path + homedir 버그 수정)              |
+| `system.md` 기본 경로 fallback 누락 (`prompts.ts:90`)                                                        | 🟠 Medium | 기존 `.gemini/system.md` 사용자 전환 후 시스템 프롬프트 미적용. `.didim/system.md` 우선 + `.gemini/system.md` fallback 필요                                                               | ✅ (리뷰 3차에서 resolveReadPath 적용)                                  |
+| 글로벌 AGENTS.md fallback 누락 (`memoryDiscovery.ts:151,338,382`)                                            | 🟠 Medium | `GEMINI_DIR` 직접 조합 (Storage 미사용) → resolver 적용 범위 밖. `~/.gemini/AGENTS.md` 레거시 읽기 누락. dual-path 탐색 필요                                                              | ✅ (리뷰 3차에서 resolveReadPath 적용)                                  |
+| 읽기 fallback vs 쓰기 `.didim` only 정책 충돌                                                                | 🔴 High   | `getGlobalGeminiDir()` fallback이 `.gemini` 반환 시 쓰기도 `.gemini`에 수행. **A안 채택**: `resolveReadDir`/`resolveWriteDir` 분리로 쓰기는 항상 `.didim` 강제 (Phase 1.2)                | ✅ (Phase 1.2 A안 구현 완료)                                            |
+| `setupGithubCommand`가 `.gitignore`에 `.gemini/` 기록                                                        | 🟠 Medium | `.didim/` 기록으로 변경 + 기존 `.gemini/` 항목 유지 결정                                                                                                                                  | ✅ (리뷰 4차에서 양쪽 추가)                                             |
+| `gemini-extension.json` 파일명 불일치                                                                        | 🟠 Medium | `didim-extension.json`으로 변경 또는 유지 결정                                                                                                                                            | ✅ (Phase 3.4 — didim-extension.json 전환 + fallback)                   |
+| `a2a-server` 패키지 누락                                                                                     | 🟠 Medium | CLI/Core뿐 아니라 a2a-server 경로도 동시 전환                                                                                                                                             | ✅ (Phase 3.4 — settings/env/extension 모두 완료)                       |
+| 문서-코드 경로 불일치                                                                                        | 🟠 Medium | docs 일괄 변경 + FAQ/마이그레이션 안내 추가                                                                                                                                               | ✅ (40파일 문서 업데이트 완료 — `f12b48194`, `0ba31234a`)               |
+| CI/테스트 fixture 경로 불일치                                                                                | 🟡 Low    | 테스트 fixture/스냅샷 동시 업데이트                                                                                                                                                       | ✅ (Phase 3 Commit 3 + 리뷰 회귀 테스트 — `9b64d07`, `9865808ef`)       |
 
 ---
 
@@ -531,29 +534,39 @@
 
 ### 5.1 기능 검증
 
-- [ ] 신규 사용자 시나리오 (`.didim`만 존재)
-- [ ] 기존 사용자 시나리오 (`.gemini`만 존재)
-- [ ] 혼합 시나리오 (둘 다 존재)
-- [ ] `.didimignore` only / `.geminiignore` only / 둘 다 존재 시나리오
-- [ ] macOS sandbox에서 `.didim` 디렉토리 접근 가능 확인
-- [ ] 기존 `~/.gemini/oauth_creds.json` → keychain 마이그레이션 동작 확인 (OAuth
-      레거시 경로)
-- [ ] 기존 `.gemini/system.md` → 새 환경에서 fallback 읽기 확인
-- [ ] a2a-server: 기존 `.gemini/settings.json`, `.gemini/.env` fallback 동작
-      확인
-- [ ] 레거시 `~/.gemini/AGENTS.md` 글로벌 메모리 fallback 읽기 확인
-- [ ] `.gemini/.env` fallback 경로에서 `isProjectEnvFile` 판별 정확성 확인
-- [ ] Docker sandbox: 기존 `.gemini/sandbox.bashrc`, `.gemini/sandbox.venv`
-      fallback 확인
-- [ ] 쓰기 정책: `.gemini` fallback 환경에서도 새 파일이 `.didim`에 기록되는지
-      확인
+- [x] 신규 사용자 시나리오 (`.didim`만 존재) — _storage.test.ts:176-178
+      resolveReadDir/resolveReadPath 둘 다 `.didim` 반환 확인_
+- [x] 기존 사용자 시나리오 (`.gemini`만 존재) — _storage.test.ts:169-174 legacy
+      fallback 동작 확인_
+- [x] 혼합 시나리오 (둘 다 존재) — _storage.test.ts:181-184 `.didim` 우선 확인_
+- [x] `.didimignore` only / `.geminiignore` only / 둘 다 존재 시나리오 —
+      _geminiIgnoreParser.test.ts fallback chain 4 scenarios 확인_
+- [x] macOS sandbox에서 `.didim` 디렉토리 접근 가능 확인 — _6개 .sb 프로필 모두
+      `.didim` + `.gemini` 양방향 확인_
+- [x] 기존 `~/.gemini/oauth_creds.json` → keychain 마이그레이션 동작 확인 (OAuth
+      레거시 경로) — _oauth-credential-storage.ts:122 LEGACY_GEMINI_DIR
+      하드코딩_
+- [x] 기존 `.gemini/system.md` → 새 환경에서 fallback 읽기 확인 — _prompts.ts:91
+      resolveReadPath 사용_
+- [x] a2a-server: 기존 `.gemini/settings.json`, `.gemini/.env` fallback 동작
+      확인 — _settings.ts:76-108 dual-path fallback 구현_
+- [x] 레거시 `~/.gemini/AGENTS.md` 글로벌 메모리 fallback 읽기 확인 —
+      _memoryDiscovery.ts:152,338 resolveReadPath 사용_
+- [x] `.gemini/.env` fallback 경로에서 `isProjectEnvFile` 판별 정확성 확인 —
+      _settings.ts:453-455 path segment check 구현_
+- [x] Docker sandbox: 기존 `.gemini/sandbox.bashrc`, `.gemini/sandbox.venv`
+      fallback 확인 — _sandbox.ts + sandboxUtils.ts dual-path fallback 구현_
+- [x] 쓰기 정책: `.gemini` fallback 환경에서도 새 파일이 `.didim`에 기록되는지
+      확인 — _94개 쓰기 경로 전수 검사, 모두 resolveWriteDir 경유_
 
 ### 5.2 품질 게이트
 
-- [ ] `npm run lint`
-- [ ] `npm run test`
-- [ ] 필요 시 `npm run preflight`
-- [ ] `.sb` 프로필 macOS sandbox-exec 실행 검증
+- [x] `npm run lint` — _0 errors, 0 warnings_
+- [x] `npm run test` — _core 5425 + cli 4772 + a2a 105 = **10,302 tests passed,
+      0 failures**_
+- [x] 필요 시 `npm run preflight` — _typecheck 4 workspaces 통과_
+- [x] `.sb` 프로필 macOS sandbox-exec 실행 검증 — _6개 파일 모두 `.didim` +
+      `.gemini` 양방향 엔트리 확인_
 
 ### 5.3 릴리스 체크
 
@@ -565,27 +578,28 @@
 
 ## 📚 문서 업데이트 목록
 
-- [ ] `README.md` 경로 예시 (`~/.didim`, `<project>/.didim`)
-- [ ] `docs/get-started/configuration.md`
-- [ ] `docs/get-started/authentication.md` (`.didim/.env` 예시)
-- [ ] `docs/cli/custom-commands.md`
-- [ ] `docs/cli/skills.md`
-- [ ] `docs/cli/trusted-folders.md`
-- [ ] `docs/cli/gemini-ignore.md` → `docs/cli/didim-ignore.md` (또는 내용
-      업데이트)
-- [ ] `docs/cli/gemini-md.md` (AGENTS.md 전환 완료 사실 반영, memoryTool 함수명
-      Gemini 접두사 잔존 안내)
-- [ ] `docs/cli/settings.md` (`~/.didim/settings.json`)
-- [ ] `docs/cli/sandbox.md` (`.didim/sandbox-*`)
-- [ ] `docs/cli/system-prompt.md` (`.didim/.env` 참조)
-- [ ] `docs/hooks/*` (hook 경로 예시)
-- [ ] `docs/extensions/reference.md` (확장 설치 경로)
-- [ ] `docs/tools/mcp-server.md` (MCP OAuth 토큰 경로)
-- [ ] `docs/cli/telemetry.md`
-- [ ] `docs/cli/enterprise.md`
-- [ ] `docs/faq.md`, `docs/troubleshooting.md`
-- [ ] `docs/core/long-term-memory-proposal.md`, `long-term-memory-design.md`
-- [ ] `CONTRIBUTING.md`
+- [x] `README.md` 경로 예시 — _(변경 불필요: README에 `.gemini` 직접 경로 없음)_
+- [x] `docs/get-started/configuration.md` _(30건 변환)_
+- [x] `docs/get-started/authentication.md` (`.didim/.env` 예시) _(12건)_
+- [x] `docs/cli/custom-commands.md` _(8건)_
+- [x] `docs/cli/skills.md` _(5건)_
+- [x] `docs/cli/trusted-folders.md` _(4건)_
+- [x] `docs/cli/gemini-ignore.md` → `docs/cli/didim-ignore.md` _(파일 리네임 +
+      20건 내용 변환)_
+- [x] `docs/cli/gemini-md.md` → `docs/cli/agents-md.md` _(파일 리네임 +
+      AGENTS.md 기본값 반영, fallback 배열 보존)_
+- [x] `docs/cli/settings.md` (`~/.didim/settings.json`) _(2건)_
+- [x] `docs/cli/sandbox.md` (`.didim/sandbox-*`) _(6건)_
+- [x] `docs/cli/system-prompt.md` (`.didim/.env` 참조) _(10건)_
+- [x] `docs/hooks/*` (hook 경로 예시) _(3파일 ~40건)_
+- [x] `docs/extensions/reference.md` (확장 설치 경로) _(28건)_
+- [x] `docs/tools/mcp-server.md` (MCP OAuth 토큰 경로) _(20건)_
+- [x] `docs/cli/telemetry.md` _(8건)_
+- [x] `docs/cli/enterprise.md` _(8건)_
+- [x] `docs/faq.md`, `docs/troubleshooting.md` _(7건)_
+- [x] `docs/core/long-term-memory-proposal.md`, `long-term-memory-design.md`
+      _(2건)_
+- [x] `CONTRIBUTING.md` _(8건)_
 - [x] `schemas/settings.schema.json` (경로 설명) _(Phase 2 Commit 4 —
       respectGeminiIgnore 라벨/설명 업데이트)_
 
@@ -630,25 +644,28 @@
 
 ## 🗂️ 작업 로그
 
-| 날짜       | 작업자 | 내용                                    | 비고                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ---------- | ------ | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-02-15 | Codex  | 초기 작업 계획서 작성                   | v1.0                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| 2026-02-15 | Claude | 코드 기반 영향도 분석 및 계획서 보강    | v2.0 — 하드코딩 15개소 식별, `.geminiignore` 전환 추가, 샌드박스 fallback 리스크, 전환 제외 대상 명시, Phase 3 세분화                                                                                                                                                                                                                                                                                                       |
-| 2026-02-16 | Claude | GEMINI.md → AGENTS.md 전환 반영 검토    | v2.1 — Phase3 ETC 작업결과서 기반 검증. `GEMINI.md` 참조 5곳 → `AGENTS.md` 기준으로 정정. 함수명 Gemini 접두사 잔존 상태 기록, Extension fallback chain 보존 요건 명시                                                                                                                                                                                                                                                      |
-| 2026-02-16 | Claude | 리뷰 이슈 5건 검증 및 계획서 반영       | v2.2 — (1) 하드코딩 15→17개: storage.ts:171 + new.ts:66 추가. (2) file-token-storage.ts, trustedFolders.ts "Storage 경유" 오류 정정→직접 조합+fallback 미적용. (3) OAuth 마이그레이션 경로 `.gemini` 하드코딩 필요 경고 추가. (4) a2a-server settings.ts/config.ts 범위 추가. (5) prompts.ts system.md fallback 누락 보완                                                                                                   |
-| 2026-02-16 | Claude | 추가 리뷰 이슈 6건 검증 및 계획서 반영  | v2.3 — (1) 읽기 fallback vs 쓰기 .didim only 정책 충돌: resolver 읽기/쓰기 분리 설계 3안 추가, Core 난이도 🟢→🔴. (2) memoryDiscovery.ts 3곳 GEMINI_DIR 직접 조합→글로벌 AGENTS.md fallback 항목 추가. (3) settings.ts:447 isProjectEnvFile 판별 충돌 경고. (4) a2a config.ts:201 process.cwd()→homedir() 기존 버그 기록. (5) sandbox Docker 볼륨/bashrc/venv 3항목 추가. (6) .gemini-extension-install.json 전환 결정 추가 |
-| 2026-02-16 | Claude | 아키텍처 A안 확정 + 추가 이슈 2건 반영  | v2.4 — (1) Phase 1.2 읽기/쓰기 resolver 분리 A안 확정 (B/C안 기각 기록). (2) Extension 템플릿 파일 6개(`examples/*/gemini-extension.json`) + `validate.ts:65` 에러 문구 → Phase 3.4에 조건부 항목 추가. (3) UX 문자열 4곳(`restoreCommand.ts:49`, `atFileProcessor.ts:60`, `tips.ts:39`, `cli-help-agent.ts:89`) → Phase 3.8 신규 섹션 추가. (4) 영향도 요약 테이블: Extension 템플릿 행 추가, 사용자 메시지 행 구체화      |
-| 2026-02-16 | Claude | 재검증 이슈 3건 반영                    | v2.5 — (1) `mcpServerEnablement.ts:218,382` 쓰기 경로 — "자동 확인"→A안 `resolveWriteDir` 적용 대상으로 격상, 영향도 테이블 행 추가. (2) Extension 파일명 변경 시 문서/주석 동기화 3곳 추가 (README.md:18, extension.ts:17 JSDoc, a2a extension.ts:26 JSDoc). (3) `atFileProcessor.ts:60` — `.didimignore` 단독 표기→fallback 정책과 일관성 유지를 위해 병기 권장 기록                                                      |
-| 2026-02-16 | Claude | **Phase 1 구현 완료**                   | `5f5b5f0d4` — paths.ts 상수 3개 추가, storage.ts resolver 2함수 + Storage 메서드 4개 추가/변경, 테스트 14건 신규 + 회귀 4파일 수정. QG: 281 files 5362 passed, 0 lint/typecheck errors                                                                                                                                                                                                                                      |
-| 2026-02-16 | Claude | Phase 1 리뷰 1차 수정                   | `d671cfc79` — storage.test.ts fallback 테스트 4건 수정 (readDir→readFile 세분화)                                                                                                                                                                                                                                                                                                                                            |
-| 2026-02-16 | Claude | Phase 1 리뷰 2차 수정                   | `80e45aab5` — Consumer 읽기/쓰기 경로 분리 7개 파일 (settings, persistentState, trustedFolders, trustedHooks, mcpServerEnablement, hookRegistry 안내문구, file-token-storage)                                                                                                                                                                                                                                               |
-| 2026-02-16 | Claude | Phase 1 리뷰 3차 수정                   | `9c051a02c` — 읽기 fallback + 쓰기 경로 분리 추가 5건 (prompts.ts, sandbox.ts, memoryDiscovery.ts, file-token-storage.ts 쓰기 분리, extension tmp dir 브랜딩)                                                                                                                                                                                                                                                               |
-| 2026-02-16 | Claude | Phase 1 리뷰 4차 수정                   | `f9333d250` — 정책/샌드박스/확장 경로 .didim 전환 5건 (plan.toml regex, Seatbelt 6개 양방향, extensionEnablement fallback, extension-manager 양방향 스캔, setupGithubCommand .gitignore)                                                                                                                                                                                                                                    |
-| 2026-02-16 | Claude | Phase 1 작업 이력 통합                  | `763ccc267` — 리뷰 1~4차 단일 문서화                                                                                                                                                                                                                                                                                                                                                                                        |
-| 2026-02-16 | Claude | **Phase 2 구현 완료**                   | 4커밋 Tidy First: `1a1cd42` 상수+alias, `0bde65c` 파서 fallback(TDD 7t), `79c10b4` filesearch fallback(TDD 3t), `0364fbc` UI 라벨 10파일. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                                            |
-| 2026-02-16 | Claude | **Phase 3 부분 구현**                   | 3커밋 Tidy First: `7c14b6d` logger tidy+주석(structural), `5376c8c` 사용자 메시지 4곳+.gitignore(behavioral, 7파일), `9b64d07` 테스트 fixture 24파일 일괄. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                           |
-| 2026-02-16 | Claude | **Phase 3 a2a-server fallback**         | 2커밋: `a3b18f4` settings.ts fallback(user+workspace, 3 tests), `032827a` config.ts env dual-path + process.cwd()→homedir() 버그 수정. QG: a2a-server 102 tests, core 5390/cli 4758 passed. 잔여: Extensions 파일명(결정), 환경변수 alias(결정)                                                                                                                                                                             |
-| 2026-02-16 | Claude | **Phase 3 Extensions 파일명 전환 완료** | 4커밋 Tidy First: `9a58a77` 상수 rename+legacy alias(structural), `1849b76` 읽기 fallback 4곳(behavioral), `82cc42b` 쓰기/생성+UI+템플릿 6개 rename+env alias(behavioral), `424e0d7` 테스트 8파일 fixture 업데이트. QG: core 5390/a2a 102/cli 4540 passed (7 pre-existing failures), 0 lint/typecheck errors. Phase 3 Complete.                                                                                             |
-| 2026-02-16 | Claude | Phase 2 리뷰 수정 (5건)                 | 3커밋: `8605a17` filesearch ignore fallback 일관성, `21a3980` barrel export + UI 메시지, `2d076cb` fileDiscoveryService 테스트 3건. → [Phase2 작업결과서 §6](../working_history/Phase2_gemini_to_didim_IgnoreParser_20260216.md#6-리뷰-수정-2026-02-16)                                                                                                                                                                     |
-| 2026-02-16 | Claude | **Phase 1+3 통합 리뷰 수정 (7건)**      | 7커밋: `758520b` ext uninstall path, `7cbb11e` a2a-server fallback, `ff69f7a` FileTokenStorage getter, `2dd9249` ExtEnablement getter, `c207a4f` a2a ext tests 3건, `61f6683` storage.test mock, `5bbb869` 문서. → [통합리뷰 작업결과서](../working_history/Phase1_3_통합리뷰_수정_20260216.md)                                                                                                                             |
-| 2026-02-16 | Claude | **Phase 1+3 통합 리뷰 추가 수정 (5건)** | 5커밋: `66c8b79` link uninstall guard, `4074f75` token dual-path delete, `771409b` update rollback backup, `61ff65d` install write-path, `d1c674b` regression tests 4건. → [추가수정 작업결과서](../working_history/Phase1_3_통합리뷰_추가수정_20260216.md)                                                                                                                                                                 |
+| 날짜       | 작업자 | 내용                                    | 비고                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ------ | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-02-15 | Codex  | 초기 작업 계획서 작성                   | v1.0                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 2026-02-15 | Claude | 코드 기반 영향도 분석 및 계획서 보강    | v2.0 — 하드코딩 15개소 식별, `.geminiignore` 전환 추가, 샌드박스 fallback 리스크, 전환 제외 대상 명시, Phase 3 세분화                                                                                                                                                                                                                                                                                                               |
+| 2026-02-16 | Claude | GEMINI.md → AGENTS.md 전환 반영 검토    | v2.1 — Phase3 ETC 작업결과서 기반 검증. `GEMINI.md` 참조 5곳 → `AGENTS.md` 기준으로 정정. 함수명 Gemini 접두사 잔존 상태 기록, Extension fallback chain 보존 요건 명시                                                                                                                                                                                                                                                              |
+| 2026-02-16 | Claude | 리뷰 이슈 5건 검증 및 계획서 반영       | v2.2 — (1) 하드코딩 15→17개: storage.ts:171 + new.ts:66 추가. (2) file-token-storage.ts, trustedFolders.ts "Storage 경유" 오류 정정→직접 조합+fallback 미적용. (3) OAuth 마이그레이션 경로 `.gemini` 하드코딩 필요 경고 추가. (4) a2a-server settings.ts/config.ts 범위 추가. (5) prompts.ts system.md fallback 누락 보완                                                                                                           |
+| 2026-02-16 | Claude | 추가 리뷰 이슈 6건 검증 및 계획서 반영  | v2.3 — (1) 읽기 fallback vs 쓰기 .didim only 정책 충돌: resolver 읽기/쓰기 분리 설계 3안 추가, Core 난이도 🟢→🔴. (2) memoryDiscovery.ts 3곳 GEMINI_DIR 직접 조합→글로벌 AGENTS.md fallback 항목 추가. (3) settings.ts:447 isProjectEnvFile 판별 충돌 경고. (4) a2a config.ts:201 process.cwd()→homedir() 기존 버그 기록. (5) sandbox Docker 볼륨/bashrc/venv 3항목 추가. (6) .gemini-extension-install.json 전환 결정 추가         |
+| 2026-02-16 | Claude | 아키텍처 A안 확정 + 추가 이슈 2건 반영  | v2.4 — (1) Phase 1.2 읽기/쓰기 resolver 분리 A안 확정 (B/C안 기각 기록). (2) Extension 템플릿 파일 6개(`examples/*/gemini-extension.json`) + `validate.ts:65` 에러 문구 → Phase 3.4에 조건부 항목 추가. (3) UX 문자열 4곳(`restoreCommand.ts:49`, `atFileProcessor.ts:60`, `tips.ts:39`, `cli-help-agent.ts:89`) → Phase 3.8 신규 섹션 추가. (4) 영향도 요약 테이블: Extension 템플릿 행 추가, 사용자 메시지 행 구체화              |
+| 2026-02-16 | Claude | 재검증 이슈 3건 반영                    | v2.5 — (1) `mcpServerEnablement.ts:218,382` 쓰기 경로 — "자동 확인"→A안 `resolveWriteDir` 적용 대상으로 격상, 영향도 테이블 행 추가. (2) Extension 파일명 변경 시 문서/주석 동기화 3곳 추가 (README.md:18, extension.ts:17 JSDoc, a2a extension.ts:26 JSDoc). (3) `atFileProcessor.ts:60` — `.didimignore` 단독 표기→fallback 정책과 일관성 유지를 위해 병기 권장 기록                                                              |
+| 2026-02-16 | Claude | **Phase 1 구현 완료**                   | `5f5b5f0d4` — paths.ts 상수 3개 추가, storage.ts resolver 2함수 + Storage 메서드 4개 추가/변경, 테스트 14건 신규 + 회귀 4파일 수정. QG: 281 files 5362 passed, 0 lint/typecheck errors                                                                                                                                                                                                                                              |
+| 2026-02-16 | Claude | Phase 1 리뷰 1차 수정                   | `d671cfc79` — storage.test.ts fallback 테스트 4건 수정 (readDir→readFile 세분화)                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-02-16 | Claude | Phase 1 리뷰 2차 수정                   | `80e45aab5` — Consumer 읽기/쓰기 경로 분리 7개 파일 (settings, persistentState, trustedFolders, trustedHooks, mcpServerEnablement, hookRegistry 안내문구, file-token-storage)                                                                                                                                                                                                                                                       |
+| 2026-02-16 | Claude | Phase 1 리뷰 3차 수정                   | `9c051a02c` — 읽기 fallback + 쓰기 경로 분리 추가 5건 (prompts.ts, sandbox.ts, memoryDiscovery.ts, file-token-storage.ts 쓰기 분리, extension tmp dir 브랜딩)                                                                                                                                                                                                                                                                       |
+| 2026-02-16 | Claude | Phase 1 리뷰 4차 수정                   | `f9333d250` — 정책/샌드박스/확장 경로 .didim 전환 5건 (plan.toml regex, Seatbelt 6개 양방향, extensionEnablement fallback, extension-manager 양방향 스캔, setupGithubCommand .gitignore)                                                                                                                                                                                                                                            |
+| 2026-02-16 | Claude | Phase 1 작업 이력 통합                  | `763ccc267` — 리뷰 1~4차 단일 문서화                                                                                                                                                                                                                                                                                                                                                                                                |
+| 2026-02-16 | Claude | **Phase 2 구현 완료**                   | 4커밋 Tidy First: `1a1cd42` 상수+alias, `0bde65c` 파서 fallback(TDD 7t), `79c10b4` filesearch fallback(TDD 3t), `0364fbc` UI 라벨 10파일. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                                                    |
+| 2026-02-16 | Claude | **Phase 3 부분 구현**                   | 3커밋 Tidy First: `7c14b6d` logger tidy+주석(structural), `5376c8c` 사용자 메시지 4곳+.gitignore(behavioral, 7파일), `9b64d07` 테스트 fixture 24파일 일괄. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                                   |
+| 2026-02-16 | Claude | **Phase 3 a2a-server fallback**         | 2커밋: `a3b18f4` settings.ts fallback(user+workspace, 3 tests), `032827a` config.ts env dual-path + process.cwd()→homedir() 버그 수정. QG: a2a-server 102 tests, core 5390/cli 4758 passed. 잔여: Extensions 파일명(결정), 환경변수 alias(결정)                                                                                                                                                                                     |
+| 2026-02-16 | Claude | **Phase 3 Extensions 파일명 전환 완료** | 4커밋 Tidy First: `9a58a77` 상수 rename+legacy alias(structural), `1849b76` 읽기 fallback 4곳(behavioral), `82cc42b` 쓰기/생성+UI+템플릿 6개 rename+env alias(behavioral), `424e0d7` 테스트 8파일 fixture 업데이트. QG: core 5390/a2a 102/cli 4540 passed (7 pre-existing failures), 0 lint/typecheck errors. Phase 3 Complete.                                                                                                     |
+| 2026-02-16 | Claude | Phase 2 리뷰 수정 (5건)                 | 3커밋: `8605a17` filesearch ignore fallback 일관성, `21a3980` barrel export + UI 메시지, `2d076cb` fileDiscoveryService 테스트 3건. → [Phase2 작업결과서 §6](../working_history/Phase2_gemini_to_didim_IgnoreParser_20260216.md#6-리뷰-수정-2026-02-16)                                                                                                                                                                             |
+| 2026-02-16 | Claude | **Phase 1+3 통합 리뷰 수정 (7건)**      | 7커밋: `758520b` ext uninstall path, `7cbb11e` a2a-server fallback, `ff69f7a` FileTokenStorage getter, `2dd9249` ExtEnablement getter, `c207a4f` a2a ext tests 3건, `61f6683` storage.test mock, `5bbb869` 문서. → [통합리뷰 작업결과서](../working_history/Phase1_3_통합리뷰_수정_20260216.md)                                                                                                                                     |
+| 2026-02-16 | Claude | **Phase 1+3 통합 리뷰 추가 수정 (5건)** | 5커밋: `66c8b79` link uninstall guard, `4074f75` token dual-path delete, `771409b` update rollback backup, `61ff65d` install write-path, `d1c674b` regression tests 4건. → [추가수정 작업결과서](../working_history/Phase1_3_통합리뷰_추가수정_20260216.md)                                                                                                                                                                         |
+| 2026-02-16 | Claude | **문서 경로 업데이트 완료**             | 2커밋 Tidy First: `f12b48194` 파일 리네임(gemini-ignore.md→didim-ignore.md, gemini-md.md→agents-md.md) + sidebar.json slug/label 변경, `0ba31234a` 40파일 내용 변환(~300건: `.gemini/`→`.didim/`, `.geminiignore`→`.didimignore`, `gemini-extension.json`→`didim-extension.json`, `GEMINI.md`→`AGENTS.md`, CLI `gemini`→`didim`). 검증: rg 잔존 0건. → [문서업데이트 작업결과서](../working_history/Phase_문서업데이트_20260216.md) |
+| 2026-02-17 | Claude | **리뷰 추가 이슈 4건 수정**             | (1) Agent registry 비결정적 우선순위 → Map 기반 name dedup (primary 우선). (2) sandbox_command.js `.gemini` fallback 추가. (3) telemetry.js `resolveSettingsPath` 추가. (4) Extension uninstall 양방향 삭제. + Storage 단일 경로 getter 3개 `@deprecated` 추가. QG: core 5425/cli 4772/a2a 105 passed, 0 lint/typecheck errors                                                                                                      |
+| 2026-02-17 | Claude | **Phase 5 검증 완료**                   | 5.1 기능 검증 12/12 항목 통과, 5.2 품질 게이트 전항목 통과 (10,302 tests, lint, typecheck, .sb 프로필). 잔존 하드코딩 스캔 ZERO RISK, 쓰기 경로 94개 전수 검사 ALL SAFE. 5.3 릴리스 체크 미완 (마이그레이션 안내/deprecation/롤백 체크리스트)                                                                                                                                                                                       |

@@ -13,7 +13,7 @@ import {
   EXTENSION_SETTINGS_FILENAME,
   EXTENSIONS_CONFIG_FILENAME,
 } from './variables.js';
-import { Storage } from '@didim365/agent-cli-core';
+import { Storage, resolveReadPath, homedir } from '@didim365/agent-cli-core';
 
 vi.mock('node:os');
 vi.mock('node:fs', async (importOriginal) => {
@@ -35,6 +35,11 @@ describe('ExtensionStorage', () => {
 
   beforeEach(() => {
     vi.mocked(os.homedir).mockReturnValue(mockHomeDir);
+    vi.mocked(homedir).mockReturnValue(mockHomeDir);
+    vi.mocked(resolveReadPath).mockImplementation(
+      (base: string, ...subPaths: string[]) =>
+        path.join(base, '.didim', ...subPaths),
+    );
     vi.mocked(Storage).mockImplementation(
       () =>
         ({

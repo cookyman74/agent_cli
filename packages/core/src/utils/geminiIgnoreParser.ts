@@ -15,6 +15,9 @@ export interface GeminiIgnoreFilter {
   hasPatterns(): boolean;
 }
 
+/** Neutral alias for GeminiIgnoreFilter. New code should use this. */
+export type IgnoreFilter = GeminiIgnoreFilter;
+
 export class GeminiIgnoreParser implements GeminiIgnoreFilter {
   private projectRoot: string;
   private patterns: string[] = [];
@@ -103,3 +106,6 @@ export class GeminiIgnoreParser implements GeminiIgnoreFilter {
     return fs.existsSync(ignoreFilePath);
   }
 }
+
+/** Neutral alias for GeminiIgnoreParser. New code should use this. */
+export { GeminiIgnoreParser as IgnoreParser };

@@ -68,15 +68,14 @@ topics on:
   - **Solution:** Either stop the other process that is using the port or
     configure the MCP server to use a different port.
 
-- **Error: Command not found (when attempting to run Gemini CLI with
-  `gemini`).**
+- **Error: Command not found (when attempting to run Gemini CLI with `didim`).**
   - **Cause:** Gemini CLI is not correctly installed or it is not in your
     system's `PATH`.
   - **Solution:** The update depends on how you installed Gemini CLI:
-    - If you installed `gemini` globally, check that your `npm` global binary
+    - If you installed `didim` globally, check that your `npm` global binary
       directory is in your `PATH`. You can update Gemini CLI using the command
       `npm install -g @didim365/agent-cli@latest`.
-    - If you are running `gemini` from source, ensure you are using the correct
+    - If you are running `didim` from source, ensure you are using the correct
       command to invoke it (e.g., `node packages/cli/dist/index.js ...`). To
       update Gemini CLI, pull the latest changes from the repository, and then
       rebuild using the command `npm run build`.
@@ -110,14 +109,14 @@ topics on:
     interactive mode.
   - **Solution:** If the `CI_` prefixed variable is not needed for the CLI to
     function, you can temporarily unset it for the command. e.g.,
-    `env -u CI_TOKEN gemini`
+    `env -u CI_TOKEN didim`
 
 - **DEBUG mode not working from project .env file**
   - **Issue:** Setting `DEBUG=true` in a project's `.env` file doesn't enable
     debug mode for gemini-cli.
   - **Cause:** The `DEBUG` and `DEBUG_MODE` variables are automatically excluded
     from project `.env` files to prevent interference with gemini-cli behavior.
-  - **Solution:** Use a `.gemini/.env` file instead, or configure the
+  - **Solution:** Use a `.didim/.env` file instead, or configure the
     `advanced.excludedEnvVars` setting in your `settings.json` to exclude fewer
     variables.
 

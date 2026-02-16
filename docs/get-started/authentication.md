@@ -46,7 +46,7 @@ To authenticate and use Gemini CLI:
 1. Start the CLI:
 
    ```bash
-   gemini
+   didim
    ```
 
 2. Select **Login with Google**. Gemini CLI opens a login prompt using your web
@@ -88,7 +88,7 @@ To authenticate and use Gemini CLI with a Gemini API key:
 3. Start the CLI:
 
    ```bash
-   gemini
+   didim
    ```
 
 4. Select **Use Gemini API key**.
@@ -115,7 +115,7 @@ To use this CLI with Anthropic's Claude models:
 3. Start the CLI:
 
    ```bash
-   gemini
+   didim
    ```
 
 4. The CLI automatically detects your Anthropic API key and selects Claude as
@@ -150,7 +150,7 @@ To use this CLI with OpenAI models:
 3. Start the CLI:
 
    ```bash
-   gemini
+   didim
    ```
 
 4. The CLI automatically detects your OpenAI API key and selects OpenAI as the
@@ -188,7 +188,7 @@ OpenAI-compatible API:
 2. Start the CLI:
 
    ```bash
-   gemini
+   didim
    ```
 
 3. Use `/model` to enter your model name in the freeform text input field.
@@ -245,7 +245,7 @@ Consider this authentication method if you have Google Cloud CLI installed.
 4. Start the CLI:
 
    ```bash
-   gemini
+   didim
    ```
 
 5. Select **Vertex AI**.
@@ -279,7 +279,7 @@ pipelines, or if your organization restricts user-based ADC or API key creation.
 4.  Start the CLI:
 
     ```bash
-    gemini
+    didim
     ```
 
 5.  Select **Vertex AI**.
@@ -308,7 +308,7 @@ pipelines, or if your organization restricts user-based ADC or API key creation.
 4.  Start the CLI:
 
     ```bash
-    gemini
+    didim
     ```
 
 5.  Select **Vertex AI**.
@@ -369,16 +369,16 @@ persist them with the following methods:
     > paths in your shell configuration file, any process launched from that
     > shell can read them.
 
-2.  **Use a `.env` file:** Create a `.gemini/.env` file in your project
-    directory or home directory. Gemini CLI automatically loads variables from
-    the first `.env` file it finds, searching up from the current directory,
-    then in `~/.gemini/.env` or `~/.env`. `.gemini/.env` is recommended.
+2.  **Use a `.env` file:** Create a `.didim/.env` file in your project directory
+    or home directory. Gemini CLI automatically loads variables from the first
+    `.env` file it finds, searching up from the current directory, then in
+    `~/.didim/.env` or `~/.env`. `.didim/.env` is recommended.
 
     Example for user-wide settings:
 
     ```bash
-    mkdir -p ~/.gemini
-    cat >> ~/.gemini/.env <<'EOF'
+    mkdir -p ~/.didim
+    cat >> ~/.didim/.env <<'EOF'
     GOOGLE_CLOUD_PROJECT="your-project-id"
     # Add other variables like GEMINI_API_KEY as needed
     EOF

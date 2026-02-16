@@ -11,7 +11,7 @@ settings.
 
 ### Via the interactive UI
 
-1.  Start a Gemini CLI session by running `gemini`.
+1.  Start a Gemini CLI session by running `didim`.
 2.  Type `/settings` to open the interactive settings dialog.
 3.  Search for "Skills".
 4.  Toggle **Agent Skills** to `true`.
@@ -21,7 +21,7 @@ settings.
 ### Via `settings.json`
 
 Alternatively, you can manually edit your global settings file at
-`~/.gemini/settings.json` (create it if it doesn't exist):
+`~/.didim/settings.json` (create it if it doesn't exist):
 
 ```json
 {
@@ -40,11 +40,11 @@ responding correctly.
 1.  **Create the skill directory structure:**
 
     ```bash
-    mkdir -p .gemini/skills/api-auditor/scripts
+    mkdir -p .didim/skills/api-auditor/scripts
     ```
 
 2.  **Create the `SKILL.md` file:** Create a file at
-    `.gemini/skills/api-auditor/SKILL.md` with the following content:
+    `.didim/skills/api-auditor/SKILL.md` with the following content:
 
     ```markdown
     ---
@@ -68,11 +68,11 @@ responding correctly.
     ```
 
 3.  **Create the bundled Node.js script:** Create a file at
-    `.gemini/skills/api-auditor/scripts/audit.js`. This script will be used by
+    `.didim/skills/api-auditor/scripts/audit.js`. This script will be used by
     the agent to perform the actual check:
 
     ```javascript
-    // .gemini/skills/api-auditor/scripts/audit.js
+    // .didim/skills/api-auditor/scripts/audit.js
     const url = process.argv[2];
 
     if (!url) {
@@ -88,7 +88,7 @@ responding correctly.
 
 ## 3. Verify the Skill is Discovered
 
-Use the `/skills` slash command (or `gemini skills list` from your terminal) to
+Use the `/skills` slash command (or `didim skills list` from your terminal) to
 see if Gemini CLI has found your new skill.
 
 In a Gemini CLI session:
@@ -115,7 +115,7 @@ skill. I'll run the audit script now..."
 Gemini will then use the `run_shell_command` tool to execute your bundled Node
 script:
 
-`node .gemini/skills/api-auditor/scripts/audit.js http://geminili.com`
+`node .didim/skills/api-auditor/scripts/audit.js http://geminili.com`
 
 ## Next Steps
 

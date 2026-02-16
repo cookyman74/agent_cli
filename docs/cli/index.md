@@ -36,9 +36,9 @@ overview of Gemini CLI, see the [main documentation page](../index.md).
 - **[Token caching](./token-caching.md):** Optimize API costs by caching tokens.
 - **[Trusted folders](./trusted-folders.md):** A security feature to control
   which projects can use the full capabilities of the CLI.
-- **[Ignoring files (.geminiignore)](./gemini-ignore.md):** Exclude specific
-  files and directories from being accessed by tools.
-- **[Context files (GEMINI.md)](./gemini-md.md):** Provide persistent,
+- **[Ignoring files (.didimignore)](./didim-ignore.md):** Exclude specific files
+  and directories from being accessed by tools.
+- **[Context files (AGENTS.md)](./agents-md.md):** Provide persistent,
   hierarchical context to the model.
 - **[System prompt override](./system-prompt.md):** Replace the built‑in system
   instructions using `GEMINI_SYSTEM_MD`.
@@ -52,13 +52,13 @@ command, and then it exits.
 The following example pipes a command to Gemini CLI from your terminal:
 
 ```bash
-echo "What is fine tuning?" | gemini
+echo "What is fine tuning?" | didim
 ```
 
 You can also use the `--prompt` or `-p` flag:
 
 ```bash
-gemini -p "What is fine tuning?"
+didim -p "What is fine tuning?"
 ```
 
 For comprehensive documentation on headless usage, scripting, automation, and

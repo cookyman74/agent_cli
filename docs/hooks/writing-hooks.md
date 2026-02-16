@@ -29,8 +29,8 @@ Create a directory for hooks and a simple logging script.
 > perform similar logic using Node.js or Python.
 
 ```bash
-mkdir -p .gemini/hooks
-cat > .gemini/hooks/log-tools.sh << 'EOF'
+mkdir -p .didim/hooks
+cat > .didim/hooks/log-tools.sh << 'EOF'
 #!/usr/bin/env bash
 # Read hook input from stdin
 input=$(cat)
@@ -42,14 +42,14 @@ tool_name=$(echo "$input" | jq -r '.tool_name')
 echo "Logging tool: $tool_name" >&2
 
 # Log to file
-echo "[$(date)] Tool executed: $tool_name" >> .gemini/tool-log.txt
+echo "[$(date)] Tool executed: $tool_name" >> .didim/tool-log.txt
 
 # Return success (exit 0) with empty JSON
 echo "{}"
 exit 0
 EOF
 
-chmod +x .gemini/hooks/log-tools.sh
+chmod +x .didim/hooks/log-tools.sh
 ```
 
 ## Exit Code Strategies
@@ -68,7 +68,7 @@ There are two ways to control or block an action in Gemini CLI:
 Prevent committing files containing API keys or passwords. Note that we use
 **Exit Code 0** to provide a structured denial message to the agent.
 
-**`.gemini/hooks/block-secrets.sh`:**
+**`.didim/hooks/block-secrets.sh`:**
 
 ```bash
 #!/usr/bin/env bash
@@ -102,7 +102,7 @@ exit 0
 
 Add relevant project context before each agent interaction.
 
-**`.gemini/hooks/inject-context.sh`:**
+**`.didim/hooks/inject-context.sh`:**
 
 ```bash
 #!/usr/bin/env bash
@@ -126,7 +126,7 @@ EOF
 Use `BeforeToolSelection` to intelligently reduce the tool space. This example
 uses a Node.js script to check the user's prompt and allow only relevant tools.
 
-**`.gemini/hooks/filter-tools.js`:**
+**`.didim/hooks/filter-tools.js`:**
 
 ```javascript
 #!/usr/bin/env node
@@ -183,7 +183,7 @@ main().catch((err) => {
 });
 ```
 
-**`.gemini/settings.json`:**
+**`.didim/settings.json`:**
 
 ```json
 {
@@ -195,7 +195,7 @@ main().catch((err) => {
           {
             "name": "intent-filter",
             "type": "command",
-            "command": "node .gemini/hooks/filter-tools.js"
+            "command": "node .didim/hooks/filter-tools.js"
           }
         ]
       }
@@ -227,7 +227,7 @@ security.
 6. **AfterAgent**: Validate final response quality (Retry).
 7. **SessionEnd**: Consolidate memories.
 
-### Configuration (`.gemini/settings.json`)
+### Configuration (`.didim/settings.json`)
 
 ```json
 {
@@ -239,7 +239,7 @@ security.
           {
             "name": "init",
             "type": "command",
-            "command": "node .gemini/hooks/init.js"
+            "command": "node .didim/hooks/init.js"
           }
         ]
       }
@@ -251,7 +251,7 @@ security.
           {
             "name": "memory",
             "type": "command",
-            "command": "node .gemini/hooks/inject-memories.js"
+            "command": "node .didim/hooks/inject-memories.js"
           }
         ]
       }
@@ -263,7 +263,7 @@ security.
           {
             "name": "filter",
             "type": "command",
-            "command": "node .gemini/hooks/rag-filter.js"
+            "command": "node .didim/hooks/rag-filter.js"
           }
         ]
       }
@@ -275,7 +275,7 @@ security.
           {
             "name": "security",
             "type": "command",
-            "command": "node .gemini/hooks/security.js"
+            "command": "node .didim/hooks/security.js"
           }
         ]
       }
@@ -287,7 +287,7 @@ security.
           {
             "name": "record",
             "type": "command",
-            "command": "node .gemini/hooks/record.js"
+            "command": "node .didim/hooks/record.js"
           }
         ]
       }
@@ -299,7 +299,7 @@ security.
           {
             "name": "validate",
             "type": "command",
-            "command": "node .gemini/hooks/validate.js"
+            "command": "node .didim/hooks/validate.js"
           }
         ]
       }
@@ -311,7 +311,7 @@ security.
           {
             "name": "save",
             "type": "command",
-            "command": "node .gemini/hooks/consolidate.js"
+            "command": "node .didim/hooks/consolidate.js"
           }
         ]
       }
@@ -396,7 +396,7 @@ const input = JSON.parse(fs.readFileSync(0));
 const { llm_request, llm_response } = input;
 const logFile = path.join(
   process.env.GEMINI_PROJECT_DIR,
-  '.gemini/memory/session.jsonl',
+  '.didim/memory/session.jsonl',
 );
 
 fs.appendFileSync(

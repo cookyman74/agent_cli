@@ -15,7 +15,7 @@ Slash commands provide meta-level control over the CLI itself.
     filed within the GitHub repository for Gemini CLI. The string you enter
     after `/bug` will become the headline for the bug being filed. The default
     `/bug` behavior can be modified using the `advanced.bugCommand` setting in
-    your `.gemini/settings.json` files.
+    your `.didim/settings.json` files.
 
 - **`/chat`**
   - **Description:** Save and resume conversation history for branching
@@ -28,8 +28,8 @@ Slash commands provide meta-level control over the CLI itself.
       - **Usage:** `/chat save <tag>`
       - **Details on checkpoint location:** The default locations for saved chat
         checkpoints are:
-        - Linux/macOS: `~/.gemini/tmp/<project_hash>/`
-        - Windows: `C:\Users\<YourUsername>\.gemini\tmp\<project_hash>\`
+        - Linux/macOS: `~/.didim/tmp/<project_hash>/`
+        - Windows: `C:\Users\<YourUsername>\.didim\tmp\<project_hash>\`
         - **Behavior:** Chats are saved into a project-specific directory,
           determined by where you run the CLI. Consequently, saved chats are
           only accessible when working within that same project.
@@ -138,25 +138,25 @@ Slash commands provide meta-level control over the CLI itself.
 
 - **`/memory`**
   - **Description:** Manage the AI's instructional context (hierarchical memory
-    loaded from `GEMINI.md` files).
+    loaded from `AGENTS.md` files).
   - **Sub-commands:**
     - **`add`**:
       - **Description:** Adds the following text to the AI's memory. Usage:
         `/memory add <text to remember>`
     - **`show`**:
       - **Description:** Display the full, concatenated content of the current
-        hierarchical memory that has been loaded from all `GEMINI.md` files.
+        hierarchical memory that has been loaded from all `AGENTS.md` files.
         This lets you inspect the instructional context being provided to the
         Gemini model.
     - **`refresh`**:
       - **Description:** Reload the hierarchical instructional memory from all
-        `GEMINI.md` files found in the configured locations (global,
+        `AGENTS.md` files found in the configured locations (global,
         project/ancestors, and sub-directories). This command updates the model
-        with the latest `GEMINI.md` content.
+        with the latest `AGENTS.md` content.
     - **`list`**:
-      - **Description:** Lists the paths of the GEMINI.md files in use for
+      - **Description:** Lists the paths of the AGENTS.md files in use for
         hierarchical memory.
-    - **Note:** For more details on how `GEMINI.md` files contribute to
+    - **Note:** For more details on how `AGENTS.md` files contribute to
       hierarchical memory, see the
       [CLI Configuration documentation](../get-started/configuration.md).
 
@@ -191,7 +191,7 @@ Slash commands provide meta-level control over the CLI itself.
     settings.
   - **Details:** This command provides a user-friendly interface for changing
     settings that control the behavior and appearance of Gemini CLI. It is
-    equivalent to manually editing the `.gemini/settings.json` file, but with
+    equivalent to manually editing the `.didim/settings.json` file, but with
     validation and guidance to prevent errors. See the
     [settings documentation](./settings.md) for a full list of available
     settings.
@@ -274,12 +274,12 @@ Slash commands provide meta-level control over the CLI itself.
     - **Count support:** Prefix commands with numbers (e.g., `3h`, `5w`, `10G`)
     - **Repeat last command:** Use `.` to repeat the last editing operation
     - **Persistent setting:** Vim mode preference is saved to
-      `~/.gemini/settings.json` and restored between sessions
+      `~/.didim/settings.json` and restored between sessions
   - **Status indicator:** When enabled, shows `[NORMAL]` or `[INSERT]` in the
     footer
 
 - **`/init`**
-  - **Description:** To help users easily create a `GEMINI.md` file, this
+  - **Description:** To help users easily create a `AGENTS.md` file, this
     command analyzes the current directory and generates a tailored context
     file, making it simpler for them to provide project-specific instructions to
     the Gemini agent.

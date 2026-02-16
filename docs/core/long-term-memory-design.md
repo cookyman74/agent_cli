@@ -131,7 +131,7 @@ CREATE INDEX idx_ltm_chunks_metadata_gin
 
 장애 대응:
 
-- DB 쓰기 실패 시 `.gemini/tmp/<project_hash>/ltm-spool/*.jsonl`에 적재
+- DB 쓰기 실패 시 `.didim/tmp/<project_hash>/ltm-spool/*.jsonl`에 적재
 - 백그라운드 재전송 워커가 exponential backoff로 재시도
 
 ## 6. 검색(Read Path) 설계

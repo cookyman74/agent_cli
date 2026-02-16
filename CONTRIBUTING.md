@@ -213,8 +213,8 @@ setting `GEMINI_SANDBOX=true` in your `~/.env` and ensuring a sandboxing
 provider (e.g. `macOS Seatbelt`, `docker`, or `podman`) is available. See
 [Sandboxing](#sandboxing) for details.
 
-To build both the `gemini` CLI utility and the sandbox container, run
-`build:all` from the root directory:
+To build both the `didim` CLI utility and the sandbox container, run `build:all`
+from the root directory:
 
 ```bash
 npm run build:all
@@ -234,7 +234,7 @@ npm start
 If you'd like to run the source build outside of the gemini-cli folder, you can
 utilize `npm link path/to/gemini-cli/packages/cli` (see:
 [docs](https://docs.npmjs.com/cli/v9/commands/npm-link)) or
-`alias gemini="node path/to/gemini-cli/packages/cli"` to run with `gemini`
+`alias didim="node path/to/gemini-cli/packages/cli"` to run with `didim`
 
 ### Running tests
 
@@ -363,11 +363,11 @@ recommended.
 To hit a breakpoint inside the sandbox container run:
 
 ```bash
-DEBUG=1 gemini
+DEBUG=1 didim
 ```
 
 **Note:** If you have `DEBUG=true` in a project's `.env` file, it won't affect
-gemini-cli due to automatic exclusion. Use `.gemini/.env` files for gemini-cli
+gemini-cli due to automatic exclusion. Use `.didim/.env` files for gemini-cli
 specific debug settings.
 
 ### React DevTools
@@ -404,7 +404,7 @@ used for the CLI's interface, is compatible with React DevTools version 4.x.
 
 #### macOS Seatbelt
 
-On macOS, `gemini` uses Seatbelt (`sandbox-exec`) under a `permissive-open`
+On macOS, `didim` uses Seatbelt (`sandbox-exec`) under a `permissive-open`
 profile (see `packages/cli/src/utils/sandbox-macos-permissive-open.sb`) that
 restricts writes to the project folder but otherwise allows all other operations
 and outbound network traffic ("open") by default. You can switch to a
@@ -415,8 +415,8 @@ operations and outbound network traffic ("closed") by default by setting
 Available built-in profiles are `{permissive,restrictive}-{open,closed,proxied}`
 (see below for proxied networking). You can also switch to a custom profile
 `SEATBELT_PROFILE=<profile>` if you also create a file
-`.gemini/sandbox-macos-<profile>.sb` under your project settings directory
-`.gemini`.
+`.didim/sandbox-macos-<profile>.sb` under your project settings directory
+`.didim`.
 
 #### Container-based sandboxing (all platforms)
 
@@ -436,9 +436,9 @@ as you start/stop Gemini CLI. Files created within the sandbox should be
 automatically mapped to your user/group on host machine. You can easily specify
 additional mounts, ports, or environment variables by setting
 `SANDBOX_{MOUNTS,PORTS,ENV}` as needed. You can also fully customize the sandbox
-for your projects by creating the files `.gemini/sandbox.Dockerfile` and/or
-`.gemini/sandbox.bashrc` under your project settings directory (`.gemini`) and
-running `gemini` with `BUILD_SANDBOX=1` to trigger building of your custom
+for your projects by creating the files `.didim/sandbox.Dockerfile` and/or
+`.didim/sandbox.bashrc` under your project settings directory (`.didim`) and
+running `didim` with `BUILD_SANDBOX=1` to trigger building of your custom
 sandbox.
 
 #### Proxied networking

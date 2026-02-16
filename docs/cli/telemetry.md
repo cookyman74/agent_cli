@@ -74,7 +74,7 @@ observability framework — Gemini CLI's observability system provides:
 
 ## Configuration
 
-All telemetry behavior is controlled through your `.gemini/settings.json` file.
+All telemetry behavior is controlled through your `.didim/settings.json` file.
 Environment variables can be used to override the settings in the file.
 
 | Setting        | Environment Variable             | Description                                         | Values            | Default                 |
@@ -166,7 +166,7 @@ To enable this, set the `useCliAuth` property in your `telemetry` settings to
 
 Sends telemetry directly to Google Cloud services. No collector needed.
 
-1. Enable telemetry in your `.gemini/settings.json`:
+1. Enable telemetry in your `.didim/settings.json`:
    ```json
    {
      "telemetry": {
@@ -187,7 +187,7 @@ Sends telemetry directly to Google Cloud services. No collector needed.
 For custom processing, filtering, or routing, use an OpenTelemetry collector to
 forward data to Google Cloud.
 
-1. Configure your `.gemini/settings.json`:
+1. Configure your `.didim/settings.json`:
    ```json
    {
      "telemetry": {
@@ -205,7 +205,7 @@ forward data to Google Cloud.
    - Start a local OTEL collector that forwards to Google Cloud
    - Configure your workspace
    - Provide links to view traces, metrics, and logs in Google Cloud Console
-   - Save collector logs to `~/.gemini/tmp/<projectHash>/otel/collector-gcp.log`
+   - Save collector logs to `~/.didim/tmp/<projectHash>/otel/collector-gcp.log`
    - Stop collector on exit (e.g. `Ctrl+C`)
 3. Run Gemini CLI and send prompts.
 4. View logs and metrics:
@@ -213,7 +213,7 @@ forward data to Google Cloud.
      - Logs: https://console.cloud.google.com/logs/
      - Metrics: https://console.cloud.google.com/monitoring/metrics-explorer
      - Traces: https://console.cloud.google.com/traces/list
-   - Open `~/.gemini/tmp/<projectHash>/otel/collector-gcp.log` to view local
+   - Open `~/.didim/tmp/<projectHash>/otel/collector-gcp.log` to view local
      collector logs.
 
 ### Monitoring Dashboards
@@ -240,19 +240,19 @@ For local development and debugging, you can capture telemetry data locally:
 
 ### File-based output (recommended)
 
-1. Enable telemetry in your `.gemini/settings.json`:
+1. Enable telemetry in your `.didim/settings.json`:
    ```json
    {
      "telemetry": {
        "enabled": true,
        "target": "local",
        "otlpEndpoint": "",
-       "outfile": ".gemini/telemetry.log"
+       "outfile": ".didim/telemetry.log"
      }
    }
    ```
 2. Run Gemini CLI and send prompts.
-3. View logs and metrics in the specified file (e.g., `.gemini/telemetry.log`).
+3. View logs and metrics in the specified file (e.g., `.didim/telemetry.log`).
 
 ### Collector-based export (advanced)
 
@@ -264,7 +264,7 @@ For local development and debugging, you can capture telemetry data locally:
    - Download and start Jaeger and OTEL collector
    - Configure your workspace for local telemetry
    - Provide a Jaeger UI at http://localhost:16686
-   - Save logs/metrics to `~/.gemini/tmp/<projectHash>/otel/collector.log`
+   - Save logs/metrics to `~/.didim/tmp/<projectHash>/otel/collector.log`
    - Stop collector on exit (e.g. `Ctrl+C`)
 2. Run Gemini CLI and send prompts.
 3. View traces at http://localhost:16686 and logs/metrics in the collector log

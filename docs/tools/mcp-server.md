@@ -270,7 +270,7 @@ Use the `/mcp auth` command to manage OAuth authentication:
 
 OAuth tokens are automatically:
 
-- **Stored securely** in `~/.gemini/mcp-oauth-tokens.json`
+- **Stored securely** in `~/.didim/mcp-oauth-tokens.json`
 - **Refreshed** when expired (if refresh tokens are available)
 - **Validated** before each connection attempt
 - **Cleaned up** when invalid or expired
@@ -911,7 +911,7 @@ substituting the arguments into the prompt template and returning the final
 prompt text. The CLI then sends this prompt to the model for execution. This
 provides a convenient way to automate and share common workflows.
 
-## Managing MCP servers with `gemini mcp`
+## Managing MCP servers with `didim mcp`
 
 While you can always configure MCP servers by manually editing your
 `settings.json` file, the Gemini CLI provides a convenient set of commands to
@@ -919,16 +919,16 @@ manage your server configurations programmatically. These commands streamline
 the process of adding, listing, and removing MCP servers without needing to
 directly edit JSON files.
 
-### Adding a server (`gemini mcp add`)
+### Adding a server (`didim mcp add`)
 
 The `add` command configures a new MCP server in your `settings.json`. Based on
 the scope (`-s, --scope`), it will be added to either the user config
-`~/.gemini/settings.json` or the project config `.gemini/settings.json` file.
+`~/.didim/settings.json` or the project config `.didim/settings.json` file.
 
 **Command:**
 
 ```bash
-gemini mcp add [options] <name> <commandOrUrl> [args...]
+didim mcp add [options] <name> <commandOrUrl> [args...]
 ```
 
 - `<name>`: A unique name for the server.
@@ -955,13 +955,13 @@ This is the default transport for running local servers.
 
 ```bash
 # Basic syntax
-gemini mcp add [options] <name> <command> [args...]
+didim mcp add [options] <name> <command> [args...]
 
 # Example: Adding a local server
-gemini mcp add -e API_KEY=123 -e DEBUG=true my-stdio-server /path/to/server arg1 arg2 arg3
+didim mcp add -e API_KEY=123 -e DEBUG=true my-stdio-server /path/to/server arg1 arg2 arg3
 
 # Example: Adding a local python server
-gemini mcp add python-server python server.py -- --server-arg my-value
+didim mcp add python-server python server.py -- --server-arg my-value
 ```
 
 #### Adding an HTTP server
@@ -970,13 +970,13 @@ This transport is for servers that use the streamable HTTP transport.
 
 ```bash
 # Basic syntax
-gemini mcp add --transport http <name> <url>
+didim mcp add --transport http <name> <url>
 
 # Example: Adding an HTTP server
-gemini mcp add --transport http http-server https://api.example.com/mcp/
+didim mcp add --transport http http-server https://api.example.com/mcp/
 
 # Example: Adding an HTTP server with an authentication header
-gemini mcp add --transport http --header "Authorization: Bearer abc123" secure-http https://api.example.com/mcp/
+didim mcp add --transport http --header "Authorization: Bearer abc123" secure-http https://api.example.com/mcp/
 ```
 
 #### Adding an SSE server
@@ -985,16 +985,16 @@ This transport is for servers that use Server-Sent Events (SSE).
 
 ```bash
 # Basic syntax
-gemini mcp add --transport sse <name> <url>
+didim mcp add --transport sse <name> <url>
 
 # Example: Adding an SSE server
-gemini mcp add --transport sse sse-server https://api.example.com/sse/
+didim mcp add --transport sse sse-server https://api.example.com/sse/
 
 # Example: Adding an SSE server with an authentication header
-gemini mcp add --transport sse --header "Authorization: Bearer abc123" secure-sse https://api.example.com/sse/
+didim mcp add --transport sse --header "Authorization: Bearer abc123" secure-sse https://api.example.com/sse/
 ```
 
-### Listing servers (`gemini mcp list`)
+### Listing servers (`didim mcp list`)
 
 To view all MCP servers currently configured, use the `list` command. It
 displays each server's name, configuration details, and connection status. This
@@ -1003,7 +1003,7 @@ command has no flags.
 **Command:**
 
 ```bash
-gemini mcp list
+didim mcp list
 ```
 
 **Example output:**
@@ -1014,7 +1014,7 @@ gemini mcp list
 ✗ sse-server: https://api.example.com/sse (sse) - Disconnected
 ```
 
-### Removing a server (`gemini mcp remove`)
+### Removing a server (`didim mcp remove`)
 
 To delete a server from your configuration, use the `remove` command with the
 server's name.
@@ -1022,7 +1022,7 @@ server's name.
 **Command:**
 
 ```bash
-gemini mcp remove <name>
+didim mcp remove <name>
 ```
 
 **Options (flags):**
@@ -1032,13 +1032,13 @@ gemini mcp remove <name>
 **Example:**
 
 ```bash
-gemini mcp remove my-server
+didim mcp remove my-server
 ```
 
 This will find and delete the "my-server" entry from the `mcpServers` object in
 the appropriate `settings.json` file based on the scope (`-s, --scope`).
 
-### Enabling/disabling a server (`gemini mcp enable`, `gemini mcp disable`)
+### Enabling/disabling a server (`didim mcp enable`, `didim mcp disable`)
 
 Temporarily disable an MCP server without removing its configuration, or
 re-enable a previously disabled server.
@@ -1046,8 +1046,8 @@ re-enable a previously disabled server.
 **Commands:**
 
 ```bash
-gemini mcp enable <name> [--session]
-gemini mcp disable <name> [--session]
+didim mcp enable <name> [--session]
+didim mcp disable <name> [--session]
 ```
 
 **Options (flags):**
@@ -1056,7 +1056,7 @@ gemini mcp disable <name> [--session]
 
 Disabled servers appear in `/mcp` status as "Disabled" but won't connect or
 provide tools. Enablement state is stored in
-`~/.gemini/mcp-server-enablement.json`.
+`~/.didim/mcp-server-enablement.json`.
 
 The same commands are available as slash commands during an active session:
 `/mcp enable <name>` and `/mcp disable <name>`.

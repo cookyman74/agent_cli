@@ -15,14 +15,14 @@ if you need to ship platform specific binary files.
 
 This is the most flexible and simple option. All you need to do is create a
 publicly accessible git repo (such as a public github repository) and then users
-can install your extension using `gemini extensions install <your-repo-uri>`.
+can install your extension using `didim extensions install <your-repo-uri>`.
 They can optionally depend on a specific ref (branch/tag/commit) using the
 `--ref=<some-ref>` argument, this defaults to the default branch.
 
 Whenever commits are pushed to the ref that a user depends on, they will be
 prompted to update the extension. Note that this also allows for easy rollbacks,
 the HEAD commit is always treated as the latest version regardless of the actual
-version in the `gemini-extension.json` file.
+version in the `didim-extension.json` file.
 
 ### Managing release channels using a git repository
 
@@ -30,7 +30,7 @@ Users can depend on any ref from your git repo, such as a branch or tag, which
 allows you to manage multiple release channels.
 
 For instance, you can maintain a `stable` branch, which users can install this
-way `gemini extensions install <your-repo-uri> --ref=stable`. Or, you could make
+way `didim extensions install <your-repo-uri> --ref=stable`. Or, you could make
 this the default by treating your default branch as your stable release branch,
 and doing development in a different branch (for instance called `dev`). You can
 maintain as many branches or tags as you like, providing maximum flexibility for
@@ -45,7 +45,7 @@ to you how you want to manage your tags and branches.
 While there are many options for how you want to manage releases using a git
 flow, we recommend treating your default branch as your "stable" release branch.
 This means that the default behavior for
-`gemini extensions install <your-repo-uri>` is to be on the stable release
+`didim extensions install <your-repo-uri>` is to be on the stable release
 branch.
 
 Lets say you want to maintain three standard release channels, `stable`,
@@ -131,7 +131,7 @@ in the following order:
 #### Archive structure
 
 Archives must be fully contained extensions and have all the standard
-requirements - specifically the `gemini-extension.json` file must be at the root
+requirements - specifically the `didim-extension.json` file must be at the root
 of the archive.
 
 The rest of the layout should look exactly the same as a typical extension, see

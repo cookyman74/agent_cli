@@ -26,8 +26,8 @@ Settings are merged from four files. The precedence order for single-value
 settings (like `theme`) is:
 
 1. System Defaults (`system-defaults.json`)
-2. User Settings (`~/.gemini/settings.json`)
-3. Workspace Settings (`<project>/.gemini/settings.json`)
+2. User Settings (`~/.didim/settings.json`)
+3. Workspace Settings (`<project>/.didim/settings.json`)
 4. System Overrides (`settings.json`)
 
 This means the System Overrides file has the final say. For settings that are
@@ -50,7 +50,7 @@ Here is how settings from different levels are combined.
   }
   ```
 
-- **User `settings.json` (`~/.gemini/settings.json`):**
+- **User `settings.json` (`~/.didim/settings.json`):**
 
   ```json
   {
@@ -71,7 +71,7 @@ Here is how settings from different levels are combined.
   }
   ```
 
-- **Workspace `settings.json` (`<project>/.gemini/settings.json`):**
+- **Workspace `settings.json` (`<project>/.didim/settings.json`):**
 
   ```json
   {
@@ -167,14 +167,14 @@ settings file, bypassing the centrally managed configuration. To mitigate this,
 enterprises can deploy a wrapper script or alias that ensures the environment
 variable is always set to the corporate-controlled path.
 
-This approach ensures that no matter how the user calls the `gemini` command,
-the enterprise settings are always loaded with the highest precedence.
+This approach ensures that no matter how the user calls the `didim` command, the
+enterprise settings are always loaded with the highest precedence.
 
 **Example wrapper script:**
 
-Administrators can create a script named `gemini` and place it in a directory
+Administrators can create a script named `didim` and place it in a directory
 that appears earlier in the user's `PATH` than the actual Gemini CLI binary
-(e.g., `/usr/local/bin/gemini`).
+(e.g., `/usr/local/bin/didim`).
 
 ```bash
 #!/bin/bash
@@ -183,13 +183,13 @@ that appears earlier in the user's `PATH` than the actual Gemini CLI binary
 # This ensures that the company's configuration is always applied.
 export GEMINI_CLI_SYSTEM_SETTINGS_PATH="/etc/gemini-cli/settings.json"
 
-# Find the original gemini executable.
+# Find the original didim executable.
 # This is a simple example; a more robust solution might be needed
 # depending on the installation method.
-REAL_GEMINI_PATH=$(type -aP gemini | grep -v "^$(type -P gemini)$" | head -n 1)
+REAL_GEMINI_PATH=$(type -aP didim | grep -v "^$(type -P didim)$" | head -n 1)
 
 if [ -z "$REAL_GEMINI_PATH" ]; then
-  echo "Error: The original 'gemini' executable was not found." >&2
+  echo "Error: The original 'didim' executable was not found." >&2
   exit 1
 fi
 

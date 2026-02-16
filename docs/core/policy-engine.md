@@ -11,9 +11,9 @@ To create your first policy:
 
 1.  **Create the policy directory** if it doesn't exist:
     ```bash
-    mkdir -p ~/.gemini/policies
+    mkdir -p ~/.didim/policies
     ```
-2.  **Create a new policy file** (e.g., `~/.gemini/policies/my-rules.toml`). You
+2.  **Create a new policy file** (e.g., `~/.didim/policies/my-rules.toml`). You
     can use any filename ending in `.toml`; all such files in this directory
     will be loaded and combined:
     ```toml
@@ -148,10 +148,10 @@ User, and (if configured) Admin directories.
 
 ### Policy locations
 
-| Tier      | Type   | Location                    |
-| :-------- | :----- | :-------------------------- |
-| **User**  | Custom | `~/.gemini/policies/*.toml` |
-| **Admin** | System | _See below (OS specific)_   |
+| Tier      | Type   | Location                   |
+| :-------- | :----- | :------------------------- |
+| **User**  | Custom | `~/.didim/policies/*.toml` |
+| **Admin** | System | _See below (OS specific)_  |
 
 #### System-wide policies (Admin)
 

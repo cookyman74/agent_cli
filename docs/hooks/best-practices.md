@@ -34,7 +34,7 @@ hooks that run frequently (like `BeforeTool` or `AfterModel`).
 const fs = require('fs');
 const path = require('path');
 
-const CACHE_FILE = '.gemini/hook-cache.json';
+const CACHE_FILE = '.didim/hook-cache.json';
 
 function readCache() {
   try {
@@ -129,7 +129,7 @@ easiest way to debug complex logic.
 
 ```bash
 #!/usr/bin/env bash
-LOG_FILE=".gemini/hooks/debug.log"
+LOG_FILE=".didim/hooks/debug.log"
 
 # Log with timestamp
 log() {
@@ -183,7 +183,7 @@ cat > test-input.json << 'EOF'
 EOF
 
 # Test the hook
-cat test-input.json | .gemini/hooks/my-hook.sh
+cat test-input.json | .didim/hooks/my-hook.sh
 
 # Check exit code
 echo "Exit code: $?"
@@ -262,7 +262,7 @@ Begin with basic logging hooks before implementing complex logic:
 #!/usr/bin/env bash
 # Simple logging hook to understand input structure
 input=$(cat)
-echo "$input" >> .gemini/hook-inputs.log
+echo "$input" >> .didim/hook-inputs.log
 # Always return valid JSON
 echo "{}"
 
@@ -286,7 +286,7 @@ and helps diagnose issues.
           {
             "name": "secret-scanner",
             "type": "command",
-            "command": "$GEMINI_PROJECT_DIR/.gemini/hooks/block-secrets.sh",
+            "command": "$GEMINI_PROJECT_DIR/.didim/hooks/block-secrets.sh",
             "description": "Scans code changes for API keys and secrets before writing"
           }
         ]
@@ -336,8 +336,8 @@ tool_name=$(echo "$input" | jq -r '.tool_name')
 Always make hook scripts executable:
 
 ```bash
-chmod +x .gemini/hooks/*.sh
-chmod +x .gemini/hooks/*.js
+chmod +x .didim/hooks/*.sh
+chmod +x .didim/hooks/*.js
 
 ```
 
@@ -346,8 +346,8 @@ chmod +x .gemini/hooks/*.js
 Commit hooks to share with your team:
 
 ```bash
-git add .gemini/hooks/
-git add .gemini/settings.json
+git add .didim/hooks/
+git add .didim/settings.json
 
 ```
 
@@ -355,13 +355,13 @@ git add .gemini/settings.json
 
 ```gitignore
 # Ignore hook cache and logs
-.gemini/hook-cache.json
-.gemini/hook-debug.log
-.gemini/memory/session-*.jsonl
+.didim/hook-cache.json
+.didim/hook-debug.log
+.didim/memory/session-*.jsonl
 
 # Keep hook scripts
-!.gemini/hooks/*.sh
-!.gemini/hooks/*.js
+!.didim/hooks/*.sh
+!.didim/hooks/*.js
 
 ```
 
@@ -372,16 +372,16 @@ git add .gemini/settings.json
 Understanding where hooks come from and what they can do is critical for secure
 usage.
 
-| Hook Source                   | Description                                                                                                                |
-| :---------------------------- | :------------------------------------------------------------------------------------------------------------------------- |
-| **System**                    | Configured by system administrators (e.g., `/etc/gemini-cli/settings.json`, `/Library/...`). Assumed to be the **safest**. |
-| **User** (`~/.gemini/...`)    | Configured by you. You are responsible for ensuring they are safe.                                                         |
-| **Extensions**                | You explicitly approve and install these. Security depends on the extension source (integrity).                            |
-| **Project** (`./.gemini/...`) | **Untrusted by default.** Safest in trusted internal repos; higher risk in third-party/public repos.                       |
+| Hook Source                  | Description                                                                                                                |
+| :--------------------------- | :------------------------------------------------------------------------------------------------------------------------- |
+| **System**                   | Configured by system administrators (e.g., `/etc/gemini-cli/settings.json`, `/Library/...`). Assumed to be the **safest**. |
+| **User** (`~/.didim/...`)    | Configured by you. You are responsible for ensuring they are safe.                                                         |
+| **Extensions**               | You explicitly approve and install these. Security depends on the extension source (integrity).                            |
+| **Project** (`./.didim/...`) | **Untrusted by default.** Safest in trusted internal repos; higher risk in third-party/public repos.                       |
 
 #### Project Hook Security
 
-When you open a project with hooks defined in `.gemini/settings.json`:
+When you open a project with hooks defined in `.didim/settings.json`:
 
 1. **Detection**: Gemini CLI detects the hooks.
 2. **Identification**: A unique identity is generated for each hook based on its
@@ -477,18 +477,18 @@ echo "write_file|replace" | grep -E "write_.*|replace"
 has execution permissions:
 
 ```bash
-ls -la .gemini/hooks/my-hook.sh
-chmod +x .gemini/hooks/my-hook.sh
+ls -la .didim/hooks/my-hook.sh
+chmod +x .didim/hooks/my-hook.sh
 ```
 
 **Verify script path:** Ensure the path in `settings.json` resolves correctly.
 
 ```bash
 # Check path expansion
-echo "$GEMINI_PROJECT_DIR/.gemini/hooks/my-hook.sh"
+echo "$GEMINI_PROJECT_DIR/.didim/hooks/my-hook.sh"
 
 # Verify file exists
-test -f "$GEMINI_PROJECT_DIR/.gemini/hooks/my-hook.sh" && echo "File exists"
+test -f "$GEMINI_PROJECT_DIR/.didim/hooks/my-hook.sh" && echo "File exists"
 ```
 
 ### Hook timing out
@@ -540,7 +540,7 @@ fi
 **Debug available variables:**
 
 ```bash
-env > .gemini/hook-env.log
+env > .didim/hook-env.log
 ```
 
 ## Authoring secure hooks

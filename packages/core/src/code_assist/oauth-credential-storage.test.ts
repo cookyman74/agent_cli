@@ -323,5 +323,23 @@ describe('OAuthCredentialStorage', () => {
       // Legacy file should still be cleaned up even when new storage is empty
       expect(fs.rm).toHaveBeenCalledWith(oldFilePath, { force: true });
     });
+
+    // Issue 27: clearCredentials must delete plaintext files in BOTH .didim and .gemini
+    it('should delete plaintext credential files in both .didim and .gemini directories', async () => {
+      const didimPath = '/mock/home/.didim/oauth_creds.json';
+      const geminiPath = '/mock/home/.gemini/oauth_creds.json';
+      vi.spyOn(path, 'join').mockImplementation((...args: string[]) => {
+        const joined = args.join('/');
+        if (joined.includes('.didim')) return didimPath;
+        if (joined.includes('.gemini')) return geminiPath;
+        return joined;
+      });
+
+      await OAuthCredentialStorage.clearCredentials();
+
+      // fs.rm should be called for both directories
+      expect(fs.rm).toHaveBeenCalledWith(didimPath, { force: true });
+      expect(fs.rm).toHaveBeenCalledWith(geminiPath, { force: true });
+    });
   });
 });

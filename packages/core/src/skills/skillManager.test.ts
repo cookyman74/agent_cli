@@ -79,7 +79,7 @@ description: project-desc
 
     vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([userDir]);
     const storage = new Storage('/dummy');
-    vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue(projectDir);
+    vi.spyOn(storage, 'getProjectSkillsReadDirs').mockReturnValue([projectDir]);
 
     const service = new SkillManager();
     // @ts-expect-error accessing private method for testing
@@ -136,7 +136,7 @@ description: project-desc
 
     vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([userDir]);
     const storage = new Storage('/dummy');
-    vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue(projectDir);
+    vi.spyOn(storage, 'getProjectSkillsReadDirs').mockReturnValue([projectDir]);
 
     const service = new SkillManager();
     // @ts-expect-error accessing private method for testing
@@ -148,7 +148,9 @@ description: project-desc
     expect(skills[0].description).toBe('project-desc');
 
     // Test User > Extension
-    vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue('/non-existent');
+    vi.spyOn(storage, 'getProjectSkillsReadDirs').mockReturnValue([
+      '/non-existent',
+    ]);
     await service.discoverSkills(storage, [mockExtension]);
     expect(service.getSkills()[0].description).toBe('user-desc');
   });
@@ -170,7 +172,9 @@ description: project-desc
     });
 
     const storage = new Storage('/dummy');
-    vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue('/non-existent');
+    vi.spyOn(storage, 'getProjectSkillsReadDirs').mockReturnValue([
+      '/non-existent',
+    ]);
     vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([
       '/non-existent',
     ]);
@@ -197,7 +201,9 @@ body1`,
     );
 
     const storage = new Storage('/dummy');
-    vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue(testRootDir);
+    vi.spyOn(storage, 'getProjectSkillsReadDirs').mockReturnValue([
+      testRootDir,
+    ]);
     vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([
       '/non-existent',
     ]);
@@ -308,7 +314,9 @@ body1`,
 
       vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([userDir]);
       const storage = new Storage('/dummy');
-      vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue(projectDir);
+      vi.spyOn(storage, 'getProjectSkillsReadDirs').mockReturnValue([
+        projectDir,
+      ]);
 
       const service = new SkillManager();
       // @ts-expect-error accessing private method for testing
@@ -361,7 +369,9 @@ body1`,
 
       vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([userDir]);
       const storage = new Storage('/dummy');
-      vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue('/non-existent');
+      vi.spyOn(storage, 'getProjectSkillsReadDirs').mockReturnValue([
+        '/non-existent',
+      ]);
 
       const service = new SkillManager();
 

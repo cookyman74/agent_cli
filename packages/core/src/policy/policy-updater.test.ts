@@ -51,6 +51,9 @@ describe('createPolicyUpdater', () => {
     vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
       '/mock/user/policies',
     );
+    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(
+      '/mock/legacy/policies',
+    );
   });
 
   afterEach(() => {

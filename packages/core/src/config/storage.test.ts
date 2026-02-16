@@ -555,4 +555,73 @@ describe('Storage – dual-read directories', () => {
     expect(result).toContain(DIDIM_DIR);
     expect(result).not.toContain(LEGACY_GEMINI_DIR);
   });
+
+  // Issue 25: getUserPoliciesReadDirs — dual-read for policy directories
+  it('getUserPoliciesReadDirs returns both dirs when both exist', () => {
+    mockExistsSync.mockReturnValue(true);
+    const dirs = Storage.getUserPoliciesReadDirs();
+    expect(dirs).toHaveLength(2);
+    expect(dirs[0]).toContain(path.join(LEGACY_GEMINI_DIR, 'policies'));
+    expect(dirs[1]).toContain(path.join(DIDIM_DIR, 'policies'));
+  });
+
+  it('getUserPoliciesReadDirs returns only .didim when .gemini missing', () => {
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) =>
+        String(p).includes(DIDIM_DIR) && !String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const dirs = Storage.getUserPoliciesReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(DIDIM_DIR);
+  });
+
+  it('getUserPoliciesReadDirs returns only .gemini when .didim missing', () => {
+    mockExistsSync.mockImplementation((p: fs.PathLike) =>
+      String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const dirs = Storage.getUserPoliciesReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(LEGACY_GEMINI_DIR);
+  });
+
+  // Issue 24: getProjectSkillsReadDirs — project-level dual-read
+  it('getProjectSkillsReadDirs returns both dirs when both exist', () => {
+    mockExistsSync.mockReturnValue(true);
+    const storage = new Storage('/tmp/project');
+    const dirs = storage.getProjectSkillsReadDirs();
+    expect(dirs).toHaveLength(2);
+    expect(dirs[0]).toContain(LEGACY_GEMINI_DIR);
+    expect(dirs[0]).toContain('skills');
+    expect(dirs[1]).toContain(DIDIM_DIR);
+    expect(dirs[1]).toContain('skills');
+  });
+
+  it('getProjectSkillsReadDirs returns only .didim when .gemini missing', () => {
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) =>
+        String(p).includes(DIDIM_DIR) && !String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const storage = new Storage('/tmp/project');
+    const dirs = storage.getProjectSkillsReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(DIDIM_DIR);
+  });
+
+  it('getProjectSkillsReadDirs returns only .gemini when .didim missing', () => {
+    mockExistsSync.mockImplementation((p: fs.PathLike) =>
+      String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const storage = new Storage('/tmp/project');
+    const dirs = storage.getProjectSkillsReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(LEGACY_GEMINI_DIR);
+  });
+
+  it('getProjectSkillsReadDirs returns default .didim when neither exists', () => {
+    mockExistsSync.mockReturnValue(false);
+    const storage = new Storage('/tmp/project');
+    const dirs = storage.getProjectSkillsReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(DIDIM_DIR);
+  });
 });

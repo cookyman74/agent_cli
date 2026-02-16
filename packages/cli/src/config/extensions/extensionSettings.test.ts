@@ -92,6 +92,12 @@ describe('extensionSettings', () => {
       ExtensionStorage.prototype,
       'getExtensionWriteDir',
     ).mockReturnValue(extensionDir);
+    vi.spyOn(ExtensionStorage.prototype, 'getEnvFilePath').mockReturnValue(
+      path.join(extensionDir, EXTENSION_SETTINGS_FILENAME),
+    );
+    vi.spyOn(ExtensionStorage.prototype, 'getEnvFileWritePath').mockReturnValue(
+      path.join(extensionDir, EXTENSION_SETTINGS_FILENAME),
+    );
     fs.mkdirSync(extensionDir, { recursive: true });
     fs.mkdirSync(tempWorkspaceDir, { recursive: true });
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
@@ -795,6 +801,13 @@ describe('extensionSettings', () => {
         ExtensionStorage.prototype,
         'getExtensionWriteDir',
       ).mockReturnValue(primaryExtDir);
+      vi.spyOn(ExtensionStorage.prototype, 'getEnvFilePath').mockReturnValue(
+        path.join(legacyExtDir, EXTENSION_SETTINGS_FILENAME),
+      );
+      vi.spyOn(
+        ExtensionStorage.prototype,
+        'getEnvFileWritePath',
+      ).mockReturnValue(path.join(primaryExtDir, EXTENSION_SETTINGS_FILENAME));
 
       // Create legacy .env for reading
       fs.mkdirSync(legacyExtDir, { recursive: true });
@@ -839,6 +852,13 @@ describe('extensionSettings', () => {
       vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(
         nonExistentDir,
       );
+      vi.spyOn(ExtensionStorage.prototype, 'getEnvFilePath').mockReturnValue(
+        path.join(nonExistentDir, EXTENSION_SETTINGS_FILENAME),
+      );
+      vi.spyOn(
+        ExtensionStorage.prototype,
+        'getEnvFileWritePath',
+      ).mockReturnValue(path.join(nonExistentDir, EXTENSION_SETTINGS_FILENAME));
 
       mockRequestSetting.mockResolvedValue('new-val');
       await updateSetting(

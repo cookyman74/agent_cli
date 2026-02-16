@@ -221,4 +221,48 @@ describe('createPolicyUpdater', () => {
       expect(writtenContent).toContain(`toolName = 'search"tool"'`);
     }
   });
+
+  // Issue 26: legacy auto-saved.toml merge on first write to .didim
+  it('should merge rules from legacy auto-saved.toml when write path file is missing', async () => {
+    createPolicyUpdater(policyEngine, messageBus);
+
+    const userPoliciesDir = '/mock/user/policies';
+    const legacyPoliciesDir = '/mock/legacy/policies';
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
+    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(legacyPoliciesDir);
+    (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
+
+    // Write path ENOENT, legacy path has existing rules
+    const enoentError = new Error('ENOENT') as NodeJS.ErrnoException;
+    enoentError.code = 'ENOENT';
+    (fs.readFile as unknown as Mock).mockImplementation((filePath: string) => {
+      if (filePath === path.join(userPoliciesDir, 'auto-saved.toml')) {
+        return Promise.reject(enoentError);
+      }
+      if (filePath === path.join(legacyPoliciesDir, 'auto-saved.toml')) {
+        return Promise.resolve(
+          '[[rule]]\ntoolName = "existing_tool"\ndecision = "allow"\npriority = 100\n',
+        );
+      }
+      return Promise.reject(new Error('Unknown file'));
+    });
+    (fs.writeFile as unknown as Mock).mockResolvedValue(undefined);
+    (fs.rename as unknown as Mock).mockResolvedValue(undefined);
+
+    await messageBus.publish({
+      type: MessageBusType.UPDATE_POLICY,
+      toolName: 'new_tool',
+      persist: true,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Verify written content includes BOTH legacy and new rules
+    const writeCall = (fs.writeFile as unknown as Mock).mock.calls[0];
+    const writtenContent2 = writeCall[1] as string;
+    expect(writtenContent2).toContain('existing_tool');
+    expect(writtenContent2).toContain('new_tool');
+  });
 });

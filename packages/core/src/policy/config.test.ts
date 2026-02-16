@@ -30,6 +30,9 @@ describe('createPolicyEngineConfig', () => {
     vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(
       '/non/existent/user/policies',
     );
+    vi.spyOn(Storage, 'getUserPoliciesReadDirs').mockReturnValue([
+      '/non/existent/user/policies',
+    ]);
     vi.spyOn(Storage, 'getSystemPoliciesDir').mockReturnValue(
       '/non/existent/system/policies',
     );
@@ -562,6 +565,9 @@ describe('createPolicyEngineConfig', () => {
     vi.spyOn(FreshStorage, 'getUserPoliciesDir').mockReturnValue(
       '/non/existent/user/policies',
     );
+    vi.spyOn(FreshStorage, 'getUserPoliciesReadDirs').mockReturnValue([
+      '/non/existent/user/policies',
+    ]);
     vi.spyOn(FreshStorage, 'getSystemPoliciesDir').mockReturnValue(
       '/non/existent/system/policies',
     );
@@ -890,6 +896,9 @@ name = "invalid-name"
     vi.spyOn(FreshStorage, 'getUserPoliciesDir').mockReturnValue(
       '/non/existent/user/policies',
     );
+    vi.spyOn(FreshStorage, 'getUserPoliciesReadDirs').mockReturnValue([
+      '/non/existent/user/policies',
+    ]);
     vi.spyOn(FreshStorage, 'getSystemPoliciesDir').mockReturnValue(
       '/non/existent/system/policies',
     );

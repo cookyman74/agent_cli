@@ -15,7 +15,7 @@ The contents of this directory are a valid MCP server implementation using the
 ## Structure
 
 - `example.js`: The main server entry point.
-- `gemini-extension.json`: The configuration file that tells Gemini CLI how to
+- `didim-extension.json`: The configuration file that tells Gemini CLI how to
   use this extension.
 - `package.json`: Helper for dependencies.
 

@@ -62,7 +62,7 @@ async function validateExtension(args: ValidateArgs) {
     }
     if (missingContextFiles.length > 0) {
       errors.push(
-        `The following context files referenced in gemini-extension.json are missing: ${missingContextFiles}`,
+        `The following context files referenced in didim-extension.json are missing: ${missingContextFiles}`,
       );
     }
   }

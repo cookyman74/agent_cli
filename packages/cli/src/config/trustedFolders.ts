@@ -21,15 +21,21 @@ import stripJsonComments from 'strip-json-comments';
 export const TRUSTED_FOLDERS_FILENAME = 'trustedFolders.json';
 
 export function getTrustedFoldersReadPath(): string {
-  if (process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH']) {
-    return process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+  const envPath =
+    process.env['DIDIM_CLI_TRUSTED_FOLDERS_PATH'] ??
+    process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+  if (envPath) {
+    return envPath;
   }
   return resolveReadPath(homedir(), TRUSTED_FOLDERS_FILENAME);
 }
 
 export function getTrustedFoldersWritePath(): string {
-  if (process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH']) {
-    return process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+  const envPath =
+    process.env['DIDIM_CLI_TRUSTED_FOLDERS_PATH'] ??
+    process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+  if (envPath) {
+    return envPath;
   }
   return Storage.getGlobalWritePath(TRUSTED_FOLDERS_FILENAME);
 }

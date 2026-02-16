@@ -26,7 +26,7 @@ export const LEGACY_INSTALL_METADATA_FILENAME =
   '.gemini-extension-install.json';
 
 /**
- * Extension definition as written to disk in gemini-extension.json files.
+ * Extension definition as written to disk in didim-extension.json files.
  * This should *not* be referenced outside of the logic for reading files.
  * If information is required for manipulating extensions (load, unload, update)
  * outside of the loading process that data needs to be stored on the

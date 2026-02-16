@@ -277,9 +277,11 @@ Would you like to attempt to install via "git clone" instead?`,
           previousSkills,
         );
         const extensionId = getExtensionId(newExtensionConfig, installMetadata);
+        // Use write path (always .didim) for install/update destination
+        // to avoid writing to legacy .gemini directory.
         const destinationPath = new ExtensionStorage(
           newExtensionName,
-        ).getExtensionDir();
+        ).getExtensionWriteDir();
         let previousSettings: Record<string, string> | undefined;
         if (isUpdate) {
           previousSettings = await getEnvContents(

@@ -24,6 +24,17 @@ export class ExtensionStorage {
     return resolveReadPath(homedir(), 'extensions', this.extensionName);
   }
 
+  /**
+   * Returns the extension directory for write operations.
+   * Always returns .didim-based path regardless of legacy .gemini existence.
+   */
+  getExtensionWriteDir(): string {
+    return path.join(
+      ExtensionStorage.getUserExtensionsWriteDir(),
+      this.extensionName,
+    );
+  }
+
   getConfigPath(): string {
     return path.join(this.getExtensionDir(), EXTENSIONS_CONFIG_FILENAME);
   }

@@ -66,11 +66,11 @@ export class SkillManager {
       this.addSkillsWithPrecedence(userSkills);
     }
 
-    // 4. Workspace skills (highest precedence)
-    const projectSkills = await loadSkillsFromDir(
-      storage.getProjectSkillsDir(),
-    );
-    this.addSkillsWithPrecedence(projectSkills);
+    // 4. Workspace skills (highest precedence, scan both legacy and primary)
+    for (const dir of storage.getProjectSkillsReadDirs()) {
+      const projectSkills = await loadSkillsFromDir(dir);
+      this.addSkillsWithPrecedence(projectSkills);
+    }
   }
 
   /**

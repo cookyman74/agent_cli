@@ -195,19 +195,24 @@ export async function uninstallSkill(
 ): Promise<{ location: string } | null> {
   const workspaceDir = process.cwd();
   const storage = new Storage(workspaceDir);
-  const targetDir =
+
+  // Search all read directories (both .didim and .gemini) to find the skill.
+  // This prevents "not installed" for legacy-only skills and ensures both
+  // copies are removed when the same skill exists in both directories.
+  const targetDirs =
     scope === 'workspace'
-      ? storage.getProjectSkillsDir()
-      : Storage.getUserSkillsDir();
+      ? storage.getProjectSkillsReadDirs()
+      : Storage.getUserSkillsReadDirs();
 
-  const skillPath = path.join(targetDir, name);
-
-  const exists = await fs.stat(skillPath).catch(() => null);
-
-  if (!exists) {
-    return null;
+  let lastRemoved: string | null = null;
+  for (const dir of targetDirs) {
+    const skillPath = path.join(dir, name);
+    const exists = await fs.stat(skillPath).catch(() => null);
+    if (exists) {
+      await fs.rm(skillPath, { recursive: true, force: true });
+      lastRemoved = skillPath;
+    }
   }
 
-  await fs.rm(skillPath, { recursive: true, force: true });
-  return { location: skillPath };
+  return lastRemoved ? { location: lastRemoved } : null;
 }

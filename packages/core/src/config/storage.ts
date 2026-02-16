@@ -139,6 +139,10 @@ export class Storage {
     return Storage.getGlobalWritePath('policies');
   }
 
+  static getUserPoliciesReadDirs(): string[] {
+    return Storage.getAllUserReadDirs('policies');
+  }
+
   static getUserAgentsDir(): string {
     return resolveReadPath(Storage.getHomeBase(), 'agents');
   }
@@ -213,6 +217,20 @@ export class Storage {
     return path.join(Storage.getGlobalTempDir(), BIN_DIR_NAME);
   }
 
+  /**
+   * Returns all existing project-level directories for a given subpath.
+   * Same logic as getAllUserReadDirs but scoped to this project's targetDir.
+   */
+  private getAllProjectReadDirs(...subPaths: string[]): string[] {
+    const primary = path.join(this.targetDir, DIDIM_DIR, ...subPaths);
+    const legacy = path.join(this.targetDir, LEGACY_GEMINI_DIR, ...subPaths);
+    const dirs: string[] = [];
+    if (fs.existsSync(legacy) && legacy !== primary) dirs.push(legacy);
+    if (fs.existsSync(primary)) dirs.push(primary);
+    if (dirs.length === 0) dirs.push(primary);
+    return dirs;
+  }
+
   getGeminiDir(): string {
     return resolveReadDir(this.targetDir);
   }
@@ -279,6 +297,14 @@ export class Storage {
 
   getProjectSkillsDir(): string {
     return resolveReadPath(this.targetDir, 'skills');
+  }
+
+  /**
+   * Returns all existing project-level skill directories.
+   * Legacy (.gemini) first (lower precedence), then primary (.didim).
+   */
+  getProjectSkillsReadDirs(): string[] {
+    return this.getAllProjectReadDirs('skills');
   }
 
   getProjectAgentsDir(): string {

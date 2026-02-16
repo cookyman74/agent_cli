@@ -245,6 +245,34 @@ describe('FileDiscoveryService', () => {
       ]);
     });
   });
+  describe('.didimignore support', () => {
+    it('should load .didimignore patterns', async () => {
+      await createTestFile('.didimignore', 'secrets.txt');
+      const service = new FileDiscoveryService(projectRoot);
+
+      expect(service.shouldIgnoreFile('secrets.txt')).toBe(true);
+      expect(service.shouldIgnoreFile('src/index.js')).toBe(false);
+    });
+
+    it('should prioritize .didimignore over .geminiignore', async () => {
+      await createTestFile('.didimignore', '*.didim');
+      await createTestFile('.geminiignore', '*.gemini');
+      const service = new FileDiscoveryService(projectRoot);
+
+      expect(service.shouldIgnoreFile('test.didim')).toBe(true);
+      expect(service.shouldIgnoreFile('test.gemini')).toBe(false);
+    });
+
+    it('should fall back to .geminiignore when .didimignore is empty', async () => {
+      await createTestFile('.didimignore', '');
+      await createTestFile('.geminiignore', '*.legacy');
+      const service = new FileDiscoveryService(projectRoot);
+
+      expect(service.shouldIgnoreFile('test.legacy')).toBe(true);
+      expect(service.shouldIgnoreFile('test.txt')).toBe(false);
+    });
+  });
+
   describe('precedence (.geminiignore over .gitignore)', () => {
     beforeEach(async () => {
       await fs.mkdir(path.join(projectRoot, '.git'));

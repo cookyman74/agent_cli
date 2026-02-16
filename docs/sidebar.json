@@ -16,7 +16,7 @@
       { "label": "Using the CLI", "slug": "docs/cli" },
       { "label": "File management", "slug": "docs/tools/file-system" },
       { "label": "Memory management", "slug": "docs/tools/memory" },
-      { "label": "Project context (GEMINI.md)", "slug": "docs/cli/gemini-md" },
+      { "label": "Project context (AGENTS.md)", "slug": "docs/cli/agents-md" },
       { "label": "Shell commands", "slug": "docs/tools/shell" },
       { "label": "Session management", "slug": "docs/cli/session-management" },
       { "label": "Todos", "slug": "docs/tools/todos" },
@@ -27,8 +27,8 @@
     "label": "Configuration",
     "items": [
       {
-        "label": "Ignore files (.geminiignore)",
-        "slug": "docs/cli/gemini-ignore"
+        "label": "Ignore files (.didimignore)",
+        "slug": "docs/cli/didim-ignore"
       },
       { "label": "Model selection", "slug": "docs/cli/model" },
       { "label": "Settings", "slug": "docs/cli/settings" },

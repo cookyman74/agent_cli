@@ -301,9 +301,11 @@ export async function start_sandbox(
     if (!fs.existsSync(userHomeDirOnHost)) {
       fs.mkdirSync(userHomeDirOnHost, { recursive: true });
     }
-    let userSettingsDirOnHost = Storage.getGlobalGeminiDir();
+    // Always mount .didim as the write target so container writes
+    // go to the primary directory, not the legacy .gemini directory.
+    // The legacy mount below handles read-only fallback for .gemini.
+    const userSettingsDirOnHost = Storage.getGlobalWriteDir();
     if (!fs.existsSync(userSettingsDirOnHost)) {
-      userSettingsDirOnHost = Storage.getGlobalWriteDir();
       fs.mkdirSync(userSettingsDirOnHost, { recursive: true });
     }
 

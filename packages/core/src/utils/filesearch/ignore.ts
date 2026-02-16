@@ -29,14 +29,25 @@ export function loadIgnoreRules(options: LoadIgnoreRulesOptions): Ignore {
   }
 
   if (options.useGeminiignore) {
-    const didimPath = path.join(options.projectRoot, DIDIM_IGNORE_FILE);
-    const geminiPath = path.join(
-      options.projectRoot,
-      LEGACY_GEMINI_IGNORE_FILE,
-    );
-    const ignorePath = fs.existsSync(didimPath) ? didimPath : geminiPath;
-    if (fs.existsSync(ignorePath)) {
-      ignorer.add(fs.readFileSync(ignorePath, 'utf8'));
+    const candidates = [
+      path.join(options.projectRoot, DIDIM_IGNORE_FILE),
+      path.join(options.projectRoot, LEGACY_GEMINI_IGNORE_FILE),
+    ];
+    for (const candidatePath of candidates) {
+      let content: string;
+      try {
+        content = fs.readFileSync(candidatePath, 'utf8');
+      } catch {
+        continue;
+      }
+      const hasPatterns = content.split(/\r?\n/).some((line) => {
+        const trimmed = line.trim();
+        return trimmed !== '' && !trimmed.startsWith('#');
+      });
+      if (hasPatterns) {
+        ignorer.add(content);
+        break;
+      }
     }
   }
 

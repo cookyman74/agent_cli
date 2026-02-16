@@ -203,4 +203,36 @@ describe('loadIgnoreRules', () => {
     expect(fileFilter('test.legacy')).toBe(true);
     expect(fileFilter('test.txt')).toBe(false);
   });
+
+  it('should fall back to .geminiignore when .didimignore is empty', async () => {
+    tmpDir = await createTmpDir({
+      '.didimignore': '',
+      '.geminiignore': '*.legacy',
+    });
+    const ignore = loadIgnoreRules({
+      projectRoot: tmpDir,
+      useGitignore: false,
+      useGeminiignore: true,
+      ignoreDirs: [],
+    });
+    const fileFilter = ignore.getFileFilter();
+    expect(fileFilter('test.legacy')).toBe(true);
+    expect(fileFilter('test.txt')).toBe(false);
+  });
+
+  it('should fall back to .geminiignore when .didimignore has only comments', async () => {
+    tmpDir = await createTmpDir({
+      '.didimignore': '# this is a comment\n# another comment',
+      '.geminiignore': '*.legacy',
+    });
+    const ignore = loadIgnoreRules({
+      projectRoot: tmpDir,
+      useGitignore: false,
+      useGeminiignore: true,
+      ignoreDirs: [],
+    });
+    const fileFilter = ignore.getFileFilter();
+    expect(fileFilter('test.legacy')).toBe(true);
+    expect(fileFilter('test.txt')).toBe(false);
+  });
 });

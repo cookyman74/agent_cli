@@ -107,7 +107,6 @@ function globToRegex(glob: string): RegExp {
 }
 
 export class ExtensionEnablementManager {
-  private configReadPath: string;
   private configWritePath: string;
   private configWriteDir: string;
   // If non-empty, this overrides all other extension configuration and enables
@@ -116,12 +115,14 @@ export class ExtensionEnablementManager {
 
   constructor(enabledExtensionNames?: string[]) {
     const writeDir = ExtensionStorage.getUserExtensionsWriteDir();
-    this.configReadPath =
-      ExtensionStorage.getUserExtensionsEnablementReadPath();
     this.configWritePath = path.join(writeDir, 'extension-enablement.json');
     this.configWriteDir = writeDir;
     this.enabledExtensionNamesOverride =
       enabledExtensionNames?.map((name) => name.toLowerCase()) ?? [];
+  }
+
+  private get configReadPath(): string {
+    return ExtensionStorage.getUserExtensionsEnablementReadPath();
   }
 
   validateExtensionOverrides(extensions: GeminiCLIExtension[]) {

@@ -45,7 +45,7 @@ describe('skillUtils', () => {
     expect(skills[0].name).toBe('weather-skill');
 
     // Verify it was copied to the workspace skills dir
-    const installedPath = path.join(tempDir, '.gemini/skills', 'weather-skill');
+    const installedPath = path.join(tempDir, '.didim/skills', 'weather-skill');
     const installedExists = await fs.stat(installedPath).catch(() => null);
     expect(installedExists?.isDirectory()).toBe(true);
 
@@ -74,7 +74,7 @@ describe('skillUtils', () => {
     expect(skills.length).toBe(1);
     expect(skills[0].name).toBe('test-skill');
 
-    const installedPath = path.join(tempDir, '.gemini/skills', 'test-skill');
+    const installedPath = path.join(tempDir, '.didim/skills', 'test-skill');
     const installedExists = await fs.stat(installedPath).catch(() => null);
     expect(installedExists?.isDirectory()).toBe(true);
   });
@@ -103,7 +103,7 @@ describe('skillUtils', () => {
     expect(requestConsent).toHaveBeenCalled();
 
     // Verify it was NOT copied
-    const installedPath = path.join(tempDir, '.gemini/skills', 'test-skill');
+    const installedPath = path.join(tempDir, '.didim/skills', 'test-skill');
     const installedExists = await fs.stat(installedPath).catch(() => null);
     expect(installedExists).toBeNull();
   });

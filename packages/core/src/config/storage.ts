@@ -264,7 +264,7 @@ export class Storage {
     return resolveReadPath(
       this.targetDir,
       'extensions',
-      'gemini-extension.json',
+      'didim-extension.json',
     );
   }
 

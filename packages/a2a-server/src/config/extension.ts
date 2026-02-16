@@ -19,8 +19,11 @@ import * as path from 'node:path';
 import { logger } from '../utils/logger.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
-export const EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
-export const INSTALL_METADATA_FILENAME = '.gemini-extension-install.json';
+export const EXTENSIONS_CONFIG_FILENAME = 'didim-extension.json';
+export const INSTALL_METADATA_FILENAME = '.didim-extension-install.json';
+export const LEGACY_EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
+export const LEGACY_INSTALL_METADATA_FILENAME =
+  '.gemini-extension-install.json';
 
 /**
  * Extension definition as written to disk in gemini-extension.json files.

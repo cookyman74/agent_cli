@@ -31,6 +31,7 @@ vi.mock('node:path', () => ({
 vi.mock('../config/storage.js', () => ({
   Storage: {
     getMcpOAuthTokensPath: vi.fn(),
+    getGlobalWritePath: vi.fn(),
   },
 }));
 

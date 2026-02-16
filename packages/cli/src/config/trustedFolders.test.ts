@@ -43,6 +43,13 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   return {
     ...actual,
     homedir: () => '/mock/home/user',
+    resolveReadPath: (_base: string, filename: string) =>
+      `/mock/home/user/.didim/${filename}`,
+    Storage: {
+      ...actual.Storage,
+      getGlobalWritePath: (...subPaths: string[]) =>
+        ['/mock/home/user/.didim', ...subPaths].join('/'),
+    },
   };
 });
 vi.mock('fs', async (importOriginal) => {

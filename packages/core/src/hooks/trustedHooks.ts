@@ -6,34 +6,40 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Storage } from '../config/storage.js';
+import { Storage, resolveReadPath } from '../config/storage.js';
 import {
   getHookKey,
   type HookDefinition,
   type HookEventName,
 } from './types.js';
 import { debugLogger } from '../utils/debugLogger.js';
+import { homedir } from '../utils/paths.js';
 
 interface TrustedHooksConfig {
   [projectPath: string]: string[]; // Array of trusted hook keys (name:command)
 }
 
 export class TrustedHooksManager {
-  private configPath: string;
+  private static readonly FILENAME = 'trusted_hooks.json';
   private trustedHooks: TrustedHooksConfig = {};
 
   constructor() {
-    this.configPath = path.join(
-      Storage.getGlobalGeminiDir(),
-      'trusted_hooks.json',
-    );
     this.load();
+  }
+
+  private getReadPath(): string {
+    return resolveReadPath(homedir(), TrustedHooksManager.FILENAME);
+  }
+
+  private getWritePath(): string {
+    return Storage.getGlobalWritePath(TrustedHooksManager.FILENAME);
   }
 
   private load(): void {
     try {
-      if (fs.existsSync(this.configPath)) {
-        const content = fs.readFileSync(this.configPath, 'utf-8');
+      const readPath = this.getReadPath();
+      if (fs.existsSync(readPath)) {
+        const content = fs.readFileSync(readPath, 'utf-8');
         this.trustedHooks = JSON.parse(content);
       }
     } catch (error) {
@@ -44,14 +50,12 @@ export class TrustedHooksManager {
 
   private save(): void {
     try {
-      const dir = path.dirname(this.configPath);
+      const writePath = this.getWritePath();
+      const dir = path.dirname(writePath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      fs.writeFileSync(
-        this.configPath,
-        JSON.stringify(this.trustedHooks, null, 2),
-      );
+      fs.writeFileSync(writePath, JSON.stringify(this.trustedHooks, null, 2));
     } catch (error) {
       debugLogger.warn('Failed to save trusted hooks config', error);
     }

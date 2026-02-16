@@ -7,14 +7,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Storage, debugLogger } from '@didim365/agent-cli-core';
+import {
+  Storage,
+  debugLogger,
+  resolveReadPath,
+  homedir,
+} from '@didim365/agent-cli-core';
 import { PersistentState } from './persistentState.js';
+
+const mockDir = '/mock/dir';
+const mockReadPath = path.join(mockDir, 'state.json');
+const mockWritePath = path.join('/mock/write-dir', 'state.json');
 
 vi.mock('node:fs');
 vi.mock('@didim365/agent-cli-core', () => ({
   Storage: {
     getGlobalGeminiDir: vi.fn(),
+    getGlobalWritePath: vi.fn(),
   },
+  resolveReadPath: vi.fn(),
+  homedir: vi.fn(),
   debugLogger: {
     warn: vi.fn(),
   },
@@ -22,12 +34,12 @@ vi.mock('@didim365/agent-cli-core', () => ({
 
 describe('PersistentState', () => {
   let persistentState: PersistentState;
-  const mockDir = '/mock/dir';
-  const mockFilePath = path.join(mockDir, 'state.json');
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(Storage.getGlobalGeminiDir).mockReturnValue(mockDir);
+    vi.mocked(resolveReadPath).mockReturnValue(mockReadPath);
+    vi.mocked(homedir).mockReturnValue('/mock/home');
+    vi.mocked(Storage.getGlobalWritePath).mockReturnValue(mockWritePath);
     persistentState = new PersistentState();
   });
 
@@ -38,7 +50,7 @@ describe('PersistentState', () => {
 
     const value = persistentState.get('defaultBannerShownCount');
     expect(value).toEqual(mockData.defaultBannerShownCount);
-    expect(fs.readFileSync).toHaveBeenCalledWith(mockFilePath, 'utf-8');
+    expect(fs.readFileSync).toHaveBeenCalledWith(mockReadPath, 'utf-8');
   });
 
   it('should return undefined if key does not exist', () => {
@@ -51,11 +63,12 @@ describe('PersistentState', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
     persistentState.set('defaultBannerShownCount', { banner1: 1 });
 
-    expect(fs.mkdirSync).toHaveBeenCalledWith(path.normalize(mockDir), {
-      recursive: true,
-    });
+    expect(fs.mkdirSync).toHaveBeenCalledWith(
+      path.normalize(path.dirname(mockWritePath)),
+      { recursive: true },
+    );
     expect(fs.writeFileSync).toHaveBeenCalledWith(
-      mockFilePath,
+      mockWritePath,
       JSON.stringify({ defaultBannerShownCount: { banner1: 1 } }, null, 2),
     );
   });

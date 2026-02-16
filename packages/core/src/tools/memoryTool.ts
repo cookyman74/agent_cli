@@ -14,10 +14,10 @@ import {
 import type { FunctionDeclaration } from '@google/genai';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { Storage } from '../config/storage.js';
+import { Storage, resolveReadPath } from '../config/storage.js';
 import * as Diff from 'diff';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
-import { tildeifyPath } from '../utils/paths.js';
+import { tildeifyPath, homedir } from '../utils/paths.js';
 import type {
   ModifiableDeclarativeTool,
   ModifyContext,
@@ -99,7 +99,11 @@ interface SaveMemoryParams {
 }
 
 export function getGlobalMemoryFilePath(): string {
-  return path.join(Storage.getGlobalGeminiDir(), getCurrentGeminiMdFilename());
+  return resolveReadPath(homedir(), getCurrentGeminiMdFilename());
+}
+
+function getGlobalMemoryFileWritePath(): string {
+  return Storage.getGlobalWritePath(getCurrentGeminiMdFilename());
 }
 
 /**
@@ -238,11 +242,11 @@ class MemoryToolInvocation extends BaseToolInvocation<
     try {
       if (modified_by_user && modified_content !== undefined) {
         // User modified the content in external editor, write it directly
-        await fs.mkdir(path.dirname(getGlobalMemoryFilePath()), {
+        await fs.mkdir(path.dirname(getGlobalMemoryFileWritePath()), {
           recursive: true,
         });
         await fs.writeFile(
-          getGlobalMemoryFilePath(),
+          getGlobalMemoryFileWritePath(),
           modified_content,
           'utf-8',
         );
@@ -258,7 +262,7 @@ class MemoryToolInvocation extends BaseToolInvocation<
         // Use the normal memory entry logic
         await MemoryTool.performAddMemoryEntry(
           fact,
-          getGlobalMemoryFilePath(),
+          getGlobalMemoryFileWritePath(),
           {
             readFile: fs.readFile,
             writeFile: fs.writeFile,
@@ -372,7 +376,8 @@ export class MemoryTool
 
   getModifyContext(_abortSignal: AbortSignal): ModifyContext<SaveMemoryParams> {
     return {
-      getFilePath: (_params: SaveMemoryParams) => getGlobalMemoryFilePath(),
+      getFilePath: (_params: SaveMemoryParams) =>
+        getGlobalMemoryFileWritePath(),
       getCurrentContent: async (_params: SaveMemoryParams): Promise<string> =>
         readMemoryFileContent(),
       getProposedContent: async (params: SaveMemoryParams): Promise<string> => {

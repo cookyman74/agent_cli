@@ -31,19 +31,24 @@ export class MCPOAuthTokenStorage implements TokenStorage {
     process.env[FORCE_ENCRYPTED_FILE_ENV_VAR] === 'true';
 
   /**
-   * Get the path to the token storage file.
-   *
-   * @returns The full path to the token storage file
+   * Get the read path to the token storage file (with .gemini fallback).
    */
-  private getTokenFilePath(): string {
+  private getTokenReadPath(): string {
     return Storage.getMcpOAuthTokensPath();
   }
 
   /**
-   * Ensure the config directory exists.
+   * Get the write path to the token storage file (always .didim).
+   */
+  private getTokenWritePath(): string {
+    return Storage.getGlobalWritePath('mcp-oauth-tokens.json');
+  }
+
+  /**
+   * Ensure the config directory exists for writing.
    */
   private async ensureConfigDir(): Promise<void> {
-    const configDir = path.dirname(this.getTokenFilePath());
+    const configDir = path.dirname(this.getTokenWritePath());
     await fs.mkdir(configDir, { recursive: true });
   }
 
@@ -59,7 +64,7 @@ export class MCPOAuthTokenStorage implements TokenStorage {
     const tokenMap = new Map<string, OAuthCredentials>();
 
     try {
-      const tokenFile = this.getTokenFilePath();
+      const tokenFile = this.getTokenReadPath();
       const data = await fs.readFile(tokenFile, 'utf-8');
       const tokens = JSON.parse(data) as OAuthCredentials[];
 
@@ -96,7 +101,7 @@ export class MCPOAuthTokenStorage implements TokenStorage {
     tokens.set(credentials.serverName, credentials);
 
     const tokenArray = Array.from(tokens.values());
-    const tokenFile = this.getTokenFilePath();
+    const tokenFile = this.getTokenWritePath();
 
     try {
       await fs.writeFile(
@@ -174,7 +179,7 @@ export class MCPOAuthTokenStorage implements TokenStorage {
 
     if (tokens.delete(serverName)) {
       const tokenArray = Array.from(tokens.values());
-      const tokenFile = this.getTokenFilePath();
+      const tokenFile = this.getTokenWritePath();
 
       try {
         if (tokenArray.length === 0) {
@@ -219,7 +224,7 @@ export class MCPOAuthTokenStorage implements TokenStorage {
       return this.hybridTokenStorage.clearAll();
     }
     try {
-      const tokenFile = this.getTokenFilePath();
+      const tokenFile = this.getTokenWritePath();
       await fs.unlink(tokenFile);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {

@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Storage, debugLogger } from '@didim365/agent-cli-core';
+import {
+  Storage,
+  debugLogger,
+  resolveReadPath,
+  homedir,
+} from '@didim365/agent-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -19,13 +24,13 @@ interface PersistentStateData {
 
 export class PersistentState {
   private cache: PersistentStateData | null = null;
-  private filePath: string | null = null;
 
-  private getPath(): string {
-    if (!this.filePath) {
-      this.filePath = path.join(Storage.getGlobalGeminiDir(), STATE_FILENAME);
-    }
-    return this.filePath;
+  private getReadPath(): string {
+    return resolveReadPath(homedir(), STATE_FILENAME);
+  }
+
+  private getWritePath(): string {
+    return Storage.getGlobalWritePath(STATE_FILENAME);
   }
 
   private load(): PersistentStateData {
@@ -33,7 +38,7 @@ export class PersistentState {
       return this.cache;
     }
     try {
-      const filePath = this.getPath();
+      const filePath = this.getReadPath();
       if (fs.existsSync(filePath)) {
         const content = fs.readFileSync(filePath, 'utf-8');
         this.cache = JSON.parse(content);
@@ -51,7 +56,7 @@ export class PersistentState {
   private save() {
     if (!this.cache) return;
     try {
-      const filePath = this.getPath();
+      const filePath = this.getWritePath();
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });

@@ -6,7 +6,12 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Storage, coreEvents } from '@didim365/agent-cli-core';
+import {
+  Storage,
+  coreEvents,
+  resolveReadPath,
+  homedir,
+} from '@didim365/agent-cli-core';
 
 /**
  * Stored in JSON file - represents persistent enablement state.
@@ -193,8 +198,6 @@ const MCP_ENABLEMENT_FILENAME = 'mcp-server-enablement.json';
 export class McpServerEnablementManager {
   private static instance: McpServerEnablementManager | null = null;
 
-  private readonly configFilePath: string;
-  private readonly configDir: string;
   private readonly sessionDisabled = new Set<string>();
 
   /**
@@ -214,9 +217,12 @@ export class McpServerEnablementManager {
     McpServerEnablementManager.instance = null;
   }
 
-  constructor() {
-    this.configDir = Storage.getGlobalGeminiDir();
-    this.configFilePath = path.join(this.configDir, MCP_ENABLEMENT_FILENAME);
+  private getReadPath(): string {
+    return resolveReadPath(homedir(), MCP_ENABLEMENT_FILENAME);
+  }
+
+  private getWritePath(): string {
+    return Storage.getGlobalWritePath(MCP_ENABLEMENT_FILENAME);
   }
 
   /**
@@ -357,7 +363,7 @@ export class McpServerEnablementManager {
    */
   private async readConfig(): Promise<McpServerEnablementConfig> {
     try {
-      const content = await fs.readFile(this.configFilePath, 'utf-8');
+      const content = await fs.readFile(this.getReadPath(), 'utf-8');
       return JSON.parse(content) as McpServerEnablementConfig;
     } catch (error) {
       if (
@@ -380,7 +386,8 @@ export class McpServerEnablementManager {
    * Write config to file asynchronously.
    */
   private async writeConfig(config: McpServerEnablementConfig): Promise<void> {
-    await fs.mkdir(this.configDir, { recursive: true });
-    await fs.writeFile(this.configFilePath, JSON.stringify(config, null, 2));
+    const writePath = this.getWritePath();
+    await fs.mkdir(path.dirname(writePath), { recursive: true });
+    await fs.writeFile(writePath, JSON.stringify(config, null, 2));
   }
 }

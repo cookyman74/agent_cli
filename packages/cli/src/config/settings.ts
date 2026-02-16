@@ -635,13 +635,13 @@ export function loadSettings(
       rawJson: systemDefaultsResult.rawJson,
     },
     {
-      path: USER_SETTINGS_PATH,
+      path: Storage.getGlobalWriteSettingsPath(),
       settings: userSettings,
       originalSettings: userOriginalSettings,
       rawJson: userResult.rawJson,
     },
     {
-      path: workspaceSettingsPath,
+      path: new Storage(workspaceDir).getWriteSettingsPath(),
       settings: workspaceSettings,
       originalSettings: workspaceOriginalSettings,
       rawJson: workspaceResult.rawJson,

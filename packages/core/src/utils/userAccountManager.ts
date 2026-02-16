@@ -6,7 +6,7 @@
 
 import path from 'node:path';
 import { promises as fsp, readFileSync } from 'node:fs';
-import { Storage } from '../config/storage.js';
+import { Storage, GOOGLE_ACCOUNTS_FILENAME } from '../config/storage.js';
 import { debugLogger } from './debugLogger.js';
 
 interface UserAccounts {
@@ -15,8 +15,12 @@ interface UserAccounts {
 }
 
 export class UserAccountManager {
-  private getGoogleAccountsCachePath(): string {
+  private getGoogleAccountsReadPath(): string {
     return Storage.getGoogleAccountsPath();
+  }
+
+  private getGoogleAccountsWritePath(): string {
+    return Storage.getGlobalWritePath(GOOGLE_ACCOUNTS_FILENAME);
   }
 
   /**
@@ -94,10 +98,11 @@ export class UserAccountManager {
   }
 
   async cacheGoogleAccount(email: string): Promise<void> {
-    const filePath = this.getGoogleAccountsCachePath();
-    await fsp.mkdir(path.dirname(filePath), { recursive: true });
+    const readPath = this.getGoogleAccountsReadPath();
+    const writePath = this.getGoogleAccountsWritePath();
+    await fsp.mkdir(path.dirname(writePath), { recursive: true });
 
-    const accounts = await this.readAccounts(filePath);
+    const accounts = await this.readAccounts(readPath);
 
     if (accounts.active && accounts.active !== email) {
       if (!accounts.old.includes(accounts.active)) {
@@ -109,17 +114,17 @@ export class UserAccountManager {
     accounts.old = accounts.old.filter((oldEmail) => oldEmail !== email);
 
     accounts.active = email;
-    await fsp.writeFile(filePath, JSON.stringify(accounts, null, 2), 'utf-8');
+    await fsp.writeFile(writePath, JSON.stringify(accounts, null, 2), 'utf-8');
   }
 
   getCachedGoogleAccount(): string | null {
-    const filePath = this.getGoogleAccountsCachePath();
+    const filePath = this.getGoogleAccountsReadPath();
     const accounts = this.readAccountsSync(filePath);
     return accounts.active;
   }
 
   getLifetimeGoogleAccounts(): number {
-    const filePath = this.getGoogleAccountsCachePath();
+    const filePath = this.getGoogleAccountsReadPath();
     const accounts = this.readAccountsSync(filePath);
     const allAccounts = new Set(accounts.old);
     if (accounts.active) {
@@ -129,8 +134,9 @@ export class UserAccountManager {
   }
 
   async clearCachedGoogleAccount(): Promise<void> {
-    const filePath = this.getGoogleAccountsCachePath();
-    const accounts = await this.readAccounts(filePath);
+    const readPath = this.getGoogleAccountsReadPath();
+    const writePath = this.getGoogleAccountsWritePath();
+    const accounts = await this.readAccounts(readPath);
 
     if (accounts.active) {
       if (!accounts.old.includes(accounts.active)) {
@@ -139,6 +145,6 @@ export class UserAccountManager {
       accounts.active = null;
     }
 
-    await fsp.writeFile(filePath, JSON.stringify(accounts, null, 2), 'utf-8');
+    await fsp.writeFile(writePath, JSON.stringify(accounts, null, 2), 'utf-8');
   }
 }

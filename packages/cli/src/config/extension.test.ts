@@ -113,6 +113,19 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
     logExtensionUpdateEvent: mockLogExtensionUpdateEvent,
     logExtensionDisable: mockLogExtensionDisable,
     homedir: mockHomedir,
+    resolveReadPath: (...args: Parameters<typeof actual.resolveReadPath>) =>
+      actual.resolveReadPath(...args),
+    Storage: new Proxy(actual.Storage, {
+      get(target, prop, receiver) {
+        if (prop === 'getGlobalWritePath') {
+          return (...subPaths: string[]) => {
+            const home = mockHomedir();
+            return [home, '.didim', ...subPaths].join('/');
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }),
     ExtensionEnableEvent: vi.fn(),
     ExtensionInstallEvent: vi.fn(),
     ExtensionUninstallEvent: vi.fn(),
@@ -1245,7 +1258,7 @@ describe('extension tests', () => {
     it('should add the workspace to trusted folders if user consents', async () => {
       const trustedFoldersPath = path.join(
         tempHomeDir,
-        '.gemini',
+        '.didim',
         'trustedFolders.json',
       );
       vi.mocked(isWorkspaceTrusted).mockReturnValue({

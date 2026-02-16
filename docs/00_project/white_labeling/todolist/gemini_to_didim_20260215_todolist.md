@@ -44,7 +44,7 @@
 | `AGENTS.md` 컨텍스트 기본값 또는 fallback chain 훼손                                                         | 🟠 Medium | `.gemini` → `.didim` 전환 시 memoryTool 함수(`getCurrentGeminiMdFilename` 등)의 Gemini 접두사 함수명 변경 여부는 별도 결정. Extension fallback chain(`AGENTS.md` → `GEMINI.md`) 보존 확인 | ⬜ (Phase 3.7)                                                             |
 | OAuth 레거시 마이그레이션 경로 깨짐 (`oauth-credential-storage.ts:93,109`)                                   | 🔴 High   | `GEMINI_DIR` 변경 시 "old file" 마이그레이션 경로도 `.didim`으로 바뀌어 `~/.gemini/oauth_creds.json` 못 읽음. 마이그레이션 경로는 `'.gemini'` 리터럴 하드코딩 필요                        | ⬜ (Phase 3.7)                                                             |
 | `file-token-storage.ts`, `trustedFolders.ts` fallback 미적용                                                 | 🔴 High   | Storage 미사용 파일이 `GEMINI_DIR` 직접 조합 → 상수 변경 시 자동 반영되나 fallback resolver 미적용. Phase 1.2 resolver 도입 시 이 파일들도 fallback 적용 필요                             | ✅ (리뷰 2차에서 resolveReadPath 적용)                                     |
-| a2a-server settings/config/env fallback 미구현                                                               | 🟠 Medium | a2a-server의 settings.ts, config.ts가 Storage 미사용 + `GEMINI_DIR` 직접 조합 → a2a 자체 fallback 필요                                                                                    | ⬜                                                                         |
+| a2a-server settings/config/env fallback 미구현                                                               | 🟠 Medium | a2a-server의 settings.ts, config.ts가 Storage 미사용 + `GEMINI_DIR` 직접 조합 → a2a 자체 fallback 필요                                                                                    | ✅ (settings fallback + env dual-path + homedir 버그 수정)                 |
 | `system.md` 기본 경로 fallback 누락 (`prompts.ts:90`)                                                        | 🟠 Medium | 기존 `.gemini/system.md` 사용자 전환 후 시스템 프롬프트 미적용. `.didim/system.md` 우선 + `.gemini/system.md` fallback 필요                                                               | ✅ (리뷰 3차에서 resolveReadPath 적용)                                     |
 | 글로벌 AGENTS.md fallback 누락 (`memoryDiscovery.ts:151,338,382`)                                            | 🟠 Medium | `GEMINI_DIR` 직접 조합 (Storage 미사용) → resolver 적용 범위 밖. `~/.gemini/AGENTS.md` 레거시 읽기 누락. dual-path 탐색 필요                                                              | ✅ (리뷰 3차에서 resolveReadPath 적용)                                     |
 | 읽기 fallback vs 쓰기 `.didim` only 정책 충돌                                                                | 🔴 High   | `getGlobalGeminiDir()` fallback이 `.gemini` 반환 시 쓰기도 `.gemini`에 수행. **A안 채택**: `resolveReadDir`/`resolveWriteDir` 분리로 쓰기는 항상 `.didim` 강제 (Phase 1.2)                | ✅ (Phase 1.2 A안 구현 완료)                                               |
@@ -296,8 +296,9 @@
 ## 🧩 Phase 3: 기능군별 경로 전환 🔄 In Progress
 
 > Phase 1 resolver + GEMINI_DIR alias로 대부분 자동 반영됨. ✅ 사용자 메시지 +
-> 테스트 fixture + .gitignore + logger tidy 완료 (3 커밋). 잔여: **Extensions
-> 파일명 결정 (3.4) + a2a-server fallback (3.4) + 환경변수 결정 (3.2)**
+> 테스트 fixture + .gitignore + logger tidy 완료 (3 커밋). ✅ a2a-server
+> settings/env fallback + homedir 버그 수정 완료 (2 커밋). 잔여: **Extensions
+> 파일명 결정 (3.4) + 환경변수 결정 (3.2)**
 
 ### 3.1 커스텀 명령 / 스킬 / 에이전트 ✅ Complete
 
@@ -382,22 +383,16 @@
   - `packages/cli/src/config/extension.ts:17` — JSDoc:
     `"Extension definition as written to disk in gemini-extension.json files."`
   - `packages/a2a-server/src/config/extension.ts:26` — 동일 JSDoc 주석
-- [ ] `packages/a2a-server/src/config/settings.ts:20-21,83-87` — ⚠️ **Storage
-      미사용**: `path.join(homedir(), GEMINI_DIR)`,
-      `path.join(workspaceDir, GEMINI_DIR, 'settings.json')` 직접 조합.
-      `GEMINI_DIR` 상수 변경 시 자동 반영되나, **a2a-server 자체적으로 fallback
-      읽기 미구현** → a2a settings 로딩에 `.didim` 우선 + `.gemini` fallback
-      적용 필요
-- [ ] `packages/a2a-server/src/config/config.ts:190-203` — ⚠️ **Storage
-      미사용**: `findEnvFile()` 내 `path.join(currentDir, GEMINI_DIR, '.env')`
-      직접 조합. `GEMINI_DIR` 상수 변경 시 자동 반영되나, 기존 사용자의
-      `.gemini/.env` fallback 보장을 위해 a2a `.env` 탐색에도 dual-path 적용
-      필요
-- [ ] `packages/a2a-server/src/config/config.ts:201` — 🐛 **기존 버그**: 홈
-      fallback에서 `process.cwd()` 사용 (정상: `homedir()`). 주석은 "check .env
-      under home as fallback"이지만 `process.cwd()`는 CWD이며 홈이 아님. CLI
-      정상 구현 참조: `packages/cli/src/config/settings.ts:390` (`homedir()`
-      사용). `.gemini` → `.didim` 전환 시 함께 수정
+- [x] `packages/a2a-server/src/config/settings.ts:20-21,83-87` — ✅ **fallback
+      구현 완료**: `.didim` 우선 + `.gemini` fallback. `LEGACY_GEMINI_DIR`
+      import 추가, `loadSettings()` 내 user/workspace 양쪽에 fallback 적용 + 3개
+      테스트 추가
+- [x] `packages/a2a-server/src/config/config.ts:190-203` — ✅ **dual-path 구현
+      완료**: `findEnvFile()` 내 각 디렉토리에서 `.didim/.env` 우선 +
+      `.gemini/.env` fallback 적용
+- [x] `packages/a2a-server/src/config/config.ts:201` — ✅ 🐛 **버그 수정**:
+      `process.cwd()` → `homedir()` 수정. 홈 fallback에서 CWD 대신 실제 홈
+      디렉토리 사용하도록 교정
 
 ### 3.5 Policies / Telemetry ✅ Complete
 
@@ -472,7 +467,7 @@
 - [x] 기타: sandbox.test.ts, chatCommand.test.ts, nonInteractiveCli.test.ts,
       list.test.ts, disable.test.ts, useShellHistory.test.ts,
       settings-validation.test.ts, migrate.test.ts, contextManager.test.ts,
-      logger.test.ts, registry_acknowledgement.test.ts _(Phase 3 Commit 3)_
+      logger.test.ts, registry*acknowledgement.test.ts *(Phase 3 Commit 3)\_
 - ℹ️ `oauth-credential-storage.test.ts` — LEGACY 마이그레이션 경로 `.gemini`
   유지 (의도적)
 - ℹ️ snapshots 경로 — 현재 `.gemini` 참조 없음 확인
@@ -622,4 +617,5 @@
 | 2026-02-16 | Claude | Phase 1 리뷰 4차 수정                  | `f9333d250` — 정책/샌드박스/확장 경로 .didim 전환 5건 (plan.toml regex, Seatbelt 6개 양방향, extensionEnablement fallback, extension-manager 양방향 스캔, setupGithubCommand .gitignore)                                                                                                                                                                                                                                    |
 | 2026-02-16 | Claude | Phase 1 작업 이력 통합                 | `763ccc267` — 리뷰 1~4차 단일 문서화                                                                                                                                                                                                                                                                                                                                                                                        |
 | 2026-02-16 | Claude | **Phase 2 구현 완료**                  | 4커밋 Tidy First: `1a1cd42` 상수+alias, `0bde65c` 파서 fallback(TDD 7t), `79c10b4` filesearch fallback(TDD 3t), `0364fbc` UI 라벨 10파일. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                                            |
-| 2026-02-16 | Claude | **Phase 3 부분 구현**                  | 3커밋 Tidy First: `7c14b6d` logger tidy+주석(structural), `5376c8c` 사용자 메시지 4곳+.gitignore(behavioral, 7파일), `9b64d07` 테스트 fixture 24파일 일괄. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors. 잔여: Extensions 파일명(결정), a2a-server fallback, 환경변수 alias                                                                                                                                       |
+| 2026-02-16 | Claude | **Phase 3 부분 구현**                  | 3커밋 Tidy First: `7c14b6d` logger tidy+주석(structural), `5376c8c` 사용자 메시지 4곳+.gitignore(behavioral, 7파일), `9b64d07` 테스트 fixture 24파일 일괄. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                           |
+| 2026-02-16 | Claude | **Phase 3 a2a-server fallback**        | 2커밋: `a3b18f4` settings.ts fallback(user+workspace, 3 tests), `032827a` config.ts env dual-path + process.cwd()→homedir() 버그 수정. QG: a2a-server 102 tests, core 5390/cli 4758 passed. 잔여: Extensions 파일명(결정), 환경변수 alias(결정)                                                                                                                                                                             |

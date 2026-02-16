@@ -29,6 +29,7 @@ import { UserAccountManager } from '../utils/userAccountManager.js';
 import { AuthType } from '../core/contentGenerator.js';
 import readline from 'node:readline';
 import { Storage, OAUTH_FILE } from '../config/storage.js';
+import { DIDIM_DIR, LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import { OAuthCredentialStorage } from './oauth-credential-storage.js';
 import { FORCE_ENCRYPTED_FILE_ENV_VAR } from '../mcp/token-storage/index.js';
 import { debugLogger } from '../utils/debugLogger.js';
@@ -650,7 +651,12 @@ export async function clearCachedCredentialFile() {
     if (useEncryptedStorage) {
       await OAuthCredentialStorage.clearCredentials();
     } else {
-      await fs.rm(Storage.getGlobalWritePath(OAUTH_FILE), { force: true });
+      // Delete both primary (.didim) and legacy (.gemini) credential files
+      // to prevent legacy file re-exposure after clearing.
+      const home = homedir();
+      for (const dir of [DIDIM_DIR, LEGACY_GEMINI_DIR]) {
+        await fs.rm(path.join(home, dir, OAUTH_FILE), { force: true });
+      }
     }
     // Clear the Google Account ID cache when credentials are cleared
     await userAccountManager.clearCachedGoogleAccount();

@@ -368,7 +368,7 @@ class GrepToolInvocation extends BaseToolInvocation<
       });
 
       if (this.config.getFileFilteringRespectGeminiIgnore()) {
-        // Add .geminiignore support (ripgrep natively handles .gitignore)
+        // Add .didimignore/.geminiignore support (ripgrep natively handles .gitignore)
         const geminiIgnorePath = this.geminiIgnoreParser.getIgnoreFilePath();
         if (geminiIgnorePath) {
           rgArgs.push('--ignore-file', geminiIgnorePath);

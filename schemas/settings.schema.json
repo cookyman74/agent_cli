@@ -1011,9 +1011,9 @@
               "type": "boolean"
             },
             "respectGeminiIgnore": {
-              "title": "Respect .geminiignore",
-              "description": "Respect .geminiignore files when searching.",
-              "markdownDescription": "Respect .geminiignore files when searching.\n\n- Category: `Context`\n- Requires restart: `yes`\n- Default: `true`",
+              "title": "Respect .didimignore",
+              "description": "Respect .didimignore (or .geminiignore) files when searching.",
+              "markdownDescription": "Respect .didimignore (or .geminiignore) files when searching.\n\n- Category: `Context`\n- Requires restart: `yes`\n- Default: `true`",
               "default": true,
               "type": "boolean"
             },

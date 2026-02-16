@@ -16,6 +16,18 @@
 | 위험 수준   | 🔴 High (경로 변경 영향이 광범위 — 상수 1개 변경으로 해결되지 않는 하드코딩 17개소 이상)                                                                         |
 | 목표 완료일 | 2026-02-xx (스프린트 내)                                                                                                                                         |
 
+### 작업결과서 목록
+
+| Phase   | 작업결과서                                                                                                  | 상태        |
+| ------- | ----------------------------------------------------------------------------------------------------------- | ----------- |
+| Phase 1 | [Core 경로/Storage 전환](../working_history/Phase1_gemini_to_didim_Core경로Storage_20260216.md)             | ✅ Complete |
+| Phase 2 | [`.geminiignore` → `.didimignore` 전환](../working_history/Phase2_gemini_to_didim_IgnoreParser_20260216.md) | ✅ Complete |
+| Phase 3 | [사용자 메시지 + 테스트 fixture](../working_history/Phase3_gemini_to_didim_Messages_Tests_20260216.md)      | ✅ Complete |
+| Phase 3 | [a2a-server settings/env fallback](../working_history/Phase3_a2a_server_fallback_20260216.md)               | ✅ Complete |
+| Phase 3 | [Extension 파일명 전환](../working_history/Phase3_extension_filename_20260216.md)                           | ✅ Complete |
+| 리뷰    | [Phase 1+3 통합 리뷰 수정 (7건)](../working_history/Phase1_3_통합리뷰_수정_20260216.md)                     | ✅ Complete |
+| 리뷰    | [Phase 1+3 통합 리뷰 추가 수정 (5건)](../working_history/Phase1_3_통합리뷰_추가수정_20260216.md)            | ✅ Complete |
+
 ---
 
 ## 🎯 성공 기준 (Definition of Done)
@@ -43,7 +55,7 @@
 | `.geminiignore` 미전환 시 파일 필터링 중단                                                                   | 🔴 High   | `.didimignore` 우선 + `.geminiignore` fallback, 파서 이름 갱신                                                                                                                            | ✅ (Phase 2 — 파서 fallback + filesearch + UI 라벨 완료)                   |
 | `AGENTS.md` 컨텍스트 기본값 또는 fallback chain 훼손                                                         | 🟠 Medium | `.gemini` → `.didim` 전환 시 memoryTool 함수(`getCurrentGeminiMdFilename` 등)의 Gemini 접두사 함수명 변경 여부는 별도 결정. Extension fallback chain(`AGENTS.md` → `GEMINI.md`) 보존 확인 | ⬜ (Phase 3.7)                                                             |
 | OAuth 레거시 마이그레이션 경로 깨짐 (`oauth-credential-storage.ts:93,109`)                                   | 🔴 High   | `GEMINI_DIR` 변경 시 "old file" 마이그레이션 경로도 `.didim`으로 바뀌어 `~/.gemini/oauth_creds.json` 못 읽음. 마이그레이션 경로는 `'.gemini'` 리터럴 하드코딩 필요                        | ⬜ (Phase 3.7)                                                             |
-| `file-token-storage.ts`, `trustedFolders.ts` fallback 미적용                                                 | 🔴 High   | Storage 미사용 파일이 `GEMINI_DIR` 직접 조합 → 상수 변경 시 자동 반영되나 fallback resolver 미적용. Phase 1.2 resolver 도입 시 이 파일들도 fallback 적용 필요                             | ✅ (리뷰 2차에서 resolveReadPath 적용)                                     |
+| `file-token-storage.ts`, `trustedFolders.ts` fallback 미적용                                                 | 🔴 High   | Storage 미사용 파일이 `GEMINI_DIR` 직접 조합 → 상수 변경 시 자동 반영되나 fallback resolver 미적용. Phase 1.2 resolver 도입 시 이 파일들도 fallback 적용 필요                             | ✅ (리뷰 2차에서 resolveReadPath 적용 + 3차에서 legacy 토큰 부활 방지)     |
 | a2a-server settings/config/env fallback 미구현                                                               | 🟠 Medium | a2a-server의 settings.ts, config.ts가 Storage 미사용 + `GEMINI_DIR` 직접 조합 → a2a 자체 fallback 필요                                                                                    | ✅ (settings fallback + env dual-path + homedir 버그 수정)                 |
 | `system.md` 기본 경로 fallback 누락 (`prompts.ts:90`)                                                        | 🟠 Medium | 기존 `.gemini/system.md` 사용자 전환 후 시스템 프롬프트 미적용. `.didim/system.md` 우선 + `.gemini/system.md` fallback 필요                                                               | ✅ (리뷰 3차에서 resolveReadPath 적용)                                     |
 | 글로벌 AGENTS.md fallback 누락 (`memoryDiscovery.ts:151,338,382`)                                            | 🟠 Medium | `GEMINI_DIR` 직접 조합 (Storage 미사용) → resolver 적용 범위 밖. `~/.gemini/AGENTS.md` 레거시 읽기 누락. dual-path 탐색 필요                                                              | ✅ (리뷰 3차에서 resolveReadPath 적용)                                     |
@@ -183,6 +195,9 @@
 
 ## 🏗️ Phase 1: Core 경로 상수/Storage 전환 ✅ Complete (2026-02-16)
 
+> 📄 작업결과서:
+> [Phase1_gemini_to_didim_Core경로Storage_20260216.md](../working_history/Phase1_gemini_to_didim_Core경로Storage_20260216.md)
+
 ### 1.1 경로 상수 변경
 
 - [x] `paths.ts`: `GEMINI_DIR = '.gemini'` → `DIDIM_DIR = '.didim'` 변경
@@ -237,6 +252,9 @@
 ---
 
 ## ⚙️ Phase 2: 설정/환경 로더 및 쓰기 경로 전환 ✅ Complete (2026-02-16)
+
+> 📄 작업결과서:
+> [Phase2_gemini_to_didim_IgnoreParser_20260216.md](../working_history/Phase2_gemini_to_didim_IgnoreParser_20260216.md)
 
 ### 2.1 settings 로딩
 
@@ -294,6 +312,15 @@
 ---
 
 ## 🧩 Phase 3: 기능군별 경로 전환 ✅ Complete (2026-02-16)
+
+> 📄 작업결과서:
+>
+> - [Phase3_gemini_to_didim_Messages_Tests_20260216.md](../working_history/Phase3_gemini_to_didim_Messages_Tests_20260216.md)
+>   — 사용자 메시지 + 테스트 fixture + .gitignore
+> - [Phase3_a2a_server_fallback_20260216.md](../working_history/Phase3_a2a_server_fallback_20260216.md)
+>   — a2a-server settings/env fallback + homedir 버그 수정
+> - [Phase3_extension_filename_20260216.md](../working_history/Phase3_extension_filename_20260216.md)
+>   — Extension 파일명 전환 + 환경변수 alias
 
 > Phase 1 resolver + GEMINI_DIR alias로 대부분 자동 반영됨. ✅ 사용자 메시지 +
 > 테스트 fixture + .gitignore + logger tidy 완료 (3 커밋). ✅ a2a-server
@@ -622,3 +649,6 @@
 | 2026-02-16 | Claude | **Phase 3 부분 구현**                   | 3커밋 Tidy First: `7c14b6d` logger tidy+주석(structural), `5376c8c` 사용자 메시지 4곳+.gitignore(behavioral, 7파일), `9b64d07` 테스트 fixture 24파일 일괄. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                           |
 | 2026-02-16 | Claude | **Phase 3 a2a-server fallback**         | 2커밋: `a3b18f4` settings.ts fallback(user+workspace, 3 tests), `032827a` config.ts env dual-path + process.cwd()→homedir() 버그 수정. QG: a2a-server 102 tests, core 5390/cli 4758 passed. 잔여: Extensions 파일명(결정), 환경변수 alias(결정)                                                                                                                                                                             |
 | 2026-02-16 | Claude | **Phase 3 Extensions 파일명 전환 완료** | 4커밋 Tidy First: `9a58a77` 상수 rename+legacy alias(structural), `1849b76` 읽기 fallback 4곳(behavioral), `82cc42b` 쓰기/생성+UI+템플릿 6개 rename+env alias(behavioral), `424e0d7` 테스트 8파일 fixture 업데이트. QG: core 5390/a2a 102/cli 4540 passed (7 pre-existing failures), 0 lint/typecheck errors. Phase 3 Complete.                                                                                             |
+| 2026-02-16 | Claude | Phase 2 리뷰 수정 (5건)                 | 3커밋: `8605a17` filesearch ignore fallback 일관성, `21a3980` barrel export + UI 메시지, `2d076cb` fileDiscoveryService 테스트 3건. → [Phase2 작업결과서 §6](../working_history/Phase2_gemini_to_didim_IgnoreParser_20260216.md#6-리뷰-수정-2026-02-16)                                                                                                                                                                     |
+| 2026-02-16 | Claude | **Phase 1+3 통합 리뷰 수정 (7건)**      | 7커밋: `758520b` ext uninstall path, `7cbb11e` a2a-server fallback, `ff69f7a` FileTokenStorage getter, `2dd9249` ExtEnablement getter, `c207a4f` a2a ext tests 3건, `61f6683` storage.test mock, `5bbb869` 문서. → [통합리뷰 작업결과서](../working_history/Phase1_3_통합리뷰_수정_20260216.md)                                                                                                                             |
+| 2026-02-16 | Claude | **Phase 1+3 통합 리뷰 추가 수정 (5건)** | 5커밋: `66c8b79` link uninstall guard, `4074f75` token dual-path delete, `771409b` update rollback backup, `61ff65d` install write-path, `d1c674b` regression tests 4건. → [추가수정 작업결과서](../working_history/Phase1_3_통합리뷰_추가수정_20260216.md)                                                                                                                                                                 |

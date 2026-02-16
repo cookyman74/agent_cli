@@ -136,6 +136,7 @@ export class UserAccountManager {
   async clearCachedGoogleAccount(): Promise<void> {
     const readPath = this.getGoogleAccountsReadPath();
     const writePath = this.getGoogleAccountsWritePath();
+    await fsp.mkdir(path.dirname(writePath), { recursive: true });
     const accounts = await this.readAccounts(readPath);
 
     if (accounts.active) {

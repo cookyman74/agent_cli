@@ -40,7 +40,14 @@ export class ExtensionStorage {
   }
 
   getEnvFilePath(): string {
-    return path.join(this.getExtensionDir(), EXTENSION_SETTINGS_FILENAME);
+    // Resolve at file level (not dir level) so that a .didim/extensions/<ext>/
+    // directory without .env doesn't shadow .gemini/extensions/<ext>/.env.
+    return resolveReadPath(
+      homedir(),
+      'extensions',
+      this.extensionName,
+      EXTENSION_SETTINGS_FILENAME,
+    );
   }
 
   /**

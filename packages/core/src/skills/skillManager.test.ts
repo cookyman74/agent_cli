@@ -77,7 +77,7 @@ description: project-desc
       ],
     };
 
-    vi.spyOn(Storage, 'getUserSkillsDir').mockReturnValue(userDir);
+    vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([userDir]);
     const storage = new Storage('/dummy');
     vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue(projectDir);
 
@@ -134,7 +134,7 @@ description: project-desc
       ],
     };
 
-    vi.spyOn(Storage, 'getUserSkillsDir').mockReturnValue(userDir);
+    vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([userDir]);
     const storage = new Storage('/dummy');
     vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue(projectDir);
 
@@ -171,7 +171,9 @@ description: project-desc
 
     const storage = new Storage('/dummy');
     vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue('/non-existent');
-    vi.spyOn(Storage, 'getUserSkillsDir').mockReturnValue('/non-existent');
+    vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([
+      '/non-existent',
+    ]);
 
     await service.discoverSkills(storage);
 
@@ -196,7 +198,9 @@ body1`,
 
     const storage = new Storage('/dummy');
     vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue(testRootDir);
-    vi.spyOn(Storage, 'getUserSkillsDir').mockReturnValue('/non-existent');
+    vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([
+      '/non-existent',
+    ]);
 
     const service = new SkillManager();
     // @ts-expect-error accessing private method for testing
@@ -302,7 +306,7 @@ body1`,
         return [];
       });
 
-      vi.spyOn(Storage, 'getUserSkillsDir').mockReturnValue(userDir);
+      vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([userDir]);
       const storage = new Storage('/dummy');
       vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue(projectDir);
 
@@ -355,7 +359,7 @@ body1`,
         return [];
       });
 
-      vi.spyOn(Storage, 'getUserSkillsDir').mockReturnValue(userDir);
+      vi.spyOn(Storage, 'getUserSkillsReadDirs').mockReturnValue([userDir]);
       const storage = new Storage('/dummy');
       vi.spyOn(storage, 'getProjectSkillsDir').mockReturnValue('/non-existent');
 

@@ -48,7 +48,7 @@ describe('createPolicyUpdater', () => {
     vi.spyOn(policyEngine, 'addRule');
 
     messageBus = new MessageBus(policyEngine);
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
       '/mock/user/policies',
     );
   });

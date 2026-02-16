@@ -295,7 +295,7 @@ describe('OAuthCredentialStorage', () => {
       ).resolves.toBeUndefined();
     });
 
-    it('should throw an error if clearing from HybridTokenStorage fails', async () => {
+    it('should throw an error if clearing from HybridTokenStorage fails with non-idempotent error', async () => {
       const mockError = new Error('Deletion error');
       vi.spyOn(mockHybridTokenStorage, 'deleteCredentials').mockRejectedValue(
         mockError,
@@ -309,6 +309,19 @@ describe('OAuthCredentialStorage', () => {
         'Failed to clear OAuth credentials',
         mockError,
       );
+    });
+
+    it('should not throw when credentials already cleared (idempotent)', async () => {
+      vi.spyOn(mockHybridTokenStorage, 'deleteCredentials').mockRejectedValue(
+        new Error('No credentials found for main-account'),
+      );
+
+      await expect(
+        OAuthCredentialStorage.clearCredentials(),
+      ).resolves.toBeUndefined();
+
+      // Legacy file should still be cleaned up even when new storage is empty
+      expect(fs.rm).toHaveBeenCalledWith(oldFilePath, { force: true });
     });
   });
 });

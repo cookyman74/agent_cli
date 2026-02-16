@@ -47,7 +47,9 @@ describe('createPolicyUpdater', () => {
     createPolicyUpdater(policyEngine, messageBus);
 
     const userPoliciesDir = '/mock/user/policies';
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(userPoliciesDir);
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
     (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
     (fs.readFile as unknown as Mock).mockRejectedValue(
       new Error('File not found'),
@@ -65,7 +67,7 @@ describe('createPolicyUpdater', () => {
     // Wait for async operations (microtasks)
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(Storage.getUserPoliciesDir).toHaveBeenCalled();
+    expect(Storage.getUserPoliciesWriteDir).toHaveBeenCalled();
     expect(fs.mkdir).toHaveBeenCalledWith(userPoliciesDir, {
       recursive: true,
     });
@@ -101,7 +103,9 @@ describe('createPolicyUpdater', () => {
     createPolicyUpdater(policyEngine, messageBus);
 
     const userPoliciesDir = '/mock/user/policies';
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(userPoliciesDir);
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
     (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
     (fs.readFile as unknown as Mock).mockRejectedValue(
       new Error('File not found'),
@@ -142,7 +146,9 @@ describe('createPolicyUpdater', () => {
     createPolicyUpdater(policyEngine, messageBus);
 
     const userPoliciesDir = '/mock/user/policies';
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(userPoliciesDir);
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
     (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
     (fs.readFile as unknown as Mock).mockRejectedValue(
       new Error('File not found'),
@@ -175,7 +181,9 @@ describe('createPolicyUpdater', () => {
     createPolicyUpdater(policyEngine, messageBus);
 
     const userPoliciesDir = '/mock/user/policies';
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(userPoliciesDir);
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
     (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
     (fs.readFile as unknown as Mock).mockRejectedValue(
       new Error('File not found'),

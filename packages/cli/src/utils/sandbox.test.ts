@@ -476,6 +476,57 @@ describe('sandbox', () => {
       expect(hasLegacyMount).toBe(false);
     });
 
+    it('should use write dir (.didim) for primary mount even when only .gemini exists', async () => {
+      const config: SandboxConfig = {
+        command: 'docker',
+        image: 'gemini-cli-sandbox',
+      };
+      const { Storage } = await import('@didim365/agent-cli-core');
+      // Simulate: .didim doesn't exist on host yet, only .gemini
+      vi.mocked(Storage.getGlobalWriteDir).mockReturnValue('/home/user/.didim');
+      vi.mocked(fs.existsSync).mockImplementation((p) => {
+        if (String(p) === '/home/user/.didim') return false; // .didim doesn't exist
+        return true; // .gemini and everything else exists
+      });
+
+      interface MockProcessWithStdout extends EventEmitter {
+        stdout: EventEmitter;
+      }
+      const mockImageCheckProcess = new EventEmitter() as MockProcessWithStdout;
+      mockImageCheckProcess.stdout = new EventEmitter();
+      vi.mocked(spawn).mockImplementationOnce(() => {
+        setTimeout(() => {
+          mockImageCheckProcess.stdout.emit('data', Buffer.from('image-id'));
+          mockImageCheckProcess.emit('close', 0);
+        }, 1);
+        return mockImageCheckProcess as unknown as ReturnType<typeof spawn>;
+      });
+
+      const mockSpawnProcess = new EventEmitter() as unknown as ReturnType<
+        typeof spawn
+      >;
+      mockSpawnProcess.on = vi.fn().mockImplementation((event, cb) => {
+        if (event === 'close') {
+          setTimeout(() => cb(0), 10);
+        }
+        return mockSpawnProcess;
+      });
+      vi.mocked(spawn).mockImplementationOnce(() => mockSpawnProcess);
+
+      await start_sandbox(config);
+
+      // Should create .didim directory on host
+      expect(fs.mkdirSync).toHaveBeenCalledWith('/home/user/.didim', {
+        recursive: true,
+      });
+      // Primary mount should be .didim, not .gemini
+      const runArgs = vi.mocked(spawn).mock.calls[1][1] as string[];
+      const primaryMount = runArgs.find(
+        (arg) => arg.includes('.didim') && !arg.includes(':ro'),
+      );
+      expect(primaryMount).toBeDefined();
+    });
+
     it('should handle user creation on Linux if needed', async () => {
       const config: SandboxConfig = {
         command: 'docker',

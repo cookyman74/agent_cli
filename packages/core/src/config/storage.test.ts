@@ -488,3 +488,71 @@ describe('Storage – generic write path helpers', () => {
     );
   });
 });
+
+// ============================================================
+// Storage – dual-read directories (Issue 22: mixed-state)
+// ============================================================
+
+describe('Storage – dual-read directories', () => {
+  beforeEach(() => {
+    mockExistsSync.mockReset();
+    mockExistsSync.mockReturnValue(false);
+  });
+
+  it('getUserSkillsReadDirs returns both dirs when both exist (legacy first)', () => {
+    mockExistsSync.mockReturnValue(true);
+    const dirs = Storage.getUserSkillsReadDirs();
+    expect(dirs).toHaveLength(2);
+    expect(dirs[0]).toContain(LEGACY_GEMINI_DIR);
+    expect(dirs[1]).toContain(DIDIM_DIR);
+  });
+
+  it('getUserSkillsReadDirs returns only .didim when .gemini missing', () => {
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) =>
+        String(p).includes(DIDIM_DIR) && !String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const dirs = Storage.getUserSkillsReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(DIDIM_DIR);
+  });
+
+  it('getUserSkillsReadDirs returns only .gemini when .didim missing', () => {
+    mockExistsSync.mockImplementation((p: fs.PathLike) =>
+      String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const dirs = Storage.getUserSkillsReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(LEGACY_GEMINI_DIR);
+  });
+
+  it('getUserSkillsReadDirs returns default .didim when neither exists', () => {
+    mockExistsSync.mockReturnValue(false);
+    const dirs = Storage.getUserSkillsReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(DIDIM_DIR);
+  });
+
+  it('getUserCommandsReadDirs returns both dirs when both exist', () => {
+    mockExistsSync.mockReturnValue(true);
+    const dirs = Storage.getUserCommandsReadDirs();
+    expect(dirs).toHaveLength(2);
+    expect(dirs[0]).toContain(path.join(LEGACY_GEMINI_DIR, 'commands'));
+    expect(dirs[1]).toContain(path.join(DIDIM_DIR, 'commands'));
+  });
+
+  it('getUserAgentsReadDirs returns both dirs when both exist', () => {
+    mockExistsSync.mockReturnValue(true);
+    const dirs = Storage.getUserAgentsReadDirs();
+    expect(dirs).toHaveLength(2);
+    expect(dirs[0]).toContain(path.join(LEGACY_GEMINI_DIR, 'agents'));
+    expect(dirs[1]).toContain(path.join(DIDIM_DIR, 'agents'));
+  });
+
+  it('getUserPoliciesWriteDir always returns .didim path', () => {
+    mockExistsSync.mockReturnValue(true);
+    const result = Storage.getUserPoliciesWriteDir();
+    expect(result).toContain(DIDIM_DIR);
+    expect(result).not.toContain(LEGACY_GEMINI_DIR);
+  });
+});

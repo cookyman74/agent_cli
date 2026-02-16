@@ -440,3 +440,51 @@ describe('Storage – write settings paths', () => {
     expect(result).not.toContain(LEGACY_GEMINI_DIR);
   });
 });
+
+// ============================================================
+// Storage – generic write path helpers
+// ============================================================
+
+describe('Storage – generic write path helpers', () => {
+  beforeEach(() => {
+    mockExistsSync.mockReset();
+    mockExistsSync.mockReturnValue(false);
+  });
+
+  it('getGlobalWritePath returns .didim-based path', () => {
+    const result = Storage.getGlobalWritePath('settings.json');
+    expect(result).toBe(path.join(os.homedir(), DIDIM_DIR, 'settings.json'));
+  });
+
+  it('getGlobalWritePath supports multi-level sub-paths', () => {
+    const result = Storage.getGlobalWritePath('acknowledgments', 'agents.json');
+    expect(result).toBe(
+      path.join(os.homedir(), DIDIM_DIR, 'acknowledgments', 'agents.json'),
+    );
+  });
+
+  it('getGlobalWritePath returns .didim even when .gemini exists', () => {
+    mockExistsSync.mockImplementation((p: fs.PathLike) =>
+      String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const result = Storage.getGlobalWritePath('test.json');
+    expect(result).toContain(DIDIM_DIR);
+    expect(result).not.toContain(LEGACY_GEMINI_DIR);
+  });
+
+  it('getWritePath (instance) returns .didim-based path', () => {
+    const projectRoot = '/tmp/project';
+    const storage = new Storage(projectRoot);
+    const result = storage.getWritePath('settings.json');
+    expect(result).toBe(path.join(projectRoot, DIDIM_DIR, 'settings.json'));
+  });
+
+  it('getWritePath (instance) supports multi-level sub-paths', () => {
+    const projectRoot = '/tmp/project';
+    const storage = new Storage(projectRoot);
+    const result = storage.getWritePath('extensions', 'config.json');
+    expect(result).toBe(
+      path.join(projectRoot, DIDIM_DIR, 'extensions', 'config.json'),
+    );
+  });
+});

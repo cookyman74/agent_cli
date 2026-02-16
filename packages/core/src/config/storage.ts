@@ -91,6 +91,14 @@ export class Storage {
     return path.join(Storage.getGlobalWriteDir(), 'settings.json');
   }
 
+  /**
+   * Returns a global config file path for write operations.
+   * Always returns .didim-based path regardless of legacy .gemini existence.
+   */
+  static getGlobalWritePath(...subPaths: string[]): string {
+    return path.join(Storage.getGlobalWriteDir(), ...subPaths);
+  }
+
   static getMcpOAuthTokensPath(): string {
     return resolveReadPath(Storage.getHomeBase(), 'mcp-oauth-tokens.json');
   }
@@ -174,6 +182,14 @@ export class Storage {
    */
   getWriteDir(): string {
     return resolveWriteDir(this.targetDir);
+  }
+
+  /**
+   * Returns a workspace config file path for write operations.
+   * Always returns .didim-based path regardless of legacy .gemini existence.
+   */
+  getWritePath(...subPaths: string[]): string {
+    return path.join(this.getWriteDir(), ...subPaths);
   }
 
   getProjectTempDir(): string {

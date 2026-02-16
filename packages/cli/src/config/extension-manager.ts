@@ -56,6 +56,7 @@ import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
 import { ExtensionStorage } from './extensions/storage.js';
 import {
   EXTENSIONS_CONFIG_FILENAME,
+  LEGACY_EXTENSIONS_CONFIG_FILENAME,
   INSTALL_METADATA_FILENAME,
   recursivelyHydrateStrings,
   type JsonObject,
@@ -707,7 +708,14 @@ Would you like to attempt to install via "git clone" instead?`,
   }
 
   async loadExtensionConfig(extensionDir: string): Promise<ExtensionConfig> {
-    const configFilePath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+    const primaryPath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+    const legacyPath = path.join(
+      extensionDir,
+      LEGACY_EXTENSIONS_CONFIG_FILENAME,
+    );
+    const configFilePath = fs.existsSync(primaryPath)
+      ? primaryPath
+      : legacyPath;
     if (!fs.existsSync(configFilePath)) {
       throw new Error(`Configuration file not found at ${configFilePath}`);
     }

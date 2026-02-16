@@ -87,7 +87,9 @@ function loadExtension(extensionDir: string): GeminiCLIExtension | null {
     return null;
   }
 
-  const configFilePath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+  const primaryPath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+  const legacyPath = path.join(extensionDir, LEGACY_EXTENSIONS_CONFIG_FILENAME);
+  const configFilePath = fs.existsSync(primaryPath) ? primaryPath : legacyPath;
   if (!fs.existsSync(configFilePath)) {
     logger.error(
       `Warning: extension directory ${extensionDir} does not contain a config file ${configFilePath}.`,
@@ -150,7 +152,11 @@ function getContextFileNames(config: ExtensionConfig): string[] {
 export function loadInstallMetadata(
   extensionDir: string,
 ): ExtensionInstallMetadata | undefined {
-  const metadataFilePath = path.join(extensionDir, INSTALL_METADATA_FILENAME);
+  const primaryPath = path.join(extensionDir, INSTALL_METADATA_FILENAME);
+  const legacyPath = path.join(extensionDir, LEGACY_INSTALL_METADATA_FILENAME);
+  const metadataFilePath = fs.existsSync(primaryPath)
+    ? primaryPath
+    : legacyPath;
   try {
     const configContent = fs.readFileSync(metadataFilePath, 'utf-8');
     const metadata = JSON.parse(configContent) as ExtensionInstallMetadata;

@@ -10,7 +10,10 @@ import type {
 } from '@didim365/agent-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { INSTALL_METADATA_FILENAME } from './extensions/variables.js';
+import {
+  INSTALL_METADATA_FILENAME,
+  LEGACY_INSTALL_METADATA_FILENAME,
+} from './extensions/variables.js';
 import type { ExtensionSetting } from './extensions/extensionSettings.js';
 
 /**
@@ -38,7 +41,11 @@ export interface ExtensionUpdateInfo {
 export function loadInstallMetadata(
   extensionDir: string,
 ): ExtensionInstallMetadata | undefined {
-  const metadataFilePath = path.join(extensionDir, INSTALL_METADATA_FILENAME);
+  const primaryPath = path.join(extensionDir, INSTALL_METADATA_FILENAME);
+  const legacyPath = path.join(extensionDir, LEGACY_INSTALL_METADATA_FILENAME);
+  const metadataFilePath = fs.existsSync(primaryPath)
+    ? primaryPath
+    : legacyPath;
   try {
     const configContent = fs.readFileSync(metadataFilePath, 'utf-8');
     const metadata = JSON.parse(configContent) as ExtensionInstallMetadata;

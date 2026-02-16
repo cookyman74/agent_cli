@@ -43,6 +43,14 @@ export class ExtensionStorage {
     return path.join(this.getExtensionDir(), EXTENSION_SETTINGS_FILENAME);
   }
 
+  /**
+   * Returns the .env file path for write operations.
+   * Always returns .didim-based path regardless of legacy .gemini existence.
+   */
+  getEnvFileWritePath(): string {
+    return path.join(this.getExtensionWriteDir(), EXTENSION_SETTINGS_FILENAME);
+  }
+
   static getUserExtensionsDir(): string {
     return new Storage(homedir()).getExtensionsDir();
   }

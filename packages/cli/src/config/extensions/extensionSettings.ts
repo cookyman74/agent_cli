@@ -59,6 +59,24 @@ export const getEnvFilePath = (
   return new ExtensionStorage(extensionName).getEnvFilePath();
 };
 
+/**
+ * Returns the .env file path for write operations.
+ * Always returns .didim-based path regardless of legacy .gemini existence.
+ */
+const getEnvFileWritePath = (
+  extensionName: string,
+  scope: ExtensionSettingScope,
+  workspaceDir?: string,
+): string => {
+  if (scope === ExtensionSettingScope.WORKSPACE) {
+    if (!workspaceDir) {
+      throw new Error('Workspace directory is required for workspace scope');
+    }
+    return path.join(workspaceDir, EXTENSION_SETTINGS_FILENAME);
+  }
+  return new ExtensionStorage(extensionName).getEnvFileWritePath();
+};
+
 export async function maybePromptForSettings(
   extensionConfig: ExtensionConfig,
   extensionId: string,
@@ -78,6 +96,7 @@ export async function maybePromptForSettings(
   // The user can change the scope later using the `settings set` command.
   const scope = ExtensionSettingScope.USER;
   const envFilePath = getEnvFilePath(extensionName, scope);
+  const envFileWritePathResolved = getEnvFileWritePath(extensionName, scope);
   const keychain = new KeychainTokenStorage(
     getKeychainStorageName(extensionName, extensionId, scope),
   );
@@ -124,7 +143,7 @@ export async function maybePromptForSettings(
 
   const envContent = formatEnvContent(nonSensitiveSettings);
 
-  await fs.writeFile(envFilePath, envContent);
+  await fs.writeFile(envFileWritePathResolved, envContent);
 }
 
 function formatEnvContent(settings: Record<string, string>): string {
@@ -237,6 +256,11 @@ export async function updateSetting(
   // For non-sensitive settings, we need to read the existing .env file,
   // update the value, and write it back, preserving any other values.
   const envFilePath = getEnvFilePath(extensionName, scope, workspaceDir);
+  const envFileWritePathResolved = getEnvFileWritePath(
+    extensionName,
+    scope,
+    workspaceDir,
+  );
   let envContent = '';
   if (fsSync.existsSync(envFilePath)) {
     envContent = await fs.readFile(envFilePath, 'utf-8');
@@ -257,7 +281,7 @@ export async function updateSetting(
   }
 
   const newEnvContent = formatEnvContent(nonSensitiveSettings);
-  await fs.writeFile(envFilePath, newEnvContent);
+  await fs.writeFile(envFileWritePathResolved, newEnvContent);
 }
 
 interface settingsChanges {

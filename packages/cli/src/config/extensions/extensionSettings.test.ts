@@ -821,5 +821,68 @@ describe('extensionSettings', () => {
       );
       expect(primaryContent).toContain('VAR1=new-value');
     });
+
+    it('should create write directory if it does not exist', async () => {
+      const nonExistentDir = path.join(
+        tempHomeDir,
+        '.didim',
+        'extensions',
+        'new-ext',
+      );
+
+      // Write dir does not exist yet
+      vi.spyOn(
+        ExtensionStorage.prototype,
+        'getExtensionWriteDir',
+      ).mockReturnValue(nonExistentDir);
+      // Read dir also does not exist (no legacy file)
+      vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(
+        nonExistentDir,
+      );
+
+      mockRequestSetting.mockResolvedValue('new-val');
+      await updateSetting(
+        config,
+        '12345',
+        'VAR1',
+        mockRequestSetting,
+        ExtensionSettingScope.USER,
+      );
+
+      // Directory should have been created, file written
+      const content = await fsPromises.readFile(
+        path.join(nonExistentDir, EXTENSION_SETTINGS_FILENAME),
+        'utf-8',
+      );
+      expect(content).toContain('VAR1=new-val');
+    });
+
+    it('should remove sensitive setting plaintext from .env when updating', async () => {
+      // Simulate .env containing a sensitive setting in plaintext
+      const envPath = path.join(extensionDir, EXTENSION_SETTINGS_FILENAME);
+      await fsPromises.writeFile(envPath, 'VAR1=public\nVAR2=leaked-secret\n');
+
+      mockRequestSetting.mockResolvedValue('new-secret');
+      await updateSetting(
+        config,
+        '12345',
+        'VAR2', // sensitive setting
+        mockRequestSetting,
+        ExtensionSettingScope.USER,
+        tempWorkspaceDir,
+      );
+
+      // VAR2 should be stored in keychain
+      const keychain = new KeychainTokenStorage(
+        'Gemini CLI Extensions test-ext 12345',
+      );
+      expect(await keychain.getSecret('VAR2')).toBe('new-secret');
+
+      // VAR2 should NOT remain in .env — only non-sensitive VAR1
+      const content = await fsPromises.readFile(envPath, 'utf-8');
+      expect(content).toContain('VAR1=public');
+      expect(content).not.toContain('VAR2');
+      expect(content).not.toContain('leaked-secret');
+    });
   });
 });

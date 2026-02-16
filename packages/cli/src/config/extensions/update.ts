@@ -59,6 +59,9 @@ export async function updateExtension(
 
   const tempDir = await ExtensionStorage.createTmpDir();
   try {
+    // Backup current extension before update so rollback can restore it.
+    await copyExtension(extension.path, tempDir);
+
     const previousExtensionConfig = await extensionManager.loadExtensionConfig(
       extension.path,
     );

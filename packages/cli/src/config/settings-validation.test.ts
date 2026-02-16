@@ -343,10 +343,10 @@ describe('settings-validation', () => {
       if (result.error) {
         const formatted = formatValidationError(
           result.error,
-          '~/.gemini/settings.json',
+          '~/.didim/settings.json',
         );
 
-        expect(formatted).toContain('~/.gemini/settings.json');
+        expect(formatted).toContain('~/.didim/settings.json');
         expect(formatted).toContain('model.summarizeToolOutput');
       }
     });

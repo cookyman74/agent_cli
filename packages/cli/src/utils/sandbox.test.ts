@@ -77,17 +77,17 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
         this.name = 'FatalSandboxError';
       }
     },
-    GEMINI_DIR: '.gemini',
+    GEMINI_DIR: '.didim',
     homedir: mockedHomedir,
     resolveReadPath: vi
       .fn()
       .mockImplementation(
         (base: string, ...subPaths: string[]) =>
-          `${base}/.gemini/${subPaths.join('/')}`,
+          `${base}/.didim/${subPaths.join('/')}`,
       ),
     Storage: {
-      getGlobalGeminiDir: vi.fn().mockReturnValue('/home/user/.gemini'),
-      getGlobalWriteDir: vi.fn().mockReturnValue('/home/user/.gemini'),
+      getGlobalGeminiDir: vi.fn().mockReturnValue('/home/user/.didim'),
+      getGlobalWriteDir: vi.fn().mockReturnValue('/home/user/.didim'),
     },
   };
 });
@@ -381,7 +381,7 @@ describe('sandbox', () => {
           '--volume',
           '/host/path:/container/path:ro',
           '--volume',
-          expect.stringMatching(/[\\/]home[\\/]user[\\/]\.gemini/),
+          expect.stringMatching(/[\\/]home[\\/]user[\\/]\.didim/),
         ]),
         expect.any(Object),
       );

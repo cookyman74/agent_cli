@@ -17,7 +17,7 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
       `/virtual-home/.didim/${filename}`,
     Storage: {
       ...actual.Storage,
-      getGlobalGeminiDir: () => '/virtual-home/.gemini',
+      getGlobalGeminiDir: () => '/virtual-home/.didim',
       getGlobalWritePath: (...subPaths: string[]) =>
         ['/virtual-home/.didim', ...subPaths].join('/'),
     },

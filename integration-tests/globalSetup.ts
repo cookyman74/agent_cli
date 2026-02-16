@@ -31,7 +31,7 @@ export async function setup() {
   }
   // We also need to set the config dir explicitly, since the code might
   // construct the path before the HOME env var is set.
-  process.env['GEMINI_CONFIG_DIR'] = join(runDir, '.gemini');
+  process.env['GEMINI_CONFIG_DIR'] = join(runDir, '.didim');
 
   // Download ripgrep to avoid race conditions in parallel tests
   const available = await canUseRipgrep();

@@ -51,7 +51,7 @@ describe('ContextManager', () => {
     it('should load and format global and environment memory', async () => {
       const mockGlobalResult: memoryDiscovery.MemoryLoadResult = {
         files: [
-          { path: '/home/user/.gemini/GEMINI.md', content: 'Global Content' },
+          { path: '/home/user/.didim/GEMINI.md', content: 'Global Content' },
         ],
       };
       vi.mocked(memoryDiscovery.loadGlobalMemory).mockResolvedValue(
@@ -87,7 +87,7 @@ describe('ContextManager', () => {
       );
 
       expect(contextManager.getLoadedPaths()).toContain(
-        '/home/user/.gemini/GEMINI.md',
+        '/home/user/.didim/GEMINI.md',
       );
       expect(contextManager.getLoadedPaths()).toContain('/app/GEMINI.md');
     });

@@ -111,7 +111,7 @@ describe('extensionUpdates', () => {
     tempWorkspaceDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'gemini-cli-test-workspace-'),
     );
-    extensionDir = path.join(tempHomeDir, '.gemini', 'extensions', 'test-ext');
+    extensionDir = path.join(tempHomeDir, '.didim', 'extensions', 'test-ext');
 
     // Mock ExtensionStorage to rely on our temp extension dir
     vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(

@@ -77,7 +77,7 @@ describe('chatCommand', () => {
               getChat: mockGetChat,
             }) as unknown as GeminiClient,
           storage: {
-            getProjectTempDir: () => '/project/root/.gemini/tmp/mockhash',
+            getProjectTempDir: () => '/project/root/.didim/tmp/mockhash',
           },
           getContentGeneratorConfig: () => ({
             authType: AuthType.LOGIN_WITH_GOOGLE,

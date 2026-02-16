@@ -61,7 +61,7 @@ describe('migrate command', () => {
         hooks: {},
       },
       setValue: mockSetValue,
-      workspace: { path: '/test/project/.gemini' },
+      workspace: { path: '/test/project/.didim' },
     });
   });
 
@@ -322,7 +322,7 @@ describe('migrate command', () => {
         },
       },
       setValue: mockSetValue,
-      workspace: { path: '/test/project/.gemini' },
+      workspace: { path: '/test/project/.didim' },
     });
 
     mockedFs.existsSync.mockReturnValue(true);

@@ -39,7 +39,7 @@ describe('ExtensionStorage', () => {
       () =>
         ({
           getExtensionsDir: () =>
-            path.join(mockHomeDir, '.gemini', 'extensions'),
+            path.join(mockHomeDir, '.didim', 'extensions'),
         }) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     );
     storage = new ExtensionStorage(extensionName);
@@ -52,7 +52,7 @@ describe('ExtensionStorage', () => {
   it('should return the correct extension directory', () => {
     const expectedDir = path.join(
       mockHomeDir,
-      '.gemini',
+      '.didim',
       'extensions',
       extensionName,
     );
@@ -62,7 +62,7 @@ describe('ExtensionStorage', () => {
   it('should return the correct config path', () => {
     const expectedPath = path.join(
       mockHomeDir,
-      '.gemini',
+      '.didim',
       'extensions',
       extensionName,
       EXTENSIONS_CONFIG_FILENAME, // EXTENSIONS_CONFIG_FILENAME
@@ -73,7 +73,7 @@ describe('ExtensionStorage', () => {
   it('should return the correct env file path', () => {
     const expectedPath = path.join(
       mockHomeDir,
-      '.gemini',
+      '.didim',
       'extensions',
       extensionName,
       EXTENSION_SETTINGS_FILENAME, // EXTENSION_SETTINGS_FILENAME
@@ -82,7 +82,7 @@ describe('ExtensionStorage', () => {
   });
 
   it('should return the correct user extensions directory', () => {
-    const expectedDir = path.join(mockHomeDir, '.gemini', 'extensions');
+    const expectedDir = path.join(mockHomeDir, '.didim', 'extensions');
     expect(ExtensionStorage.getUserExtensionsDir()).toBe(expectedDir);
   });
 

@@ -143,6 +143,10 @@ export class Storage {
     );
   }
 
+  static getAcknowledgedAgentsWritePath(): string {
+    return Storage.getGlobalWritePath('acknowledgments', 'agents.json');
+  }
+
   private static getSystemConfigDir(): string {
     if (os.platform() === 'darwin') {
       return '/Library/Application Support/GeminiCli';

@@ -42,7 +42,7 @@ export class AcknowledgedAgentsService {
   }
 
   async save(): Promise<void> {
-    const filePath = Storage.getAcknowledgedAgentsPath();
+    const filePath = Storage.getAcknowledgedAgentsWritePath();
     try {
       const dir = path.dirname(filePath);
       await fs.mkdir(dir, { recursive: true });

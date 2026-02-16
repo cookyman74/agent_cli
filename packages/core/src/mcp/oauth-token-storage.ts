@@ -9,6 +9,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { Storage } from '../config/storage.js';
 import { getErrorMessage } from '../utils/errors.js';
+import { LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import type {
   OAuthToken,
   OAuthCredentials,
@@ -179,13 +180,13 @@ export class MCPOAuthTokenStorage implements TokenStorage {
 
     if (tokens.delete(serverName)) {
       const tokenArray = Array.from(tokens.values());
-      const tokenFile = this.getTokenWritePath();
 
       try {
         if (tokenArray.length === 0) {
-          // Remove file if no tokens left
-          await fs.unlink(tokenFile);
+          // Remove both primary and legacy files if no tokens left
+          await this.deleteTokenFiles();
         } else {
+          const tokenFile = this.getTokenWritePath();
           await fs.writeFile(tokenFile, JSON.stringify(tokenArray, null, 2), {
             mode: 0o600,
           });
@@ -217,6 +218,26 @@ export class MCPOAuthTokenStorage implements TokenStorage {
   }
 
   /**
+   * Delete both primary (.didim) and legacy (.gemini) token files
+   * to prevent legacy file re-exposure after clearing.
+   */
+  private async deleteTokenFiles(): Promise<void> {
+    const paths = new Set([
+      this.getTokenWritePath(),
+      path.join(homedir(), LEGACY_GEMINI_DIR, 'mcp-oauth-tokens.json'),
+    ]);
+    for (const tokenPath of paths) {
+      try {
+        await fs.unlink(tokenPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+  }
+
+  /**
    * Clear all stored MCP OAuth tokens.
    */
   async clearAll(): Promise<void> {
@@ -224,16 +245,13 @@ export class MCPOAuthTokenStorage implements TokenStorage {
       return this.hybridTokenStorage.clearAll();
     }
     try {
-      const tokenFile = this.getTokenWritePath();
-      await fs.unlink(tokenFile);
+      await this.deleteTokenFiles();
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        coreEvents.emitFeedback(
-          'error',
-          `Failed to clear MCP OAuth tokens: ${getErrorMessage(error)}`,
-          error,
-        );
-      }
+      coreEvents.emitFeedback(
+        'error',
+        `Failed to clear MCP OAuth tokens: ${getErrorMessage(error)}`,
+        error,
+      );
     }
   }
 }

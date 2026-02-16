@@ -143,6 +143,7 @@ export async function maybePromptForSettings(
 
   const envContent = formatEnvContent(nonSensitiveSettings);
 
+  await fs.mkdir(path.dirname(envFileWritePathResolved), { recursive: true });
   await fs.writeFile(envFileWritePathResolved, envContent);
 }
 
@@ -250,11 +251,10 @@ export async function updateSetting(
 
   if (settingToUpdate.sensitive) {
     await keychain.setSecret(settingToUpdate.envVar, newValue);
-    return;
   }
 
-  // For non-sensitive settings, we need to read the existing .env file,
-  // update the value, and write it back, preserving any other values.
+  // Read the existing .env file, update the value (non-sensitive only),
+  // and write it back — also cleans any sensitive plaintext residue.
   const envFilePath = getEnvFilePath(extensionName, scope, workspaceDir);
   const envFileWritePathResolved = getEnvFileWritePath(
     extensionName,
@@ -267,7 +267,9 @@ export async function updateSetting(
   }
 
   const parsedEnv = dotenv.parse(envContent);
-  parsedEnv[settingToUpdate.envVar] = newValue;
+  if (!settingToUpdate.sensitive) {
+    parsedEnv[settingToUpdate.envVar] = newValue;
+  }
 
   // We only want to write back the variables that are not sensitive.
   const nonSensitiveSettings: Record<string, string> = {};
@@ -281,6 +283,7 @@ export async function updateSetting(
   }
 
   const newEnvContent = formatEnvContent(nonSensitiveSettings);
+  await fs.mkdir(path.dirname(envFileWritePathResolved), { recursive: true });
   await fs.writeFile(envFileWritePathResolved, newEnvContent);
 }
 
@@ -325,7 +328,9 @@ async function clearSettings(
 ) {
   if (fsSync.existsSync(envFilePath)) {
     // Write to .didim write path, not the read path (which may be legacy .gemini)
-    await fs.writeFile(envFileWritePath ?? envFilePath, '');
+    const writePath = envFileWritePath ?? envFilePath;
+    await fs.mkdir(path.dirname(writePath), { recursive: true });
+    await fs.writeFile(writePath, '');
   }
   if (!(await keychain.isAvailable())) {
     return;

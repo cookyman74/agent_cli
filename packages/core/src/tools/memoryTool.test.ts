@@ -36,6 +36,7 @@ vi.mock(import('node:fs/promises'), async (importOriginal) => {
 
 vi.mock('fs', () => ({
   mkdirSync: vi.fn(),
+  existsSync: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('os');

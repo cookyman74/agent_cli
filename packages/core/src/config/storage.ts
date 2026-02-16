@@ -8,12 +8,33 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
-import { GEMINI_DIR, homedir } from '../utils/paths.js';
+import { DIDIM_DIR, LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 
 export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
 export const OAUTH_FILE = 'oauth_creds.json';
 const TMP_DIR_NAME = 'tmp';
 const BIN_DIR_NAME = 'bin';
+
+/**
+ * Resolves the config directory for reading.
+ * Priority: .didim (primary) > .gemini (legacy fallback).
+ * Returns .didim path if neither exists (new user).
+ */
+export function resolveReadDir(base: string): string {
+  const primary = path.join(base, DIDIM_DIR);
+  if (fs.existsSync(primary)) return primary;
+  const legacy = path.join(base, LEGACY_GEMINI_DIR);
+  if (fs.existsSync(legacy)) return legacy;
+  return primary;
+}
+
+/**
+ * Resolves the config directory for writing.
+ * Always returns .didim path.
+ */
+export function resolveWriteDir(base: string): string {
+  return path.join(base, DIDIM_DIR);
+}
 
 export class Storage {
   private readonly targetDir: string;
@@ -25,9 +46,21 @@ export class Storage {
   static getGlobalGeminiDir(): string {
     const homeDir = homedir();
     if (!homeDir) {
-      return path.join(os.tmpdir(), GEMINI_DIR);
+      return resolveReadDir(os.tmpdir());
     }
-    return path.join(homeDir, GEMINI_DIR);
+    return resolveReadDir(homeDir);
+  }
+
+  /**
+   * Returns the global config directory for write operations.
+   * Always returns .didim path regardless of legacy .gemini existence.
+   */
+  static getGlobalWriteDir(): string {
+    const homeDir = homedir();
+    if (!homeDir) {
+      return resolveWriteDir(os.tmpdir());
+    }
+    return resolveWriteDir(homeDir);
   }
 
   static getMcpOAuthTokensPath(): string {
@@ -96,7 +129,7 @@ export class Storage {
   }
 
   static getGlobalTempDir(): string {
-    return path.join(Storage.getGlobalGeminiDir(), TMP_DIR_NAME);
+    return path.join(Storage.getGlobalWriteDir(), TMP_DIR_NAME);
   }
 
   static getGlobalBinDir(): string {
@@ -104,7 +137,15 @@ export class Storage {
   }
 
   getGeminiDir(): string {
-    return path.join(this.targetDir, GEMINI_DIR);
+    return resolveReadDir(this.targetDir);
+  }
+
+  /**
+   * Returns the workspace config directory for write operations.
+   * Always returns .didim path regardless of legacy .gemini existence.
+   */
+  getWriteDir(): string {
+    return resolveWriteDir(this.targetDir);
   }
 
   getProjectTempDir(): string {
@@ -131,7 +172,7 @@ export class Storage {
 
   getHistoryDir(): string {
     const hash = this.getFilePathHash(this.getProjectRoot());
-    const historyDir = path.join(Storage.getGlobalGeminiDir(), 'history');
+    const historyDir = path.join(Storage.getGlobalWriteDir(), 'history');
     return path.join(historyDir, hash);
   }
 

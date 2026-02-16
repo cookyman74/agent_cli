@@ -96,7 +96,9 @@ describe('InstallationManager', () => {
     });
 
     it('should handle read errors and return a fallback ID', () => {
-      vi.mocked(fs.existsSync).mockReturnValueOnce(true);
+      vi.mocked(fs.existsSync)
+        .mockReturnValueOnce(true) // resolveReadDir: .didim dir exists
+        .mockReturnValueOnce(true); // readInstallationIdFromFile: file exists
       const readSpy = vi.mocked(fs.readFileSync);
       readSpy.mockImplementationOnce(() => {
         throw new Error('Read error');

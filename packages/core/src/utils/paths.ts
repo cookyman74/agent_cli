@@ -11,7 +11,10 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-export const GEMINI_DIR = '.gemini';
+export const DIDIM_DIR = '.didim';
+export const LEGACY_GEMINI_DIR = '.gemini';
+/** @deprecated Use DIDIM_DIR instead */
+export const GEMINI_DIR = DIDIM_DIR;
 export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
 
 /**

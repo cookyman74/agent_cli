@@ -123,13 +123,19 @@ export class AgentRegistry {
       );
     }
 
-    // Load project-level agents: .didim/agents/ (relative to Project Root)
+    // Load project-level agents from all read directories (legacy + primary)
     const folderTrustEnabled = this.config.getFolderTrust();
     const isTrustedFolder = this.config.isTrustedFolder();
 
     if (!folderTrustEnabled || isTrustedFolder) {
-      const projectAgentsDir = this.config.storage.getProjectAgentsDir();
-      const projectAgents = await loadAgentsFromDirectory(projectAgentsDir);
+      const projectAgentsDirs = this.config.storage.getProjectAgentsReadDirs();
+      const allProjectAgents = await Promise.all(
+        projectAgentsDirs.map((dir) => loadAgentsFromDirectory(dir)),
+      );
+      const projectAgents = {
+        agents: allProjectAgents.flatMap((r) => r.agents),
+        errors: allProjectAgents.flatMap((r) => r.errors),
+      };
       for (const error of projectAgents.errors) {
         coreEvents.emitFeedback(
           'error',
@@ -137,12 +143,22 @@ export class AgentRegistry {
         );
       }
 
+      // Deduplicate agents by name — getAllProjectReadDirs returns [legacy, primary],
+      // so primary agents appear last. Map.set keeps last value, giving primary precedence.
+      // This prevents non-deterministic registration order when Promise.allSettled
+      // runs concurrent async registerRemoteAgent calls.
+      const agentsByName = new Map<string, AgentDefinition>();
+      for (const agent of projectAgents.agents) {
+        agentsByName.set(agent.name, agent);
+      }
+      const uniqueProjectAgents = Array.from(agentsByName.values());
+
       const ackService = this.config.getAcknowledgedAgentsService();
       const projectRoot = this.config.getProjectRoot();
       const unacknowledgedAgents: AgentDefinition[] = [];
       const agentsToRegister: AgentDefinition[] = [];
 
-      for (const agent of projectAgents.agents) {
+      for (const agent of uniqueProjectAgents) {
         // If it's a remote agent, use the agentCardUrl as the hash.
         // This allows multiple remote agents in a single file to be tracked independently.
         if (agent.kind === 'remote') {

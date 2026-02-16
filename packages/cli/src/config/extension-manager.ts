@@ -25,6 +25,7 @@ import {
 import {
   Config,
   DEFAULT_CONTEXT_FILENAME,
+  DIDIM_DIR,
   LEGACY_GEMINI_DIR,
   debugLogger,
   ExtensionDisableEvent,
@@ -456,6 +457,26 @@ Would you like to attempt to install via "git clone" instead?`,
       recursive: true,
       force: true,
     });
+
+    // Delete from BOTH locations (primary .didim and legacy .gemini) to prevent
+    // "resurrection" when loadExtensions scans both directories.
+    const primaryExtPath = path.join(
+      homedir(),
+      DIDIM_DIR,
+      'extensions',
+      extension.name,
+    );
+    const legacyExtPath = path.join(
+      homedir(),
+      LEGACY_GEMINI_DIR,
+      'extensions',
+      extension.name,
+    );
+    for (const altPath of [primaryExtPath, legacyExtPath]) {
+      if (altPath !== pathToDelete && fs.existsSync(altPath)) {
+        await fs.promises.rm(altPath, { recursive: true, force: true });
+      }
+    }
 
     // The rest of the cleanup below here is only for true uninstalls, not
     // uninstalls related to updates.

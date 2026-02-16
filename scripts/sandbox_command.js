@@ -25,7 +25,7 @@ import os from 'node:os';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import dotenv from 'dotenv';
-import { GEMINI_DIR } from '@didim365/agent-cli-core';
+import { GEMINI_DIR, LEGACY_GEMINI_DIR } from '@didim365/agent-cli-core';
 
 const argv = yargs(hideBin(process.argv)).option('q', {
   alias: 'quiet',
@@ -38,8 +38,19 @@ const homedir = () => process.env['GEMINI_CLI_HOME'] || os.homedir();
 let geminiSandbox = process.env.GEMINI_SANDBOX;
 
 if (!geminiSandbox) {
-  const userSettingsFile = join(homedir(), GEMINI_DIR, 'settings.json');
-  if (existsSync(userSettingsFile)) {
+  // Check primary (.didim) first, then legacy (.gemini) fallback
+  const primarySettingsFile = join(homedir(), GEMINI_DIR, 'settings.json');
+  const legacySettingsFile = join(
+    homedir(),
+    LEGACY_GEMINI_DIR,
+    'settings.json',
+  );
+  const userSettingsFile = existsSync(primarySettingsFile)
+    ? primarySettingsFile
+    : existsSync(legacySettingsFile)
+      ? legacySettingsFile
+      : null;
+  if (userSettingsFile) {
     const settings = JSON.parse(
       stripJsonComments(readFileSync(userSettingsFile, 'utf-8')),
     );
@@ -53,9 +64,13 @@ if (!geminiSandbox) {
   let currentDir = process.cwd();
   while (true) {
     const geminiEnv = join(currentDir, GEMINI_DIR, '.env');
+    const legacyGeminiEnv = join(currentDir, LEGACY_GEMINI_DIR, '.env');
     const regularEnv = join(currentDir, '.env');
     if (existsSync(geminiEnv)) {
       dotenv.config({ path: geminiEnv, quiet: true });
+      break;
+    } else if (existsSync(legacyGeminiEnv)) {
+      dotenv.config({ path: legacyGeminiEnv, quiet: true });
       break;
     } else if (existsSync(regularEnv)) {
       dotenv.config({ path: regularEnv, quiet: true });

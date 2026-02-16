@@ -446,9 +446,13 @@ export function loadEnvironment(settings: Settings): void {
 
       const excludedVars =
         settings?.advanced?.excludedEnvVars || DEFAULT_EXCLUDED_ENV_VARS;
+      // Use path-segment-aware check to avoid false positives when
+      // a project directory happens to contain '.didim' or '.gemini'
+      // in its name (e.g., /home/user/my.didim-project/.env).
+      const sep = path.sep;
       const isProjectEnvFile =
-        !envFilePath.includes(DIDIM_DIR) &&
-        !envFilePath.includes(LEGACY_GEMINI_DIR);
+        !envFilePath.includes(`${sep}${DIDIM_DIR}${sep}`) &&
+        !envFilePath.includes(`${sep}${LEGACY_GEMINI_DIR}${sep}`);
 
       for (const key in parsedEnv) {
         if (Object.hasOwn(parsedEnv, key)) {

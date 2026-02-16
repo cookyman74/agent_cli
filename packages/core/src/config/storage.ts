@@ -291,10 +291,12 @@ export class Storage {
     return path.join(this.getWriteDir(), 'settings.json');
   }
 
+  /** @deprecated Use {@link getProjectCommandsReadDirs} for multi-dir scanning. */
   getProjectCommandsDir(): string {
     return resolveReadPath(this.targetDir, 'commands');
   }
 
+  /** @deprecated Use {@link getProjectSkillsReadDirs} for multi-dir scanning. */
   getProjectSkillsDir(): string {
     return resolveReadPath(this.targetDir, 'skills');
   }
@@ -307,8 +309,25 @@ export class Storage {
     return this.getAllProjectReadDirs('skills');
   }
 
+  /** @deprecated Use {@link getProjectAgentsReadDirs} for multi-dir scanning. */
   getProjectAgentsDir(): string {
     return resolveReadPath(this.targetDir, 'agents');
+  }
+
+  /**
+   * Returns all existing project-level agent directories.
+   * Legacy (.gemini) first (lower precedence), then primary (.didim).
+   */
+  getProjectAgentsReadDirs(): string[] {
+    return this.getAllProjectReadDirs('agents');
+  }
+
+  /**
+   * Returns all existing project-level command directories.
+   * Legacy (.gemini) first (lower precedence), then primary (.didim).
+   */
+  getProjectCommandsReadDirs(): string[] {
+    return this.getAllProjectReadDirs('commands');
   }
 
   getProjectTempCheckpointsDir(): string {

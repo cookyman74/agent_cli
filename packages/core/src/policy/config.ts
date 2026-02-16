@@ -8,6 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Storage } from '../config/storage.js';
+import { LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import {
   type PolicyEngineConfig,
   PolicyDecision,
@@ -386,9 +387,14 @@ export function createPolicyUpdater(
             existingData = toml.parse(fileContent) as { rule?: TomlRule[] };
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-              // Write path file doesn't exist — try legacy path
+              // Write path file doesn't exist — try legacy .gemini path.
+              // Use explicit legacy path rather than getUserPoliciesDir()
+              // because mkdir above already created .didim/policies/,
+              // causing resolveReadPath to return .didim instead of .gemini.
               const legacyFile = path.join(
-                Storage.getUserPoliciesDir(),
+                homedir(),
+                LEGACY_GEMINI_DIR,
+                'policies',
                 'auto-saved.toml',
               );
               if (legacyFile !== policyFile) {

@@ -624,4 +624,50 @@ describe('Storage – dual-read directories', () => {
     expect(dirs).toHaveLength(1);
     expect(dirs[0]).toContain(DIDIM_DIR);
   });
+
+  // Issue 29: getProjectCommandsReadDirs — project-level dual-read for commands
+  it('getProjectCommandsReadDirs returns both dirs when both exist', () => {
+    mockExistsSync.mockReturnValue(true);
+    const storage = new Storage('/tmp/project');
+    const dirs = storage.getProjectCommandsReadDirs();
+    expect(dirs).toHaveLength(2);
+    expect(dirs[0]).toContain(LEGACY_GEMINI_DIR);
+    expect(dirs[0]).toContain('commands');
+    expect(dirs[1]).toContain(DIDIM_DIR);
+    expect(dirs[1]).toContain('commands');
+  });
+
+  it('getProjectCommandsReadDirs returns only .didim when .gemini missing', () => {
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) =>
+        String(p).includes(DIDIM_DIR) && !String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const storage = new Storage('/tmp/project');
+    const dirs = storage.getProjectCommandsReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(DIDIM_DIR);
+  });
+
+  // Issue 30: getProjectAgentsReadDirs — project-level dual-read for agents
+  it('getProjectAgentsReadDirs returns both dirs when both exist', () => {
+    mockExistsSync.mockReturnValue(true);
+    const storage = new Storage('/tmp/project');
+    const dirs = storage.getProjectAgentsReadDirs();
+    expect(dirs).toHaveLength(2);
+    expect(dirs[0]).toContain(LEGACY_GEMINI_DIR);
+    expect(dirs[0]).toContain('agents');
+    expect(dirs[1]).toContain(DIDIM_DIR);
+    expect(dirs[1]).toContain('agents');
+  });
+
+  it('getProjectAgentsReadDirs returns only .didim when .gemini missing', () => {
+    mockExistsSync.mockImplementation(
+      (p: fs.PathLike) =>
+        String(p).includes(DIDIM_DIR) && !String(p).includes(LEGACY_GEMINI_DIR),
+    );
+    const storage = new Storage('/tmp/project');
+    const dirs = storage.getProjectAgentsReadDirs();
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0]).toContain(DIDIM_DIR);
+  });
 });

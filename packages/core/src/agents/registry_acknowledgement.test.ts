@@ -67,11 +67,13 @@ describe('AgentRegistry Acknowledgement', () => {
       ackService,
     );
 
-    // We cannot easily spy on storage.getProjectAgentsDir if it's a property/getter unless we cast to any or it's a method
-    // Assuming it's a method on Storage class
+    // Mock both single-path and multi-path methods for project agents loading
     vi.spyOn(config.storage, 'getProjectAgentsDir').mockReturnValue(
       '/project/.didim/agents',
     );
+    vi.spyOn(config.storage, 'getProjectAgentsReadDirs').mockReturnValue([
+      '/project/.didim/agents',
+    ]);
     vi.spyOn(config, 'isAgentsEnabled').mockReturnValue(true);
 
     registry = new AgentRegistry(config);

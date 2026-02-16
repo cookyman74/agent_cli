@@ -24,7 +24,8 @@ vi.mock('@didim365/agent-cli-core', () => ({
     log: vi.fn(),
     warn: vi.fn(),
   },
-  GEMINI_DIR: '.gemini',
+  GEMINI_DIR: '.didim',
+  LEGACY_GEMINI_DIR: '.gemini',
 }));
 
 describe('sandboxUtils', () => {
@@ -109,7 +110,8 @@ describe('sandboxUtils', () => {
     it('should source sandbox.bashrc if exists', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       const args = entrypoint('/work', ['node', 'gemini', 'arg1']);
-      expect(args[2]).toContain('source .gemini/sandbox.bashrc');
+      // Primary .didim/sandbox.bashrc is checked first
+      expect(args[2]).toContain('source .didim/sandbox.bashrc');
     });
 
     it('should include socat commands for ports', () => {

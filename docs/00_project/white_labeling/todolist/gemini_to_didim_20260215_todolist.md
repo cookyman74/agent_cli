@@ -49,8 +49,8 @@
 | 글로벌 AGENTS.md fallback 누락 (`memoryDiscovery.ts:151,338,382`)                                            | 🟠 Medium | `GEMINI_DIR` 직접 조합 (Storage 미사용) → resolver 적용 범위 밖. `~/.gemini/AGENTS.md` 레거시 읽기 누락. dual-path 탐색 필요                                                              | ✅ (리뷰 3차에서 resolveReadPath 적용)                                     |
 | 읽기 fallback vs 쓰기 `.didim` only 정책 충돌                                                                | 🔴 High   | `getGlobalGeminiDir()` fallback이 `.gemini` 반환 시 쓰기도 `.gemini`에 수행. **A안 채택**: `resolveReadDir`/`resolveWriteDir` 분리로 쓰기는 항상 `.didim` 강제 (Phase 1.2)                | ✅ (Phase 1.2 A안 구현 완료)                                               |
 | `setupGithubCommand`가 `.gitignore`에 `.gemini/` 기록                                                        | 🟠 Medium | `.didim/` 기록으로 변경 + 기존 `.gemini/` 항목 유지 결정                                                                                                                                  | ✅ (리뷰 4차에서 양쪽 추가)                                                |
-| `gemini-extension.json` 파일명 불일치                                                                        | 🟠 Medium | `didim-extension.json`으로 변경 또는 유지 결정                                                                                                                                            | ⬜                                                                         |
-| `a2a-server` 패키지 누락                                                                                     | 🟠 Medium | CLI/Core뿐 아니라 a2a-server 경로도 동시 전환                                                                                                                                             | ⬜                                                                         |
+| `gemini-extension.json` 파일명 불일치                                                                        | 🟠 Medium | `didim-extension.json`으로 변경 또는 유지 결정                                                                                                                                            | ✅ (Phase 3.4 — didim-extension.json 전환 + fallback)                      |
+| `a2a-server` 패키지 누락                                                                                     | 🟠 Medium | CLI/Core뿐 아니라 a2a-server 경로도 동시 전환                                                                                                                                             | ✅ (Phase 3.4 — settings/env/extension 모두 완료)                          |
 | 문서-코드 경로 불일치                                                                                        | 🟠 Medium | docs 일괄 변경 + FAQ/마이그레이션 안내 추가                                                                                                                                               | ⬜                                                                         |
 | CI/테스트 fixture 경로 불일치                                                                                | 🟡 Low    | 테스트 fixture/스냅샷 동시 업데이트                                                                                                                                                       | ⬜                                                                         |
 
@@ -99,10 +99,10 @@
 
 - [x] `.geminiignore` → `.didimignore` (읽기: 둘 다, 쓰기: `.didimignore`)
       _(Phase 2 완료)_
-- [ ] `gemini-extension.json` → 유지 또는 `didim-extension.json` (결정 필요)
-- [ ] `.gemini-extension-install.json` → 유지 또는
-      `.didim-extension-install.json` (결정 필요 — `variables.ts:13`,
-      `a2a extension.ts:23`)
+- [x] `gemini-extension.json` → `didim-extension.json` (읽기: fallback, 쓰기:
+      didim only) _(Phase 3.4 완료)_
+- [x] `.gemini-extension-install.json` → `.didim-extension-install.json` (읽기:
+      fallback) _(Phase 3.4 완료)_
 - [ ] `AGENTS.md` → 유지 (이미 `GEMINI.md`에서 전환 완료. Extension fallback
       chain `['AGENTS.md', 'GEMINI.md']` 보존)
 
@@ -293,12 +293,13 @@
 
 ---
 
-## 🧩 Phase 3: 기능군별 경로 전환 🔄 In Progress
+## 🧩 Phase 3: 기능군별 경로 전환 ✅ Complete (2026-02-16)
 
 > Phase 1 resolver + GEMINI_DIR alias로 대부분 자동 반영됨. ✅ 사용자 메시지 +
 > 테스트 fixture + .gitignore + logger tidy 완료 (3 커밋). ✅ a2a-server
-> settings/env fallback + homedir 버그 수정 완료 (2 커밋). 잔여: **Extensions
-> 파일명 결정 (3.4) + 환경변수 결정 (3.2)**
+> settings/env fallback + homedir 버그 수정 완료 (2 커밋). ✅ Extensions 파일명
+> `didim-extension.json` 전환 + 환경변수 `DIDIM_CLI_TRUSTED_FOLDERS_PATH` alias
+> 완료 (4 커밋). **Phase 3 Complete.**
 
 ### 3.1 커스텀 명령 / 스킬 / 에이전트 ✅ Complete
 
@@ -308,7 +309,7 @@
 - [x] 로딩 우선순위: resolver가 `.didim` 우선, `.gemini` fallback 자동 처리
 - [x] `registry.ts`의 agent 로딩 경로 (Storage 경유 — 자동 반영 확인)
 
-### 3.2 Hooks / Trusted ✅ Complete (환경변수 결정 제외)
+### 3.2 Hooks / Trusted ✅ Complete
 
 - [x] project hooks 안내 문구 `.didim/settings.json` 기준 반영 _(Phase 3
       Commit 2)_
@@ -318,8 +319,8 @@
       resolveReadPath 적용)_
 - [x] `trustedHooks.ts` — trusted hooks 디렉토리 _(리뷰 2차: getGlobalWritePath
       적용)_
-- [ ] `GEMINI_CLI_TRUSTED_FOLDERS_PATH` 환경변수 — 유지 또는
-      `DIDIM_CLI_TRUSTED_FOLDERS_PATH` alias 추가 _(결정 필요)_
+- [x] `GEMINI_CLI_TRUSTED_FOLDERS_PATH` 환경변수 —
+      `DIDIM_CLI_TRUSTED_FOLDERS_PATH` 우선 + legacy fallback _(Phase 3.4 완료)_
 - [x] untrusted workspace에서 project hooks 차단 로직 — hookRegistry.test.ts 24
       tests 통과 확인
 - [x] hook migration 명령 (`migrate.ts:243-245`) — `.didim/settings.json` 문구
@@ -346,43 +347,44 @@
 - [x] `sandbox.ts:528` — `GEMINI_DIR` 상수 경유 자동 반영 ✅
       (`GEMINI_DIR = DIDIM_DIR` alias)
 
-### 3.4 Extensions / a2a-server
+### 3.4 Extensions / a2a-server ✅ Complete
 
 - [x] extensions 설치 루트 `.didim/extensions` 전환 _(리뷰 3차+4차: Storage
       경유 + extensionEnablement fallback)_
-- [ ] `gemini-extension.json` 파일명 결정:
-  - 유지 시: 기존 확장 호환성 유지, 이름 불일치 감수
-  - 변경 시: `didim-extension.json` + fallback 로직 추가
-- [ ] `packages/cli/src/config/extensions/variables.ts:12` 상수 업데이트
-- [ ] `packages/core/src/config/storage.ts:171` — `getExtensionsConfigPath()` 내
-      `'gemini-extension.json'` 하드코딩 동시 업데이트
-- [ ] `packages/cli/src/commands/extensions/new.ts:66` — 신규 확장 생성 시
-      `'gemini-extension.json'` 하드코딩 동시 업데이트
-- [ ] `packages/a2a-server/src/config/extension.ts:22` 상수 동시 업데이트
-- [ ] `packages/cli/src/config/extensions/variables.ts:13` —
-      `.gemini-extension-install.json` 설치 메타데이터 파일명 결정 (변경 시 기존
-      설치 데이터 fallback 필요)
-- [ ] `packages/a2a-server/src/config/extension.ts:23` —
-      `.gemini-extension-install.json` 동시 업데이트
-- [ ] a2a-server extension discovery 경로 확인
-- [ ] `packages/cli/src/commands/extensions/validate.ts:65` — 에러 메시지
-      `'The following context files referenced in gemini-extension.json are missing: ...'`
-      → 파일명 변경 시 문구도 동시 업데이트
-- [ ] Extension 템플릿 파일 6개 — 파일명 결정에 따라 동시 변경:
-  - `packages/cli/src/commands/extensions/examples/context/gemini-extension.json`
-  - `packages/cli/src/commands/extensions/examples/custom-commands/gemini-extension.json`
-  - `packages/cli/src/commands/extensions/examples/exclude-tools/gemini-extension.json`
-  - `packages/cli/src/commands/extensions/examples/hooks/gemini-extension.json`
-  - `packages/cli/src/commands/extensions/examples/mcp-server/gemini-extension.json`
-  - `packages/cli/src/commands/extensions/examples/skills/gemini-extension.json`
-  - ⚠️ **조건부**: `gemini-extension.json` → `didim-extension.json` 파일명
-    변경을 결정한 경우에만 리네임 필요. 유지 시 내용만 확인
-- [ ] Extension 파일명 변경 시 문서/주석 동기화 (조건부 — 파일명 변경 결정 시):
-  - `packages/cli/src/commands/extensions/examples/mcp-server/README.md:18` —
-    `gemini-extension.json` 참조 설명문
-  - `packages/cli/src/config/extension.ts:17` — JSDoc:
-    `"Extension definition as written to disk in gemini-extension.json files."`
-  - `packages/a2a-server/src/config/extension.ts:26` — 동일 JSDoc 주석
+- [x] `gemini-extension.json` → `didim-extension.json` 전환 결정 (읽기:
+      fallback, 쓰기: didim only)
+- [x] `packages/cli/src/config/extensions/variables.ts:12` — 상수값
+      `'didim-extension.json'` + `LEGACY_EXTENSIONS_CONFIG_FILENAME` alias
+      _(Commit 1)_
+- [x] `packages/core/src/config/storage.ts:267` — `getExtensionsConfigPath()`
+      `'didim-extension.json'` _(Commit 1)_
+- [x] `packages/cli/src/commands/extensions/new.ts:66` — 하드코딩 제거,
+      `EXTENSIONS_CONFIG_FILENAME` 상수 사용 _(Commit 3)_
+- [x] `packages/a2a-server/src/config/extension.ts:22` — 상수값
+      `'didim-extension.json'` + legacy alias _(Commit 1)_
+- [x] `packages/cli/src/config/extensions/variables.ts:13` —
+      `.didim-extension-install.json` + `LEGACY_INSTALL_METADATA_FILENAME` alias
+      _(Commit 1)_
+- [x] `packages/a2a-server/src/config/extension.ts:23` — 동일 _(Commit 1)_
+- [x] a2a-server extension discovery — `loadExtension()` +
+      `loadInstallMetadata()` fallback 적용 _(Commit 2)_
+- [x] `packages/cli/src/config/extension-manager.ts:710` —
+      `loadExtensionConfig()` fallback 적용 _(Commit 2)_
+- [x] `packages/cli/src/config/extension.ts:41` — `loadInstallMetadata()`
+      fallback 적용 _(Commit 2)_
+- [x] `packages/cli/src/commands/extensions/validate.ts:65` — 에러 메시지
+      `didim-extension.json` _(Commit 3)_
+- [x] Extension 템플릿 파일 6개 rename:
+  - `examples/context/didim-extension.json` _(Commit 3)_
+  - `examples/custom-commands/didim-extension.json` _(Commit 3)_
+  - `examples/exclude-tools/didim-extension.json` _(Commit 3)_
+  - `examples/hooks/didim-extension.json` _(Commit 3)_
+  - `examples/mcp-server/didim-extension.json` _(Commit 3)_
+  - `examples/skills/didim-extension.json` _(Commit 3)_
+- [x] Extension 문서/주석 동기화:
+  - `examples/mcp-server/README.md:18` — `didim-extension.json` _(Commit 3)_
+  - `packages/cli/src/config/extension.ts:17` — JSDoc _(Commit 3)_
+  - `packages/a2a-server/src/config/extension.ts:26` — JSDoc _(Commit 3)_
 - [x] `packages/a2a-server/src/config/settings.ts:20-21,83-87` — ✅ **fallback
       구현 완료**: `.didim` 우선 + `.gemini` fallback. `LEGACY_GEMINI_DIR`
       import 추가, `loadSettings()` 내 user/workspace 양쪽에 fallback 적용 + 3개
@@ -601,21 +603,22 @@
 
 ## 🗂️ 작업 로그
 
-| 날짜       | 작업자 | 내용                                   | 비고                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ---------- | ------ | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-02-15 | Codex  | 초기 작업 계획서 작성                  | v1.0                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| 2026-02-15 | Claude | 코드 기반 영향도 분석 및 계획서 보강   | v2.0 — 하드코딩 15개소 식별, `.geminiignore` 전환 추가, 샌드박스 fallback 리스크, 전환 제외 대상 명시, Phase 3 세분화                                                                                                                                                                                                                                                                                                       |
-| 2026-02-16 | Claude | GEMINI.md → AGENTS.md 전환 반영 검토   | v2.1 — Phase3 ETC 작업결과서 기반 검증. `GEMINI.md` 참조 5곳 → `AGENTS.md` 기준으로 정정. 함수명 Gemini 접두사 잔존 상태 기록, Extension fallback chain 보존 요건 명시                                                                                                                                                                                                                                                      |
-| 2026-02-16 | Claude | 리뷰 이슈 5건 검증 및 계획서 반영      | v2.2 — (1) 하드코딩 15→17개: storage.ts:171 + new.ts:66 추가. (2) file-token-storage.ts, trustedFolders.ts "Storage 경유" 오류 정정→직접 조합+fallback 미적용. (3) OAuth 마이그레이션 경로 `.gemini` 하드코딩 필요 경고 추가. (4) a2a-server settings.ts/config.ts 범위 추가. (5) prompts.ts system.md fallback 누락 보완                                                                                                   |
-| 2026-02-16 | Claude | 추가 리뷰 이슈 6건 검증 및 계획서 반영 | v2.3 — (1) 읽기 fallback vs 쓰기 .didim only 정책 충돌: resolver 읽기/쓰기 분리 설계 3안 추가, Core 난이도 🟢→🔴. (2) memoryDiscovery.ts 3곳 GEMINI_DIR 직접 조합→글로벌 AGENTS.md fallback 항목 추가. (3) settings.ts:447 isProjectEnvFile 판별 충돌 경고. (4) a2a config.ts:201 process.cwd()→homedir() 기존 버그 기록. (5) sandbox Docker 볼륨/bashrc/venv 3항목 추가. (6) .gemini-extension-install.json 전환 결정 추가 |
-| 2026-02-16 | Claude | 아키텍처 A안 확정 + 추가 이슈 2건 반영 | v2.4 — (1) Phase 1.2 읽기/쓰기 resolver 분리 A안 확정 (B/C안 기각 기록). (2) Extension 템플릿 파일 6개(`examples/*/gemini-extension.json`) + `validate.ts:65` 에러 문구 → Phase 3.4에 조건부 항목 추가. (3) UX 문자열 4곳(`restoreCommand.ts:49`, `atFileProcessor.ts:60`, `tips.ts:39`, `cli-help-agent.ts:89`) → Phase 3.8 신규 섹션 추가. (4) 영향도 요약 테이블: Extension 템플릿 행 추가, 사용자 메시지 행 구체화      |
-| 2026-02-16 | Claude | 재검증 이슈 3건 반영                   | v2.5 — (1) `mcpServerEnablement.ts:218,382` 쓰기 경로 — "자동 확인"→A안 `resolveWriteDir` 적용 대상으로 격상, 영향도 테이블 행 추가. (2) Extension 파일명 변경 시 문서/주석 동기화 3곳 추가 (README.md:18, extension.ts:17 JSDoc, a2a extension.ts:26 JSDoc). (3) `atFileProcessor.ts:60` — `.didimignore` 단독 표기→fallback 정책과 일관성 유지를 위해 병기 권장 기록                                                      |
-| 2026-02-16 | Claude | **Phase 1 구현 완료**                  | `5f5b5f0d4` — paths.ts 상수 3개 추가, storage.ts resolver 2함수 + Storage 메서드 4개 추가/변경, 테스트 14건 신규 + 회귀 4파일 수정. QG: 281 files 5362 passed, 0 lint/typecheck errors                                                                                                                                                                                                                                      |
-| 2026-02-16 | Claude | Phase 1 리뷰 1차 수정                  | `d671cfc79` — storage.test.ts fallback 테스트 4건 수정 (readDir→readFile 세분화)                                                                                                                                                                                                                                                                                                                                            |
-| 2026-02-16 | Claude | Phase 1 리뷰 2차 수정                  | `80e45aab5` — Consumer 읽기/쓰기 경로 분리 7개 파일 (settings, persistentState, trustedFolders, trustedHooks, mcpServerEnablement, hookRegistry 안내문구, file-token-storage)                                                                                                                                                                                                                                               |
-| 2026-02-16 | Claude | Phase 1 리뷰 3차 수정                  | `9c051a02c` — 읽기 fallback + 쓰기 경로 분리 추가 5건 (prompts.ts, sandbox.ts, memoryDiscovery.ts, file-token-storage.ts 쓰기 분리, extension tmp dir 브랜딩)                                                                                                                                                                                                                                                               |
-| 2026-02-16 | Claude | Phase 1 리뷰 4차 수정                  | `f9333d250` — 정책/샌드박스/확장 경로 .didim 전환 5건 (plan.toml regex, Seatbelt 6개 양방향, extensionEnablement fallback, extension-manager 양방향 스캔, setupGithubCommand .gitignore)                                                                                                                                                                                                                                    |
-| 2026-02-16 | Claude | Phase 1 작업 이력 통합                 | `763ccc267` — 리뷰 1~4차 단일 문서화                                                                                                                                                                                                                                                                                                                                                                                        |
-| 2026-02-16 | Claude | **Phase 2 구현 완료**                  | 4커밋 Tidy First: `1a1cd42` 상수+alias, `0bde65c` 파서 fallback(TDD 7t), `79c10b4` filesearch fallback(TDD 3t), `0364fbc` UI 라벨 10파일. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                                            |
-| 2026-02-16 | Claude | **Phase 3 부분 구현**                  | 3커밋 Tidy First: `7c14b6d` logger tidy+주석(structural), `5376c8c` 사용자 메시지 4곳+.gitignore(behavioral, 7파일), `9b64d07` 테스트 fixture 24파일 일괄. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                           |
-| 2026-02-16 | Claude | **Phase 3 a2a-server fallback**        | 2커밋: `a3b18f4` settings.ts fallback(user+workspace, 3 tests), `032827a` config.ts env dual-path + process.cwd()→homedir() 버그 수정. QG: a2a-server 102 tests, core 5390/cli 4758 passed. 잔여: Extensions 파일명(결정), 환경변수 alias(결정)                                                                                                                                                                             |
+| 날짜       | 작업자 | 내용                                    | 비고                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------- | ------ | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-02-15 | Codex  | 초기 작업 계획서 작성                   | v1.0                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 2026-02-15 | Claude | 코드 기반 영향도 분석 및 계획서 보강    | v2.0 — 하드코딩 15개소 식별, `.geminiignore` 전환 추가, 샌드박스 fallback 리스크, 전환 제외 대상 명시, Phase 3 세분화                                                                                                                                                                                                                                                                                                       |
+| 2026-02-16 | Claude | GEMINI.md → AGENTS.md 전환 반영 검토    | v2.1 — Phase3 ETC 작업결과서 기반 검증. `GEMINI.md` 참조 5곳 → `AGENTS.md` 기준으로 정정. 함수명 Gemini 접두사 잔존 상태 기록, Extension fallback chain 보존 요건 명시                                                                                                                                                                                                                                                      |
+| 2026-02-16 | Claude | 리뷰 이슈 5건 검증 및 계획서 반영       | v2.2 — (1) 하드코딩 15→17개: storage.ts:171 + new.ts:66 추가. (2) file-token-storage.ts, trustedFolders.ts "Storage 경유" 오류 정정→직접 조합+fallback 미적용. (3) OAuth 마이그레이션 경로 `.gemini` 하드코딩 필요 경고 추가. (4) a2a-server settings.ts/config.ts 범위 추가. (5) prompts.ts system.md fallback 누락 보완                                                                                                   |
+| 2026-02-16 | Claude | 추가 리뷰 이슈 6건 검증 및 계획서 반영  | v2.3 — (1) 읽기 fallback vs 쓰기 .didim only 정책 충돌: resolver 읽기/쓰기 분리 설계 3안 추가, Core 난이도 🟢→🔴. (2) memoryDiscovery.ts 3곳 GEMINI_DIR 직접 조합→글로벌 AGENTS.md fallback 항목 추가. (3) settings.ts:447 isProjectEnvFile 판별 충돌 경고. (4) a2a config.ts:201 process.cwd()→homedir() 기존 버그 기록. (5) sandbox Docker 볼륨/bashrc/venv 3항목 추가. (6) .gemini-extension-install.json 전환 결정 추가 |
+| 2026-02-16 | Claude | 아키텍처 A안 확정 + 추가 이슈 2건 반영  | v2.4 — (1) Phase 1.2 읽기/쓰기 resolver 분리 A안 확정 (B/C안 기각 기록). (2) Extension 템플릿 파일 6개(`examples/*/gemini-extension.json`) + `validate.ts:65` 에러 문구 → Phase 3.4에 조건부 항목 추가. (3) UX 문자열 4곳(`restoreCommand.ts:49`, `atFileProcessor.ts:60`, `tips.ts:39`, `cli-help-agent.ts:89`) → Phase 3.8 신규 섹션 추가. (4) 영향도 요약 테이블: Extension 템플릿 행 추가, 사용자 메시지 행 구체화      |
+| 2026-02-16 | Claude | 재검증 이슈 3건 반영                    | v2.5 — (1) `mcpServerEnablement.ts:218,382` 쓰기 경로 — "자동 확인"→A안 `resolveWriteDir` 적용 대상으로 격상, 영향도 테이블 행 추가. (2) Extension 파일명 변경 시 문서/주석 동기화 3곳 추가 (README.md:18, extension.ts:17 JSDoc, a2a extension.ts:26 JSDoc). (3) `atFileProcessor.ts:60` — `.didimignore` 단독 표기→fallback 정책과 일관성 유지를 위해 병기 권장 기록                                                      |
+| 2026-02-16 | Claude | **Phase 1 구현 완료**                   | `5f5b5f0d4` — paths.ts 상수 3개 추가, storage.ts resolver 2함수 + Storage 메서드 4개 추가/변경, 테스트 14건 신규 + 회귀 4파일 수정. QG: 281 files 5362 passed, 0 lint/typecheck errors                                                                                                                                                                                                                                      |
+| 2026-02-16 | Claude | Phase 1 리뷰 1차 수정                   | `d671cfc79` — storage.test.ts fallback 테스트 4건 수정 (readDir→readFile 세분화)                                                                                                                                                                                                                                                                                                                                            |
+| 2026-02-16 | Claude | Phase 1 리뷰 2차 수정                   | `80e45aab5` — Consumer 읽기/쓰기 경로 분리 7개 파일 (settings, persistentState, trustedFolders, trustedHooks, mcpServerEnablement, hookRegistry 안내문구, file-token-storage)                                                                                                                                                                                                                                               |
+| 2026-02-16 | Claude | Phase 1 리뷰 3차 수정                   | `9c051a02c` — 읽기 fallback + 쓰기 경로 분리 추가 5건 (prompts.ts, sandbox.ts, memoryDiscovery.ts, file-token-storage.ts 쓰기 분리, extension tmp dir 브랜딩)                                                                                                                                                                                                                                                               |
+| 2026-02-16 | Claude | Phase 1 리뷰 4차 수정                   | `f9333d250` — 정책/샌드박스/확장 경로 .didim 전환 5건 (plan.toml regex, Seatbelt 6개 양방향, extensionEnablement fallback, extension-manager 양방향 스캔, setupGithubCommand .gitignore)                                                                                                                                                                                                                                    |
+| 2026-02-16 | Claude | Phase 1 작업 이력 통합                  | `763ccc267` — 리뷰 1~4차 단일 문서화                                                                                                                                                                                                                                                                                                                                                                                        |
+| 2026-02-16 | Claude | **Phase 2 구현 완료**                   | 4커밋 Tidy First: `1a1cd42` 상수+alias, `0bde65c` 파서 fallback(TDD 7t), `79c10b4` filesearch fallback(TDD 3t), `0364fbc` UI 라벨 10파일. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                                            |
+| 2026-02-16 | Claude | **Phase 3 부분 구현**                   | 3커밋 Tidy First: `7c14b6d` logger tidy+주석(structural), `5376c8c` 사용자 메시지 4곳+.gitignore(behavioral, 7파일), `9b64d07` 테스트 fixture 24파일 일괄. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                           |
+| 2026-02-16 | Claude | **Phase 3 a2a-server fallback**         | 2커밋: `a3b18f4` settings.ts fallback(user+workspace, 3 tests), `032827a` config.ts env dual-path + process.cwd()→homedir() 버그 수정. QG: a2a-server 102 tests, core 5390/cli 4758 passed. 잔여: Extensions 파일명(결정), 환경변수 alias(결정)                                                                                                                                                                             |
+| 2026-02-16 | Claude | **Phase 3 Extensions 파일명 전환 완료** | 4커밋 Tidy First: `9a58a77` 상수 rename+legacy alias(structural), `1849b76` 읽기 fallback 4곳(behavioral), `82cc42b` 쓰기/생성+UI+템플릿 6개 rename+env alias(behavioral), `424e0d7` 테스트 8파일 fixture 업데이트. QG: core 5390/a2a 102/cli 4540 passed (7 pre-existing failures), 0 lint/typecheck errors. Phase 3 Complete.                                                                                             |

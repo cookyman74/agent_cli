@@ -646,6 +646,7 @@ export function clearOauthClientCache() {
 }
 
 export async function clearCachedCredentialFile() {
+  // Each step runs independently so a failure in one doesn't skip the others.
   try {
     const useEncryptedStorage = getUseEncryptedStorageFlag();
     if (useEncryptedStorage) {
@@ -658,13 +659,19 @@ export async function clearCachedCredentialFile() {
         await fs.rm(path.join(home, dir, OAUTH_FILE), { force: true });
       }
     }
+  } catch (e) {
+    debugLogger.warn('Failed to clear cached credential files:', e);
+  }
+
+  try {
     // Clear the Google Account ID cache when credentials are cleared
     await userAccountManager.clearCachedGoogleAccount();
-    // Clear the in-memory OAuth client cache to force re-authentication
-    clearOauthClientCache();
   } catch (e) {
-    debugLogger.warn('Failed to clear cached credentials:', e);
+    debugLogger.warn('Failed to clear cached Google account:', e);
   }
+
+  // Clear the in-memory OAuth client cache to force re-authentication
+  clearOauthClientCache();
 }
 
 async function fetchAndCacheUserInfo(client: OAuth2Client): Promise<void> {

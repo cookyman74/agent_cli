@@ -102,7 +102,7 @@ export async function maybePromptForSettings(
   );
 
   if (!settings || settings.length === 0) {
-    await clearSettings(envFilePath, keychain);
+    await clearSettings(envFilePath, keychain, envFileWritePathResolved);
     return;
   }
 
@@ -321,9 +321,11 @@ function getSettingsChanges(
 async function clearSettings(
   envFilePath: string,
   keychain: KeychainTokenStorage,
+  envFileWritePath?: string,
 ) {
   if (fsSync.existsSync(envFilePath)) {
-    await fs.writeFile(envFilePath, '');
+    // Write to .didim write path, not the read path (which may be legacy .gemini)
+    await fs.writeFile(envFileWritePath ?? envFilePath, '');
   }
   if (!(await keychain.isAvailable())) {
     return;

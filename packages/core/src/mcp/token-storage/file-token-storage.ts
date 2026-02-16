@@ -14,17 +14,19 @@ import { homedir } from '../../utils/paths.js';
 import { resolveReadPath, Storage } from '../../config/storage.js';
 
 export class FileTokenStorage extends BaseTokenStorage {
-  private readonly tokenReadPath: string;
   private readonly tokenWritePath: string;
   private readonly encryptionKey: Buffer;
 
   constructor(serviceName: string) {
     super(serviceName);
-    this.tokenReadPath = resolveReadPath(homedir(), 'mcp-oauth-tokens-v2.json');
     this.tokenWritePath = Storage.getGlobalWritePath(
       'mcp-oauth-tokens-v2.json',
     );
     this.encryptionKey = this.deriveEncryptionKey();
+  }
+
+  private get tokenReadPath(): string {
+    return resolveReadPath(homedir(), 'mcp-oauth-tokens-v2.json');
   }
 
   private deriveEncryptionKey(): Buffer {
@@ -145,14 +147,7 @@ export class FileTokenStorage extends BaseTokenStorage {
     tokens.delete(serverName);
 
     if (tokens.size === 0) {
-      try {
-        await fs.unlink(this.tokenWritePath);
-      } catch (error: unknown) {
-        const err = error as NodeJS.ErrnoException;
-        if (err.code !== 'ENOENT') {
-          throw error;
-        }
-      }
+      await this.deleteTokenFiles();
     } else {
       await this.saveTokens(tokens);
     }
@@ -177,12 +172,20 @@ export class FileTokenStorage extends BaseTokenStorage {
   }
 
   async clearAll(): Promise<void> {
-    try {
-      await fs.unlink(this.tokenWritePath);
-    } catch (error: unknown) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code !== 'ENOENT') {
-        throw error;
+    await this.deleteTokenFiles();
+  }
+
+  private async deleteTokenFiles(): Promise<void> {
+    for (const tokenPath of new Set([
+      this.tokenWritePath,
+      this.tokenReadPath,
+    ])) {
+      try {
+        await fs.unlink(tokenPath);
+      } catch (error: unknown) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
       }
     }
   }

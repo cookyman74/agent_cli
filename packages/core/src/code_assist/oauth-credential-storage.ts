@@ -10,7 +10,7 @@ import { OAUTH_FILE } from '../config/storage.js';
 import type { OAuthCredentials } from '../mcp/token-storage/types.js';
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
+import { DIDIM_DIR, LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import { coreEvents } from '../utils/events.js';
 
 const KEYCHAIN_SERVICE_NAME = 'gemini-cli-oauth';
@@ -104,10 +104,15 @@ export class OAuthCredentialStorage {
       }
     }
 
-    // Step 2: Always clean up legacy file regardless of Step 1 result,
-    // to prevent re-exposure via migrateFromFileStorage().
-    const oldFilePath = path.join(homedir(), LEGACY_GEMINI_DIR, OAUTH_FILE);
-    await fs.rm(oldFilePath, { force: true }).catch(() => {});
+    // Step 2: Always clean up plaintext credential files in both directories.
+    // Covers: legacy .gemini/oauth_creds.json AND .didim/oauth_creds.json
+    // (the latter may exist from plaintext mode before switching to encrypted).
+    const home = homedir();
+    for (const dir of [DIDIM_DIR, LEGACY_GEMINI_DIR]) {
+      await fs
+        .rm(path.join(home, dir, OAUTH_FILE), { force: true })
+        .catch(() => {});
+    }
   }
 
   /**

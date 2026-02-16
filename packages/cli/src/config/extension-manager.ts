@@ -25,6 +25,7 @@ import {
 import {
   Config,
   DEFAULT_CONTEXT_FILENAME,
+  LEGACY_GEMINI_DIR,
   debugLogger,
   ExtensionDisableEvent,
   ExtensionEnableEvent,
@@ -481,15 +482,26 @@ Would you like to attempt to install via "git clone" instead?`,
       return this.loadedExtensions;
     }
 
-    const extensionsDir = ExtensionStorage.getUserExtensionsDir();
+    const primaryDir = ExtensionStorage.getUserExtensionsDir();
+    const legacyDir = path.join(homedir(), LEGACY_GEMINI_DIR, 'extensions');
     this.loadedExtensions = [];
-    if (!fs.existsSync(extensionsDir)) {
-      return this.loadedExtensions;
+
+    // Primary directory scan (.didim/extensions or .gemini/extensions via resolveReadPath)
+    if (fs.existsSync(primaryDir)) {
+      for (const subdir of fs.readdirSync(primaryDir)) {
+        const extensionDir = path.join(primaryDir, subdir);
+        await this.loadExtension(extensionDir);
+      }
     }
-    for (const subdir of fs.readdirSync(extensionsDir)) {
-      const extensionDir = path.join(extensionsDir, subdir);
-      await this.loadExtension(extensionDir);
+
+    // Legacy directory scan (only if different from primary)
+    if (legacyDir !== primaryDir && fs.existsSync(legacyDir)) {
+      for (const subdir of fs.readdirSync(legacyDir)) {
+        const extensionDir = path.join(legacyDir, subdir);
+        await this.loadExtension(extensionDir);
+      }
     }
+
     return this.loadedExtensions;
   }
 

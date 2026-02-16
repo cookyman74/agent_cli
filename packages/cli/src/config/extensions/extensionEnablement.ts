@@ -115,9 +115,9 @@ export class ExtensionEnablementManager {
   private enabledExtensionNamesOverride: string[];
 
   constructor(enabledExtensionNames?: string[]) {
-    const readDir = ExtensionStorage.getUserExtensionsDir();
     const writeDir = ExtensionStorage.getUserExtensionsWriteDir();
-    this.configReadPath = path.join(readDir, 'extension-enablement.json');
+    this.configReadPath =
+      ExtensionStorage.getUserExtensionsEnablementReadPath();
     this.configWritePath = path.join(writeDir, 'extension-enablement.json');
     this.configWriteDir = writeDir;
     this.enabledExtensionNamesOverride =

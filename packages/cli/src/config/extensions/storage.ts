@@ -11,7 +11,7 @@ import {
   EXTENSION_SETTINGS_FILENAME,
   EXTENSIONS_CONFIG_FILENAME,
 } from './variables.js';
-import { Storage, homedir } from '@didim365/agent-cli-core';
+import { Storage, homedir, resolveReadPath } from '@didim365/agent-cli-core';
 
 export class ExtensionStorage {
   private readonly extensionName: string;
@@ -41,6 +41,14 @@ export class ExtensionStorage {
 
   static getUserExtensionsWriteDir(): string {
     return Storage.getGlobalWritePath('extensions');
+  }
+
+  static getUserExtensionsEnablementReadPath(): string {
+    return resolveReadPath(
+      homedir(),
+      'extensions',
+      'extension-enablement.json',
+    );
   }
 
   static async createTmpDir(): Promise<string> {

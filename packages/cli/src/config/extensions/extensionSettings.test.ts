@@ -443,6 +443,36 @@ describe('extensionSettings', () => {
       expect(mockIsAvailable).toHaveBeenCalled();
       expect(mockListSecrets).not.toHaveBeenCalled();
     });
+
+    it('should clear settings using write path, not read path', async () => {
+      // Setup: write a settings file so clearSettings finds it
+      const envFilePath = path.join(extensionDir, EXTENSION_SETTINGS_FILENAME);
+      await fsPromises.writeFile(envFilePath, 'VAR1=value1\n');
+
+      const config: ExtensionConfig = {
+        name: 'test-ext',
+        version: '1.0.0',
+        settings: [], // Empty settings triggers clearSettings
+      };
+
+      const previousConfig: ExtensionConfig = {
+        name: 'test-ext',
+        version: '1.0.0',
+        settings: [{ name: 's1', description: 'd1', envVar: 'VAR1' }],
+      };
+
+      await maybePromptForSettings(
+        config,
+        '12345',
+        mockRequestSetting,
+        previousConfig,
+        undefined,
+      );
+
+      // The file at write path should be empty (cleared)
+      const content = await fsPromises.readFile(envFilePath, 'utf-8');
+      expect(content).toBe('');
+    });
   });
 
   describe('promptForSetting', () => {

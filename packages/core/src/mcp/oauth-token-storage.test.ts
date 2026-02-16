@@ -12,6 +12,7 @@ import { MCPOAuthTokenStorage } from './oauth-token-storage.js';
 import { FORCE_ENCRYPTED_FILE_ENV_VAR } from './token-storage/index.js';
 import type { OAuthCredentials, OAuthToken } from './token-storage/types.js';
 import { GEMINI_DIR } from '../utils/paths.js';
+import { Storage } from '../config/storage.js';
 
 // Mock dependencies
 vi.mock('node:fs', () => ({
@@ -34,6 +35,14 @@ vi.mock('../config/storage.js', () => ({
     getGlobalWritePath: vi.fn(),
   },
 }));
+
+vi.mock('../utils/paths.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/paths.js')>();
+  return {
+    ...actual,
+    homedir: vi.fn(() => '/mock/home'),
+  };
+});
 
 vi.mock('../utils/events.js', () => ({
   coreEvents: {
@@ -301,6 +310,24 @@ describe('MCPOAuthTokenStorage', () => {
           unlinkError,
         );
       });
+
+      it('should delete both primary and legacy files when no tokens remain', async () => {
+        const writePath = '/mock/home/.didim/mcp-oauth-tokens.json';
+        const legacyPath = '/mock/home/.gemini/mcp-oauth-tokens.json';
+
+        vi.mocked(Storage.getGlobalWritePath).mockReturnValue(writePath);
+        vi.mocked(path.join).mockReturnValue(legacyPath);
+        vi.mocked(fs.readFile).mockResolvedValue(
+          JSON.stringify([mockCredentials]),
+        );
+        vi.mocked(fs.unlink).mockResolvedValue(undefined);
+
+        await tokenStorage.deleteCredentials('test-server');
+
+        expect(fs.unlink).toHaveBeenCalledTimes(2);
+        expect(fs.unlink).toHaveBeenCalledWith(writePath);
+        expect(fs.unlink).toHaveBeenCalledWith(legacyPath);
+      });
     });
 
     describe('isTokenExpired', () => {
@@ -377,6 +404,21 @@ describe('MCPOAuthTokenStorage', () => {
           'Failed to clear MCP OAuth tokens: Permission denied',
           unlinkError,
         );
+      });
+
+      it('should delete both primary and legacy token files', async () => {
+        const writePath = '/mock/home/.didim/mcp-oauth-tokens.json';
+        const legacyPath = '/mock/home/.gemini/mcp-oauth-tokens.json';
+
+        vi.mocked(Storage.getGlobalWritePath).mockReturnValue(writePath);
+        vi.mocked(path.join).mockReturnValue(legacyPath);
+        vi.mocked(fs.unlink).mockResolvedValue(undefined);
+
+        await tokenStorage.clearAll();
+
+        expect(fs.unlink).toHaveBeenCalledTimes(2);
+        expect(fs.unlink).toHaveBeenCalledWith(writePath);
+        expect(fs.unlink).toHaveBeenCalledWith(legacyPath);
       });
     });
   });

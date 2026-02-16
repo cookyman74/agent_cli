@@ -1322,6 +1322,40 @@ describe('oauth2', () => {
         expect(fs.existsSync(legacyPath)).toBe(false);
       });
 
+      it('should clear Google account even if credential file delete fails', async () => {
+        // Create Google account cache
+        const googleAccountPath = path.join(
+          tempHomeDir,
+          GEMINI_DIR,
+          'google_accounts.json',
+        );
+        const accountData = { active: 'test@example.com', old: [] };
+        await fs.promises.mkdir(path.dirname(googleAccountPath), {
+          recursive: true,
+        });
+        await fs.promises.writeFile(
+          googleAccountPath,
+          JSON.stringify(accountData),
+        );
+
+        // Make credential file directory read-only to force file deletion failure
+        const credsDir = path.join(tempHomeDir, GEMINI_DIR);
+        const credsPath = path.join(credsDir, 'oauth_creds.json');
+        await fs.promises.writeFile(credsPath, '{"refresh_token": "tok"}');
+        await fs.promises.chmod(credsDir, 0o555);
+
+        try {
+          await clearCachedCredentialFile();
+        } finally {
+          // Restore permissions for cleanup
+          await fs.promises.chmod(credsDir, 0o755);
+        }
+
+        // Google account should still be cleared despite file deletion error
+        const userAccountManager = new UserAccountManager();
+        expect(userAccountManager.getCachedGoogleAccount()).toBeNull();
+      });
+
       it('should clear the in-memory OAuth client cache', async () => {
         const mockSetCredentials = vi.fn();
         const mockGetAccessToken = vi

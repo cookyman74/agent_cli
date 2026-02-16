@@ -39,6 +39,10 @@ export class ExtensionStorage {
     return new Storage(homedir()).getExtensionsDir();
   }
 
+  static getUserExtensionsWriteDir(): string {
+    return Storage.getGlobalWritePath('extensions');
+  }
+
   static async createTmpDir(): Promise<string> {
     return fs.promises.mkdtemp(path.join(os.tmpdir(), 'gemini-extension'));
   }

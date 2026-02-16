@@ -170,7 +170,7 @@ export class ExtensionManager extends ExtensionLoader {
           );
         }
       }
-      const extensionsDir = ExtensionStorage.getUserExtensionsDir();
+      const extensionsDir = ExtensionStorage.getUserExtensionsWriteDir();
       await fs.promises.mkdir(extensionsDir, { recursive: true });
 
       if (

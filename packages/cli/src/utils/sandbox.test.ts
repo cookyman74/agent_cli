@@ -79,6 +79,16 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
     },
     GEMINI_DIR: '.gemini',
     homedir: mockedHomedir,
+    resolveReadPath: vi
+      .fn()
+      .mockImplementation(
+        (base: string, ...subPaths: string[]) =>
+          `${base}/.gemini/${subPaths.join('/')}`,
+      ),
+    Storage: {
+      getGlobalGeminiDir: vi.fn().mockReturnValue('/home/user/.gemini'),
+      getGlobalWriteDir: vi.fn().mockReturnValue('/home/user/.gemini'),
+    },
   };
 });
 

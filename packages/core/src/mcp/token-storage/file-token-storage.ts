@@ -10,16 +10,20 @@ import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { BaseTokenStorage } from './base-token-storage.js';
 import type { OAuthCredentials } from './types.js';
-import { GEMINI_DIR, homedir } from '../../utils/paths.js';
+import { homedir } from '../../utils/paths.js';
+import { resolveReadPath, Storage } from '../../config/storage.js';
 
 export class FileTokenStorage extends BaseTokenStorage {
-  private readonly tokenFilePath: string;
+  private readonly tokenReadPath: string;
+  private readonly tokenWritePath: string;
   private readonly encryptionKey: Buffer;
 
   constructor(serviceName: string) {
     super(serviceName);
-    const configDir = path.join(homedir(), GEMINI_DIR);
-    this.tokenFilePath = path.join(configDir, 'mcp-oauth-tokens-v2.json');
+    this.tokenReadPath = resolveReadPath(homedir(), 'mcp-oauth-tokens-v2.json');
+    this.tokenWritePath = Storage.getGlobalWritePath(
+      'mcp-oauth-tokens-v2.json',
+    );
     this.encryptionKey = this.deriveEncryptionKey();
   }
 
@@ -64,13 +68,13 @@ export class FileTokenStorage extends BaseTokenStorage {
   }
 
   private async ensureDirectoryExists(): Promise<void> {
-    const dir = path.dirname(this.tokenFilePath);
+    const dir = path.dirname(this.tokenWritePath);
     await fs.mkdir(dir, { recursive: true, mode: 0o700 });
   }
 
   private async loadTokens(): Promise<Map<string, OAuthCredentials>> {
     try {
-      const data = await fs.readFile(this.tokenFilePath, 'utf-8');
+      const data = await fs.readFile(this.tokenReadPath, 'utf-8');
       const decrypted = this.decrypt(data);
       const tokens = JSON.parse(decrypted) as Record<string, OAuthCredentials>;
       return new Map(Object.entries(tokens));
@@ -100,7 +104,7 @@ export class FileTokenStorage extends BaseTokenStorage {
     const json = JSON.stringify(data, null, 2);
     const encrypted = this.encrypt(json);
 
-    await fs.writeFile(this.tokenFilePath, encrypted, { mode: 0o600 });
+    await fs.writeFile(this.tokenWritePath, encrypted, { mode: 0o600 });
   }
 
   async getCredentials(serverName: string): Promise<OAuthCredentials | null> {
@@ -142,7 +146,7 @@ export class FileTokenStorage extends BaseTokenStorage {
 
     if (tokens.size === 0) {
       try {
-        await fs.unlink(this.tokenFilePath);
+        await fs.unlink(this.tokenWritePath);
       } catch (error: unknown) {
         const err = error as NodeJS.ErrnoException;
         if (err.code !== 'ENOENT') {
@@ -174,7 +178,7 @@ export class FileTokenStorage extends BaseTokenStorage {
 
   async clearAll(): Promise<void> {
     try {
-      await fs.unlink(this.tokenFilePath);
+      await fs.unlink(this.tokenWritePath);
     } catch (error: unknown) {
       const err = error as NodeJS.ErrnoException;
       if (err.code !== 'ENOENT') {

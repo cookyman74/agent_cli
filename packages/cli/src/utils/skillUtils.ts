@@ -152,8 +152,8 @@ export async function installSkill(
     const storage = new Storage(workspaceDir);
     const targetDir =
       scope === 'workspace'
-        ? storage.getProjectSkillsDir()
-        : Storage.getUserSkillsDir();
+        ? storage.getWritePath('skills')
+        : Storage.getGlobalWritePath('skills');
 
     if (!(await requestConsent(skills, targetDir))) {
       throw new Error('Skill installation cancelled by user.');

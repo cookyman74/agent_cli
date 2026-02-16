@@ -442,13 +442,7 @@ Would you like to attempt to install via "git clone" instead?`,
       throw new Error(`Extension not found.`);
     }
     await this.unloadExtension(extension);
-    const storage = new ExtensionStorage(
-      extension.installMetadata?.type === 'link'
-        ? extension.name
-        : path.basename(extension.path),
-    );
-
-    await fs.promises.rm(storage.getExtensionDir(), {
+    await fs.promises.rm(extension.path, {
       recursive: true,
       force: true,
     });

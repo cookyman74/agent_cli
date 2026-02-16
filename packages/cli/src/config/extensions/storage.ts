@@ -21,10 +21,7 @@ export class ExtensionStorage {
   }
 
   getExtensionDir(): string {
-    return path.join(
-      ExtensionStorage.getUserExtensionsDir(),
-      this.extensionName,
-    );
+    return resolveReadPath(homedir(), 'extensions', this.extensionName);
   }
 
   getConfigPath(): string {

@@ -370,7 +370,7 @@ export function createPolicyUpdater(
 
       if (message.persist) {
         try {
-          const userPoliciesDir = Storage.getUserPoliciesDir();
+          const userPoliciesDir = Storage.getUserPoliciesWriteDir();
           await fs.mkdir(userPoliciesDir, { recursive: true });
           const policyFile = path.join(userPoliciesDir, 'auto-saved.toml');
 

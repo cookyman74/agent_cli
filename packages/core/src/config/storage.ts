@@ -131,8 +131,45 @@ export class Storage {
     return resolveReadPath(Storage.getHomeBase(), 'policies');
   }
 
+  /**
+   * Returns the user policies directory for write operations.
+   * Always returns .didim-based path.
+   */
+  static getUserPoliciesWriteDir(): string {
+    return Storage.getGlobalWritePath('policies');
+  }
+
   static getUserAgentsDir(): string {
     return resolveReadPath(Storage.getHomeBase(), 'agents');
+  }
+
+  /**
+   * Returns all existing user-level directories for a given subpath.
+   * Legacy (.gemini) first (lower precedence), then primary (.didim).
+   * Prevents mixed-state (.didim + .gemini coexistence) from hiding assets.
+   */
+  private static getAllUserReadDirs(...subPaths: string[]): string[] {
+    const home = Storage.getHomeBase();
+    const primary = path.join(home, DIDIM_DIR, ...subPaths);
+    const legacy = path.join(home, LEGACY_GEMINI_DIR, ...subPaths);
+    const dirs: string[] = [];
+    // Legacy first (lower precedence), then primary (higher precedence)
+    if (fs.existsSync(legacy) && legacy !== primary) dirs.push(legacy);
+    if (fs.existsSync(primary)) dirs.push(primary);
+    if (dirs.length === 0) dirs.push(primary); // new user
+    return dirs;
+  }
+
+  static getUserSkillsReadDirs(): string[] {
+    return Storage.getAllUserReadDirs('skills');
+  }
+
+  static getUserCommandsReadDirs(): string[] {
+    return Storage.getAllUserReadDirs('commands');
+  }
+
+  static getUserAgentsReadDirs(): string[] {
+    return Storage.getAllUserReadDirs('agents');
   }
 
   static getAcknowledgedAgentsPath(): string {

@@ -86,20 +86,28 @@ export class OAuthCredentialStorage {
    * Clear cached OAuth credentials
    */
   static async clearCredentials(): Promise<void> {
+    // Step 1: Remove from new storage.
+    // "No credentials found" is expected when clearing already-cleared storage.
     try {
       await this.storage.deleteCredentials(MAIN_ACCOUNT_KEY);
-
-      // Also try to remove the old file if it exists
-      const oldFilePath = path.join(homedir(), LEGACY_GEMINI_DIR, OAUTH_FILE);
-      await fs.rm(oldFilePath, { force: true }).catch(() => {});
     } catch (error: unknown) {
-      coreEvents.emitFeedback(
-        'error',
-        'Failed to clear OAuth credentials',
-        error,
-      );
-      throw new Error('Failed to clear OAuth credentials', { cause: error });
+      const isNotFound =
+        error instanceof Error &&
+        error.message.includes('No credentials found');
+      if (!isNotFound) {
+        coreEvents.emitFeedback(
+          'error',
+          'Failed to clear OAuth credentials',
+          error,
+        );
+        throw new Error('Failed to clear OAuth credentials', { cause: error });
+      }
     }
+
+    // Step 2: Always clean up legacy file regardless of Step 1 result,
+    // to prevent re-exposure via migrateFromFileStorage().
+    const oldFilePath = path.join(homedir(), LEGACY_GEMINI_DIR, OAUTH_FILE);
+    await fs.rm(oldFilePath, { force: true }).catch(() => {});
   }
 
   /**

@@ -88,6 +88,10 @@ describe('extensionSettings', () => {
     vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(
       extensionDir,
     );
+    vi.spyOn(
+      ExtensionStorage.prototype,
+      'getExtensionWriteDir',
+    ).mockReturnValue(extensionDir);
     fs.mkdirSync(extensionDir, { recursive: true });
     fs.mkdirSync(tempWorkspaceDir, { recursive: true });
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
@@ -737,6 +741,55 @@ describe('extensionSettings', () => {
       // Ensure no other unexpected changes or deletions
       const lines = actualContent.split('\n').filter((line) => line.length > 0);
       expect(lines).toHaveLength(3); // Should only have the three variables
+    });
+
+    it('should write to write path, not read path, for USER scope', async () => {
+      const legacyExtDir = path.join(
+        tempHomeDir,
+        '.gemini',
+        'extensions',
+        'test-ext',
+      );
+      const primaryExtDir = path.join(
+        tempHomeDir,
+        '.didim',
+        'extensions',
+        'test-ext',
+      );
+
+      // Configure read path → legacy, write path → primary
+      vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(
+        legacyExtDir,
+      );
+      vi.spyOn(
+        ExtensionStorage.prototype,
+        'getExtensionWriteDir',
+      ).mockReturnValue(primaryExtDir);
+
+      // Create legacy .env for reading
+      fs.mkdirSync(legacyExtDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(legacyExtDir, EXTENSION_SETTINGS_FILENAME),
+        'VAR1=legacy-value\n',
+      );
+      // Create primary dir for writing
+      fs.mkdirSync(primaryExtDir, { recursive: true });
+
+      mockRequestSetting.mockResolvedValue('new-value');
+      await updateSetting(
+        config,
+        '12345',
+        'VAR1',
+        mockRequestSetting,
+        ExtensionSettingScope.USER,
+      );
+
+      // Should write to primary (.didim) path, not legacy (.gemini) path
+      const primaryContent = await fsPromises.readFile(
+        path.join(primaryExtDir, EXTENSION_SETTINGS_FILENAME),
+        'utf-8',
+      );
+      expect(primaryContent).toContain('VAR1=new-value');
     });
   });
 });

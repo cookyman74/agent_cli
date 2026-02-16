@@ -26,7 +26,11 @@ import { AuthType } from '../core/contentGenerator.js';
 import type { Config } from '../config/config.js';
 import readline from 'node:readline';
 import { FORCE_ENCRYPTED_FILE_ENV_VAR } from '../mcp/token-storage/index.js';
-import { GEMINI_DIR, homedir as pathsHomedir } from '../utils/paths.js';
+import {
+  GEMINI_DIR,
+  LEGACY_GEMINI_DIR,
+  homedir as pathsHomedir,
+} from '../utils/paths.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { writeToStdout } from '../utils/stdio.js';
 import { FatalCancellationError } from '../utils/errors.js';
@@ -1282,6 +1286,40 @@ describe('oauth2', () => {
         );
         expect(updatedAccountData.active).toBeNull();
         expect(updatedAccountData.old).toContain('test@example.com');
+      });
+
+      it('should delete both primary and legacy credential files', async () => {
+        const primaryPath = path.join(
+          tempHomeDir,
+          GEMINI_DIR,
+          'oauth_creds.json',
+        );
+        const legacyPath = path.join(
+          tempHomeDir,
+          LEGACY_GEMINI_DIR,
+          'oauth_creds.json',
+        );
+
+        // Create both credential files
+        await fs.promises.mkdir(path.dirname(primaryPath), { recursive: true });
+        await fs.promises.writeFile(
+          primaryPath,
+          JSON.stringify({ refresh_token: 'primary-token' }),
+        );
+        await fs.promises.mkdir(path.dirname(legacyPath), { recursive: true });
+        await fs.promises.writeFile(
+          legacyPath,
+          JSON.stringify({ refresh_token: 'legacy-token' }),
+        );
+
+        expect(fs.existsSync(primaryPath)).toBe(true);
+        expect(fs.existsSync(legacyPath)).toBe(true);
+
+        await clearCachedCredentialFile();
+
+        // Both files should be deleted to prevent legacy re-exposure
+        expect(fs.existsSync(primaryPath)).toBe(false);
+        expect(fs.existsSync(legacyPath)).toBe(false);
       });
 
       it('should clear the in-memory OAuth client cache', async () => {

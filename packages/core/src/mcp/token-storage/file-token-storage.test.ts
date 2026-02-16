@@ -315,7 +315,7 @@ describe('FileTokenStorage', () => {
       await storage.clearAll();
 
       const unlinkCalls = mockFs.unlink.mock.calls.map(
-        (call: [string]) => call[0],
+        (call: unknown[]) => call[0] as string,
       );
       expect(unlinkCalls).toContain(
         path.join('/home/test', GEMINI_DIR, 'mcp-oauth-tokens-v2.json'),

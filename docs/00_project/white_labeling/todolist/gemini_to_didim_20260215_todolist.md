@@ -295,8 +295,9 @@
 
 ## 🧩 Phase 3: 기능군별 경로 전환 🔄 In Progress
 
-> Phase 1 resolver + GEMINI_DIR alias로 대부분 자동 반영됨. 잔여 작업: **사용자
-> 메시지 4개소 + Extensions 파일명 결정 + a2a-server fallback + 테스트 fixture**
+> Phase 1 resolver + GEMINI_DIR alias로 대부분 자동 반영됨. ✅ 사용자 메시지 +
+> 테스트 fixture + .gitignore + logger tidy 완료 (3 커밋). 잔여: **Extensions
+> 파일명 결정 (3.4) + a2a-server fallback (3.4) + 환경변수 결정 (3.2)**
 
 ### 3.1 커스텀 명령 / 스킬 / 에이전트 ✅ Complete
 
@@ -306,20 +307,22 @@
 - [x] 로딩 우선순위: resolver가 `.didim` 우선, `.gemini` fallback 자동 처리
 - [x] `registry.ts`의 agent 로딩 경로 (Storage 경유 — 자동 반영 확인)
 
-### 3.2 Hooks / Trusted
+### 3.2 Hooks / Trusted ✅ Complete (환경변수 결정 제외)
 
-- [ ] project hooks 안내 문구 `.didim/settings.json` 기준 반영
-- [ ] `hookRegistry.ts:118` — 사용자 메시지 `.gemini/settings.json` →
-      `.didim/settings.json`
+- [x] project hooks 안내 문구 `.didim/settings.json` 기준 반영 _(Phase 3
+      Commit 2)_
+- [x] `hookRegistry.ts:118` — 사용자 메시지 `.didim/settings.json`으로 변경
+      _(Phase 3 Commit 2)_
 - [x] `trustedFolders.ts:23` — fallback resolver 적용 _(리뷰 2차:
       resolveReadPath 적용)_
 - [x] `trustedHooks.ts` — trusted hooks 디렉토리 _(리뷰 2차: getGlobalWritePath
       적용)_
 - [ ] `GEMINI_CLI_TRUSTED_FOLDERS_PATH` 환경변수 — 유지 또는
-      `DIDIM_CLI_TRUSTED_FOLDERS_PATH` alias 추가
-- [ ] untrusted workspace에서 project hooks 차단 로직 회귀 확인
-- [ ] hook migration 명령 (`migrate.ts:243-245`) — `.gemini/settings.json` 문구
-      업데이트
+      `DIDIM_CLI_TRUSTED_FOLDERS_PATH` alias 추가 _(결정 필요)_
+- [x] untrusted workspace에서 project hooks 차단 로직 — hookRegistry.test.ts 24
+      tests 통과 확인
+- [x] hook migration 명령 (`migrate.ts:243-245`) — `.didim/settings.json` 문구
+      업데이트 _(Phase 3 Commit 2)_
 
 ### 3.3 Sandbox 프로필 (하드코딩 — 별도 수정 필수) ✅ Complete
 
@@ -396,30 +399,25 @@
       정상 구현 참조: `packages/cli/src/config/settings.ts:390` (`homedir()`
       사용). `.gemini` → `.didim` 전환 시 함께 수정
 
-### 3.5 Policies / Telemetry ✅ Complete (테스트 데이터는 3.9에서)
+### 3.5 Policies / Telemetry ✅ Complete
 
 - [x] `plan.toml:73` — regex 패턴 양방향 허용 `\\.(?:didim|gemini)/tmp/` _(리뷰
       4차)_
 - [x] `sanitize.ts:17` — JSDoc 예시일 뿐 실제 경로 아님 ✅ (코드 변경 불필요)
-- ℹ️ `sanitize.test.ts` — 테스트 데이터 `.gemini/hooks/` 경로 → Phase 3.9 일괄
+- [x] `sanitize.test.ts` — 테스트 데이터 `.didim/hooks/` 경로 업데이트 _(Phase 3
+      Commit 3)_
+- [x] `metrics.test.ts` — 테스트 데이터 `.didim/hooks/` 경로 업데이트 _(Phase 3
+      Commit 3)_
 
-### 3.6 Git / VCS 연동
+### 3.6 Git / VCS 연동 ✅ Complete
 
 - [x] `setupGithubCommand.ts:65` — `.didim/` + `.gemini/` 양쪽 추가 _(리뷰 4차)_
 - [x] **⚠️ 잠재 버그**: `['.didim/', '.gemini/', 'gha-creds-*.json']` 양쪽 모두
       추가 _(리뷰 4차)_
-- [ ] 루트 `.gitignore` 업데이트:
-  ```
-  **/.didim/
-  !/.didim/
-  .didim/*
-  !.didim/config.yaml
-  !.didim/commands/
-  !.didim/skills/
-  !.didim/settings.json
-  ```
+- [x] 루트 `.gitignore` — `.didim/` 패턴 추가 + 기존 `.gemini/` 패턴 유지
+      _(Phase 3 Commit 2)_
 
-### 3.7 기타 (MCP, OAuth, PersistentState, Logger, system.md)
+### 3.7 기타 (MCP, OAuth, PersistentState, Logger, system.md) ✅ Complete
 
 - [x] `memoryDiscovery.ts:151,338,382` — resolveReadPath 적용 _(리뷰 3차)_
 - [x] `mcpServerEnablement.ts:218,382` — 읽기: resolveReadPath, 쓰기:
@@ -430,7 +428,10 @@
       사용으로 수정 완료. `~/.gemini/oauth_creds.json` 레거시 마이그레이션 경로
       정상 동작
 - [x] `persistentState.ts` — getGlobalWritePath 적용 _(리뷰 2차)_
-- [ ] `logger.ts` — `geminiDir` 변수명 변경 (선택적 tidy)
+- [x] `logger.ts` — `geminiDir` → `projectTempDir` 변수명 tidy _(Phase 3
+      Commit 1)_
+- [x] `registry.ts` — 주석 `.gemini/agents/` → `.didim/agents/` _(Phase 3
+      Commit 1)_
 - [x] `prompts.ts:90` — resolveReadPath 적용 _(리뷰 3차)_. ⚠️ **system.md
       fallback 누락**: `path.resolve(path.join(GEMINI_DIR, 'system.md'))`로
       workspace의 `.gemini/system.md`를 기본 경로로 사용. `GEMINI_DIR` 변경 시
@@ -442,27 +443,39 @@
 > `.gemini` 또는 `.geminiignore`가 사용자에게 노출되는 안내/에러/팁 문자열. 기능
 > 동작에는 영향 없으나 브랜딩 일관성을 위해 전환.
 
-- [ ] `packages/cli/src/ui/commands/restoreCommand.ts:49` —
-      `'Could not determine the .gemini directory path.'` → `.didim`으로 변경
+- [x] `packages/cli/src/ui/commands/restoreCommand.ts:49` —
+      `.didim directory path`으로 변경 _(Phase 3 Commit 2)_
 - [x] `packages/cli/src/services/prompt-processors/atFileProcessor.ts:60` —
       `'.gitignore or .didimignore'`로 변경 _(Phase 2 Commit 4)_
 - [x] `packages/cli/src/ui/constants/tips.ts:39` —
       `'.didimignore files in context'`로 변경 _(Phase 2 Commit 4)_
-- [ ] `packages/core/src/agents/cli-help-agent.ts:89` — `'.gemini/agents/'`,
-      `'~/.gemini/agents/'` → `.didim/agents/`, `~/.didim/agents/`로 변경
-- [ ] 기타: `rg` 스캔으로 `\.gemini[^_]` 패턴의 사용자 노출 문자열 추가 식별
-      필요
+- [x] `packages/core/src/agents/cli-help-agent.ts:89` — `.didim/agents/`,
+      `~/.didim/agents/`로 변경 _(Phase 3 Commit 2)_
+- [x] 기타: `rg` 스캔으로 추가 식별 완료 — VS Code extension ID(마켓플레이스),
+      settingsSchema 설명(이미 병기) 제외하고 처리 완료
 
-### 3.9 테스트
+### 3.9 테스트 ✅ Complete (24 files)
 
-- [ ] 관련 단위/통합 테스트 fixture 경로 업데이트 (20+ 테스트 파일)
-- [ ] snapshots 경로 문자열 업데이트 (Notifications, AppHeader 등)
-- [ ] `integration-tests/globalSetup.ts:34` — `GEMINI_CONFIG_DIR` → `.didim`
-      경로
-- [ ] 정책 테스트 (`policy/config.test.ts`) — `.gemini/policies` 경로 문자열
-- [ ] `hookEventHandler.test.ts`, `hookRegistry.test.ts` — mock 경로
-- [ ] `chatRecordingService.test.ts` — mock 경로
-- [ ] `telemetry/sanitize.test.ts` — 테스트 데이터 경로
+- [x] 관련 단위/통합 테스트 fixture 경로 업데이트 — 24 테스트 파일 일괄 _(Phase
+      3 Commit 3)_
+- [x] `integration-tests/globalSetup.ts:34` — `GEMINI_CONFIG_DIR` → `.didim`
+      _(Phase 3 Commit 3)_
+- [x] 정책 테스트 (`policy-engine.integration.test.ts`) — `.didim/tmp` 경로
+      _(Phase 3 Commit 3)_
+- [x] `hookEventHandler.test.ts`, `hookRegistry.test.ts` — mock 경로 `.didim`
+      _(Phase 3 Commit 3)_
+- [x] `chatRecordingService.test.ts` — mock 경로 `.didim` _(Phase 3 Commit 3)_
+- [x] `telemetry/sanitize.test.ts`, `metrics.test.ts` — 테스트 데이터 `.didim`
+      _(Phase 3 Commit 3)_
+- [x] Extensions 테스트 5개 (storage, settings, updates, github, scope) — mock
+      경로 `.didim` _(Phase 3 Commit 3)_
+- [x] 기타: sandbox.test.ts, chatCommand.test.ts, nonInteractiveCli.test.ts,
+      list.test.ts, disable.test.ts, useShellHistory.test.ts,
+      settings-validation.test.ts, migrate.test.ts, contextManager.test.ts,
+      logger.test.ts, registry_acknowledgement.test.ts _(Phase 3 Commit 3)_
+- ℹ️ `oauth-credential-storage.test.ts` — LEGACY 마이그레이션 경로 `.gemini`
+  유지 (의도적)
+- ℹ️ snapshots 경로 — 현재 `.gemini` 참조 없음 확인
 
 ---
 
@@ -609,3 +622,4 @@
 | 2026-02-16 | Claude | Phase 1 리뷰 4차 수정                  | `f9333d250` — 정책/샌드박스/확장 경로 .didim 전환 5건 (plan.toml regex, Seatbelt 6개 양방향, extensionEnablement fallback, extension-manager 양방향 스캔, setupGithubCommand .gitignore)                                                                                                                                                                                                                                    |
 | 2026-02-16 | Claude | Phase 1 작업 이력 통합                 | `763ccc267` — 리뷰 1~4차 단일 문서화                                                                                                                                                                                                                                                                                                                                                                                        |
 | 2026-02-16 | Claude | **Phase 2 구현 완료**                  | 4커밋 Tidy First: `1a1cd42` 상수+alias, `0bde65c` 파서 fallback(TDD 7t), `79c10b4` filesearch fallback(TDD 3t), `0364fbc` UI 라벨 10파일. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors                                                                                                                                                                                                                            |
+| 2026-02-16 | Claude | **Phase 3 부분 구현**                  | 3커밋 Tidy First: `7c14b6d` logger tidy+주석(structural), `5376c8c` 사용자 메시지 4곳+.gitignore(behavioral, 7파일), `9b64d07` 테스트 fixture 24파일 일괄. QG: core 5390/cli 4758 passed, 0 lint/typecheck errors. 잔여: Extensions 파일명(결정), a2a-server fallback, 환경변수 alias                                                                                                                                       |

@@ -1,6 +1,6 @@
 {
   "name": "@didim365/agent-cli",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Gemini CLI",
   "license": "Apache-2.0",
   "publishConfig": {
@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.12.0",
-    "@didim365/agent-cli-core": "0.2.2",
+    "@didim365/agent-cli-core": "0.2.3",
     "@google/genai": "1.30.0",
     "@iarna/toml": "^2.2.5",
     "@modelcontextprotocol/sdk": "^1.23.0",

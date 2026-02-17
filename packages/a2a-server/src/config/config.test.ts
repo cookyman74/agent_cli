@@ -50,6 +50,8 @@ vi.mock('@didim365/agent-cli-core', async () => ({
   GitService: {
     verifyGitAvailability: mockVerifyGitAvailability,
   },
+  resolveEnv: (suffix: string) =>
+    process.env[`DIDIM_${suffix}`] ?? process.env[`GEMINI_${suffix}`],
 }));
 
 describe('loadConfig', () => {

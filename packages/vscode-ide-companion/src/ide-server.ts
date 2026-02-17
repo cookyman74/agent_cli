@@ -36,9 +36,14 @@ class CORSError extends Error {
 }
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';
-const IDE_SERVER_PORT_ENV_VAR = 'GEMINI_CLI_IDE_SERVER_PORT';
-const IDE_WORKSPACE_PATH_ENV_VAR = 'GEMINI_CLI_IDE_WORKSPACE_PATH';
-const IDE_AUTH_TOKEN_ENV_VAR = 'GEMINI_CLI_IDE_AUTH_TOKEN';
+// Primary DIDIM_ env vars (CLI resolveEnv checks DIDIM_ first, GEMINI_ fallback)
+const IDE_SERVER_PORT_ENV_VAR = 'DIDIM_CLI_IDE_SERVER_PORT';
+const IDE_WORKSPACE_PATH_ENV_VAR = 'DIDIM_CLI_IDE_WORKSPACE_PATH';
+const IDE_AUTH_TOKEN_ENV_VAR = 'DIDIM_CLI_IDE_AUTH_TOKEN';
+// Legacy GEMINI_ env vars for backward compatibility
+const LEGACY_IDE_SERVER_PORT_ENV_VAR = 'GEMINI_CLI_IDE_SERVER_PORT';
+const LEGACY_IDE_WORKSPACE_PATH_ENV_VAR = 'GEMINI_CLI_IDE_WORKSPACE_PATH';
+const LEGACY_IDE_AUTH_TOKEN_ENV_VAR = 'GEMINI_CLI_IDE_AUTH_TOKEN';
 
 interface WritePortAndWorkspaceArgs {
   context: vscode.ExtensionContext;
@@ -61,8 +66,13 @@ async function writePortAndWorkspace({
       ? workspaceFolders.map((folder) => folder.uri.fsPath).join(path.delimiter)
       : '';
 
+  // Set both DIDIM_ (primary) and GEMINI_ (legacy) env vars
   context.environmentVariableCollection.replace(
     IDE_SERVER_PORT_ENV_VAR,
+    port.toString(),
+  );
+  context.environmentVariableCollection.replace(
+    LEGACY_IDE_SERVER_PORT_ENV_VAR,
     port.toString(),
   );
   context.environmentVariableCollection.replace(
@@ -70,7 +80,15 @@ async function writePortAndWorkspace({
     workspacePath,
   );
   context.environmentVariableCollection.replace(
+    LEGACY_IDE_WORKSPACE_PATH_ENV_VAR,
+    workspacePath,
+  );
+  context.environmentVariableCollection.replace(
     IDE_AUTH_TOKEN_ENV_VAR,
+    authToken,
+  );
+  context.environmentVariableCollection.replace(
+    LEGACY_IDE_AUTH_TOKEN_ENV_VAR,
     authToken,
   );
 

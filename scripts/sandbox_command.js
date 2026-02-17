@@ -33,9 +33,12 @@ const argv = yargs(hideBin(process.argv)).option('q', {
   default: false,
 }).argv;
 
-const homedir = () => process.env['GEMINI_CLI_HOME'] || os.homedir();
+const homedir = () =>
+  process.env['DIDIM_CLI_HOME'] ||
+  process.env['GEMINI_CLI_HOME'] ||
+  os.homedir();
 
-let geminiSandbox = process.env.GEMINI_SANDBOX;
+let geminiSandbox = process.env.DIDIM_SANDBOX || process.env.GEMINI_SANDBOX;
 
 if (!geminiSandbox) {
   // Check primary (.didim) first, then legacy (.gemini) fallback
@@ -82,7 +85,7 @@ if (!geminiSandbox) {
     }
     currentDir = parentDir;
   }
-  geminiSandbox = process.env.GEMINI_SANDBOX;
+  geminiSandbox = process.env.DIDIM_SANDBOX || process.env.GEMINI_SANDBOX;
 }
 
 geminiSandbox = (geminiSandbox || '').toLowerCase();
@@ -113,7 +116,7 @@ if (['1', 'true'].includes(geminiSandbox)) {
     command = 'podman';
   } else {
     console.error(
-      'ERROR: install docker or podman or specify command in GEMINI_SANDBOX',
+      'ERROR: install docker or podman or specify command in DIDIM_SANDBOX (or GEMINI_SANDBOX)',
     );
     process.exit(1);
   }
@@ -122,7 +125,7 @@ if (['1', 'true'].includes(geminiSandbox)) {
     command = geminiSandbox;
   } else {
     console.error(
-      `ERROR: missing sandbox command '${geminiSandbox}' (from GEMINI_SANDBOX)`,
+      `ERROR: missing sandbox command '${geminiSandbox}' (from DIDIM_SANDBOX/GEMINI_SANDBOX)`,
     );
     process.exit(1);
   }

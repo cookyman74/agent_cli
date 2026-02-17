@@ -25,6 +25,7 @@ import {
   PREVIEW_GEMINI_MODEL,
   homedir,
   GitService,
+  resolveEnv,
 } from '@didim365/agent-cli-core';
 
 import { logger } from '../utils/logger.js';
@@ -40,8 +41,7 @@ export async function loadConfig(
   const adcFilePath = process.env['GOOGLE_APPLICATION_CREDENTIALS'];
 
   const folderTrust =
-    settings.folderTrust === true ||
-    process.env['GEMINI_FOLDER_TRUST'] === 'true';
+    settings.folderTrust === true || resolveEnv('FOLDER_TRUST') === 'true';
 
   let checkpointing = process.env['CHECKPOINTING']
     ? process.env['CHECKPOINTING'] === 'true'
@@ -71,7 +71,7 @@ export async function loadConfig(
     excludeTools: settings.excludeTools || undefined,
     showMemoryUsage: settings.showMemoryUsage || false,
     approvalMode:
-      process.env['GEMINI_YOLO_MODE'] === 'true'
+      resolveEnv('YOLO_MODE') === 'true'
         ? ApprovalMode.YOLO
         : ApprovalMode.DEFAULT,
     mcpServers: settings.mcpServers,

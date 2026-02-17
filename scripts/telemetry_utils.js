@@ -24,8 +24,11 @@ const projectHash = crypto
   .update(projectRoot)
   .digest('hex');
 
-// Returns the home directory, respecting GEMINI_CLI_HOME
-const homedir = () => process.env['GEMINI_CLI_HOME'] || os.homedir();
+// Returns the home directory, respecting DIDIM_CLI_HOME (primary) or GEMINI_CLI_HOME (fallback)
+const homedir = () =>
+  process.env['DIDIM_CLI_HOME'] ||
+  process.env['GEMINI_CLI_HOME'] ||
+  os.homedir();
 
 // User-level .gemini directory in home
 const USER_GEMINI_DIR = path.join(homedir(), GEMINI_DIR);

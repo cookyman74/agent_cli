@@ -37,6 +37,7 @@ describe('telemetry_gcp.js', () => {
     vi.clearAllMocks();
     process.env.OTLP_GOOGLE_CLOUD_PROJECT = 'test-project';
     // Clear the env var before each test
+    delete process.env.DIDIM_CLI_CREDENTIALS_PATH;
     delete process.env.GEMINI_CLI_CREDENTIALS_PATH;
   });
 

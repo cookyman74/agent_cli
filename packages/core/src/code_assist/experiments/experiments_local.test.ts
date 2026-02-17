@@ -29,13 +29,13 @@ vi.mock('./client_metadata.js', () => ({
   getClientMetadata: vi.fn(),
 }));
 
-describe('experiments with GEMINI_EXP', () => {
+describe('experiments with DIDIM_EXP', () => {
   let mockServer: CodeAssistServer;
 
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    process.env['GEMINI_EXP'] = ''; // Clear env var
+    process.env['DIDIM_EXP'] = ''; // Clear env var
 
     // Default mocks
     vi.mocked(os.homedir).mockReturnValue('/home/user');
@@ -45,11 +45,11 @@ describe('experiments with GEMINI_EXP', () => {
   });
 
   afterEach(() => {
-    delete process.env['GEMINI_EXP'];
+    delete process.env['DIDIM_EXP'];
   });
 
-  it('should read experiments from local file if GEMINI_EXP is set', async () => {
-    process.env['GEMINI_EXP'] = '/tmp/experiments.json';
+  it('should read experiments from local file if DIDIM_EXP is set', async () => {
+    process.env['DIDIM_EXP'] = '/tmp/experiments.json';
     const mockFileContent = JSON.stringify({
       flags: [{ flagId: 111, boolValue: true }],
       experimentIds: [999],
@@ -72,7 +72,7 @@ describe('experiments with GEMINI_EXP', () => {
   });
 
   it('should fall back to server if reading file fails', async () => {
-    process.env['GEMINI_EXP'] = '/tmp/missing.json';
+    process.env['DIDIM_EXP'] = '/tmp/missing.json';
     vi.mocked(fs.promises.readFile).mockRejectedValue(
       new Error('File not found'),
     );
@@ -98,7 +98,7 @@ describe('experiments with GEMINI_EXP', () => {
   });
 
   it('should work without server if file read succeeds', async () => {
-    process.env['GEMINI_EXP'] = '/tmp/experiments.json';
+    process.env['DIDIM_EXP'] = '/tmp/experiments.json';
     const mockFileContent = JSON.stringify({
       flags: [{ flagId: 333, boolValue: true }],
       experimentIds: [999],
@@ -114,7 +114,7 @@ describe('experiments with GEMINI_EXP', () => {
     });
   });
 
-  it('should return empty if no server and no GEMINI_EXP', async () => {
+  it('should return empty if no server and no DIDIM_EXP', async () => {
     const { getExperiments } = await import('./experiments.js');
     const experiments = await getExperiments(undefined);
     expect(experiments.flags).toEqual({});
@@ -122,7 +122,7 @@ describe('experiments with GEMINI_EXP', () => {
   });
 
   it('should fallback to server if file has invalid structure', async () => {
-    process.env['GEMINI_EXP'] = '/tmp/invalid.json';
+    process.env['DIDIM_EXP'] = '/tmp/invalid.json';
     const mockFileContent = JSON.stringify({
       flags: 'invalid-flags-type', // Should be array
       experimentIds: 123, // Should be array

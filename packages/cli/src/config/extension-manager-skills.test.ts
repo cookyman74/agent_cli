@@ -52,8 +52,8 @@ describe('ExtensionManager skills validation', () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-test-'));
     mockHomedir.mockReturnValue(tempDir);
     // Ensure core's internal homedir() also returns tempDir
-    // (paths.ts checks GEMINI_CLI_HOME env var before os.homedir())
-    vi.stubEnv('GEMINI_CLI_HOME', tempDir);
+    // (paths.ts checks DIDIM_CLI_HOME env var before os.homedir())
+    vi.stubEnv('DIDIM_CLI_HOME', tempDir);
 
     // Create the extensions directory that ExtensionManager expects
     extensionsDir = path.join(tempDir, GEMINI_DIR, 'extensions');

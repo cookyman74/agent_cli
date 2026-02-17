@@ -19,7 +19,7 @@ describe('experiments', () => {
   beforeEach(() => {
     // Reset modules to clear the cached `experimentsPromise`
     vi.resetModules();
-    delete process.env['GEMINI_EXP'];
+    delete process.env['DIDIM_EXP'];
 
     // Mock the dependencies that `getExperiments` relies on
     vi.mocked(getClientMetadata).mockResolvedValue({

@@ -54,7 +54,7 @@ describe('loadSandboxConfig', () => {
     vi.resetAllMocks();
     process.env = { ...originalEnv };
     delete process.env['SANDBOX'];
-    delete process.env['GEMINI_SANDBOX'];
+    delete process.env['DIDIM_SANDBOX'];
     mockedGetPackageJson.mockResolvedValue({
       config: { sandboxImageUri: 'default/image' },
     });
@@ -85,24 +85,24 @@ describe('loadSandboxConfig', () => {
     expect(config).toBeUndefined();
   });
 
-  describe('with GEMINI_SANDBOX environment variable', () => {
-    it('should use docker if GEMINI_SANDBOX=docker and it exists', async () => {
-      process.env['GEMINI_SANDBOX'] = 'docker';
+  describe('with DIDIM_SANDBOX environment variable', () => {
+    it('should use docker if DIDIM_SANDBOX=docker and it exists', async () => {
+      process.env['DIDIM_SANDBOX'] = 'docker';
       mockedCommandExistsSync.mockReturnValue(true);
       const config = await loadSandboxConfig({}, {});
       expect(config).toEqual({ command: 'docker', image: 'default/image' });
       expect(mockedCommandExistsSync).toHaveBeenCalledWith('docker');
     });
 
-    it('should throw if GEMINI_SANDBOX is an invalid command', async () => {
-      process.env['GEMINI_SANDBOX'] = 'invalid-command';
+    it('should throw if DIDIM_SANDBOX is an invalid command', async () => {
+      process.env['DIDIM_SANDBOX'] = 'invalid-command';
       await expect(loadSandboxConfig({}, {})).rejects.toThrow(
         "Invalid sandbox command 'invalid-command'. Must be one of docker, podman, sandbox-exec",
       );
     });
 
-    it('should throw if GEMINI_SANDBOX command does not exist', async () => {
-      process.env['GEMINI_SANDBOX'] = 'docker';
+    it('should throw if DIDIM_SANDBOX command does not exist', async () => {
+      process.env['DIDIM_SANDBOX'] = 'docker';
       mockedCommandExistsSync.mockReturnValue(false);
       await expect(loadSandboxConfig({}, {})).rejects.toThrow(
         "Missing sandbox command 'docker' (from GEMINI_SANDBOX)",
@@ -184,16 +184,16 @@ describe('loadSandboxConfig', () => {
   });
 
   describe('image configuration', () => {
-    it('should use image from GEMINI_SANDBOX_IMAGE env var if set', async () => {
-      process.env['GEMINI_SANDBOX_IMAGE'] = 'env/image';
-      process.env['GEMINI_SANDBOX'] = 'docker';
+    it('should use image from DIDIM_SANDBOX_IMAGE env var if set', async () => {
+      process.env['DIDIM_SANDBOX_IMAGE'] = 'env/image';
+      process.env['DIDIM_SANDBOX'] = 'docker';
       mockedCommandExistsSync.mockReturnValue(true);
       const config = await loadSandboxConfig({}, {});
       expect(config).toEqual({ command: 'docker', image: 'env/image' });
     });
 
     it('should use image from package.json if env var is not set', async () => {
-      process.env['GEMINI_SANDBOX'] = 'docker';
+      process.env['DIDIM_SANDBOX'] = 'docker';
       mockedCommandExistsSync.mockReturnValue(true);
       const config = await loadSandboxConfig({}, {});
       expect(config).toEqual({ command: 'docker', image: 'default/image' });
@@ -201,7 +201,7 @@ describe('loadSandboxConfig', () => {
 
     it('should return undefined if command is found but no image is configured', async () => {
       mockedGetPackageJson.mockResolvedValue({}); // no sandboxImageUri
-      process.env['GEMINI_SANDBOX'] = 'docker';
+      process.env['DIDIM_SANDBOX'] = 'docker';
       mockedCommandExistsSync.mockReturnValue(true);
       const config = await loadSandboxConfig({}, {});
       expect(config).toBeUndefined();

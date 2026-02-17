@@ -1427,7 +1427,7 @@ describe('ShellExecutionService environment variables', () => {
     vi.stubEnv('GITHUB_SHA', 'test-sha');
     vi.stubEnv('MY_SENSITIVE_VAR', 'secret-value'); // This should be stripped out
     vi.stubEnv('PATH', '/test/path'); // An essential var that should be kept
-    vi.stubEnv('GEMINI_CLI_TEST_VAR', 'test-value'); // A test var that should be kept
+    vi.stubEnv('DIDIM_CLI_TEST_VAR', 'test-value'); // A test var that should be kept
 
     vi.resetModules();
     const { ShellExecutionService } = await import(
@@ -1447,7 +1447,7 @@ describe('ShellExecutionService environment variables', () => {
     const ptyEnv = mockPtySpawn.mock.calls[0][2].env;
     expect(ptyEnv).not.toHaveProperty('MY_SENSITIVE_VAR');
     expect(ptyEnv).toHaveProperty('PATH', '/test/path');
-    expect(ptyEnv).toHaveProperty('GEMINI_CLI_TEST_VAR', 'test-value');
+    expect(ptyEnv).toHaveProperty('DIDIM_CLI_TEST_VAR', 'test-value');
 
     // Ensure pty process exits for next test
     mockPtyProcess.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
@@ -1473,7 +1473,7 @@ describe('ShellExecutionService environment variables', () => {
     const cpEnv = mockCpSpawn.mock.calls[0][2].env;
     expect(cpEnv).not.toHaveProperty('MY_SENSITIVE_VAR');
     expect(cpEnv).toHaveProperty('PATH', '/test/path');
-    expect(cpEnv).toHaveProperty('GEMINI_CLI_TEST_VAR', 'test-value');
+    expect(cpEnv).toHaveProperty('DIDIM_CLI_TEST_VAR', 'test-value');
 
     // Ensure child_process exits
     mockChildProcess.emit('exit', 0, null);
@@ -1486,7 +1486,7 @@ describe('ShellExecutionService environment variables', () => {
     vi.stubEnv('SURFACE', 'Github');
     vi.stubEnv('MY_SENSITIVE_VAR', 'secret-value'); // This should be stripped out
     vi.stubEnv('PATH', '/test/path'); // An essential var that should be kept
-    vi.stubEnv('GEMINI_CLI_TEST_VAR', 'test-value'); // A test var that should be kept
+    vi.stubEnv('DIDIM_CLI_TEST_VAR', 'test-value'); // A test var that should be kept
 
     vi.resetModules();
     const { ShellExecutionService } = await import(
@@ -1506,7 +1506,7 @@ describe('ShellExecutionService environment variables', () => {
     const ptyEnv = mockPtySpawn.mock.calls[0][2].env;
     expect(ptyEnv).not.toHaveProperty('MY_SENSITIVE_VAR');
     expect(ptyEnv).toHaveProperty('PATH', '/test/path');
-    expect(ptyEnv).toHaveProperty('GEMINI_CLI_TEST_VAR', 'test-value');
+    expect(ptyEnv).toHaveProperty('DIDIM_CLI_TEST_VAR', 'test-value');
 
     // Ensure pty process exits for next test
     mockPtyProcess.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
@@ -1532,7 +1532,7 @@ describe('ShellExecutionService environment variables', () => {
     const cpEnv = mockCpSpawn.mock.calls[0][2].env;
     expect(cpEnv).not.toHaveProperty('MY_SENSITIVE_VAR');
     expect(cpEnv).toHaveProperty('PATH', '/test/path');
-    expect(cpEnv).toHaveProperty('GEMINI_CLI_TEST_VAR', 'test-value');
+    expect(cpEnv).toHaveProperty('DIDIM_CLI_TEST_VAR', 'test-value');
 
     // Ensure child_process exits
     mockChildProcess.emit('exit', 0, null);

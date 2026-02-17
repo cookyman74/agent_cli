@@ -69,7 +69,7 @@ function getSandboxCommand(
       return sandbox;
     }
     throw new FatalSandboxError(
-      `Missing sandbox command '${sandbox}' (from GEMINI_SANDBOX)`,
+      `Missing sandbox command '${sandbox}' (from DIDIM_SANDBOX or GEMINI_SANDBOX)`,
     );
   }
 
@@ -86,8 +86,8 @@ function getSandboxCommand(
   // throw an error if user requested sandbox but no command was found
   if (sandbox === true) {
     throw new FatalSandboxError(
-      'GEMINI_SANDBOX is true but failed to determine command for sandbox; ' +
-        'install docker or podman or specify command in GEMINI_SANDBOX',
+      'DIDIM_SANDBOX is true but failed to determine command for sandbox; ' +
+        'install docker or podman or specify command in DIDIM_SANDBOX (or GEMINI_SANDBOX)',
     );
   }
 

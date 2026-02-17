@@ -136,7 +136,7 @@ export async function start_sandbox(
           ...finalArgv.map((arg) => quote([arg])),
         ].join(' '),
       );
-      // start and set up proxy if GEMINI_SANDBOX_PROXY_COMMAND is set
+      // start and set up proxy if DIDIM_SANDBOX_PROXY_COMMAND (or GEMINI_SANDBOX_PROXY_COMMAND) is set
       const proxyCommand = resolveEnv('SANDBOX_PROXY_COMMAND');
       let proxyProcess: ChildProcess | undefined = undefined;
       let sandboxProcess: ChildProcess | undefined = undefined;
@@ -404,7 +404,7 @@ export async function start_sandbox(
 
     // copy proxy environment variables, replacing localhost with SANDBOX_PROXY_NAME
     // copy as both upper-case and lower-case as is required by some utilities
-    // GEMINI_SANDBOX_PROXY_COMMAND implies HTTPS_PROXY unless HTTP_PROXY is set
+    // DIDIM_SANDBOX_PROXY_COMMAND (or GEMINI_SANDBOX_PROXY_COMMAND) implies HTTPS_PROXY unless HTTP_PROXY is set
     const proxyCommand = resolveEnv('SANDBOX_PROXY_COMMAND');
 
     if (proxyCommand) {
@@ -652,7 +652,7 @@ export async function start_sandbox(
     // push container entrypoint (including args)
     args.push(...finalEntrypoint);
 
-    // start and set up proxy if GEMINI_SANDBOX_PROXY_COMMAND is set
+    // start and set up proxy if DIDIM_SANDBOX_PROXY_COMMAND (or GEMINI_SANDBOX_PROXY_COMMAND) is set
     let proxyProcess: ChildProcess | undefined = undefined;
     let sandboxProcess: ChildProcess | undefined = undefined;
 

@@ -333,7 +333,7 @@ export const useAuthCommand = (
           !Object.values(AuthType).includes(defaultAuthType as AuthType)
         ) {
           onAuthError(
-            `Invalid value for GEMINI_DEFAULT_AUTH_TYPE: "${defaultAuthType}". ` +
+            `Invalid value for DIDIM_DEFAULT_AUTH_TYPE (or GEMINI_DEFAULT_AUTH_TYPE): "${defaultAuthType}". ` +
               `Valid values are: ${Object.values(AuthType).join(', ')}.`,
           );
           return;

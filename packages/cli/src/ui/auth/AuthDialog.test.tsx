@@ -78,7 +78,9 @@ describe('AuthDialog', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.stubEnv('CLOUD_SHELL', undefined as unknown as string);
+    vi.stubEnv('DIDIM_CLI_USE_COMPUTE_ADC', undefined as unknown as string);
     vi.stubEnv('GEMINI_CLI_USE_COMPUTE_ADC', undefined as unknown as string);
+    vi.stubEnv('DIDIM_DEFAULT_AUTH_TYPE', undefined as unknown as string);
     vi.stubEnv('GEMINI_DEFAULT_AUTH_TYPE', undefined as unknown as string);
     vi.stubEnv('GEMINI_API_KEY', undefined as unknown as string);
 
@@ -182,10 +184,10 @@ describe('AuthDialog', () => {
       },
       {
         setup: () => {
-          vi.stubEnv('GEMINI_DEFAULT_AUTH_TYPE', AuthType.USE_GEMINI);
+          vi.stubEnv('DIDIM_DEFAULT_AUTH_TYPE', AuthType.USE_GEMINI);
         },
         expected: AuthType.USE_GEMINI,
-        desc: 'from GEMINI_DEFAULT_AUTH_TYPE env var',
+        desc: 'from DIDIM_DEFAULT_AUTH_TYPE env var',
       },
       {
         setup: () => {

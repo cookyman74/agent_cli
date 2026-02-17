@@ -105,7 +105,7 @@ describe('loadSandboxConfig', () => {
       process.env['DIDIM_SANDBOX'] = 'docker';
       mockedCommandExistsSync.mockReturnValue(false);
       await expect(loadSandboxConfig({}, {})).rejects.toThrow(
-        "Missing sandbox command 'docker' (from GEMINI_SANDBOX)",
+        "Missing sandbox command 'docker' (from DIDIM_SANDBOX or GEMINI_SANDBOX)",
       );
     });
   });
@@ -151,8 +151,8 @@ describe('loadSandboxConfig', () => {
       mockedOsPlatform.mockReturnValue('linux');
       mockedCommandExistsSync.mockReturnValue(false);
       await expect(loadSandboxConfig({}, { sandbox: true })).rejects.toThrow(
-        'GEMINI_SANDBOX is true but failed to determine command for sandbox; ' +
-          'install docker or podman or specify command in GEMINI_SANDBOX',
+        'DIDIM_SANDBOX is true but failed to determine command for sandbox; ' +
+          'install docker or podman or specify command in DIDIM_SANDBOX (or GEMINI_SANDBOX)',
       );
     });
   });
@@ -170,7 +170,7 @@ describe('loadSandboxConfig', () => {
       await expect(
         loadSandboxConfig({}, { sandbox: 'podman' }),
       ).rejects.toThrow(
-        "Missing sandbox command 'podman' (from GEMINI_SANDBOX)",
+        "Missing sandbox command 'podman' (from DIDIM_SANDBOX or GEMINI_SANDBOX)",
       );
     });
 

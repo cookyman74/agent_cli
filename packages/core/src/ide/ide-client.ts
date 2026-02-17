@@ -554,11 +554,11 @@ export class IdeClient {
           args = parsedArgs;
         } else {
           logger.error(
-            'GEMINI_CLI_IDE_SERVER_STDIO_ARGS must be a JSON array string.',
+            'DIDIM_CLI_IDE_SERVER_STDIO_ARGS (or GEMINI_CLI_IDE_SERVER_STDIO_ARGS) must be a JSON array string.',
           );
         }
       } catch (e) {
-        logger.error('Failed to parse GEMINI_CLI_IDE_SERVER_STDIO_ARGS:', e);
+        logger.error('Failed to parse DIDIM_CLI_IDE_SERVER_STDIO_ARGS:', e);
       }
     }
 

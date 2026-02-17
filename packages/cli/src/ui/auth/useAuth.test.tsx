@@ -43,6 +43,7 @@ describe('useAuth', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     delete process.env['GEMINI_API_KEY'];
+    delete process.env['DIDIM_DEFAULT_AUTH_TYPE'];
     delete process.env['GEMINI_DEFAULT_AUTH_TYPE'];
     delete process.env['ANTHROPIC_API_KEY'];
     delete process.env['OPENAI_API_KEY'];
@@ -282,8 +283,8 @@ describe('useAuth', () => {
       });
     });
 
-    it('should set error if GEMINI_DEFAULT_AUTH_TYPE is invalid', async () => {
-      process.env['GEMINI_DEFAULT_AUTH_TYPE'] = 'INVALID_TYPE';
+    it('should set error if DIDIM_DEFAULT_AUTH_TYPE is invalid', async () => {
+      process.env['DIDIM_DEFAULT_AUTH_TYPE'] = 'INVALID_TYPE';
       const { result } = renderHook(() =>
         useAuthCommand(
           createSettings(AuthType.LOGIN_WITH_GOOGLE, 'gemini'),
@@ -293,7 +294,7 @@ describe('useAuth', () => {
 
       await waitFor(() => {
         expect(result.current.authError).toContain(
-          'Invalid value for GEMINI_DEFAULT_AUTH_TYPE',
+          'Invalid value for DIDIM_DEFAULT_AUTH_TYPE',
         );
         expect(result.current.authState).toBe(AuthState.Updating);
       });

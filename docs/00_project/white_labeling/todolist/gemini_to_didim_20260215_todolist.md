@@ -18,19 +18,19 @@
 
 ### 작업결과서 목록
 
-| Phase   | 작업결과서                                                                                                  | 상태        |
-| ------- | ----------------------------------------------------------------------------------------------------------- | ----------- |
-| Phase 1 | [Core 경로/Storage 전환](../working_history/Phase1_gemini_to_didim_Core경로Storage_20260216.md)             | ✅ Complete |
-| Phase 2 | [`.geminiignore` → `.didimignore` 전환](../working_history/Phase2_gemini_to_didim_IgnoreParser_20260216.md) | ✅ Complete |
-| Phase 3 | [사용자 메시지 + 테스트 fixture](../working_history/Phase3_gemini_to_didim_Messages_Tests_20260216.md)      | ✅ Complete |
-| Phase 3 | [a2a-server settings/env fallback](../working_history/Phase3_a2a_server_fallback_20260216.md)               | ✅ Complete |
-| Phase 3 | [Extension 파일명 전환](../working_history/Phase3_extension_filename_20260216.md)                           | ✅ Complete |
-| 리뷰    | [Phase 1+3 통합 리뷰 수정 (7건)](../working_history/Phase1_3_통합리뷰_수정_20260216.md)                     | ✅ Complete |
-| 리뷰    | [Phase 1+3 통합 리뷰 추가 수정 (5건)](../working_history/Phase1_3_통합리뷰_추가수정_20260216.md)            | ✅ Complete |
-| 문서    | [문서 경로 업데이트 (.gemini→.didim)](../working_history/Phase_문서업데이트_20260216.md)                    | ✅ Complete |
-| 리뷰    | 리뷰 추가 이슈 4건 (registry dedup, sandbox/telemetry fallback, ext bidirectional)                          | ✅ Complete |
-| Phase 5 | Phase 5 최종 검증 (기능 12/12, 품질 게이트, 잔존 스캔)                                                      | ✅ Complete |
-| Phase 6 | [GEMINI* → DIDIM* 환경변수 전환](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)          | ✅ Complete |
+| Phase   | 작업결과서                                                                                                  | 상태                        |
+| ------- | ----------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Phase 1 | [Core 경로/Storage 전환](../working_history/Phase1_gemini_to_didim_Core경로Storage_20260216.md)             | ✅ Complete                 |
+| Phase 2 | [`.geminiignore` → `.didimignore` 전환](../working_history/Phase2_gemini_to_didim_IgnoreParser_20260216.md) | ✅ Complete                 |
+| Phase 3 | [사용자 메시지 + 테스트 fixture](../working_history/Phase3_gemini_to_didim_Messages_Tests_20260216.md)      | ✅ Complete                 |
+| Phase 3 | [a2a-server settings/env fallback](../working_history/Phase3_a2a_server_fallback_20260216.md)               | ✅ Complete                 |
+| Phase 3 | [Extension 파일명 전환](../working_history/Phase3_extension_filename_20260216.md)                           | ✅ Complete                 |
+| 리뷰    | [Phase 1+3 통합 리뷰 수정 (7건)](../working_history/Phase1_3_통합리뷰_수정_20260216.md)                     | ✅ Complete                 |
+| 리뷰    | [Phase 1+3 통합 리뷰 추가 수정 (5건)](../working_history/Phase1_3_통합리뷰_추가수정_20260216.md)            | ✅ Complete                 |
+| 문서    | [문서 경로 업데이트 (.gemini→.didim)](../working_history/Phase_문서업데이트_20260216.md)                    | ✅ Complete                 |
+| 리뷰    | 리뷰 추가 이슈 4건 (registry dedup, sandbox/telemetry fallback, ext bidirectional)                          | ✅ Complete                 |
+| Phase 5 | Phase 5 최종 검증 (기능 12/12, 품질 게이트, 잔존 스캔)                                                      | ✅ Complete                 |
+| Phase 6 | [GEMINI* → DIDIM* 환경변수 전환](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)          | ✅ Complete (리뷰 2회 반영) |
 
 ---
 
@@ -514,8 +514,8 @@
 
 > `.gemini` → `.didim` 화이트라벨링 마지막 단계. ~40개 `GEMINI_` 접두사
 > 환경변수를 `DIDIM_` 우선 / `GEMINI_` fallback 패턴으로 전환. 중앙 유틸리티
-> `resolveEnv()` 도입, Tidy First 5커밋 전략 적용. **57파일 변경, 10,252 tests
-> passed, 잔존 0건.**
+> `resolveEnv()` 도입, Tidy First 전략 적용. **8커밋 (구현 5 + 메시지 1 +
+> 리뷰수정 1 + 문서 1), 10,253 tests passed, 잔존 0건. 리뷰 2회 반영 완료.**
 
 ### 6.1 중앙 유틸리티 — `envResolver.ts`
 
@@ -567,6 +567,38 @@
 - [x] `GOOGLE_API_KEY` — Google API 인증 표준, 정상 잔존
 - [x] 잔존 스캔 ZERO — `process.env['GEMINI_']` 및 `process.env.GEMINI_` 모두
       0건
+
+### 6.7 사용자 안내 메시지 업데이트 (`0f7a258`)
+
+- [x] `contentGenerator.ts` — 에러 메시지 `DIDIM_*` 기준 (GEMINI\_ 병기)
+- [x] `telemetry/config.ts` — 비활성화 안내 `DIDIM_TELEMETRY_ENABLED`
+- [x] `hookRunner.ts` — `$DIDIM_PROJECT_DIR` 치환 안내
+- [x] `sandboxConfig.ts` — sandbox 설치 안내 `DIDIM_SANDBOX`
+- [x] `AuthDialog.tsx` — ADC 안내 `DIDIM_CLI_USE_COMPUTE_ADC`
+- [x] `StatusDisplay.tsx` — 시스템 프롬프트 안내 `DIDIM_SYSTEM_MD`
+- [x] `IdeIntegrationNudge.tsx` — IDE 연동 안내 `DIDIM_IDE_*`
+- [x] 에러 메시지에서 GEMINI\_ 변수명 병기 (사용자 혼란 방지)
+
+### 6.8 리뷰 이슈 수정 — 총 9건 (`bb9dcd4`)
+
+**리뷰 1차 (4건)**:
+
+- [x] `relaunch.ts` — 자식 프로세스에 `DIDIM_CLI_NO_RELAUNCH` +
+      `GEMINI_CLI_NO_RELAUNCH` 양쪽 전달
+- [x] `sandbox.ts` — Docker 컨테이너에 `DIDIM_SANDBOX` + `GEMINI_SANDBOX` 양쪽
+      injection
+- [x] `telemetry_utils.js` — `DIDIM_CLI_HOME` / `GEMINI_CLI_HOME` 환경변수 지원
+- [x] 작업결과서 Section 3.2 설명 정정 (`isCliEnvVar()` → inline `startsWith`)
+
+**리뷰 2차 (5건)**:
+
+- [x] `telemetry_utils.js` — `readJsonFile()` JSONC 파싱 실패 시 데이터 손실
+      방지 (`strip-json-comments` + null 반환)
+- [x] `telemetry.js` — URL 손상 방지 (주석 제거 regex → `stripJsonComments`)
+- [x] `telemetry.js` — `DIDIM_CLI_HOME` / `GEMINI_CLI_HOME` homedir 지원
+- [x] `telemetry_utils.js` — `USER_GEMINI_DIR` 용도 명확화 (OTEL 아티팩트 전용)
+- [x] `sandbox_command.js` — `settings.sandbox=false` 명시적 비활성화 처리
+      (macOS seatbelt fallthrough 방지)
 
 ---
 
@@ -733,4 +765,7 @@
 | 2026-02-16 | Claude | **문서 경로 업데이트 완료**             | 2커밋 Tidy First: `f12b48194` 파일 리네임(gemini-ignore.md→didim-ignore.md, gemini-md.md→agents-md.md) + sidebar.json slug/label 변경, `0ba31234a` 40파일 내용 변환(~300건: `.gemini/`→`.didim/`, `.geminiignore`→`.didimignore`, `gemini-extension.json`→`didim-extension.json`, `GEMINI.md`→`AGENTS.md`, CLI `gemini`→`didim`). 검증: rg 잔존 0건. → [문서업데이트 작업결과서](../working_history/Phase_문서업데이트_20260216.md) |
 | 2026-02-17 | Claude | **리뷰 추가 이슈 4건 수정**             | (1) Agent registry 비결정적 우선순위 → Map 기반 name dedup (primary 우선). (2) sandbox_command.js `.gemini` fallback 추가. (3) telemetry.js `resolveSettingsPath` 추가. (4) Extension uninstall 양방향 삭제. + Storage 단일 경로 getter 3개 `@deprecated` 추가. QG: core 5425/cli 4772/a2a 105 passed, 0 lint/typecheck errors                                                                                                      |
 | 2026-02-17 | Claude | **Phase 5 검증 완료**                   | 5.1 기능 검증 12/12 항목 통과, 5.2 품질 게이트 전항목 통과 (10,302 tests, lint, typecheck, .sb 프로필). 잔존 하드코딩 스캔 ZERO RISK, 쓰기 경로 94개 전수 검사 ALL SAFE. 5.3 릴리스 체크 미완 (마이그레이션 안내/deprecation/롤백 체크리스트)                                                                                                                                                                                       |
-| 2026-02-17 | Claude | **Phase 6 환경변수 전환 완료**          | 5커밋 Tidy First: `0c5f96b` envResolver 유틸리티(structural, 3files), `3b12c98` Core 15파일(behavioral), `9edb0d7` CLI 12파일(behavioral), `112cd18` Satellite+스크립트 9파일(behavioral), `dd032e8` 테스트 18파일. **57파일 변경, 10,252 tests passed, 잔존 0건.** → [Phase6 작업결과서](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)                                                                         |
+| 2026-02-17 | Claude | **Phase 6 환경변수 전환 구현**          | 5커밋 Tidy First: `0c5f96b` envResolver 유틸리티(structural, 3files), `3b12c98` Core 15파일(behavioral), `9edb0d7` CLI 12파일(behavioral), `112cd18` Satellite+스크립트 9파일(behavioral), `dd032e8` 테스트 18파일. **57파일 변경, 10,252 tests passed, 잔존 0건.**                                                                                                                                                                 |
+| 2026-02-17 | Claude | Phase 6 사용자 안내 메시지 업데이트     | `0f7a258` — 에러/안내 메시지 `DIDIM_*` 기준 업데이트 (GEMINI\_ 병기). 7파일: contentGenerator, telemetry/config, hookRunner, sandboxConfig, AuthDialog, StatusDisplay, IdeIntegrationNudge                                                                                                                                                                                                                                          |
+| 2026-02-17 | Claude | Phase 6 리뷰 1차 (4건) + 2차 (5건) 수정 | `bb9dcd4` — 리뷰 9건 통합 수정. relaunch/sandbox env passthrough, telemetry JSONC 파싱 안전성(`strip-json-comments`), URL 손상 방지, `DIDIM_CLI_HOME` 지원, `sandbox=false` 명시적 비활성화. QG: 10,253 tests passed                                                                                                                                                                                                                |
+| 2026-02-17 | Claude | Phase 6 커밋 정리 + push                | 11커밋 → 8커밋 squash. `b989d0f` docs, `bb9dcd4` review fixes, `0f7a258` messages, `dd032e8` tests, `112cd18` satellite, `9edb0d7` cli, `3b12c98` core, `0c5f96b` envResolver. push to `origin/v0.2.0/se_manager_agent` 완료. → [Phase6 작업결과서](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)                                                                                                               |

@@ -12,9 +12,14 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
     await importOriginal<typeof import('@didim365/agent-cli-core')>();
   return {
     ...actual,
+    homedir: () => '/virtual-home',
+    resolveReadPath: (_base: string, filename: string) =>
+      `/virtual-home/.didim/${filename}`,
     Storage: {
       ...actual.Storage,
-      getGlobalGeminiDir: () => '/virtual-home/.gemini',
+      getGlobalGeminiDir: () => '/virtual-home/.didim',
+      getGlobalWritePath: (...subPaths: string[]) =>
+        ['/virtual-home/.didim', ...subPaths].join('/'),
     },
   };
 });

@@ -43,6 +43,13 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   return {
     ...actual,
     homedir: () => '/mock/home/user',
+    resolveReadPath: (_base: string, filename: string) =>
+      `/mock/home/user/.didim/${filename}`,
+    Storage: {
+      ...actual.Storage,
+      getGlobalWritePath: (...subPaths: string[]) =>
+        ['/mock/home/user/.didim', ...subPaths].join('/'),
+    },
   };
 });
 vi.mock('fs', async (importOriginal) => {
@@ -167,9 +174,9 @@ describe('Trusted Folders Loading', () => {
     expect(errors[0].message).toContain('Unexpected token');
   });
 
-  it('should use GEMINI_CLI_TRUSTED_FOLDERS_PATH env var if set', () => {
+  it('should use DIDIM_CLI_TRUSTED_FOLDERS_PATH env var if set', () => {
     const customPath = '/custom/path/to/trusted_folders.json';
-    process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'] = customPath;
+    process.env['DIDIM_CLI_TRUSTED_FOLDERS_PATH'] = customPath;
 
     (mockFsExistsSync as Mock).mockImplementation((p) => p === customPath);
     const userContent = {
@@ -189,7 +196,7 @@ describe('Trusted Folders Loading', () => {
     ]);
     expect(errors).toEqual([]);
 
-    delete process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+    delete process.env['DIDIM_CLI_TRUSTED_FOLDERS_PATH'];
   });
 
   it('setValue should update the user config and save it', () => {

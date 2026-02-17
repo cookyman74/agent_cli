@@ -43,7 +43,7 @@ Genkit provides a web-based UI for viewing traces and other telemetry data.
     `GEMINI_DEV_TRACING` environment variable:
 
     ```bash
-    GEMINI_DEV_TRACING=true gemini
+    GEMINI_DEV_TRACING=true didim
     ```
 
 3.  **View the traces:**
@@ -73,7 +73,7 @@ You can view dev traces in the Jaeger UI. To get started, follow these steps:
     `GEMINI_DEV_TRACING` environment variable:
 
     ```bash
-    GEMINI_DEV_TRACING=true gemini
+    GEMINI_DEV_TRACING=true didim
     ```
 
 3.  **View the traces:**

@@ -10,7 +10,7 @@ import { OAUTH_FILE } from '../config/storage.js';
 import type { OAuthCredentials } from '../mcp/token-storage/types.js';
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { GEMINI_DIR, homedir } from '../utils/paths.js';
+import { DIDIM_DIR, LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import { coreEvents } from '../utils/events.js';
 
 const KEYCHAIN_SERVICE_NAME = 'gemini-cli-oauth';
@@ -86,19 +86,32 @@ export class OAuthCredentialStorage {
    * Clear cached OAuth credentials
    */
   static async clearCredentials(): Promise<void> {
+    // Step 1: Remove from new storage.
+    // "No credentials found" is expected when clearing already-cleared storage.
     try {
       await this.storage.deleteCredentials(MAIN_ACCOUNT_KEY);
-
-      // Also try to remove the old file if it exists
-      const oldFilePath = path.join(homedir(), GEMINI_DIR, OAUTH_FILE);
-      await fs.rm(oldFilePath, { force: true }).catch(() => {});
     } catch (error: unknown) {
-      coreEvents.emitFeedback(
-        'error',
-        'Failed to clear OAuth credentials',
-        error,
-      );
-      throw new Error('Failed to clear OAuth credentials', { cause: error });
+      const isNotFound =
+        error instanceof Error &&
+        error.message.includes('No credentials found');
+      if (!isNotFound) {
+        coreEvents.emitFeedback(
+          'error',
+          'Failed to clear OAuth credentials',
+          error,
+        );
+        throw new Error('Failed to clear OAuth credentials', { cause: error });
+      }
+    }
+
+    // Step 2: Always clean up plaintext credential files in both directories.
+    // Covers: legacy .gemini/oauth_creds.json AND .didim/oauth_creds.json
+    // (the latter may exist from plaintext mode before switching to encrypted).
+    const home = homedir();
+    for (const dir of [DIDIM_DIR, LEGACY_GEMINI_DIR]) {
+      await fs
+        .rm(path.join(home, dir, OAUTH_FILE), { force: true })
+        .catch(() => {});
     }
   }
 
@@ -106,7 +119,7 @@ export class OAuthCredentialStorage {
    * Migrate credentials from old file-based storage to keychain
    */
   private static async migrateFromFileStorage(): Promise<Credentials | null> {
-    const oldFilePath = path.join(homedir(), GEMINI_DIR, OAUTH_FILE);
+    const oldFilePath = path.join(homedir(), LEGACY_GEMINI_DIR, OAUTH_FILE);
 
     let credsJson: string;
     try {

@@ -13,7 +13,7 @@ import {
   EXTENSION_SETTINGS_FILENAME,
   EXTENSIONS_CONFIG_FILENAME,
 } from './variables.js';
-import { Storage } from '@didim365/agent-cli-core';
+import { Storage, resolveReadPath, homedir } from '@didim365/agent-cli-core';
 
 vi.mock('node:os');
 vi.mock('node:fs', async (importOriginal) => {
@@ -35,11 +35,16 @@ describe('ExtensionStorage', () => {
 
   beforeEach(() => {
     vi.mocked(os.homedir).mockReturnValue(mockHomeDir);
+    vi.mocked(homedir).mockReturnValue(mockHomeDir);
+    vi.mocked(resolveReadPath).mockImplementation(
+      (base: string, ...subPaths: string[]) =>
+        path.join(base, '.didim', ...subPaths),
+    );
     vi.mocked(Storage).mockImplementation(
       () =>
         ({
           getExtensionsDir: () =>
-            path.join(mockHomeDir, '.gemini', 'extensions'),
+            path.join(mockHomeDir, '.didim', 'extensions'),
         }) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     );
     storage = new ExtensionStorage(extensionName);
@@ -52,7 +57,7 @@ describe('ExtensionStorage', () => {
   it('should return the correct extension directory', () => {
     const expectedDir = path.join(
       mockHomeDir,
-      '.gemini',
+      '.didim',
       'extensions',
       extensionName,
     );
@@ -62,7 +67,7 @@ describe('ExtensionStorage', () => {
   it('should return the correct config path', () => {
     const expectedPath = path.join(
       mockHomeDir,
-      '.gemini',
+      '.didim',
       'extensions',
       extensionName,
       EXTENSIONS_CONFIG_FILENAME, // EXTENSIONS_CONFIG_FILENAME
@@ -73,7 +78,7 @@ describe('ExtensionStorage', () => {
   it('should return the correct env file path', () => {
     const expectedPath = path.join(
       mockHomeDir,
-      '.gemini',
+      '.didim',
       'extensions',
       extensionName,
       EXTENSION_SETTINGS_FILENAME, // EXTENSION_SETTINGS_FILENAME
@@ -82,7 +87,7 @@ describe('ExtensionStorage', () => {
   });
 
   it('should return the correct user extensions directory', () => {
-    const expectedDir = path.join(mockHomeDir, '.gemini', 'extensions');
+    const expectedDir = path.join(mockHomeDir, '.didim', 'extensions');
     expect(ExtensionStorage.getUserExtensionsDir()).toBe(expectedDir);
   });
 
@@ -97,5 +102,30 @@ describe('ExtensionStorage', () => {
       path.join('/tmp', 'gemini-extension'),
     );
     expect(result).toBe(mockTmpDir);
+  });
+
+  // Issue 28: getEnvFilePath uses file-level resolveReadPath (not dir-level)
+  it('should resolve env file path at file level including extension name', () => {
+    storage.getEnvFilePath();
+
+    // resolveReadPath should be called with full path including extension name AND filename
+    expect(resolveReadPath).toHaveBeenCalledWith(
+      mockHomeDir,
+      'extensions',
+      extensionName,
+      EXTENSION_SETTINGS_FILENAME,
+    );
+  });
+
+  // Issue 28: getExtensionDir uses file-level resolveReadPath at extension level
+  it('should resolve extension dir at extension-specific level', () => {
+    storage.getExtensionDir();
+
+    // resolveReadPath should include the extension name
+    expect(resolveReadPath).toHaveBeenCalledWith(
+      mockHomeDir,
+      'extensions',
+      extensionName,
+    );
   });
 });

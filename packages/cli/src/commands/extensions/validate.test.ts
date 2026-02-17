@@ -27,7 +27,10 @@ vi.mock('../utils.js', () => ({
 
 describe('extensions validate command', () => {
   it('should fail if no path is provided', () => {
-    const validationParser = yargs([]).command(validateCommand).fail(false);
+    const validationParser = yargs([])
+      .command(validateCommand)
+      .locale('en')
+      .fail(false);
     expect(() => validationParser.parse('validate')).toThrow(
       'Not enough non-option arguments: got 0, need at least 1',
     );
@@ -126,7 +129,7 @@ describe('handleValidate', () => {
     });
     expect(debugLoggerErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining(
-        'The following context files referenced in gemini-extension.json are missing: contextFile.md',
+        'The following context files referenced in didim-extension.json are missing: contextFile.md',
       ),
     );
     expect(processSpy).toHaveBeenCalledWith(1);

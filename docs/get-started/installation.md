@@ -27,7 +27,7 @@ downloading the Gemini CLI package from the NPM registry.
   Then, run the CLI from anywhere:
 
   ```bash
-  gemini
+  didim
   ```
 
 - **NPX execution:**
@@ -53,7 +53,7 @@ the default way that the CLI executes tools that might have side effects.
   (using the standard installation described above), you can instruct it to run
   inside the sandbox container.
   ```bash
-  gemini --sandbox -y -p "your prompt here"
+  didim --sandbox -y -p "your prompt here"
   ```
 
 ### 3. Run from source (recommended for Gemini CLI contributors)
@@ -75,8 +75,8 @@ code.
   # Link the local cli package to your global node_modules
   npm link packages/cli
 
-  # Now you can run your local version using the `gemini` command
-  gemini
+  # Now you can run your local version using the `didim` command
+  didim
   ```
 
 ---

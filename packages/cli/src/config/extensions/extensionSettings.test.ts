@@ -83,10 +83,20 @@ describe('extensionSettings', () => {
       os.tmpdir(),
       `gemini-cli-test-workspace-${Date.now()}`,
     );
-    extensionDir = path.join(tempHomeDir, '.gemini', 'extensions', 'test-ext');
+    extensionDir = path.join(tempHomeDir, '.didim', 'extensions', 'test-ext');
     // Spy and mock the method, but also create the directory so we can write to it.
     vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(
       extensionDir,
+    );
+    vi.spyOn(
+      ExtensionStorage.prototype,
+      'getExtensionWriteDir',
+    ).mockReturnValue(extensionDir);
+    vi.spyOn(ExtensionStorage.prototype, 'getEnvFilePath').mockReturnValue(
+      path.join(extensionDir, EXTENSION_SETTINGS_FILENAME),
+    );
+    vi.spyOn(ExtensionStorage.prototype, 'getEnvFileWritePath').mockReturnValue(
+      path.join(extensionDir, EXTENSION_SETTINGS_FILENAME),
     );
     fs.mkdirSync(extensionDir, { recursive: true });
     fs.mkdirSync(tempWorkspaceDir, { recursive: true });
@@ -439,6 +449,36 @@ describe('extensionSettings', () => {
       expect(mockIsAvailable).toHaveBeenCalled();
       expect(mockListSecrets).not.toHaveBeenCalled();
     });
+
+    it('should clear settings using write path, not read path', async () => {
+      // Setup: write a settings file so clearSettings finds it
+      const envFilePath = path.join(extensionDir, EXTENSION_SETTINGS_FILENAME);
+      await fsPromises.writeFile(envFilePath, 'VAR1=value1\n');
+
+      const config: ExtensionConfig = {
+        name: 'test-ext',
+        version: '1.0.0',
+        settings: [], // Empty settings triggers clearSettings
+      };
+
+      const previousConfig: ExtensionConfig = {
+        name: 'test-ext',
+        version: '1.0.0',
+        settings: [{ name: 's1', description: 'd1', envVar: 'VAR1' }],
+      };
+
+      await maybePromptForSettings(
+        config,
+        '12345',
+        mockRequestSetting,
+        previousConfig,
+        undefined,
+      );
+
+      // The file at write path should be empty (cleared)
+      const content = await fsPromises.readFile(envFilePath, 'utf-8');
+      expect(content).toBe('');
+    });
   });
 
   describe('promptForSetting', () => {
@@ -737,6 +777,132 @@ describe('extensionSettings', () => {
       // Ensure no other unexpected changes or deletions
       const lines = actualContent.split('\n').filter((line) => line.length > 0);
       expect(lines).toHaveLength(3); // Should only have the three variables
+    });
+
+    it('should write to write path, not read path, for USER scope', async () => {
+      const legacyExtDir = path.join(
+        tempHomeDir,
+        '.gemini',
+        'extensions',
+        'test-ext',
+      );
+      const primaryExtDir = path.join(
+        tempHomeDir,
+        '.didim',
+        'extensions',
+        'test-ext',
+      );
+
+      // Configure read path → legacy, write path → primary
+      vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(
+        legacyExtDir,
+      );
+      vi.spyOn(
+        ExtensionStorage.prototype,
+        'getExtensionWriteDir',
+      ).mockReturnValue(primaryExtDir);
+      vi.spyOn(ExtensionStorage.prototype, 'getEnvFilePath').mockReturnValue(
+        path.join(legacyExtDir, EXTENSION_SETTINGS_FILENAME),
+      );
+      vi.spyOn(
+        ExtensionStorage.prototype,
+        'getEnvFileWritePath',
+      ).mockReturnValue(path.join(primaryExtDir, EXTENSION_SETTINGS_FILENAME));
+
+      // Create legacy .env for reading
+      fs.mkdirSync(legacyExtDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(legacyExtDir, EXTENSION_SETTINGS_FILENAME),
+        'VAR1=legacy-value\n',
+      );
+      // Create primary dir for writing
+      fs.mkdirSync(primaryExtDir, { recursive: true });
+
+      mockRequestSetting.mockResolvedValue('new-value');
+      await updateSetting(
+        config,
+        '12345',
+        'VAR1',
+        mockRequestSetting,
+        ExtensionSettingScope.USER,
+      );
+
+      // Should write to primary (.didim) path, not legacy (.gemini) path
+      const primaryContent = await fsPromises.readFile(
+        path.join(primaryExtDir, EXTENSION_SETTINGS_FILENAME),
+        'utf-8',
+      );
+      expect(primaryContent).toContain('VAR1=new-value');
+    });
+
+    it('should create write directory if it does not exist', async () => {
+      const nonExistentDir = path.join(
+        tempHomeDir,
+        '.didim',
+        'extensions',
+        'new-ext',
+      );
+
+      // Write dir does not exist yet
+      vi.spyOn(
+        ExtensionStorage.prototype,
+        'getExtensionWriteDir',
+      ).mockReturnValue(nonExistentDir);
+      // Read dir also does not exist (no legacy file)
+      vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(
+        nonExistentDir,
+      );
+      vi.spyOn(ExtensionStorage.prototype, 'getEnvFilePath').mockReturnValue(
+        path.join(nonExistentDir, EXTENSION_SETTINGS_FILENAME),
+      );
+      vi.spyOn(
+        ExtensionStorage.prototype,
+        'getEnvFileWritePath',
+      ).mockReturnValue(path.join(nonExistentDir, EXTENSION_SETTINGS_FILENAME));
+
+      mockRequestSetting.mockResolvedValue('new-val');
+      await updateSetting(
+        config,
+        '12345',
+        'VAR1',
+        mockRequestSetting,
+        ExtensionSettingScope.USER,
+      );
+
+      // Directory should have been created, file written
+      const content = await fsPromises.readFile(
+        path.join(nonExistentDir, EXTENSION_SETTINGS_FILENAME),
+        'utf-8',
+      );
+      expect(content).toContain('VAR1=new-val');
+    });
+
+    it('should remove sensitive setting plaintext from .env when updating', async () => {
+      // Simulate .env containing a sensitive setting in plaintext
+      const envPath = path.join(extensionDir, EXTENSION_SETTINGS_FILENAME);
+      await fsPromises.writeFile(envPath, 'VAR1=public\nVAR2=leaked-secret\n');
+
+      mockRequestSetting.mockResolvedValue('new-secret');
+      await updateSetting(
+        config,
+        '12345',
+        'VAR2', // sensitive setting
+        mockRequestSetting,
+        ExtensionSettingScope.USER,
+        tempWorkspaceDir,
+      );
+
+      // VAR2 should be stored in keychain
+      const keychain = new KeychainTokenStorage(
+        'Gemini CLI Extensions test-ext 12345',
+      );
+      expect(await keychain.getSecret('VAR2')).toBe('new-secret');
+
+      // VAR2 should NOT remain in .env — only non-sensitive VAR1
+      const content = await fsPromises.readFile(envPath, 'utf-8');
+      expect(content).toContain('VAR1=public');
+      expect(content).not.toContain('VAR2');
+      expect(content).not.toContain('leaked-secret');
     });
   });
 });

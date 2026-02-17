@@ -77,7 +77,7 @@ manually run through this checklist.
   - [ ] Clear npx cache (optional but recommended): `npm cache clean --force`
   - [ ] Install the preview version:
         `npm install -g @didim365/agent-cli@preview`
-  - [ ] Verify version: `gemini --version`
+  - [ ] Verify version: `didim --version`
 
 - **Authentication:**
   - [ ] In interactive mode run `/auth` and verify all login flows work:
@@ -86,12 +86,12 @@ manually run through this checklist.
     - [ ] Vertex AI
 
 - **Basic prompting:**
-  - [ ] Run `gemini "Tell me a joke"` and verify a sensible response.
-  - [ ] Run in interactive mode: `gemini`. Ask a follow-up question to test
+  - [ ] Run `didim "Tell me a joke"` and verify a sensible response.
+  - [ ] Run in interactive mode: `didim`. Ask a follow-up question to test
         context.
 
 - **Piped input:**
-  - [ ] Run `echo "Summarize this" | gemini` and verify it processes stdin.
+  - [ ] Run `echo "Summarize this" | didim` and verify it processes stdin.
 
 - **Context management:**
   - [ ] In interactive mode, use `@file` to add a local file to context. Ask a

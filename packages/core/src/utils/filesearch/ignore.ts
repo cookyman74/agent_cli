@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ignore from 'ignore';
 import picomatch from 'picomatch';
+import { DIDIM_IGNORE_FILE, LEGACY_GEMINI_IGNORE_FILE } from '../paths.js';
 
 const hasFileExtension = picomatch('**/*[*.]*');
 
@@ -28,9 +29,25 @@ export function loadIgnoreRules(options: LoadIgnoreRulesOptions): Ignore {
   }
 
   if (options.useGeminiignore) {
-    const geminiignorePath = path.join(options.projectRoot, '.geminiignore');
-    if (fs.existsSync(geminiignorePath)) {
-      ignorer.add(fs.readFileSync(geminiignorePath, 'utf8'));
+    const candidates = [
+      path.join(options.projectRoot, DIDIM_IGNORE_FILE),
+      path.join(options.projectRoot, LEGACY_GEMINI_IGNORE_FILE),
+    ];
+    for (const candidatePath of candidates) {
+      let content: string;
+      try {
+        content = fs.readFileSync(candidatePath, 'utf8');
+      } catch {
+        continue;
+      }
+      const hasPatterns = content.split(/\r?\n/).some((line) => {
+        const trimmed = line.trim();
+        return trimmed !== '' && !trimmed.startsWith('#');
+      });
+      if (hasPatterns) {
+        ignorer.add(content);
+        break;
+      }
     }
   }
 

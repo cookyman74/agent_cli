@@ -30,6 +30,9 @@ describe('createPolicyEngineConfig', () => {
     vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(
       '/non/existent/user/policies',
     );
+    vi.spyOn(Storage, 'getUserPoliciesReadDirs').mockReturnValue([
+      '/non/existent/user/policies',
+    ]);
     vi.spyOn(Storage, 'getSystemPoliciesDir').mockReturnValue(
       '/non/existent/system/policies',
     );
@@ -95,7 +98,7 @@ describe('createPolicyEngineConfig', () => {
           typeof path === 'string' &&
           nodePath
             .normalize(path)
-            .includes(nodePath.normalize('.gemini/policies'))
+            .includes(nodePath.normalize('.didim/policies'))
         ) {
           // Return empty array for user policies
           return [] as unknown as Awaited<ReturnType<typeof actualFs.readdir>>;
@@ -562,6 +565,9 @@ describe('createPolicyEngineConfig', () => {
     vi.spyOn(FreshStorage, 'getUserPoliciesDir').mockReturnValue(
       '/non/existent/user/policies',
     );
+    vi.spyOn(FreshStorage, 'getUserPoliciesReadDirs').mockReturnValue([
+      '/non/existent/user/policies',
+    ]);
     vi.spyOn(FreshStorage, 'getSystemPoliciesDir').mockReturnValue(
       '/non/existent/system/policies',
     );
@@ -618,7 +624,7 @@ describe('createPolicyEngineConfig', () => {
           typeof path === 'string' &&
           nodePath
             .normalize(path)
-            .includes(nodePath.normalize('.gemini/policies'))
+            .includes(nodePath.normalize('.didim/policies'))
         ) {
           return [
             {
@@ -644,7 +650,7 @@ describe('createPolicyEngineConfig', () => {
           typeof path === 'string' &&
           nodePath
             .normalize(path)
-            .includes(nodePath.normalize('.gemini/policies/write.toml'))
+            .includes(nodePath.normalize('.didim/policies/write.toml'))
         ) {
           return `
 [[rule]]
@@ -708,7 +714,7 @@ priority = 150
           typeof path === 'string' &&
           nodePath
             .normalize(path)
-            .includes(nodePath.normalize('.gemini/policies'))
+            .includes(nodePath.normalize('.didim/policies'))
         ) {
           return [
             {
@@ -734,7 +740,7 @@ priority = 150
           typeof path === 'string' &&
           nodePath
             .normalize(path)
-            .includes(nodePath.normalize('.gemini/policies/safety.toml'))
+            .includes(nodePath.normalize('.didim/policies/safety.toml'))
         ) {
           return `
 [[rule]]
@@ -809,7 +815,7 @@ required_context = ["environment"]
           typeof path === 'string' &&
           nodePath
             .normalize(path)
-            .includes(nodePath.normalize('.gemini/policies'))
+            .includes(nodePath.normalize('.didim/policies'))
         ) {
           return [
             {
@@ -835,9 +841,7 @@ required_context = ["environment"]
           typeof path === 'string' &&
           nodePath
             .normalize(path)
-            .includes(
-              nodePath.normalize('.gemini/policies/invalid_safety.toml'),
-            )
+            .includes(nodePath.normalize('.didim/policies/invalid_safety.toml'))
         ) {
           return `
 [[rule]]
@@ -892,6 +896,9 @@ name = "invalid-name"
     vi.spyOn(FreshStorage, 'getUserPoliciesDir').mockReturnValue(
       '/non/existent/user/policies',
     );
+    vi.spyOn(FreshStorage, 'getUserPoliciesReadDirs').mockReturnValue([
+      '/non/existent/user/policies',
+    ]);
     vi.spyOn(FreshStorage, 'getSystemPoliciesDir').mockReturnValue(
       '/non/existent/system/policies',
     );

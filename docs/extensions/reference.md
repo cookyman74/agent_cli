@@ -1,14 +1,14 @@
 # Extensions reference
 
-This guide covers the `gemini extensions` commands and the structure of the
-`gemini-extension.json` configuration file.
+This guide covers the `didim extensions` commands and the structure of the
+`didim-extension.json` configuration file.
 
 ## Extension management
 
-We offer a suite of extension management tools using `gemini extensions`
+We offer a suite of extension management tools using `didim extensions`
 commands.
 
-Note that these commands (e.g. `gemini extensions install`) are not supported
+Note that these commands (e.g. `didim extensions install`) are not supported
 from within the CLI's **interactive mode**, although you can list installed
 extensions using the `/extensions list` slash command.
 
@@ -17,11 +17,11 @@ commands) will only be reflected in active CLI sessions on **restart**.
 
 ### Installing an extension
 
-You can install an extension using `gemini extensions install` with either a
+You can install an extension using `didim extensions install` with either a
 GitHub URL or a local path.
 
 Note that we create a copy of the installed extension, so you will need to run
-`gemini extensions update` to pull in changes from both locally-defined
+`didim extensions update` to pull in changes from both locally-defined
 extensions and those on GitHub.
 
 NOTE: If you are installing an extension from GitHub, you'll need to have `git`
@@ -30,7 +30,7 @@ installed on your machine. See
 for help.
 
 ```
-gemini extensions install <source> [--ref <ref>] [--auto-update] [--pre-release] [--consent]
+didim extensions install <source> [--ref <ref>] [--auto-update] [--pre-release] [--consent]
 ```
 
 - `<source>`: The github URL or local path of the extension to install.
@@ -42,11 +42,10 @@ gemini extensions install <source> [--ref <ref>] [--auto-update] [--pre-release]
 
 ### Uninstalling an extension
 
-To uninstall one or more extensions, run
-`gemini extensions uninstall <name...>`:
+To uninstall one or more extensions, run `didim extensions uninstall <name...>`:
 
 ```
-gemini extensions uninstall gemini-cli-security gemini-cli-another-extension
+didim extensions uninstall gemini-cli-security gemini-cli-another-extension
 ```
 
 ### Disabling an extension
@@ -55,7 +54,7 @@ Extensions are, by default, enabled across all workspaces. You can disable an
 extension entirely or for specific workspace.
 
 ```
-gemini extensions disable <name> [--scope <scope>]
+didim extensions disable <name> [--scope <scope>]
 ```
 
 - `<name>`: The name of the extension to disable.
@@ -63,12 +62,12 @@ gemini extensions disable <name> [--scope <scope>]
 
 ### Enabling an extension
 
-You can enable extensions using `gemini extensions enable <name>`. You can also
+You can enable extensions using `didim extensions enable <name>`. You can also
 enable an extension for a specific workspace using
-`gemini extensions enable <name> --scope=workspace` from within that workspace.
+`didim extensions enable <name> --scope=workspace` from within that workspace.
 
 ```
-gemini extensions enable <name> [--scope <scope>]
+didim extensions enable <name> [--scope <scope>]
 ```
 
 - `<name>`: The name of the extension to enable.
@@ -78,12 +77,12 @@ gemini extensions enable <name> [--scope <scope>]
 
 For extensions installed from a local path or a git repository, you can
 explicitly update to the latest version (as reflected in the
-`gemini-extension.json` `version` field) with `gemini extensions update <name>`.
+`didim-extension.json` `version` field) with `didim extensions update <name>`.
 
 You can update all extensions with:
 
 ```
-gemini extensions update --all
+didim extensions update --all
 ```
 
 ### Create a boilerplate extension
@@ -96,7 +95,7 @@ To copy one of these examples into a development directory using the type of
 your choosing, run:
 
 ```
-gemini extensions new <path> [template]
+didim extensions new <path> [template]
 ```
 
 - `<path>`: The path to create the extension in.
@@ -104,30 +103,30 @@ gemini extensions new <path> [template]
 
 ### Link a local extension
 
-The `gemini extensions link` command will create a symbolic link from the
+The `didim extensions link` command will create a symbolic link from the
 extension installation directory to the development path.
 
-This is useful so you don't have to run `gemini extensions update` every time
-you make changes you'd like to test.
+This is useful so you don't have to run `didim extensions update` every time you
+make changes you'd like to test.
 
 ```
-gemini extensions link <path>
+didim extensions link <path>
 ```
 
 - `<path>`: The path of the extension to link.
 
 ## Extension format
 
-On startup, Gemini CLI looks for extensions in `<home>/.gemini/extensions`
+On startup, Gemini CLI looks for extensions in `<home>/.didim/extensions`
 
-Extensions exist as a directory that contains a `gemini-extension.json` file.
-For example:
+Extensions exist as a directory that contains a `didim-extension.json` file. For
+example:
 
-`<home>/.gemini/extensions/my-extension/gemini-extension.json`
+`<home>/.didim/extensions/my-extension/didim-extension.json`
 
-### `gemini-extension.json`
+### `didim-extension.json`
 
-The `gemini-extension.json` file contains the configuration for the extension.
+The `didim-extension.json` file contains the configuration for the extension.
 The file has the following structure:
 
 ```json
@@ -140,7 +139,7 @@ The file has the following structure:
       "command": "node my-server.js"
     }
   },
-  "contextFileName": "GEMINI.md",
+  "contextFileName": "AGENTS.md",
   "excludeTools": ["run_shell_command"]
 }
 ```
@@ -164,8 +163,8 @@ The file has the following structure:
     `trust`.
 - `contextFileName`: The name of the file that contains the context for the
   extension. This will be used to load the context from the extension directory.
-  If this property is not used but a `GEMINI.md` file is present in your
-  extension directory, then that file will be loaded.
+  If this property is not used but an `AGENTS.md` (or `GEMINI.md`) file is
+  present in your extension directory, then that file will be loaded.
 - `excludeTools`: An array of tool names to exclude from the model. You can also
   specify command-specific restrictions for tools that support it, like the
   `run_shell_command` tool. For example,
@@ -186,7 +185,7 @@ Extensions can define settings that the user will be prompted to provide upon
 installation. This is useful for things like API keys, URLs, or other
 configuration that the extension needs to function.
 
-To define settings, add a `settings` array to your `gemini-extension.json` file.
+To define settings, add a `settings` array to your `didim-extension.json` file.
 Each object in the array should have the following properties:
 
 - `name`: A user-friendly name for the setting.
@@ -212,18 +211,18 @@ Each object in the array should have the following properties:
 
 When a user installs this extension, they will be prompted to enter their API
 key. The value will be saved to a `.env` file in the extension's directory
-(e.g., `<home>/.gemini/extensions/my-api-extension/.env`).
+(e.g., `<home>/.didim/extensions/my-api-extension/.env`).
 
 You can view a list of an extension's settings by running:
 
 ```
-gemini extensions list
+didim extensions list
 ```
 
 and you can update a given setting using:
 
 ```
-gemini extensions config <extension name> [setting name] [--scope <scope>]
+didim extensions config <extension name> [setting name] [--scope <scope>]
 ```
 
 - `--scope`: The scope to set the setting in (`user` or `workspace`). This is
@@ -241,8 +240,8 @@ standard naming conventions.
 An extension named `gcp` with the following structure:
 
 ```
-.gemini/extensions/gcp/
-├── gemini-extension.json
+.didim/extensions/gcp/
+├── didim-extension.json
 └── commands/
     ├── deploy.toml
     └── gcs/
@@ -260,8 +259,8 @@ Extensions can provide [hooks](../hooks/index.md) to intercept and customize
 Gemini CLI behavior at specific lifecycle events. Hooks provided by an extension
 must be defined in a `hooks/hooks.json` file within the extension directory.
 
-> [!IMPORTANT] Hooks are not defined directly in `gemini-extension.json`. The
-> CLI specifically looks for the `hooks/hooks.json` file.
+> [!IMPORTANT] Hooks are not defined directly in `didim-extension.json`. The CLI
+> specifically looks for the `hooks/hooks.json` file.
 
 ### Agent Skills
 
@@ -273,8 +272,8 @@ workflows. Skills must be placed in a `skills/` directory within the extension.
 An extension with the following structure:
 
 ```
-.gemini/extensions/my-extension/
-├── gemini-extension.json
+.didim/extensions/my-extension/
+├── didim-extension.json
 └── skills/
     └── security-audit/
         └── SKILL.md
@@ -299,14 +298,14 @@ For example, if both a user and the `gcp` extension define a `deploy` command:
 
 ## Variables
 
-Gemini CLI extensions allow variable substitution in `gemini-extension.json`.
+Gemini CLI extensions allow variable substitution in `didim-extension.json`.
 This can be useful if e.g., you need the current directory to run an MCP server
 using an argument like `"args": ["${extensionPath}${/}dist${/}server.js"]`.
 
 **Supported variables:**
 
-| variable                   | description                                                                                                                                                     |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `${extensionPath}`         | The fully-qualified path of the extension in the user's filesystem e.g., '/Users/username/.gemini/extensions/example-extension'. This will not unwrap symlinks. |
-| `${workspacePath}`         | The fully-qualified path of the current workspace.                                                                                                              |
-| `${/} or ${pathSeparator}` | The path separator (differs per OS).                                                                                                                            |
+| variable                   | description                                                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `${extensionPath}`         | The fully-qualified path of the extension in the user's filesystem e.g., '/Users/username/.didim/extensions/example-extension'. This will not unwrap symlinks. |
+| `${workspacePath}`         | The fully-qualified path of the current workspace.                                                                                                             |
+| `${/} or ${pathSeparator}` | The path separator (differs per OS).                                                                                                                           |

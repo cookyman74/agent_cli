@@ -62,6 +62,7 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
     homedir: () => '/mock/home',
     Storage: {
       ...actual.Storage,
+      getGlobalSettingsPath: () => '/mock/home/.gemini/settings.json',
       getGlobalTempDir: () => '/mock/temp',
     },
   };

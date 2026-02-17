@@ -17,6 +17,7 @@ import {
   ApprovalMode,
   loadServerHierarchicalMemory,
   GEMINI_DIR,
+  LEGACY_GEMINI_DIR,
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_GEMINI_MODEL,
   type ExtensionLoader,
@@ -186,10 +187,14 @@ export function loadEnvironment(): void {
 function findEnvFile(startDir: string): string | null {
   let currentDir = path.resolve(startDir);
   while (true) {
-    // prefer gemini-specific .env under GEMINI_DIR
-    const geminiEnvPath = path.join(currentDir, GEMINI_DIR, '.env');
-    if (fs.existsSync(geminiEnvPath)) {
-      return geminiEnvPath;
+    // prefer .didim/.env, then .gemini/.env fallback
+    const didimEnvPath = path.join(currentDir, GEMINI_DIR, '.env');
+    if (fs.existsSync(didimEnvPath)) {
+      return didimEnvPath;
+    }
+    const legacyEnvPath = path.join(currentDir, LEGACY_GEMINI_DIR, '.env');
+    if (fs.existsSync(legacyEnvPath)) {
+      return legacyEnvPath;
     }
     const envPath = path.join(currentDir, '.env');
     if (fs.existsSync(envPath)) {
@@ -197,10 +202,14 @@ function findEnvFile(startDir: string): string | null {
     }
     const parentDir = path.dirname(currentDir);
     if (parentDir === currentDir || !parentDir) {
-      // check .env under home as fallback, again preferring gemini-specific .env
-      const homeGeminiEnvPath = path.join(process.cwd(), GEMINI_DIR, '.env');
-      if (fs.existsSync(homeGeminiEnvPath)) {
-        return homeGeminiEnvPath;
+      // check .env under home as fallback — .didim first, .gemini fallback
+      const homeDidimEnvPath = path.join(homedir(), GEMINI_DIR, '.env');
+      if (fs.existsSync(homeDidimEnvPath)) {
+        return homeDidimEnvPath;
+      }
+      const homeLegacyEnvPath = path.join(homedir(), LEGACY_GEMINI_DIR, '.env');
+      if (fs.existsSync(homeLegacyEnvPath)) {
+        return homeLegacyEnvPath;
       }
       const homeEnvPath = path.join(homedir(), '.env');
       if (fs.existsSync(homeEnvPath)) {

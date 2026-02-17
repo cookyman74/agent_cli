@@ -14,7 +14,7 @@ npm install -g @didim365/agent-cli
 To verify the installation:
 
 ```bash
-gemini --version
+didim --version
 ```
 
 ## Overview of sandboxing
@@ -54,11 +54,11 @@ from your organization's registry.
 
 ```bash
 # Enable sandboxing with command flag
-gemini -s -p "analyze the code structure"
+didim -s -p "analyze the code structure"
 
 # Use environment variable
 export GEMINI_SANDBOX=true
-gemini -p "run the test suite"
+didim -p "run the test suite"
 
 # Configure in settings.json
 {
@@ -140,21 +140,21 @@ export SANDBOX_SET_UID_GID=false  # Disable UID/GID mapping
 ### Debug mode
 
 ```bash
-DEBUG=1 gemini -s -p "debug command"
+DEBUG=1 didim -s -p "debug command"
 ```
 
 **Note:** If you have `DEBUG=true` in a project's `.env` file, it won't affect
-gemini-cli due to automatic exclusion. Use `.gemini/.env` files for gemini-cli
+gemini-cli due to automatic exclusion. Use `.didim/.env` files for gemini-cli
 specific debug settings.
 
 ### Inspect sandbox
 
 ```bash
 # Check environment
-gemini -s -p "run shell command: env | grep SANDBOX"
+didim -s -p "run shell command: env | grep SANDBOX"
 
 # List mounts
-gemini -s -p "run shell command: mount | grep workspace"
+didim -s -p "run shell command: mount | grep workspace"
 ```
 
 ## Security notes

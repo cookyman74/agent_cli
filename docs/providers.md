@@ -20,8 +20,7 @@ This guide describes the current multi-provider behavior in this repository.
 
 ## Quick Start
 
-Run with your CLI command. If your fork uses `didim` instead of `gemini`,
-replace the command accordingly.
+Run with the `didim` CLI command.
 
 ### Gemini
 
@@ -29,7 +28,7 @@ replace the command accordingly.
 export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=gemini
 export GEMINI_API_KEY="your-key"
-gemini --model gemini-2.5-pro
+didim --model gemini-2.5-pro
 ```
 
 ### Claude
@@ -38,7 +37,7 @@ gemini --model gemini-2.5-pro
 export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=claude
 export ANTHROPIC_API_KEY="your-key"
-gemini --model claude-sonnet-4-20250514
+didim --model claude-sonnet-4-20250514
 ```
 
 ### OpenAI
@@ -47,7 +46,7 @@ gemini --model claude-sonnet-4-20250514
 export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=openai
 export OPENAI_API_KEY="your-key"
-gemini --model gpt-4o
+didim --model gpt-4o
 ```
 
 ### OpenAI-compatible (vLLM)
@@ -57,7 +56,7 @@ export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=openai-compatible
 export LLM_BASE_URL="http://localhost:8000/v1"
 export LLM_API_KEY="optional-key"
-gemini --model default
+didim --model default
 ```
 
 ## vLLM Quick Start
@@ -97,10 +96,8 @@ export LLM_API_KEY_HEADER="X-API-Key"
 ### 3) Run
 
 ```bash
-gemini -m Qwen/Qwen2.5-7B-Instruct
+didim -m Qwen/Qwen2.5-7B-Instruct
 ```
-
-If your fork command is `didim`, use `didim` instead of `gemini`.
 
 ## Model Resolution Rules
 

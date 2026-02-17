@@ -10,6 +10,7 @@ import type { CommandModule } from 'yargs';
 import { fileURLToPath } from 'node:url';
 import { debugLogger } from '@didim365/agent-cli-core';
 import { exitCli } from '../utils.js';
+import { EXTENSIONS_CONFIG_FILENAME } from '../../config/extensions/variables.js';
 
 interface NewArgs {
   path: string;
@@ -63,7 +64,7 @@ async function handleNew(args: NewArgs) {
       version: '1.0.0',
     };
     await writeFile(
-      join(args.path, 'gemini-extension.json'),
+      join(args.path, EXTENSIONS_CONFIG_FILENAME),
       JSON.stringify(manifest, null, 2),
     );
     debugLogger.log(`Successfully created new extension at ${args.path}.`);

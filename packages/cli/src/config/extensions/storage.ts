@@ -11,7 +11,7 @@ import {
   EXTENSION_SETTINGS_FILENAME,
   EXTENSIONS_CONFIG_FILENAME,
 } from './variables.js';
-import { Storage, homedir } from '@didim365/agent-cli-core';
+import { Storage, homedir, resolveReadPath } from '@didim365/agent-cli-core';
 
 export class ExtensionStorage {
   private readonly extensionName: string;
@@ -21,8 +21,16 @@ export class ExtensionStorage {
   }
 
   getExtensionDir(): string {
+    return resolveReadPath(homedir(), 'extensions', this.extensionName);
+  }
+
+  /**
+   * Returns the extension directory for write operations.
+   * Always returns .didim-based path regardless of legacy .gemini existence.
+   */
+  getExtensionWriteDir(): string {
     return path.join(
-      ExtensionStorage.getUserExtensionsDir(),
+      ExtensionStorage.getUserExtensionsWriteDir(),
       this.extensionName,
     );
   }
@@ -32,11 +40,38 @@ export class ExtensionStorage {
   }
 
   getEnvFilePath(): string {
-    return path.join(this.getExtensionDir(), EXTENSION_SETTINGS_FILENAME);
+    // Resolve at file level (not dir level) so that a .didim/extensions/<ext>/
+    // directory without .env doesn't shadow .gemini/extensions/<ext>/.env.
+    return resolveReadPath(
+      homedir(),
+      'extensions',
+      this.extensionName,
+      EXTENSION_SETTINGS_FILENAME,
+    );
+  }
+
+  /**
+   * Returns the .env file path for write operations.
+   * Always returns .didim-based path regardless of legacy .gemini existence.
+   */
+  getEnvFileWritePath(): string {
+    return path.join(this.getExtensionWriteDir(), EXTENSION_SETTINGS_FILENAME);
   }
 
   static getUserExtensionsDir(): string {
     return new Storage(homedir()).getExtensionsDir();
+  }
+
+  static getUserExtensionsWriteDir(): string {
+    return Storage.getGlobalWritePath('extensions');
+  }
+
+  static getUserExtensionsEnablementReadPath(): string {
+    return resolveReadPath(
+      homedir(),
+      'extensions',
+      'extension-enablement.json',
+    );
   }
 
   static async createTmpDir(): Promise<string> {

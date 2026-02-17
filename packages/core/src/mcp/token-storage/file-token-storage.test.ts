@@ -9,7 +9,18 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { FileTokenStorage } from './file-token-storage.js';
 import type { OAuthCredentials } from './types.js';
-import { GEMINI_DIR } from '../../utils/paths.js';
+import { GEMINI_DIR, LEGACY_GEMINI_DIR } from '../../utils/paths.js';
+
+const mockReadPath = path.join(
+  '/home/test',
+  GEMINI_DIR,
+  'mcp-oauth-tokens-v2.json',
+);
+const mockWritePath = path.join(
+  '/home/test',
+  GEMINI_DIR,
+  'mcp-oauth-tokens-v2.json',
+);
 
 vi.mock('node:fs', () => ({
   promises: {
@@ -29,6 +40,13 @@ vi.mock('node:os', () => ({
   homedir: vi.fn(() => '/home/test'),
   hostname: vi.fn(() => 'test-host'),
   userInfo: vi.fn(() => ({ username: 'test-user' })),
+}));
+
+vi.mock('../../config/storage.js', () => ({
+  resolveReadPath: vi.fn(() => mockReadPath),
+  Storage: {
+    getGlobalWritePath: vi.fn(() => mockWritePath),
+  },
 }));
 
 describe('FileTokenStorage', () => {
@@ -289,6 +307,22 @@ describe('FileTokenStorage', () => {
       mockFs.unlink.mockRejectedValue({ code: 'ENOENT' });
 
       await expect(storage.clearAll()).resolves.not.toThrow();
+    });
+
+    it('should delete both primary and legacy token files', async () => {
+      mockFs.unlink.mockResolvedValue(undefined);
+
+      await storage.clearAll();
+
+      const unlinkCalls = mockFs.unlink.mock.calls.map(
+        (call: unknown[]) => call[0] as string,
+      );
+      expect(unlinkCalls).toContain(
+        path.join('/home/test', GEMINI_DIR, 'mcp-oauth-tokens-v2.json'),
+      );
+      expect(unlinkCalls).toContain(
+        path.join('/home/test', LEGACY_GEMINI_DIR, 'mcp-oauth-tokens-v2.json'),
+      );
     });
   });
 

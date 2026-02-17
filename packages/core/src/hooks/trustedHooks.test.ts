@@ -7,11 +7,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'node:fs';
 import { TrustedHooksManager } from './trustedHooks.js';
-import { Storage } from '../config/storage.js';
+import { Storage, resolveReadPath } from '../config/storage.js';
 import { HookEventName, HookType } from './types.js';
 
 vi.mock('node:fs');
 vi.mock('../config/storage.js');
+vi.mock('../utils/paths.js', () => ({
+  homedir: () => '/mock/home',
+}));
 vi.mock('../utils/debugLogger.js', () => ({
   debugLogger: {
     warn: vi.fn(),
@@ -24,7 +27,12 @@ vi.mock('../utils/debugLogger.js', () => ({
 describe('TrustedHooksManager', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(Storage.getGlobalGeminiDir).mockReturnValue('/mock/home/.gemini');
+    vi.mocked(resolveReadPath).mockReturnValue(
+      '/mock/home/.didim/trusted_hooks.json',
+    );
+    vi.mocked(Storage.getGlobalWritePath).mockReturnValue(
+      '/mock/home/.didim/trusted_hooks.json',
+    );
   });
 
   describe('initialization', () => {

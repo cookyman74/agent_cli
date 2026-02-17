@@ -28,7 +28,8 @@ import {
 import { UserAccountManager } from '../utils/userAccountManager.js';
 import { AuthType } from '../core/contentGenerator.js';
 import readline from 'node:readline';
-import { Storage } from '../config/storage.js';
+import { Storage, OAUTH_FILE } from '../config/storage.js';
+import { DIDIM_DIR, LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import { OAuthCredentialStorage } from './oauth-credential-storage.js';
 import { FORCE_ENCRYPTED_FILE_ENV_VAR } from '../mcp/token-storage/index.js';
 import { debugLogger } from '../utils/debugLogger.js';
@@ -645,20 +646,32 @@ export function clearOauthClientCache() {
 }
 
 export async function clearCachedCredentialFile() {
+  // Each step runs independently so a failure in one doesn't skip the others.
   try {
     const useEncryptedStorage = getUseEncryptedStorageFlag();
     if (useEncryptedStorage) {
       await OAuthCredentialStorage.clearCredentials();
     } else {
-      await fs.rm(Storage.getOAuthCredsPath(), { force: true });
+      // Delete both primary (.didim) and legacy (.gemini) credential files
+      // to prevent legacy file re-exposure after clearing.
+      const home = homedir();
+      for (const dir of [DIDIM_DIR, LEGACY_GEMINI_DIR]) {
+        await fs.rm(path.join(home, dir, OAUTH_FILE), { force: true });
+      }
     }
+  } catch (e) {
+    debugLogger.warn('Failed to clear cached credential files:', e);
+  }
+
+  try {
     // Clear the Google Account ID cache when credentials are cleared
     await userAccountManager.clearCachedGoogleAccount();
-    // Clear the in-memory OAuth client cache to force re-authentication
-    clearOauthClientCache();
   } catch (e) {
-    debugLogger.warn('Failed to clear cached credentials:', e);
+    debugLogger.warn('Failed to clear cached Google account:', e);
   }
+
+  // Clear the in-memory OAuth client cache to force re-authentication
+  clearOauthClientCache();
 }
 
 async function fetchAndCacheUserInfo(client: OAuth2Client): Promise<void> {
@@ -699,7 +712,7 @@ export function resetOauthClientForTesting() {
 }
 
 async function cacheCredentials(credentials: Credentials) {
-  const filePath = Storage.getOAuthCredsPath();
+  const filePath = Storage.getGlobalWritePath(OAUTH_FILE);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
 
   const credString = JSON.stringify(credentials, null, 2);

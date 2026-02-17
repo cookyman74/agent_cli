@@ -34,7 +34,8 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const os = await import('node:os');
   return {
     ...actual,
-    GEMINI_DIR: '.gemini',
+    GEMINI_DIR: '.didim',
+    LEGACY_GEMINI_DIR: '.gemini',
     debugLogger: {
       error: vi.fn(),
     },
@@ -49,17 +50,19 @@ describe('loadSettings', () => {
     os.tmpdir(),
     `gemini-workspace-${mocks.suffix}`,
   );
-  const mockGeminiHomeDir = path.join(mockHomeDir, '.gemini');
-  const mockGeminiWorkspaceDir = path.join(mockWorkspaceDir, '.gemini');
+  const mockDidimHomeDir = path.join(mockHomeDir, '.didim');
+  const mockDidimWorkspaceDir = path.join(mockWorkspaceDir, '.didim');
+  const mockLegacyHomeDir = path.join(mockHomeDir, '.gemini');
+  const mockLegacyWorkspaceDir = path.join(mockWorkspaceDir, '.gemini');
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Create the directories using the real fs
-    if (!fs.existsSync(mockGeminiHomeDir)) {
-      fs.mkdirSync(mockGeminiHomeDir, { recursive: true });
+    if (!fs.existsSync(mockDidimHomeDir)) {
+      fs.mkdirSync(mockDidimHomeDir, { recursive: true });
     }
-    if (!fs.existsSync(mockGeminiWorkspaceDir)) {
-      fs.mkdirSync(mockGeminiWorkspaceDir, { recursive: true });
+    if (!fs.existsSync(mockDidimWorkspaceDir)) {
+      fs.mkdirSync(mockDidimWorkspaceDir, { recursive: true });
     }
 
     // Clean up settings files before each test
@@ -67,7 +70,7 @@ describe('loadSettings', () => {
       fs.rmSync(USER_SETTINGS_PATH);
     }
     const workspaceSettingsPath = path.join(
-      mockGeminiWorkspaceDir,
+      mockDidimWorkspaceDir,
       'settings.json',
     );
     if (fs.existsSync(workspaceSettingsPath)) {
@@ -77,11 +80,10 @@ describe('loadSettings', () => {
 
   afterEach(() => {
     try {
-      if (fs.existsSync(mockHomeDir)) {
-        fs.rmSync(mockHomeDir, { recursive: true, force: true });
-      }
-      if (fs.existsSync(mockWorkspaceDir)) {
-        fs.rmSync(mockWorkspaceDir, { recursive: true, force: true });
+      for (const dir of [mockHomeDir, mockWorkspaceDir]) {
+        if (fs.existsSync(dir)) {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
       }
     } catch (e) {
       debugLogger.error('Failed to cleanup temp dirs', e);
@@ -108,7 +110,7 @@ describe('loadSettings', () => {
       },
     };
     const workspaceSettingsPath = path.join(
-      mockGeminiWorkspaceDir,
+      mockDidimWorkspaceDir,
       'settings.json',
     );
     fs.writeFileSync(workspaceSettingsPath, JSON.stringify(settings));
@@ -131,7 +133,7 @@ describe('loadSettings', () => {
       },
     };
     const workspaceSettingsPath = path.join(
-      mockGeminiWorkspaceDir,
+      mockDidimWorkspaceDir,
       'settings.json',
     );
     fs.writeFileSync(workspaceSettingsPath, JSON.stringify(workspaceSettings));
@@ -173,6 +175,59 @@ describe('loadSettings', () => {
     expect(result.fileFiltering?.respectGitIgnore).toBe(true);
   });
 
+  describe('.gemini fallback', () => {
+    it('should load user settings from .gemini when .didim does not exist', () => {
+      // Remove .didim dir, create .gemini dir with settings
+      fs.rmSync(mockDidimHomeDir, { recursive: true, force: true });
+      fs.mkdirSync(mockLegacyHomeDir, { recursive: true });
+
+      const legacySettingsPath = path.join(mockLegacyHomeDir, 'settings.json');
+      const settings = { showMemoryUsage: true };
+      fs.writeFileSync(legacySettingsPath, JSON.stringify(settings));
+
+      const result = loadSettings(mockWorkspaceDir);
+      expect(result.showMemoryUsage).toBe(true);
+    });
+
+    it('should load workspace settings from .gemini when .didim does not exist', () => {
+      // Remove .didim workspace dir, create .gemini workspace dir with settings
+      fs.rmSync(mockDidimWorkspaceDir, { recursive: true, force: true });
+      fs.mkdirSync(mockLegacyWorkspaceDir, { recursive: true });
+
+      const legacySettingsPath = path.join(
+        mockLegacyWorkspaceDir,
+        'settings.json',
+      );
+      const settings = {
+        general: { previewFeatures: true },
+      };
+      fs.writeFileSync(legacySettingsPath, JSON.stringify(settings));
+
+      const result = loadSettings(mockWorkspaceDir);
+      expect(result.general?.previewFeatures).toBe(true);
+    });
+
+    it('should prioritize .didim over .gemini when both exist', () => {
+      // Create both .didim and .gemini with different settings
+      fs.mkdirSync(mockLegacyHomeDir, { recursive: true });
+
+      const didimSettingsPath = path.join(mockDidimHomeDir, 'settings.json');
+      const legacySettingsPath = path.join(mockLegacyHomeDir, 'settings.json');
+
+      fs.writeFileSync(
+        didimSettingsPath,
+        JSON.stringify({ showMemoryUsage: true }),
+      );
+      fs.writeFileSync(
+        legacySettingsPath,
+        JSON.stringify({ showMemoryUsage: false }),
+      );
+
+      const result = loadSettings(mockWorkspaceDir);
+      expect(result.showMemoryUsage).toBe(true);
+    });
+  });
+
   it('should overwrite top-level settings from workspace (shallow merge)', () => {
     const userSettings = {
       showMemoryUsage: false,
@@ -190,7 +245,7 @@ describe('loadSettings', () => {
       },
     };
     const workspaceSettingsPath = path.join(
-      mockGeminiWorkspaceDir,
+      mockDidimWorkspaceDir,
       'settings.json',
     );
     fs.writeFileSync(workspaceSettingsPath, JSON.stringify(workspaceSettings));

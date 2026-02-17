@@ -21,7 +21,7 @@ describe('mcp command', () => {
     const yargsInstance = yargs();
     (mcpCommand.builder as (y: Argv) => Argv)(yargsInstance);
 
-    const parser = yargsInstance.command(mcpCommand).help();
+    const parser = yargsInstance.command(mcpCommand).locale('en').help();
 
     // Mock console.log and console.error to catch help output
     const consoleLogMock = vi

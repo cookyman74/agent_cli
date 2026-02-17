@@ -38,7 +38,7 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
     ...actual,
     Storage: {
       getGlobalSettingsPath: vi.fn().mockReturnValue('/mock/settings.json'),
-      getGlobalGeminiDir: vi.fn().mockReturnValue('/mock/.gemini'),
+      getGlobalGeminiDir: vi.fn().mockReturnValue('/mock/.didim'),
     },
     debugLogger: {
       error: vi.fn(),

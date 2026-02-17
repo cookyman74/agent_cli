@@ -12,7 +12,7 @@ discoverable capability.
 
 ## Overview
 
-Unlike general context files ([`GEMINI.md`](./gemini-md.md)), which provide
+Unlike general context files ([`AGENTS.md`](./agents-md.md)), which provide
 persistent workspace-wide background, Skills represent **on-demand expertise**.
 This allows Gemini to maintain a vast library of specialized capabilities—such
 as security auditing, cloud deployments, or codebase migrations—without
@@ -39,9 +39,9 @@ the full instructions and resources required to complete the task using the
 
 Gemini CLI discovers skills from three primary locations:
 
-1.  **Workspace Skills** (`.gemini/skills/`): Workspace-specific skills that are
+1.  **Workspace Skills** (`.didim/skills/`): Workspace-specific skills that are
     typically committed to version control and shared with the team.
-2.  **User Skills** (`~/.gemini/skills/`): Personal skills available across all
+2.  **User Skills** (`~/.didim/skills/`): Personal skills available across all
     your workspaces.
 3.  **Extension Skills**: Skills bundled within installed
     [extensions](../extensions/index.md).
@@ -65,32 +65,32 @@ _Note: `/skills disable` and `/skills enable` default to the `user` scope. Use
 
 ### From the Terminal
 
-The `gemini skills` command provides management utilities:
+The `didim skills` command provides management utilities:
 
 ```bash
 # List all discovered skills
-gemini skills list
+didim skills list
 
 # Install a skill from a Git repository, local directory, or zipped skill file (.skill)
-# Uses the user scope by default (~/.gemini/skills)
-gemini skills install https://github.com/user/repo.git
-gemini skills install /path/to/local/skill
-gemini skills install /path/to/local/my-expertise.skill
+# Uses the user scope by default (~/.didim/skills)
+didim skills install https://github.com/user/repo.git
+didim skills install /path/to/local/skill
+didim skills install /path/to/local/my-expertise.skill
 
 # Install a specific skill from a monorepo or subdirectory using --path
-gemini skills install https://github.com/my-org/my-skills.git --path skills/frontend-design
+didim skills install https://github.com/my-org/my-skills.git --path skills/frontend-design
 
-# Install to the workspace scope (.gemini/skills)
-gemini skills install /path/to/skill --scope workspace
+# Install to the workspace scope (.didim/skills)
+didim skills install /path/to/skill --scope workspace
 
 # Uninstall a skill by name
-gemini skills uninstall my-expertise --scope workspace
+didim skills uninstall my-expertise --scope workspace
 
 # Enable a skill (globally)
-gemini skills enable my-expertise
+didim skills enable my-expertise
 
 # Disable a skill. Can use --scope to specify workspace or user (defaults to workspace)
-gemini skills disable my-expertise --scope workspace
+didim skills disable my-expertise --scope workspace
 ```
 
 ## Creating a Skill
@@ -130,7 +130,7 @@ description: <what the skill does and when Gemini should use it>
 
 ### Example: Team Code Reviewer
 
-Create `~/.gemini/skills/code-reviewer/SKILL.md`:
+Create `~/.didim/skills/code-reviewer/SKILL.md`:
 
 ```markdown
 ---
@@ -148,7 +148,7 @@ You are an expert code reviewer. When reviewing code, follow this workflow:
     that the changes are scoped properly and represent minimal changes required
     to address the issue.
 2.  **Style**: Ensure code follows the workspace's conventions and idiomatic
-    patterns as described in the `GEMINI.md` file.
+    patterns as described in the `AGENTS.md` file.
 3.  **Security**: Flag any potential security vulnerabilities.
 4.  **Tests**: Verify that new logic has corresponding test coverage and that
     the test coverage adequately validates the changes.

@@ -41,6 +41,7 @@ import { ExtensionEnablementManager } from './extensions/extensionEnablement.js'
 import { join } from 'node:path';
 import {
   EXTENSIONS_CONFIG_FILENAME,
+  LEGACY_EXTENSIONS_CONFIG_FILENAME,
   EXTENSIONS_DIRECTORY_NAME,
   INSTALL_METADATA_FILENAME,
 } from './extensions/variables.js';
@@ -113,6 +114,19 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
     logExtensionUpdateEvent: mockLogExtensionUpdateEvent,
     logExtensionDisable: mockLogExtensionDisable,
     homedir: mockHomedir,
+    resolveReadPath: (...args: Parameters<typeof actual.resolveReadPath>) =>
+      actual.resolveReadPath(...args),
+    Storage: new Proxy(actual.Storage, {
+      get(target, prop, receiver) {
+        if (prop === 'getGlobalWritePath') {
+          return (...subPaths: string[]) => {
+            const home = mockHomedir();
+            return [home, '.didim', ...subPaths].join('/');
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }),
     ExtensionEnableEvent: vi.fn(),
     ExtensionInstallEvent: vi.fn(),
     ExtensionUninstallEvent: vi.fn(),
@@ -976,7 +990,7 @@ describe('extension tests', () => {
         );
 
         fs.writeFileSync(
-          path.join(sourceExtDir, 'gemini-extension.json'),
+          path.join(sourceExtDir, 'didim-extension.json'),
           JSON.stringify({
             name: 'hook-extension-install',
             version: '1.0.0',
@@ -1043,23 +1057,28 @@ describe('extension tests', () => {
       );
     });
 
-    it('should throw an error and cleanup if gemini-extension.json is missing', async () => {
+    it('should throw an error and cleanup if didim-extension.json is missing', async () => {
       const sourceExtDir = path.join(tempHomeDir, 'bad-extension');
       fs.mkdirSync(sourceExtDir, { recursive: true });
-      const configPath = path.join(sourceExtDir, EXTENSIONS_CONFIG_FILENAME);
+      // When both didim-extension.json and gemini-extension.json are missing,
+      // the error message contains the legacy fallback path
+      const legacyConfigPath = path.join(
+        sourceExtDir,
+        LEGACY_EXTENSIONS_CONFIG_FILENAME,
+      );
 
       await expect(
         extensionManager.installOrUpdateExtension({
           source: sourceExtDir,
           type: 'local',
         }),
-      ).rejects.toThrow(`Configuration file not found at ${configPath}`);
+      ).rejects.toThrow(`Configuration file not found at ${legacyConfigPath}`);
 
       const targetExtDir = path.join(userExtensionsDir, 'bad-extension');
       expect(fs.existsSync(targetExtDir)).toBe(false);
     });
 
-    it('should throw an error for invalid JSON in gemini-extension.json', async () => {
+    it('should throw an error for invalid JSON in didim-extension.json', async () => {
       const sourceExtDir = path.join(tempHomeDir, 'bad-json-ext');
       fs.mkdirSync(sourceExtDir, { recursive: true });
       const configPath = path.join(sourceExtDir, EXTENSIONS_CONFIG_FILENAME);
@@ -1080,7 +1099,7 @@ describe('extension tests', () => {
       );
     });
 
-    it('should throw an error for missing name in gemini-extension.json', async () => {
+    it('should throw an error for missing name in didim-extension.json', async () => {
       const sourceExtDir = createExtension({
         extensionsDir: tempHomeDir,
         name: 'missing-name-ext',
@@ -1245,7 +1264,7 @@ describe('extension tests', () => {
     it('should add the workspace to trusted folders if user consents', async () => {
       const trustedFoldersPath = path.join(
         tempHomeDir,
-        '.gemini',
+        '.didim',
         'trustedFolders.json',
       );
       vi.mocked(isWorkspaceTrusted).mockReturnValue({
@@ -2002,6 +2021,40 @@ ${INSTALL_WARNING_MESSAGE}`,
           false,
         ),
       ).rejects.toThrow('Extension not found.');
+    });
+
+    it('should not delete the source directory when uninstalling a link-type extension', async () => {
+      // Create a source directory (simulates the user's original project)
+      const sourceDir = path.join(tempHomeDir, 'my-project');
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sourceDir, EXTENSIONS_CONFIG_FILENAME),
+        JSON.stringify({ name: 'linked-ext', version: '1.0.0' }),
+      );
+
+      // Create the metadata directory in extensions dir with link install metadata
+      const metadataDir = createExtension({
+        extensionsDir: userExtensionsDir,
+        name: 'linked-ext',
+        version: '1.0.0',
+        installMetadata: {
+          source: sourceDir,
+          type: 'link',
+        },
+      });
+
+      await extensionManager.loadExtensions();
+      const extensions = extensionManager.getExtensions();
+      expect(extensions).toHaveLength(1);
+      // For link-type, extension.path should point to source dir
+      expect(extensions[0].path).toBe(sourceDir);
+
+      await extensionManager.uninstallExtension('linked-ext', false);
+
+      // Source directory must NOT be deleted
+      expect(fs.existsSync(sourceDir)).toBe(true);
+      // Metadata directory should be deleted
+      expect(fs.existsSync(metadataDir)).toBe(false);
     });
   });
 

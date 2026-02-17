@@ -67,18 +67,20 @@ describe('AgentRegistry Acknowledgement', () => {
       ackService,
     );
 
-    // We cannot easily spy on storage.getProjectAgentsDir if it's a property/getter unless we cast to any or it's a method
-    // Assuming it's a method on Storage class
+    // Mock both single-path and multi-path methods for project agents loading
     vi.spyOn(config.storage, 'getProjectAgentsDir').mockReturnValue(
-      '/project/.gemini/agents',
+      '/project/.didim/agents',
     );
+    vi.spyOn(config.storage, 'getProjectAgentsReadDirs').mockReturnValue([
+      '/project/.didim/agents',
+    ]);
     vi.spyOn(config, 'isAgentsEnabled').mockReturnValue(true);
 
     registry = new AgentRegistry(config);
 
     vi.mocked(tomlLoader.loadAgentsFromDirectory).mockImplementation(
       async (dir) => {
-        if (dir === '/project/.gemini/agents') {
+        if (dir === '/project/.didim/agents') {
           return {
             agents: [MOCK_AGENT_WITH_HASH],
             errors: [],
@@ -118,7 +120,7 @@ describe('AgentRegistry Acknowledgement', () => {
 
     vi.mocked(tomlLoader.loadAgentsFromDirectory).mockImplementation(
       async (dir) => {
-        if (dir === '/project/.gemini/agents') {
+        if (dir === '/project/.didim/agents') {
           return {
             agents: [MOCK_AGENT_WITH_HASH],
             errors: [],
@@ -141,7 +143,7 @@ describe('AgentRegistry Acknowledgement', () => {
     const agentNoHash = { ...MOCK_AGENT_WITH_HASH, metadata: undefined };
     vi.mocked(tomlLoader.loadAgentsFromDirectory).mockImplementation(
       async (dir) => {
-        if (dir === '/project/.gemini/agents') {
+        if (dir === '/project/.didim/agents') {
           return {
             agents: [agentNoHash],
             errors: [],

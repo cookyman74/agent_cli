@@ -21,9 +21,17 @@ import { MessageBus } from '../confirmation-bus/message-bus.js';
 import { MessageBusType } from '../confirmation-bus/types.js';
 import { Storage } from '../config/storage.js';
 import { ApprovalMode } from './types.js';
+import { LEGACY_GEMINI_DIR } from '../utils/paths.js';
 
 vi.mock('node:fs/promises');
 vi.mock('../config/storage.js');
+vi.mock('../utils/paths.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/paths.js')>();
+  return {
+    ...actual,
+    homedir: vi.fn(() => '/mock/home'),
+  };
+});
 
 describe('createPolicyUpdater', () => {
   let policyEngine: PolicyEngine;
@@ -47,7 +55,9 @@ describe('createPolicyUpdater', () => {
     createPolicyUpdater(policyEngine, messageBus);
 
     const userPoliciesDir = '/mock/user/policies';
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(userPoliciesDir);
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
     (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
     (fs.readFile as unknown as Mock).mockRejectedValue(
       new Error('File not found'),
@@ -65,7 +75,7 @@ describe('createPolicyUpdater', () => {
     // Wait for async operations (microtasks)
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(Storage.getUserPoliciesDir).toHaveBeenCalled();
+    expect(Storage.getUserPoliciesWriteDir).toHaveBeenCalled();
     expect(fs.mkdir).toHaveBeenCalledWith(userPoliciesDir, {
       recursive: true,
     });
@@ -101,7 +111,9 @@ describe('createPolicyUpdater', () => {
     createPolicyUpdater(policyEngine, messageBus);
 
     const userPoliciesDir = '/mock/user/policies';
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(userPoliciesDir);
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
     (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
     (fs.readFile as unknown as Mock).mockRejectedValue(
       new Error('File not found'),
@@ -142,7 +154,9 @@ describe('createPolicyUpdater', () => {
     createPolicyUpdater(policyEngine, messageBus);
 
     const userPoliciesDir = '/mock/user/policies';
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(userPoliciesDir);
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
     (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
     (fs.readFile as unknown as Mock).mockRejectedValue(
       new Error('File not found'),
@@ -175,7 +189,9 @@ describe('createPolicyUpdater', () => {
     createPolicyUpdater(policyEngine, messageBus);
 
     const userPoliciesDir = '/mock/user/policies';
-    vi.spyOn(Storage, 'getUserPoliciesDir').mockReturnValue(userPoliciesDir);
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
     (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
     (fs.readFile as unknown as Mock).mockRejectedValue(
       new Error('File not found'),
@@ -212,5 +228,58 @@ describe('createPolicyUpdater', () => {
     } catch {
       expect(writtenContent).toContain(`toolName = 'search"tool"'`);
     }
+  });
+
+  // Issue 26: legacy auto-saved.toml merge on first write to .didim
+  // Updated for Issue 29: code now uses explicit homedir() + LEGACY_GEMINI_DIR
+  // instead of Storage.getUserPoliciesDir() to avoid mkdir race condition.
+  it('should merge rules from legacy auto-saved.toml when write path file is missing', async () => {
+    createPolicyUpdater(policyEngine, messageBus);
+
+    const userPoliciesDir = '/mock/user/policies';
+    vi.spyOn(Storage, 'getUserPoliciesWriteDir').mockReturnValue(
+      userPoliciesDir,
+    );
+    (fs.mkdir as unknown as Mock).mockResolvedValue(undefined);
+
+    // Legacy path is now computed as homedir() + LEGACY_GEMINI_DIR + 'policies'
+    // homedir() is mocked to return '/mock/home'
+    const legacyFile = path.join(
+      '/mock/home',
+      LEGACY_GEMINI_DIR,
+      'policies',
+      'auto-saved.toml',
+    );
+
+    // Write path ENOENT, legacy path has existing rules
+    const enoentError = new Error('ENOENT') as NodeJS.ErrnoException;
+    enoentError.code = 'ENOENT';
+    (fs.readFile as unknown as Mock).mockImplementation((filePath: string) => {
+      if (filePath === path.join(userPoliciesDir, 'auto-saved.toml')) {
+        return Promise.reject(enoentError);
+      }
+      if (filePath === legacyFile) {
+        return Promise.resolve(
+          '[[rule]]\ntoolName = "existing_tool"\ndecision = "allow"\npriority = 100\n',
+        );
+      }
+      return Promise.reject(new Error('Unknown file'));
+    });
+    (fs.writeFile as unknown as Mock).mockResolvedValue(undefined);
+    (fs.rename as unknown as Mock).mockResolvedValue(undefined);
+
+    await messageBus.publish({
+      type: MessageBusType.UPDATE_POLICY,
+      toolName: 'new_tool',
+      persist: true,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Verify written content includes BOTH legacy and new rules
+    const writeCall = (fs.writeFile as unknown as Mock).mock.calls[0];
+    const writtenContent2 = writeCall[1] as string;
+    expect(writtenContent2).toContain('existing_tool');
+    expect(writtenContent2).toContain('new_tool');
   });
 });

@@ -335,7 +335,7 @@ describe('Policy Engine Integration Tests', () => {
 
       // Valid plan file path (64-char hex hash, .md extension, safe filename)
       const validPlanPath =
-        '/home/user/.gemini/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/my-plan.md';
+        '/home/user/.didim/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/my-plan.md';
       expect(
         (
           await engine.check(
@@ -347,7 +347,7 @@ describe('Policy Engine Integration Tests', () => {
 
       // Valid plan with underscore in filename
       const validPlanPath2 =
-        '/home/user/.gemini/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/feature_auth.md';
+        '/home/user/.didim/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/feature_auth.md';
       expect(
         (
           await engine.check(
@@ -379,7 +379,7 @@ describe('Policy Engine Integration Tests', () => {
 
       // Write to plans dir but wrong extension should be denied
       const wrongExtPath =
-        '/home/user/.gemini/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/script.js';
+        '/home/user/.didim/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/script.js';
       expect(
         (
           await engine.check(
@@ -391,7 +391,7 @@ describe('Policy Engine Integration Tests', () => {
 
       // Path traversal attempt should be denied (filename contains /)
       const traversalPath =
-        '/home/user/.gemini/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/../../../etc/passwd.md';
+        '/home/user/.didim/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/../../../etc/passwd.md';
       expect(
         (
           await engine.check(
@@ -402,7 +402,7 @@ describe('Policy Engine Integration Tests', () => {
       ).toBe(PolicyDecision.DENY);
 
       // Invalid hash length should be denied
-      const shortHashPath = '/home/user/.gemini/tmp/abc123/plans/plan.md';
+      const shortHashPath = '/home/user/.didim/tmp/abc123/plans/plan.md';
       expect(
         (
           await engine.check(
@@ -424,7 +424,7 @@ describe('Policy Engine Integration Tests', () => {
 
       // Write to subdirectory should be denied
       const subdirPath =
-        '/home/user/.gemini/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/subdir/plan.md';
+        '/home/user/.didim/tmp/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/plans/subdir/plan.md';
       expect(
         (
           await engine.check(

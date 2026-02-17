@@ -2,7 +2,7 @@
 
 This guide will walk you through creating your first Gemini CLI extension.
 You'll learn how to set up a new extension, add a custom tool via an MCP server,
-create a custom command, and provide context to the model with a `GEMINI.md`
+create a custom command, and provide context to the model with an `AGENTS.md`
 file.
 
 ## Prerequisites
@@ -18,7 +18,7 @@ Extensions offer a variety of ways to customize Gemini CLI.
 | :------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------- |
 | **[MCP server](reference.md#mcp-servers)**                     | A standard way to expose new tools and data sources to the model.                                                  | Use this when you want the model to be able to _do_ new things, like fetching data from an internal API, querying a database, or controlling a local application. We also support MCP resources (which can replace custom commands) and system instructions (which can replace custom context) | Model                 |
 | **[Custom commands](../cli/custom-commands.md)**               | A shortcut (like `/my-cmd`) that executes a pre-defined prompt or shell command.                                   | Use this for repetitive tasks or to save long, complex prompts that you use frequently. Great for automation.                                                                                                                                                                                  | User                  |
-| **[Context file (`GEMINI.md`)](reference.md#contextfilename)** | A markdown file containing instructions that are loaded into the model's context at the start of every session.    | Use this to define the "personality" of your extension, set coding standards, or provide essential knowledge that the model should always have.                                                                                                                                                | CLI provides to model |
+| **[Context file (`AGENTS.md`)](reference.md#contextfilename)** | A markdown file containing instructions that are loaded into the model's context at the start of every session.    | Use this to define the "personality" of your extension, set coding standards, or provide essential knowledge that the model should always have.                                                                                                                                                | CLI provides to model |
 | **[Agent skills](../cli/skills.md)**                           | A specialized set of instructions and workflows that the model activates only when needed.                         | Use this for complex, occasional tasks (like "create a PR" or "audit security") to avoid cluttering the main context window when the skill isn't being used.                                                                                                                                   | Model                 |
 | **[Hooks](../hooks/index.md)**                                 | A way to intercept and customize the CLI's behavior at specific lifecycle events (e.g., before/after a tool call). | Use this when you want to automate actions based on what the model is doing, like validating tool arguments, logging activity, or modifying the model's input/output.                                                                                                                          | CLI                   |
 
@@ -31,7 +31,7 @@ Run the following command to create a new directory called `my-first-extension`
 with the template files:
 
 ```bash
-gemini extensions new my-first-extension mcp-server
+didim extensions new my-first-extension mcp-server
 ```
 
 This will create a new directory with the following structure:
@@ -39,7 +39,7 @@ This will create a new directory with the following structure:
 ```
 my-first-extension/
 ├── example.js
-├── gemini-extension.json
+├── didim-extension.json
 └── package.json
 ```
 
@@ -47,7 +47,7 @@ my-first-extension/
 
 Let's look at the key files in your new extension.
 
-### `gemini-extension.json`
+### `didim-extension.json`
 
 This is the manifest file for your extension. It tells Gemini CLI how to load
 and use your extension.
@@ -153,7 +153,7 @@ installation for local development.
     will be reflected immediately without needing to reinstall.
 
     ```bash
-    gemini extensions link .
+    didim extensions link .
     ```
 
 Now, restart your Gemini CLI session. The new `fetch_posts` tool will be
@@ -187,14 +187,14 @@ a command that searches for a pattern in your code.
 After saving the file, restart the Gemini CLI. You can now run
 `/fs:grep-code "some pattern"` to use your new command.
 
-## Step 5: Add a custom `GEMINI.md`
+## Step 5: Add a custom `AGENTS.md`
 
-You can provide persistent context to the model by adding a `GEMINI.md` file to
+You can provide persistent context to the model by adding an `AGENTS.md` file to
 your extension. This is useful for giving the model instructions on how to
 behave or information about your extension's tools. Note that you may not always
 need this for extensions built to expose commands and prompts.
 
-1.  Create a file named `GEMINI.md` in the root of your extension directory:
+1.  Create a file named `AGENTS.md` in the root of your extension directory:
 
     ```markdown
     # My First Extension Instructions
@@ -203,13 +203,13 @@ need this for extensions built to expose commands and prompts.
     posts, use the `fetch_posts` tool. Be concise in your responses.
     ```
 
-2.  Update your `gemini-extension.json` to tell the CLI to load this file:
+2.  Update your `didim-extension.json` to tell the CLI to load this file:
 
     ```json
     {
       "name": "my-first-extension",
       "version": "1.0.0",
-      "contextFileName": "GEMINI.md",
+      "contextFileName": "AGENTS.md",
       "mcpServers": {
         "nodeServer": {
           "command": "node",
@@ -220,7 +220,7 @@ need this for extensions built to expose commands and prompts.
     }
     ```
 
-Restart the CLI again. The model will now have the context from your `GEMINI.md`
+Restart the CLI again. The model will now have the context from your `AGENTS.md`
 file in every session where the extension is active.
 
 ## (Optional) Step 6: Add an Agent Skill
@@ -228,7 +228,7 @@ file in every session where the extension is active.
 _Note: This is an experimental feature enabled via `experimental.skills`._
 
 [Agent Skills](../cli/skills.md) let you bundle specialized expertise and
-procedural workflows. Unlike `GEMINI.md`, which provides persistent context,
+procedural workflows. Unlike `AGENTS.md`, which provides persistent context,
 skills are activated only when needed, saving context tokens.
 
 1.  Create a `skills` directory and a subdirectory for your skill:

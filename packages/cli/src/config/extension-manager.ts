@@ -25,6 +25,8 @@ import {
 import {
   Config,
   DEFAULT_CONTEXT_FILENAME,
+  DIDIM_DIR,
+  LEGACY_GEMINI_DIR,
   debugLogger,
   ExtensionDisableEvent,
   ExtensionEnableEvent,
@@ -55,6 +57,7 @@ import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
 import { ExtensionStorage } from './extensions/storage.js';
 import {
   EXTENSIONS_CONFIG_FILENAME,
+  LEGACY_EXTENSIONS_CONFIG_FILENAME,
   INSTALL_METADATA_FILENAME,
   recursivelyHydrateStrings,
   type JsonObject,
@@ -170,7 +173,7 @@ export class ExtensionManager extends ExtensionLoader {
           );
         }
       }
-      const extensionsDir = ExtensionStorage.getUserExtensionsDir();
+      const extensionsDir = ExtensionStorage.getUserExtensionsWriteDir();
       await fs.promises.mkdir(extensionsDir, { recursive: true });
 
       if (
@@ -275,9 +278,11 @@ Would you like to attempt to install via "git clone" instead?`,
           previousSkills,
         );
         const extensionId = getExtensionId(newExtensionConfig, installMetadata);
+        // Use write path (always .didim) for install/update destination
+        // to avoid writing to legacy .gemini directory.
         const destinationPath = new ExtensionStorage(
           newExtensionName,
-        ).getExtensionDir();
+        ).getExtensionWriteDir();
         let previousSettings: Record<string, string> | undefined;
         if (isUpdate) {
           previousSettings = await getEnvContents(
@@ -440,16 +445,38 @@ Would you like to attempt to install via "git clone" instead?`,
       throw new Error(`Extension not found.`);
     }
     await this.unloadExtension(extension);
-    const storage = new ExtensionStorage(
-      extension.installMetadata?.type === 'link'
-        ? extension.name
-        : path.basename(extension.path),
-    );
 
-    await fs.promises.rm(storage.getExtensionDir(), {
+    // For link-type extensions, extension.path points to the original source
+    // directory. Delete the metadata directory instead to avoid destroying
+    // the user's source tree.
+    const pathToDelete =
+      extension.installMetadata?.type === 'link'
+        ? new ExtensionStorage(extension.name).getExtensionDir()
+        : extension.path;
+    await fs.promises.rm(pathToDelete, {
       recursive: true,
       force: true,
     });
+
+    // Delete from BOTH locations (primary .didim and legacy .gemini) to prevent
+    // "resurrection" when loadExtensions scans both directories.
+    const primaryExtPath = path.join(
+      homedir(),
+      DIDIM_DIR,
+      'extensions',
+      extension.name,
+    );
+    const legacyExtPath = path.join(
+      homedir(),
+      LEGACY_GEMINI_DIR,
+      'extensions',
+      extension.name,
+    );
+    for (const altPath of [primaryExtPath, legacyExtPath]) {
+      if (altPath !== pathToDelete && fs.existsSync(altPath)) {
+        await fs.promises.rm(altPath, { recursive: true, force: true });
+      }
+    }
 
     // The rest of the cleanup below here is only for true uninstalls, not
     // uninstalls related to updates.
@@ -481,15 +508,26 @@ Would you like to attempt to install via "git clone" instead?`,
       return this.loadedExtensions;
     }
 
-    const extensionsDir = ExtensionStorage.getUserExtensionsDir();
+    const primaryDir = ExtensionStorage.getUserExtensionsDir();
+    const legacyDir = path.join(homedir(), LEGACY_GEMINI_DIR, 'extensions');
     this.loadedExtensions = [];
-    if (!fs.existsSync(extensionsDir)) {
-      return this.loadedExtensions;
+
+    // Primary directory scan (.didim/extensions or .gemini/extensions via resolveReadPath)
+    if (fs.existsSync(primaryDir)) {
+      for (const subdir of fs.readdirSync(primaryDir)) {
+        const extensionDir = path.join(primaryDir, subdir);
+        await this.loadExtension(extensionDir);
+      }
     }
-    for (const subdir of fs.readdirSync(extensionsDir)) {
-      const extensionDir = path.join(extensionsDir, subdir);
-      await this.loadExtension(extensionDir);
+
+    // Legacy directory scan (only if different from primary)
+    if (legacyDir !== primaryDir && fs.existsSync(legacyDir)) {
+      for (const subdir of fs.readdirSync(legacyDir)) {
+        const extensionDir = path.join(legacyDir, subdir);
+        await this.loadExtension(extensionDir);
+      }
     }
+
     return this.loadedExtensions;
   }
 
@@ -695,7 +733,14 @@ Would you like to attempt to install via "git clone" instead?`,
   }
 
   async loadExtensionConfig(extensionDir: string): Promise<ExtensionConfig> {
-    const configFilePath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+    const primaryPath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+    const legacyPath = path.join(
+      extensionDir,
+      LEGACY_EXTENSIONS_CONFIG_FILENAME,
+    );
+    const configFilePath = fs.existsSync(primaryPath)
+      ? primaryPath
+      : legacyPath;
     if (!fs.existsSync(configFilePath)) {
       throw new Error(`Configuration file not found at ${configFilePath}`);
     }

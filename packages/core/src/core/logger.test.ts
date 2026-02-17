@@ -101,7 +101,7 @@ describe('Logger', () => {
   });
 
   describe('initialize', () => {
-    it('should create .gemini directory and an empty log file if none exist', async () => {
+    it('should create .didim directory and an empty log file if none exist', async () => {
       const dirExists = await fs
         .access(TEST_GEMINI_DIR)
         .then(() => true)

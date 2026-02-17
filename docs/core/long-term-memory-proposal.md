@@ -4,9 +4,9 @@
 
 현재 Gemini CLI는 세션 기록을 로컬 파일에 저장합니다.
 
-- 세션 대화: `~/.gemini/tmp/<project_hash>/chats/*.json`
+- 세션 대화: `~/.didim/tmp/<project_hash>/chats/*.json`
 - 디버그 활동 로그:
-  `~/.gemini/tmp/<project_hash>/logs/session-<session_id>.jsonl` (debug mode)
+  `~/.didim/tmp/<project_hash>/logs/session-<session_id>.jsonl` (debug mode)
 - 훅 입력: `transcript_path`가 전달되어 후처리 가능 (`SessionEnd`, `AfterTool`,
   `BeforeAgent`)
 

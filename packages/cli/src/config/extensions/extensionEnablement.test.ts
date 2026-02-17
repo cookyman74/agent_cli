@@ -92,6 +92,14 @@ describe('ExtensionEnablementManager', () => {
     vi.mocked(ExtensionStorage.getUserExtensionsDir).mockReturnValue(
       path.join(testDir.path, GEMINI_DIR),
     );
+    vi.mocked(ExtensionStorage.getUserExtensionsWriteDir).mockReturnValue(
+      path.join(testDir.path, GEMINI_DIR),
+    );
+    vi.mocked(
+      ExtensionStorage.getUserExtensionsEnablementReadPath,
+    ).mockReturnValue(
+      path.join(testDir.path, GEMINI_DIR, 'extension-enablement.json'),
+    );
     manager = new ExtensionEnablementManager();
   });
 

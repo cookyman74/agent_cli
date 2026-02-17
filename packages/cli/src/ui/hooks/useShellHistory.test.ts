@@ -41,7 +41,7 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
   const path = await import('node:path');
   class Storage {
     static getGlobalSettingsPath(): string {
-      return '/test/home/.gemini/settings.json';
+      return '/test/home/.didim/settings.json';
     }
     getProjectTempDir(): string {
       return path.join('/test/home/', actual.GEMINI_DIR, 'tmp', 'mocked_hash');

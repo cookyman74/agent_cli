@@ -107,20 +107,22 @@ function globToRegex(glob: string): RegExp {
 }
 
 export class ExtensionEnablementManager {
-  private configFilePath: string;
-  private configDir: string;
+  private configWritePath: string;
+  private configWriteDir: string;
   // If non-empty, this overrides all other extension configuration and enables
   // only the ones in this list.
   private enabledExtensionNamesOverride: string[];
 
   constructor(enabledExtensionNames?: string[]) {
-    this.configDir = ExtensionStorage.getUserExtensionsDir();
-    this.configFilePath = path.join(
-      this.configDir,
-      'extension-enablement.json',
-    );
+    const writeDir = ExtensionStorage.getUserExtensionsWriteDir();
+    this.configWritePath = path.join(writeDir, 'extension-enablement.json');
+    this.configWriteDir = writeDir;
     this.enabledExtensionNamesOverride =
       enabledExtensionNames?.map((name) => name.toLowerCase()) ?? [];
+  }
+
+  private get configReadPath(): string {
+    return ExtensionStorage.getUserExtensionsEnablementReadPath();
   }
 
   validateExtensionOverrides(extensions: GeminiCLIExtension[]) {
@@ -178,7 +180,7 @@ export class ExtensionEnablementManager {
 
   readConfig(): AllExtensionsEnablementConfig {
     try {
-      const content = fs.readFileSync(this.configFilePath, 'utf-8');
+      const content = fs.readFileSync(this.configReadPath, 'utf-8');
       return JSON.parse(content);
     } catch (error) {
       if (
@@ -198,8 +200,8 @@ export class ExtensionEnablementManager {
   }
 
   writeConfig(config: AllExtensionsEnablementConfig): void {
-    fs.mkdirSync(this.configDir, { recursive: true });
-    fs.writeFileSync(this.configFilePath, JSON.stringify(config, null, 2));
+    fs.mkdirSync(this.configWriteDir, { recursive: true });
+    fs.writeFileSync(this.configWritePath, JSON.stringify(config, null, 2));
   }
 
   enable(

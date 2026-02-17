@@ -9,8 +9,13 @@ import { type VariableSchema, VARIABLE_SCHEMA } from './variableSchema.js';
 import { GEMINI_DIR } from '@didim365/agent-cli-core';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
-export const EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
-export const INSTALL_METADATA_FILENAME = '.gemini-extension-install.json';
+export const EXTENSIONS_CONFIG_FILENAME = 'didim-extension.json';
+export const INSTALL_METADATA_FILENAME = '.didim-extension-install.json';
+/** @deprecated Use EXTENSIONS_CONFIG_FILENAME */
+export const LEGACY_EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
+/** @deprecated Use INSTALL_METADATA_FILENAME */
+export const LEGACY_INSTALL_METADATA_FILENAME =
+  '.gemini-extension-install.json';
 export const EXTENSION_SETTINGS_FILENAME = '.env';
 
 export type JsonObject = { [key: string]: JsonValue };

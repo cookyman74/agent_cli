@@ -8,6 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Storage } from '../config/storage.js';
+import { LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import {
   type PolicyEngineConfig,
   PolicyDecision,
@@ -55,7 +56,9 @@ export function getPolicyDirectories(defaultPoliciesDir?: string): string[] {
     dirs.push(DEFAULT_CORE_POLICIES_DIR);
   }
 
-  dirs.push(Storage.getUserPoliciesDir());
+  // Scan both .didim/policies and .gemini/policies to prevent legacy
+  // deny/security rules from being silently dropped when .didim/policies exists.
+  dirs.push(...Storage.getUserPoliciesReadDirs());
   dirs.push(Storage.getSystemPoliciesDir());
 
   // Reverse so highest priority (Admin) is first for loading order if needed,
@@ -72,11 +75,10 @@ export function getPolicyTier(
   dir: string,
   defaultPoliciesDir?: string,
 ): number {
-  const USER_POLICIES_DIR = Storage.getUserPoliciesDir();
+  const userPolicyDirs = Storage.getUserPoliciesReadDirs();
   const ADMIN_POLICIES_DIR = Storage.getSystemPoliciesDir();
 
   const normalizedDir = path.resolve(dir);
-  const normalizedUser = path.resolve(USER_POLICIES_DIR);
   const normalizedAdmin = path.resolve(ADMIN_POLICIES_DIR);
 
   if (
@@ -88,8 +90,11 @@ export function getPolicyTier(
   if (normalizedDir === path.resolve(DEFAULT_CORE_POLICIES_DIR)) {
     return DEFAULT_POLICY_TIER;
   }
-  if (normalizedDir === normalizedUser) {
-    return USER_POLICY_TIER;
+  // Check all user policy directories (both .didim and .gemini)
+  for (const userDir of userPolicyDirs) {
+    if (normalizedDir === path.resolve(userDir)) {
+      return USER_POLICY_TIER;
+    }
   }
   if (normalizedDir === normalizedAdmin) {
     return ADMIN_POLICY_TIER;
@@ -370,17 +375,39 @@ export function createPolicyUpdater(
 
       if (message.persist) {
         try {
-          const userPoliciesDir = Storage.getUserPoliciesDir();
+          const userPoliciesDir = Storage.getUserPoliciesWriteDir();
           await fs.mkdir(userPoliciesDir, { recursive: true });
           const policyFile = path.join(userPoliciesDir, 'auto-saved.toml');
 
-          // Read existing file
+          // Read existing file from write path, falling back to legacy path
+          // to preserve accumulated rules when migrating from .gemini to .didim.
           let existingData: { rule?: TomlRule[] } = {};
           try {
             const fileContent = await fs.readFile(policyFile, 'utf-8');
             existingData = toml.parse(fileContent) as { rule?: TomlRule[] };
           } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+              // Write path file doesn't exist — try legacy .gemini path.
+              // Use explicit legacy path rather than getUserPoliciesDir()
+              // because mkdir above already created .didim/policies/,
+              // causing resolveReadPath to return .didim instead of .gemini.
+              const legacyFile = path.join(
+                homedir(),
+                LEGACY_GEMINI_DIR,
+                'policies',
+                'auto-saved.toml',
+              );
+              if (legacyFile !== policyFile) {
+                try {
+                  const legacyContent = await fs.readFile(legacyFile, 'utf-8');
+                  existingData = toml.parse(legacyContent) as {
+                    rule?: TomlRule[];
+                  };
+                } catch {
+                  // Legacy file also missing or unreadable — start fresh
+                }
+              }
+            } else {
               debugLogger.warn(
                 `Failed to parse ${policyFile}, overwriting with new policy.`,
                 error,

@@ -9,6 +9,7 @@
 import {
   DEFAULT_CONTEXT_FILENAME,
   GEMINI_DIR,
+  LEGACY_GEMINI_DIR,
   type MCPServerConfig,
   type ExtensionInstallMetadata,
   type GeminiCLIExtension,
@@ -19,11 +20,18 @@ import * as path from 'node:path';
 import { logger } from '../utils/logger.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
-export const EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
-export const INSTALL_METADATA_FILENAME = '.gemini-extension-install.json';
+const LEGACY_EXTENSIONS_DIRECTORY_NAME = path.join(
+  LEGACY_GEMINI_DIR,
+  'extensions',
+);
+export const EXTENSIONS_CONFIG_FILENAME = 'didim-extension.json';
+export const INSTALL_METADATA_FILENAME = '.didim-extension-install.json';
+export const LEGACY_EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
+export const LEGACY_INSTALL_METADATA_FILENAME =
+  '.gemini-extension-install.json';
 
 /**
- * Extension definition as written to disk in gemini-extension.json files.
+ * Extension definition as written to disk in didim-extension.json files.
  * This should *not* be referenced outside of the logic for reading files.
  * If information is required for manipulating extensions (load, unload, update)
  * outside of the loading process that data needs to be stored on the
@@ -59,18 +67,19 @@ export function loadExtensions(workspaceDir: string): GeminiCLIExtension[] {
 }
 
 function loadExtensionsFromDir(dir: string): GeminiCLIExtension[] {
-  const extensionsDir = path.join(dir, EXTENSIONS_DIRECTORY_NAME);
-  if (!fs.existsSync(extensionsDir)) {
-    return [];
-  }
-
   const extensions: GeminiCLIExtension[] = [];
-  for (const subdir of fs.readdirSync(extensionsDir)) {
-    const extensionDir = path.join(extensionsDir, subdir);
-
-    const extension = loadExtension(extensionDir);
-    if (extension != null) {
-      extensions.push(extension);
+  for (const extDirName of [
+    EXTENSIONS_DIRECTORY_NAME,
+    LEGACY_EXTENSIONS_DIRECTORY_NAME,
+  ]) {
+    const extensionsDir = path.join(dir, extDirName);
+    if (!fs.existsSync(extensionsDir)) continue;
+    for (const subdir of fs.readdirSync(extensionsDir)) {
+      const extensionDir = path.join(extensionsDir, subdir);
+      const extension = loadExtension(extensionDir);
+      if (extension != null) {
+        extensions.push(extension);
+      }
     }
   }
   return extensions;
@@ -84,7 +93,9 @@ function loadExtension(extensionDir: string): GeminiCLIExtension | null {
     return null;
   }
 
-  const configFilePath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+  const primaryPath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+  const legacyPath = path.join(extensionDir, LEGACY_EXTENSIONS_CONFIG_FILENAME);
+  const configFilePath = fs.existsSync(primaryPath) ? primaryPath : legacyPath;
   if (!fs.existsSync(configFilePath)) {
     logger.error(
       `Warning: extension directory ${extensionDir} does not contain a config file ${configFilePath}.`,
@@ -147,7 +158,11 @@ function getContextFileNames(config: ExtensionConfig): string[] {
 export function loadInstallMetadata(
   extensionDir: string,
 ): ExtensionInstallMetadata | undefined {
-  const metadataFilePath = path.join(extensionDir, INSTALL_METADATA_FILENAME);
+  const primaryPath = path.join(extensionDir, INSTALL_METADATA_FILENAME);
+  const legacyPath = path.join(extensionDir, LEGACY_INSTALL_METADATA_FILENAME);
+  const metadataFilePath = fs.existsSync(primaryPath)
+    ? primaryPath
+    : legacyPath;
   try {
     const configContent = fs.readFileSync(metadataFilePath, 'utf-8');
     const metadata = JSON.parse(configContent) as ExtensionInstallMetadata;

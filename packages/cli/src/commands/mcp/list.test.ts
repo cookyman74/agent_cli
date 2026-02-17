@@ -41,13 +41,13 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
       vi.fn().mockImplementation((_cwd: string) => ({
         getGlobalSettingsPath: () => '/tmp/gemini/settings.json',
         getWorkspaceSettingsPath: () => '/tmp/gemini/workspace-settings.json',
-        getProjectTempDir: () => '/test/home/.gemini/tmp/mocked_hash',
+        getProjectTempDir: () => '/test/home/.didim/tmp/mocked_hash',
       })),
       {
         getGlobalSettingsPath: () => '/tmp/gemini/settings.json',
       },
     ),
-    GEMINI_DIR: '.gemini',
+    GEMINI_DIR: '.didim',
     getErrorMessage: (e: unknown) =>
       e instanceof Error ? e.message : String(e),
   };

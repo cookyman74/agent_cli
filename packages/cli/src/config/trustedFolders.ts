@@ -11,7 +11,8 @@ import {
   getErrorMessage,
   isWithinRoot,
   ideContextStore,
-  GEMINI_DIR,
+  Storage,
+  resolveReadPath,
   homedir,
 } from '@didim365/agent-cli-core';
 import type { Settings } from './settings.js';
@@ -19,15 +20,29 @@ import stripJsonComments from 'strip-json-comments';
 
 export const TRUSTED_FOLDERS_FILENAME = 'trustedFolders.json';
 
-export function getUserSettingsDir(): string {
-  return path.join(homedir(), GEMINI_DIR);
+export function getTrustedFoldersReadPath(): string {
+  const envPath =
+    process.env['DIDIM_CLI_TRUSTED_FOLDERS_PATH'] ??
+    process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+  if (envPath) {
+    return envPath;
+  }
+  return resolveReadPath(homedir(), TRUSTED_FOLDERS_FILENAME);
 }
 
-export function getTrustedFoldersPath(): string {
-  if (process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH']) {
-    return process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+export function getTrustedFoldersWritePath(): string {
+  const envPath =
+    process.env['DIDIM_CLI_TRUSTED_FOLDERS_PATH'] ??
+    process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+  if (envPath) {
+    return envPath;
   }
-  return path.join(getUserSettingsDir(), TRUSTED_FOLDERS_FILENAME);
+  return Storage.getGlobalWritePath(TRUSTED_FOLDERS_FILENAME);
+}
+
+/** @deprecated Use getTrustedFoldersReadPath() */
+export function getTrustedFoldersPath(): string {
+  return getTrustedFoldersReadPath();
 }
 
 export enum TrustLevel {
@@ -160,11 +175,12 @@ export function loadTrustedFolders(): LoadedTrustedFolders {
   const errors: TrustedFoldersError[] = [];
   const userConfig: Record<string, TrustLevel> = {};
 
-  const userPath = getTrustedFoldersPath();
+  const readPath = getTrustedFoldersReadPath();
+  const writePath = getTrustedFoldersWritePath();
   // Load user trusted folders
   try {
-    if (fs.existsSync(userPath)) {
-      const content = fs.readFileSync(userPath, 'utf-8');
+    if (fs.existsSync(readPath)) {
+      const content = fs.readFileSync(readPath, 'utf-8');
       const parsed: unknown = JSON.parse(stripJsonComments(content));
 
       if (
@@ -174,7 +190,7 @@ export function loadTrustedFolders(): LoadedTrustedFolders {
       ) {
         errors.push({
           message: 'Trusted folders file is not a valid JSON object.',
-          path: userPath,
+          path: readPath,
         });
       } else {
         for (const [path, trustLevel] of Object.entries(parsed)) {
@@ -184,7 +200,7 @@ export function loadTrustedFolders(): LoadedTrustedFolders {
             const possibleValues = Object.values(TrustLevel).join(', ');
             errors.push({
               message: `Invalid trust level "${trustLevel}" for path "${path}". Possible values are: ${possibleValues}.`,
-              path: userPath,
+              path: readPath,
             });
           }
         }
@@ -193,12 +209,12 @@ export function loadTrustedFolders(): LoadedTrustedFolders {
   } catch (error: unknown) {
     errors.push({
       message: getErrorMessage(error),
-      path: userPath,
+      path: readPath,
     });
   }
 
   loadedTrustedFolders = new LoadedTrustedFolders(
-    { path: userPath, config: userConfig },
+    { path: writePath, config: userConfig },
     errors,
   );
   return loadedTrustedFolders;

@@ -11,12 +11,16 @@ import { Storage } from '../config/storage.js';
 import { debugLogger } from './debugLogger.js';
 
 export class InstallationManager {
-  private getInstallationIdPath(): string {
+  private getInstallationIdReadPath(): string {
     return Storage.getInstallationIdPath();
   }
 
+  private getInstallationIdWritePath(): string {
+    return Storage.getGlobalWritePath('installation_id');
+  }
+
   private readInstallationIdFromFile(): string | null {
-    const installationIdFile = this.getInstallationIdPath();
+    const installationIdFile = this.getInstallationIdReadPath();
     if (fs.existsSync(installationIdFile)) {
       const installationid = fs
         .readFileSync(installationIdFile, 'utf-8')
@@ -27,7 +31,7 @@ export class InstallationManager {
   }
 
   private writeInstallationIdToFile(installationId: string) {
-    const installationIdFile = this.getInstallationIdPath();
+    const installationIdFile = this.getInstallationIdWritePath();
     const dir = path.dirname(installationIdFile);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(installationIdFile, installationId, 'utf-8');

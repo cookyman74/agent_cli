@@ -14,10 +14,10 @@ import {
 import type { FunctionDeclaration } from '@google/genai';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { Storage } from '../config/storage.js';
+import { Storage, resolveReadPath } from '../config/storage.js';
 import * as Diff from 'diff';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
-import { tildeifyPath } from '../utils/paths.js';
+import { tildeifyPath, homedir } from '../utils/paths.js';
 import type {
   ModifiableDeclarativeTool,
   ModifyContext,
@@ -99,7 +99,11 @@ interface SaveMemoryParams {
 }
 
 export function getGlobalMemoryFilePath(): string {
-  return path.join(Storage.getGlobalGeminiDir(), getCurrentGeminiMdFilename());
+  return resolveReadPath(homedir(), getCurrentGeminiMdFilename());
+}
+
+function getGlobalMemoryFileWritePath(): string {
+  return Storage.getGlobalWritePath(getCurrentGeminiMdFilename());
 }
 
 /**
@@ -238,11 +242,11 @@ class MemoryToolInvocation extends BaseToolInvocation<
     try {
       if (modified_by_user && modified_content !== undefined) {
         // User modified the content in external editor, write it directly
-        await fs.mkdir(path.dirname(getGlobalMemoryFilePath()), {
+        await fs.mkdir(path.dirname(getGlobalMemoryFileWritePath()), {
           recursive: true,
         });
         await fs.writeFile(
-          getGlobalMemoryFilePath(),
+          getGlobalMemoryFileWritePath(),
           modified_content,
           'utf-8',
         );
@@ -258,12 +262,13 @@ class MemoryToolInvocation extends BaseToolInvocation<
         // Use the normal memory entry logic
         await MemoryTool.performAddMemoryEntry(
           fact,
-          getGlobalMemoryFilePath(),
+          getGlobalMemoryFileWritePath(),
           {
             readFile: fs.readFile,
             writeFile: fs.writeFile,
             mkdir: fs.mkdir,
           },
+          getGlobalMemoryFilePath(),
         );
         const successMessage = `Okay, I've remembered that: "${fact}"`;
         return {
@@ -350,6 +355,8 @@ export class MemoryTool
         options: { recursive: boolean },
       ) => Promise<string | undefined>;
     },
+    /** Optional read path (may differ from write path for legacy fallback). */
+    memoryFileReadPath?: string,
   ): Promise<void> {
     try {
       await fsAdapter.mkdir(path.dirname(memoryFilePath), { recursive: true });
@@ -357,7 +364,17 @@ export class MemoryTool
       try {
         currentContent = await fsAdapter.readFile(memoryFilePath, 'utf-8');
       } catch (_e) {
-        // File doesn't exist, which is fine. currentContent will be empty.
+        // Write path file doesn't exist — try legacy read path if provided.
+        if (memoryFileReadPath && memoryFileReadPath !== memoryFilePath) {
+          try {
+            currentContent = await fsAdapter.readFile(
+              memoryFileReadPath,
+              'utf-8',
+            );
+          } catch (_e2) {
+            // Neither file exists, which is fine. currentContent stays empty.
+          }
+        }
       }
 
       const newContent = computeNewContent(currentContent, text);
@@ -372,7 +389,8 @@ export class MemoryTool
 
   getModifyContext(_abortSignal: AbortSignal): ModifyContext<SaveMemoryParams> {
     return {
-      getFilePath: (_params: SaveMemoryParams) => getGlobalMemoryFilePath(),
+      getFilePath: (_params: SaveMemoryParams) =>
+        getGlobalMemoryFileWritePath(),
       getCurrentContent: async (_params: SaveMemoryParams): Promise<string> =>
         readMemoryFileContent(),
       getProposedContent: async (params: SaveMemoryParams): Promise<string> => {

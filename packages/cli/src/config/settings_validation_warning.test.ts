@@ -30,10 +30,10 @@ vi.mock('@didim365/agent-cli-core', async (importOriginal) => {
     homedir: () => '/mock/home/user',
     Storage: class extends actual.Storage {
       static override getGlobalSettingsPath = () =>
-        '/mock/home/user/.gemini/settings.json';
+        '/mock/home/user/.didim/settings.json';
       override getWorkspaceSettingsPath = () =>
-        '/mock/workspace/.gemini/settings.json';
-      static override getGlobalGeminiDir = () => '/mock/home/user/.gemini';
+        '/mock/workspace/.didim/settings.json';
+      static override getGlobalGeminiDir = () => '/mock/home/user/.didim';
     },
   };
 });

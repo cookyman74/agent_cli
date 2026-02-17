@@ -111,16 +111,18 @@ describe('extensionUpdates', () => {
     tempWorkspaceDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'gemini-cli-test-workspace-'),
     );
-    extensionDir = path.join(tempHomeDir, '.gemini', 'extensions', 'test-ext');
+    extensionDir = path.join(tempHomeDir, '.didim', 'extensions', 'test-ext');
 
     // Mock ExtensionStorage to rely on our temp extension dir
     vi.spyOn(ExtensionStorage.prototype, 'getExtensionDir').mockReturnValue(
       extensionDir,
     );
-    // Mock getEnvFilePath is checking extensionDir/variables.env? No, it used ExtensionStorage logic.
-    // getEnvFilePath in extensionSettings.ts:
-    // if workspace, process.cwd()/.env (we need to mock process.cwd or move tempWorkspaceDir there)
-    // if user, ExtensionStorage(name).getEnvFilePath() -> joins extensionDir + '.env'
+    vi.spyOn(ExtensionStorage.prototype, 'getEnvFilePath').mockReturnValue(
+      path.join(extensionDir, EXTENSION_SETTINGS_FILENAME),
+    );
+    vi.spyOn(ExtensionStorage.prototype, 'getEnvFileWritePath').mockReturnValue(
+      path.join(extensionDir, EXTENSION_SETTINGS_FILENAME),
+    );
 
     fs.mkdirSync(extensionDir, { recursive: true });
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);

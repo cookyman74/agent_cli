@@ -36,6 +36,7 @@ vi.mock(import('node:fs/promises'), async (importOriginal) => {
 
 vi.mock('fs', () => ({
   mkdirSync: vi.fn(),
+  existsSync: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('os');
@@ -197,6 +198,60 @@ describe('MemoryTool', () => {
         MemoryTool.performAddMemoryEntry(fact, testFilePath, mockFsAdapter),
       ).rejects.toThrow('[MemoryTool] Failed to add memory entry: Disk full');
     });
+
+    it('should read from legacy read path when write path file does not exist', async () => {
+      const legacyReadPath = '/mock/home/.gemini/AGENTS.md';
+      const legacyContent = `Existing content.\n\n${MEMORY_SECTION_HEADER}\n- Legacy fact\n`;
+
+      // Write path file doesn't exist
+      mockFsAdapter.readFile.mockImplementation(
+        async (filePath: string): Promise<string> => {
+          if (filePath === testFilePath) {
+            throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+          }
+          if (filePath === legacyReadPath) {
+            return legacyContent;
+          }
+          throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+        },
+      );
+
+      const fact = 'New fact';
+      await MemoryTool.performAddMemoryEntry(
+        fact,
+        testFilePath,
+        mockFsAdapter,
+        legacyReadPath,
+      );
+
+      // Should preserve legacy content and append new fact
+      const writeFileCall = mockFsAdapter.writeFile.mock.calls[0];
+      expect(writeFileCall[0]).toBe(testFilePath); // writes to write path
+      expect(writeFileCall[1]).toContain('- Legacy fact');
+      expect(writeFileCall[1]).toContain('- New fact');
+    });
+
+    it('should not read from legacy path when write path file exists', async () => {
+      const legacyReadPath = '/mock/home/.gemini/AGENTS.md';
+      const writeContent = `${MEMORY_SECTION_HEADER}\n- Write path fact\n`;
+
+      mockFsAdapter.readFile.mockResolvedValue(writeContent);
+
+      const fact = 'New fact';
+      await MemoryTool.performAddMemoryEntry(
+        fact,
+        testFilePath,
+        mockFsAdapter,
+        legacyReadPath,
+      );
+
+      // Should only read from write path (single call)
+      expect(mockFsAdapter.readFile).toHaveBeenCalledTimes(1);
+      expect(mockFsAdapter.readFile).toHaveBeenCalledWith(
+        testFilePath,
+        'utf-8',
+      );
+    });
   });
 
   describe('execute (instance method)', () => {
@@ -257,6 +312,7 @@ describe('MemoryTool', () => {
         params.fact,
         expectedFilePath,
         expectedFsArgument,
+        expect.any(String),
       );
       const successMessage = `Okay, I've remembered that: "${params.fact}"`;
       expect(result.llmContent).toBe(

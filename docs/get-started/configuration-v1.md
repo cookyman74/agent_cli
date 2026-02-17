@@ -48,11 +48,11 @@ locations for these files:
     settings have the lowest precedence and are intended to be overridden by
     user, project, or system override settings.
 - **User settings file:**
-  - **Location:** `~/.gemini/settings.json` (where `~` is your home directory).
+  - **Location:** `~/.didim/settings.json` (where `~` is your home directory).
   - **Scope:** Applies to all Gemini CLI sessions for the current user. User
     settings override system defaults.
 - **Project settings file:**
-  - **Location:** `.gemini/settings.json` within your project's root directory.
+  - **Location:** `.didim/settings.json` within your project's root directory.
   - **Scope:** Applies only when running Gemini CLI from that specific project.
     Project settings override user settings and system defaults.
 - **System settings file:**
@@ -77,22 +77,22 @@ variable `MY_API_TOKEN`, you could use it in `settings.json` like this:
 > CLI in a corporate environment, please see the
 > [Enterprise Configuration](../cli/enterprise.md) documentation.
 
-### The `.gemini` directory in your project
+### The `.didim` directory in your project
 
-In addition to a project settings file, a project's `.gemini` directory can
+In addition to a project settings file, a project's `.didim` directory can
 contain other project-specific files related to Gemini CLI's operation, such as:
 
 - [Custom sandbox profiles](#sandboxing) (e.g.,
-  `.gemini/sandbox-macos-custom.sb`, `.gemini/sandbox.Dockerfile`).
+  `.didim/sandbox-macos-custom.sb`, `.didim/sandbox.Dockerfile`).
 
 ### Available settings in `settings.json`:
 
 - **`contextFileName`** (string or array of strings):
   - **Description:** Specifies the filename for context files (e.g.,
-    `GEMINI.md`, `AGENTS.md`). Can be a single filename or a list of accepted
+    `AGENTS.md`, `GEMINI.md`). Can be a single filename or a list of accepted
     filenames.
-  - **Default:** `GEMINI.md`
-  - **Example:** `"contextFileName": "AGENTS.md"`
+  - **Default:** `AGENTS.md`
+  - **Example:** `"contextFileName": ["AGENTS.md", "GEMINI.md"]`
 
 - **`bugCommand`** (object):
   - **Description:** Overrides the default URL for the `/bug` command.
@@ -138,10 +138,10 @@ If you are experiencing performance issues with file searching (e.g., with `@`
 completions), especially in projects with a very large number of files, here are
 a few things you can try in order of recommendation:
 
-1.  **Use `.geminiignore`:** Create a `.geminiignore` file in your project root
-    to exclude directories that contain a large number of files that you don't
-    need to reference (e.g., build artifacts, logs, `node_modules`). Reducing
-    the total number of files crawled is the most effective way to improve
+1.  **Use `.didimignore`:** Create a `.didimignore` file in your project root to
+    exclude directories that contain a large number of files that you don't need
+    to reference (e.g., build artifacts, logs, `node_modules`). Reducing the
+    total number of files crawled is the most effective way to improve
     performance.
 
 2.  **Disable fuzzy search:** If ignoring files is not enough, you can disable
@@ -439,7 +439,7 @@ a few things you can try in order of recommendation:
   - **Description:** Specifies environment variables that should be excluded
     from being loaded from project `.env` files. This prevents project-specific
     environment variables (like `DEBUG=true`) from interfering with gemini-cli
-    behavior. Variables from `.gemini/.env` files are never excluded.
+    behavior. Variables from `.didim/.env` files are never excluded.
   - **Default:** `["DEBUG", "DEBUG_MODE"]`
   - **Example:**
     ```json
@@ -464,8 +464,8 @@ a few things you can try in order of recommendation:
 
 - **`loadMemoryFromIncludeDirectories`** (boolean):
   - **Description:** Controls the behavior of the `/memory refresh` command. If
-    set to `true`, `GEMINI.md` files should be loaded from all directories that
-    are added. If set to `false`, `GEMINI.md` should only be loaded from the
+    set to `true`, `AGENTS.md` files should be loaded from all directories that
+    are added. If set to `false`, `AGENTS.md` should only be loaded from the
     current directory.
   - **Default:** `false`
   - **Example:**
@@ -544,7 +544,7 @@ The CLI keeps a history of shell commands you run. To avoid conflicts between
 different projects, this history is stored in a project-specific directory
 within your user's home folder.
 
-- **Location:** `~/.gemini/tmp/<project_hash>/shell_history`
+- **Location:** `~/.didim/tmp/<project_hash>/shell_history`
   - `<project_hash>` is a unique identifier generated from your project's root
     path.
   - The history is stored in a file named `shell_history`.
@@ -569,7 +569,7 @@ loading order is:
 **Environment variable exclusion:** Some environment variables (like `DEBUG` and
 `DEBUG_MODE`) are automatically excluded from being loaded from project `.env`
 files to prevent interference with gemini-cli behavior. Variables from
-`.gemini/.env` files are never excluded. You can customize this behavior using
+`.didim/.env` files are never excluded. You can customize this behavior using
 the `excludedProjectEnvVars` setting in your `settings.json` file.
 
 - **`GEMINI_API_KEY`**:
@@ -622,15 +622,15 @@ the `excludedProjectEnvVars` setting in your `settings.json` file.
     operations.
   - `strict`: Uses a strict profile that declines operations by default.
   - `<profile_name>`: Uses a custom profile. To define a custom profile, create
-    a file named `sandbox-macos-<profile_name>.sb` in your project's `.gemini/`
-    directory (e.g., `my-project/.gemini/sandbox-macos-custom.sb`).
+    a file named `sandbox-macos-<profile_name>.sb` in your project's `.didim/`
+    directory (e.g., `my-project/.didim/sandbox-macos-custom.sb`).
 - **`DEBUG` or `DEBUG_MODE`** (often used by underlying libraries or the CLI
   itself):
   - Set to `true` or `1` to enable verbose debug logging, which can be helpful
     for troubleshooting.
   - **Note:** These variables are automatically excluded from project `.env`
     files by default to prevent interference with gemini-cli behavior. Use
-    `.gemini/.env` files if you need to set these for gemini-cli specifically.
+    `.didim/.env` files if you need to set these for gemini-cli specifically.
 - **`NO_COLOR`**:
   - Set to any value to disable all color output in the CLI.
 - **`CLI_TITLE`**:
@@ -654,7 +654,7 @@ for that specific session.
   - Starts an interactive session with the provided prompt as the initial input.
   - The prompt is processed within the interactive session, not before it.
   - Cannot be used when piping input from stdin.
-  - Example: `gemini -i "explain this code"`
+  - Example: `didim -i "explain this code"`
 - **`--sandbox`** (**`-s`**):
   - Enables sandbox mode for this session.
 - **`--sandbox-image`**:
@@ -676,11 +676,11 @@ for that specific session.
     - `yolo`: Automatically approve all tool calls (equivalent to `--yolo`)
   - Cannot be used together with `--yolo`. Use `--approval-mode=yolo` instead of
     `--yolo` for the new unified approach.
-  - Example: `gemini --approval-mode auto_edit`
+  - Example: `didim --approval-mode auto_edit`
 - **`--allowed-tools <tool1,tool2,...>`**:
   - A comma-separated list of tool names that will bypass the confirmation
     dialog.
-  - Example: `gemini --allowed-tools "ShellTool(git status)"`
+  - Example: `didim --allowed-tools "ShellTool(git status)"`
 - **`--telemetry`**:
   - Enables [telemetry](../cli/telemetry.md).
 - **`--telemetry-target`**:
@@ -698,8 +698,8 @@ for that specific session.
 - **`--extensions <extension_name ...>`** (**`-e <extension_name ...>`**):
   - Specifies a list of extensions to use for the session. If not provided, all
     available extensions are used.
-  - Use the special term `gemini -e none` to disable all extensions.
-  - Example: `gemini -e my-extension -e my-other-extension`
+  - Use the special term `didim -e none` to disable all extensions.
+  - Example: `didim -e my-extension -e my-other-extension`
 - **`--list-extensions`** (**`-l`**):
   - Lists all available extensions and exits.
 - **`--include-directories <dir1,dir2,...>`**:
@@ -717,7 +717,7 @@ for that specific session.
 ## Context files (hierarchical instructional context)
 
 While not strictly configuration for the CLI's _behavior_, context files
-(defaulting to `GEMINI.md` but configurable via the `contextFileName` setting)
+(defaulting to `AGENTS.md` but configurable via the `contextFileName` setting)
 are crucial for configuring the _instructional context_ (also referred to as
 "memory") provided to the Gemini model. This powerful feature allows you to give
 project-specific instructions, coding style guides, or any relevant background
@@ -730,7 +730,7 @@ context.
   that you want the Gemini model to be aware of during your interactions. The
   system is designed to manage this instructional context hierarchically.
 
-### Example context file content (e.g., `GEMINI.md`)
+### Example context file content (e.g., `AGENTS.md`)
 
 Here's a conceptual example of what a context file at the root of a TypeScript
 project might contain:
@@ -772,13 +772,13 @@ you. Project-specific context files are highly encouraged to establish
 conventions and context.
 
 - **Hierarchical loading and precedence:** The CLI implements a sophisticated
-  hierarchical memory system by loading context files (e.g., `GEMINI.md`) from
+  hierarchical memory system by loading context files (e.g., `AGENTS.md`) from
   several locations. Content from files lower in this list (more specific)
   typically overrides or supplements content from files higher up (more
   general). The exact concatenation order and final context can be inspected
   using the `/memory show` command. The typical loading order is:
   1.  **Global context file:**
-      - Location: `~/.gemini/<contextFileName>` (e.g., `~/.gemini/GEMINI.md` in
+      - Location: `~/.didim/<contextFileName>` (e.g., `~/.didim/AGENTS.md` in
         your user home directory).
       - Scope: Provides default instructions for all your projects.
   2.  **Project root and ancestors context files:**
@@ -830,7 +830,7 @@ Sandboxing is disabled by default, but you can enable it in a few ways:
 By default, it uses a pre-built `gemini-cli-sandbox` Docker image.
 
 For project-specific sandboxing needs, you can create a custom Dockerfile at
-`.gemini/sandbox.Dockerfile` in your project's root directory. This Dockerfile
+`.didim/sandbox.Dockerfile` in your project's root directory. This Dockerfile
 can be based on the base sandbox image:
 
 ```dockerfile
@@ -842,12 +842,12 @@ FROM gemini-cli-sandbox
 # COPY ./my-config /app/my-config
 ```
 
-When `.gemini/sandbox.Dockerfile` exists, you can use `BUILD_SANDBOX`
-environment variable when running Gemini CLI to automatically build the custom
-sandbox image:
+When `.didim/sandbox.Dockerfile` exists, you can use `BUILD_SANDBOX` environment
+variable when running Gemini CLI to automatically build the custom sandbox
+image:
 
 ```bash
-BUILD_SANDBOX=1 gemini -s
+BUILD_SANDBOX=1 didim -s
 ```
 
 ## Usage statistics

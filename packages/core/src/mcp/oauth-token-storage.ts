@@ -9,6 +9,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { Storage } from '../config/storage.js';
 import { getErrorMessage } from '../utils/errors.js';
+import { LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import type {
   OAuthToken,
   OAuthCredentials,
@@ -31,19 +32,24 @@ export class MCPOAuthTokenStorage implements TokenStorage {
     process.env[FORCE_ENCRYPTED_FILE_ENV_VAR] === 'true';
 
   /**
-   * Get the path to the token storage file.
-   *
-   * @returns The full path to the token storage file
+   * Get the read path to the token storage file (with .gemini fallback).
    */
-  private getTokenFilePath(): string {
+  private getTokenReadPath(): string {
     return Storage.getMcpOAuthTokensPath();
   }
 
   /**
-   * Ensure the config directory exists.
+   * Get the write path to the token storage file (always .didim).
+   */
+  private getTokenWritePath(): string {
+    return Storage.getGlobalWritePath('mcp-oauth-tokens.json');
+  }
+
+  /**
+   * Ensure the config directory exists for writing.
    */
   private async ensureConfigDir(): Promise<void> {
-    const configDir = path.dirname(this.getTokenFilePath());
+    const configDir = path.dirname(this.getTokenWritePath());
     await fs.mkdir(configDir, { recursive: true });
   }
 
@@ -59,7 +65,7 @@ export class MCPOAuthTokenStorage implements TokenStorage {
     const tokenMap = new Map<string, OAuthCredentials>();
 
     try {
-      const tokenFile = this.getTokenFilePath();
+      const tokenFile = this.getTokenReadPath();
       const data = await fs.readFile(tokenFile, 'utf-8');
       const tokens = JSON.parse(data) as OAuthCredentials[];
 
@@ -96,7 +102,7 @@ export class MCPOAuthTokenStorage implements TokenStorage {
     tokens.set(credentials.serverName, credentials);
 
     const tokenArray = Array.from(tokens.values());
-    const tokenFile = this.getTokenFilePath();
+    const tokenFile = this.getTokenWritePath();
 
     try {
       await fs.writeFile(
@@ -174,13 +180,13 @@ export class MCPOAuthTokenStorage implements TokenStorage {
 
     if (tokens.delete(serverName)) {
       const tokenArray = Array.from(tokens.values());
-      const tokenFile = this.getTokenFilePath();
 
       try {
         if (tokenArray.length === 0) {
-          // Remove file if no tokens left
-          await fs.unlink(tokenFile);
+          // Remove both primary and legacy files if no tokens left
+          await this.deleteTokenFiles();
         } else {
+          const tokenFile = this.getTokenWritePath();
           await fs.writeFile(tokenFile, JSON.stringify(tokenArray, null, 2), {
             mode: 0o600,
           });
@@ -212,6 +218,26 @@ export class MCPOAuthTokenStorage implements TokenStorage {
   }
 
   /**
+   * Delete both primary (.didim) and legacy (.gemini) token files
+   * to prevent legacy file re-exposure after clearing.
+   */
+  private async deleteTokenFiles(): Promise<void> {
+    const paths = new Set([
+      this.getTokenWritePath(),
+      path.join(homedir(), LEGACY_GEMINI_DIR, 'mcp-oauth-tokens.json'),
+    ]);
+    for (const tokenPath of paths) {
+      try {
+        await fs.unlink(tokenPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+  }
+
+  /**
    * Clear all stored MCP OAuth tokens.
    */
   async clearAll(): Promise<void> {
@@ -219,16 +245,13 @@ export class MCPOAuthTokenStorage implements TokenStorage {
       return this.hybridTokenStorage.clearAll();
     }
     try {
-      const tokenFile = this.getTokenFilePath();
-      await fs.unlink(tokenFile);
+      await this.deleteTokenFiles();
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        coreEvents.emitFeedback(
-          'error',
-          `Failed to clear MCP OAuth tokens: ${getErrorMessage(error)}`,
-          error,
-        );
-      }
+      coreEvents.emitFeedback(
+        'error',
+        `Failed to clear MCP OAuth tokens: ${getErrorMessage(error)}`,
+        error,
+      );
     }
   }
 }

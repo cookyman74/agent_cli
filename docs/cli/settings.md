@@ -8,8 +8,8 @@ Your Gemini CLI settings are stored in a `settings.json` file. In addition to
 using the `/settings` command, you can also edit them in one of the following
 locations:
 
-- **User settings**: `~/.gemini/settings.json`
-- **Workspace settings**: `your-project/.gemini/settings.json`
+- **User settings**: `~/.didim/settings.json`
+- **Workspace settings**: `your-project/.didim/settings.json`
 
 Note: Workspace settings override user settings.
 
@@ -85,7 +85,7 @@ they appear in the UI.
 | Memory Discovery Max Dirs            | `context.discoveryMaxDirs`                        | Maximum number of directories to search for memory.                                                                                                             | `200`   |
 | Load Memory From Include Directories | `context.loadMemoryFromIncludeDirectories`        | Controls how /memory refresh loads context files (e.g., AGENTS.md). When true, include directories are scanned; when false, only the current directory is used. | `false` |
 | Respect .gitignore                   | `context.fileFiltering.respectGitIgnore`          | Respect .gitignore files when searching.                                                                                                                        | `true`  |
-| Respect .geminiignore                | `context.fileFiltering.respectGeminiIgnore`       | Respect .geminiignore files when searching.                                                                                                                     | `true`  |
+| Respect .didimignore                 | `context.fileFiltering.respectGeminiIgnore`       | Respect .didimignore files when searching.                                                                                                                      | `true`  |
 | Enable Recursive File Search         | `context.fileFiltering.enableRecursiveFileSearch` | Enable recursive file search functionality when completing @ references in the prompt.                                                                          | `true`  |
 | Enable Fuzzy Search                  | `context.fileFiltering.enableFuzzySearch`         | Enable fuzzy search when searching for files.                                                                                                                   | `true`  |
 

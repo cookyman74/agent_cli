@@ -11,6 +11,7 @@ import type { MCPServerConfig } from '@didim365/agent-cli-core';
 import {
   debugLogger,
   GEMINI_DIR,
+  LEGACY_GEMINI_DIR,
   getErrorMessage,
   type TelemetrySettings,
   homedir,
@@ -19,6 +20,13 @@ import stripJsonComments from 'strip-json-comments';
 
 export const USER_SETTINGS_DIR = path.join(homedir(), GEMINI_DIR);
 export const USER_SETTINGS_PATH = path.join(USER_SETTINGS_DIR, 'settings.json');
+
+// Legacy fallback paths for existing users with .gemini config
+const LEGACY_USER_SETTINGS_PATH = path.join(
+  homedir(),
+  LEGACY_GEMINI_DIR,
+  'settings.json',
+);
 
 // TODO: Ensure full compatibility with V2 nested settings structure (settings.schema.json).
 // This involves updating the interface and implementing migration logic to support legacy V1 (flat) settings,
@@ -64,10 +72,13 @@ export function loadSettings(workspaceDir: string): Settings {
   let workspaceSettings: Settings = {};
   const settingsErrors: SettingsError[] = [];
 
-  // Load user settings
+  // Load user settings — .didim first, .gemini fallback
+  const userSettingsPath = fs.existsSync(USER_SETTINGS_PATH)
+    ? USER_SETTINGS_PATH
+    : LEGACY_USER_SETTINGS_PATH;
   try {
-    if (fs.existsSync(USER_SETTINGS_PATH)) {
-      const userContent = fs.readFileSync(USER_SETTINGS_PATH, 'utf-8');
+    if (fs.existsSync(userSettingsPath)) {
+      const userContent = fs.readFileSync(userSettingsPath, 'utf-8');
       const parsedUserSettings = JSON.parse(
         stripJsonComments(userContent),
       ) as Settings;
@@ -76,7 +87,7 @@ export function loadSettings(workspaceDir: string): Settings {
   } catch (error: unknown) {
     settingsErrors.push({
       message: getErrorMessage(error),
-      path: USER_SETTINGS_PATH,
+      path: userSettingsPath,
     });
   }
 
@@ -85,11 +96,19 @@ export function loadSettings(workspaceDir: string): Settings {
     GEMINI_DIR,
     'settings.json',
   );
+  const legacyWorkspaceSettingsPath = path.join(
+    workspaceDir,
+    LEGACY_GEMINI_DIR,
+    'settings.json',
+  );
 
-  // Load workspace settings
+  // Load workspace settings — .didim first, .gemini fallback
+  const resolvedWorkspacePath = fs.existsSync(workspaceSettingsPath)
+    ? workspaceSettingsPath
+    : legacyWorkspaceSettingsPath;
   try {
-    if (fs.existsSync(workspaceSettingsPath)) {
-      const projectContent = fs.readFileSync(workspaceSettingsPath, 'utf-8');
+    if (fs.existsSync(resolvedWorkspacePath)) {
+      const projectContent = fs.readFileSync(resolvedWorkspacePath, 'utf-8');
       const parsedWorkspaceSettings = JSON.parse(
         stripJsonComments(projectContent),
       ) as Settings;
@@ -98,7 +117,7 @@ export function loadSettings(workspaceDir: string): Settings {
   } catch (error: unknown) {
     settingsErrors.push({
       message: getErrorMessage(error),
-      path: workspaceSettingsPath,
+      path: resolvedWorkspacePath,
     });
   }
 

@@ -17,7 +17,10 @@ import {
   debugLogger,
   FatalSandboxError,
   GEMINI_DIR,
+  LEGACY_GEMINI_DIR,
   homedir,
+  resolveReadPath,
+  Storage,
 } from '@didim365/agent-cli-core';
 import { ConsolePatcher } from '../ui/utils/ConsolePatcher.js';
 import { randomBytes } from 'node:crypto';
@@ -62,7 +65,10 @@ export async function start_sandbox(
       );
       // if profile name is not recognized, then look for file under project settings directory
       if (!BUILTIN_SEATBELT_PROFILES.includes(profile)) {
-        profileFile = path.join(GEMINI_DIR, `sandbox-macos-${profile}.sb`);
+        profileFile = resolveReadPath(
+          process.cwd(),
+          `sandbox-macos-${profile}.sb`,
+        );
       }
       if (!fs.existsSync(profileFile)) {
         throw new FatalSandboxError(
@@ -205,8 +211,8 @@ export async function start_sandbox(
     // determine full path for gemini-cli to distinguish linked vs installed setting
     const gcPath = process.argv[1] ? fs.realpathSync(process.argv[1]) : '';
 
-    const projectSandboxDockerfile = path.join(
-      GEMINI_DIR,
+    const projectSandboxDockerfile = resolveReadPath(
+      process.cwd(),
       'sandbox.Dockerfile',
     );
     const isCustomProjectSandbox = fs.existsSync(projectSandboxDockerfile);
@@ -229,8 +235,8 @@ export async function start_sandbox(
         const gcRoot = gcPath.split('/packages/')[0];
         // if project folder has sandbox.Dockerfile under project settings folder, use that
         let buildArgs = '';
-        const projectSandboxDockerfile = path.join(
-          GEMINI_DIR,
+        const projectSandboxDockerfile = resolveReadPath(
+          process.cwd(),
           'sandbox.Dockerfile',
         );
         if (isCustomProjectSandbox) {
@@ -295,7 +301,10 @@ export async function start_sandbox(
     if (!fs.existsSync(userHomeDirOnHost)) {
       fs.mkdirSync(userHomeDirOnHost, { recursive: true });
     }
-    const userSettingsDirOnHost = path.join(userHomeDirOnHost, GEMINI_DIR);
+    // Always mount .didim as the write target so container writes
+    // go to the primary directory, not the legacy .gemini directory.
+    // The legacy mount below handles read-only fallback for .gemini.
+    const userSettingsDirOnHost = Storage.getGlobalWriteDir();
     if (!fs.existsSync(userSettingsDirOnHost)) {
       fs.mkdirSync(userSettingsDirOnHost, { recursive: true });
     }
@@ -309,6 +318,19 @@ export async function start_sandbox(
         '--volume',
         `${userSettingsDirOnHost}:${getContainerPath(userSettingsDirOnHost)}`,
       );
+    }
+
+    // mount legacy .gemini directory read-only if it exists and differs from primary
+    // so resolveReadPath inside the container can fall back to .gemini files
+    const legacyDirOnHost = path.join(userHomeDirOnHost, LEGACY_GEMINI_DIR);
+    if (
+      fs.existsSync(legacyDirOnHost) &&
+      userSettingsDirOnHost !== legacyDirOnHost
+    ) {
+      const legacyDirInSandbox = getContainerPath(
+        `/home/node/${LEGACY_GEMINI_DIR}`,
+      );
+      args.push('--volume', `${legacyDirOnHost}:${legacyDirInSandbox}:ro`);
     }
 
     // mount os.tmpdir() as os.tmpdir() inside container

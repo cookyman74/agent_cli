@@ -9,16 +9,23 @@
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { GEMINI_DIR } from '@didim365/agent-cli-core';
+import { GEMINI_DIR, LEGACY_GEMINI_DIR } from '@didim365/agent-cli-core';
 
 const projectRoot = join(import.meta.dirname, '..');
 
-const USER_SETTINGS_DIR = join(
+/** Resolve settings.json path: primary (.didim) first, legacy (.gemini) fallback. */
+function resolveSettingsPath(base) {
+  const primary = join(base, GEMINI_DIR, 'settings.json');
+  if (existsSync(primary)) return primary;
+  const legacy = join(base, LEGACY_GEMINI_DIR, 'settings.json');
+  if (existsSync(legacy)) return legacy;
+  return primary;
+}
+
+const USER_SETTINGS_PATH = resolveSettingsPath(
   process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH || '',
-  GEMINI_DIR,
 );
-const USER_SETTINGS_PATH = join(USER_SETTINGS_DIR, 'settings.json');
-const WORKSPACE_SETTINGS_PATH = join(projectRoot, GEMINI_DIR, 'settings.json');
+const WORKSPACE_SETTINGS_PATH = resolveSettingsPath(projectRoot);
 
 let telemetrySettings = undefined;
 

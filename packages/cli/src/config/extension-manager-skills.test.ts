@@ -9,10 +9,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { ExtensionManager } from './extension-manager.js';
-import { debugLogger, coreEvents } from '@didim365/agent-cli-core';
+import { debugLogger, coreEvents, GEMINI_DIR } from '@didim365/agent-cli-core';
 import { createTestMergedSettings } from './settings.js';
 import { createExtension } from '../test-utils/createExtension.js';
-import { EXTENSIONS_DIRECTORY_NAME } from './extensions/variables.js';
 
 const mockHomedir = vi.hoisted(() => vi.fn(() => '/tmp/mock-home'));
 
@@ -52,9 +51,12 @@ describe('ExtensionManager skills validation', () => {
 
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-test-'));
     mockHomedir.mockReturnValue(tempDir);
+    // Ensure core's internal homedir() also returns tempDir
+    // (paths.ts checks GEMINI_CLI_HOME env var before os.homedir())
+    vi.stubEnv('GEMINI_CLI_HOME', tempDir);
 
     // Create the extensions directory that ExtensionManager expects
-    extensionsDir = path.join(tempDir, '.gemini', EXTENSIONS_DIRECTORY_NAME);
+    extensionsDir = path.join(tempDir, GEMINI_DIR, 'extensions');
     fs.mkdirSync(extensionsDir, { recursive: true });
 
     extensionManager = new ExtensionManager({
@@ -68,6 +70,7 @@ describe('ExtensionManager skills validation', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {

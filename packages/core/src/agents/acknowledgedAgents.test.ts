@@ -94,4 +94,17 @@ describe('AcknowledgedAgentsService', () => {
       false,
     );
   });
+
+  it('should save to .didim write path, not read path', async () => {
+    const service = new AcknowledgedAgentsService();
+    const writePath = Storage.getAcknowledgedAgentsWritePath();
+
+    await service.acknowledge('/project', 'AgentX', 'hashX');
+
+    // Verify file was written to the .didim-based write path
+    const content = await fs.readFile(writePath, 'utf-8');
+    expect(content).toContain('"AgentX": "hashX"');
+    // Write path must be under .didim, not .gemini
+    expect(writePath).toContain('.didim');
+  });
 });

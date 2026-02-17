@@ -256,6 +256,18 @@ describe('UserAccountManager', () => {
       expect(stored.active).toBeNull();
       expect(stored.old).toEqual(['active@google.com']);
     });
+
+    it('should create parent directory when .didim does not exist', async () => {
+      // Do NOT create the .didim directory — clearCachedGoogleAccount should do it
+      expect(fs.existsSync(path.join(tempHomeDir, GEMINI_DIR))).toBe(false);
+
+      await userAccountManager.clearCachedGoogleAccount();
+
+      // Should succeed and write the file
+      expect(fs.existsSync(accountsFile())).toBe(true);
+      const stored = JSON.parse(fs.readFileSync(accountsFile(), 'utf-8'));
+      expect(stored.active).toBeNull();
+    });
   });
 
   describe('getLifetimeGoogleAccounts', () => {

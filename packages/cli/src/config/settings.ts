@@ -18,6 +18,7 @@ import {
   coreEvents,
   homedir,
   resolveReadPath,
+  resolveEnv,
   type FetchAdminControlsResponse,
 } from '@didim365/agent-cli-core';
 import stripJsonComments from 'strip-json-comments';
@@ -78,8 +79,9 @@ export const USER_SETTINGS_DIR = path.dirname(USER_SETTINGS_PATH);
 export const DEFAULT_EXCLUDED_ENV_VARS = ['DEBUG', 'DEBUG_MODE'];
 
 export function getSystemSettingsPath(): string {
-  if (process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']) {
-    return process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH'];
+  const envPath = resolveEnv('CLI_SYSTEM_SETTINGS_PATH');
+  if (envPath) {
+    return envPath;
   }
   if (platform() === 'darwin') {
     return '/Library/Application Support/GeminiCli/settings.json';
@@ -91,8 +93,9 @@ export function getSystemSettingsPath(): string {
 }
 
 export function getSystemDefaultsPath(): string {
-  if (process.env['GEMINI_CLI_SYSTEM_DEFAULTS_PATH']) {
-    return process.env['GEMINI_CLI_SYSTEM_DEFAULTS_PATH'];
+  const envDefaultsPath = resolveEnv('CLI_SYSTEM_DEFAULTS_PATH');
+  if (envDefaultsPath) {
+    return envDefaultsPath;
   }
   return path.join(
     path.dirname(getSystemSettingsPath()),

@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { RELAUNCH_EXIT_CODE } from './processUtils.js';
 import {
   writeToStderr,
+  resolveEnv,
   type FetchAdminControlsResponse,
 } from '@didim365/agent-cli-core';
 
@@ -36,7 +37,7 @@ export async function relaunchAppInChildProcess(
   additionalScriptArgs: string[],
   remoteAdminSettings?: FetchAdminControlsResponse,
 ) {
-  if (process.env['GEMINI_CLI_NO_RELAUNCH']) {
+  if (resolveEnv('CLI_NO_RELAUNCH')) {
     return;
   }
 

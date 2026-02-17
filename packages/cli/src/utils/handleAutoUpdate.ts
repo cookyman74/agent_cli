@@ -12,6 +12,7 @@ import type { HistoryItem } from '../ui/types.js';
 import { MessageType } from '../ui/types.js';
 import { spawnWrapper } from './spawnWrapper.js';
 import type { spawn } from 'node:child_process';
+import { resolveEnv } from '@didim365/agent-cli-core';
 
 export function handleAutoUpdate(
   info: UpdateObject | null,
@@ -23,7 +24,7 @@ export function handleAutoUpdate(
     return;
   }
 
-  if (settings.merged.tools.sandbox || process.env['GEMINI_SANDBOX']) {
+  if (settings.merged.tools.sandbox || resolveEnv('SANDBOX')) {
     updateEventEmitter.emit('update-info', {
       message: `${info.message}\nAutomatic update is not available in sandbox mode.`,
     });

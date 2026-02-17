@@ -13,6 +13,7 @@ import {
   ideContextStore,
   Storage,
   resolveReadPath,
+  resolveEnv,
   homedir,
 } from '@didim365/agent-cli-core';
 import type { Settings } from './settings.js';
@@ -21,9 +22,7 @@ import stripJsonComments from 'strip-json-comments';
 export const TRUSTED_FOLDERS_FILENAME = 'trustedFolders.json';
 
 export function getTrustedFoldersReadPath(): string {
-  const envPath =
-    process.env['DIDIM_CLI_TRUSTED_FOLDERS_PATH'] ??
-    process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+  const envPath = resolveEnv('CLI_TRUSTED_FOLDERS_PATH');
   if (envPath) {
     return envPath;
   }
@@ -31,9 +30,7 @@ export function getTrustedFoldersReadPath(): string {
 }
 
 export function getTrustedFoldersWritePath(): string {
-  const envPath =
-    process.env['DIDIM_CLI_TRUSTED_FOLDERS_PATH'] ??
-    process.env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'];
+  const envPath = resolveEnv('CLI_TRUSTED_FOLDERS_PATH');
   if (envPath) {
     return envPath;
   }

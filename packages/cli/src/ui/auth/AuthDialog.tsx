@@ -17,6 +17,7 @@ import { SettingScope } from '../../config/settings.js';
 import {
   AuthType,
   clearCachedCredentialFile,
+  resolveEnv,
   type Config,
 } from '@didim365/agent-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
@@ -60,7 +61,7 @@ export function AuthDialog({
             key: AuthType.COMPUTE_ADC,
           },
         ]
-      : process.env['GEMINI_CLI_USE_COMPUTE_ADC'] === 'true'
+      : resolveEnv('CLI_USE_COMPUTE_ADC') === 'true'
         ? [
             {
               label: 'Use metadata server application default credentials',
@@ -83,7 +84,7 @@ export function AuthDialog({
   }
 
   let defaultAuthType = null;
-  const defaultAuthTypeEnv = process.env['GEMINI_DEFAULT_AUTH_TYPE'];
+  const defaultAuthTypeEnv = resolveEnv('DEFAULT_AUTH_TYPE');
   if (
     defaultAuthTypeEnv &&
     Object.values(AuthType).includes(defaultAuthTypeEnv as AuthType)

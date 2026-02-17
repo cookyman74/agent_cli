@@ -21,6 +21,7 @@ import {
   homedir,
   resolveReadPath,
   Storage,
+  resolveEnv,
 } from '@didim365/agent-cli-core';
 import { ConsolePatcher } from '../ui/utils/ConsolePatcher.js';
 import { randomBytes } from 'node:crypto';
@@ -136,7 +137,7 @@ export async function start_sandbox(
         ].join(' '),
       );
       // start and set up proxy if GEMINI_SANDBOX_PROXY_COMMAND is set
-      const proxyCommand = process.env['GEMINI_SANDBOX_PROXY_COMMAND'];
+      const proxyCommand = resolveEnv('SANDBOX_PROXY_COMMAND');
       let proxyProcess: ChildProcess | undefined = undefined;
       let sandboxProcess: ChildProcess | undefined = undefined;
       const sandboxEnv = { ...process.env };
@@ -404,7 +405,7 @@ export async function start_sandbox(
     // copy proxy environment variables, replacing localhost with SANDBOX_PROXY_NAME
     // copy as both upper-case and lower-case as is required by some utilities
     // GEMINI_SANDBOX_PROXY_COMMAND implies HTTPS_PROXY unless HTTP_PROXY is set
-    const proxyCommand = process.env['GEMINI_SANDBOX_PROXY_COMMAND'];
+    const proxyCommand = resolveEnv('SANDBOX_PROXY_COMMAND');
 
     if (proxyCommand) {
       let proxy =
@@ -445,8 +446,7 @@ export async function start_sandbox(
 
     // name container after image, plus random suffix to avoid conflicts
     const imageName = parseImageName(image);
-    const isIntegrationTest =
-      process.env['GEMINI_CLI_INTEGRATION_TEST'] === 'true';
+    const isIntegrationTest = resolveEnv('CLI_INTEGRATION_TEST') === 'true';
     let containerName;
     if (isIntegrationTest) {
       containerName = `gemini-cli-integration-test-${randomBytes(4).toString(
@@ -466,12 +466,11 @@ export async function start_sandbox(
     }
     args.push('--name', containerName, '--hostname', containerName);
 
-    // copy GEMINI_CLI_TEST_VAR for integration tests
-    if (process.env['GEMINI_CLI_TEST_VAR']) {
-      args.push(
-        '--env',
-        `GEMINI_CLI_TEST_VAR=${process.env['GEMINI_CLI_TEST_VAR']}`,
-      );
+    // copy DIDIM_CLI_TEST_VAR (or GEMINI_CLI_TEST_VAR) for integration tests
+    const testVar = resolveEnv('CLI_TEST_VAR');
+    if (testVar) {
+      args.push('--env', `DIDIM_CLI_TEST_VAR=${testVar}`);
+      args.push('--env', `GEMINI_CLI_TEST_VAR=${testVar}`);
     }
 
     // copy GEMINI_API_KEY(s)
@@ -514,9 +513,11 @@ export async function start_sandbox(
       );
     }
 
-    // copy GEMINI_MODEL
-    if (process.env['GEMINI_MODEL']) {
-      args.push('--env', `GEMINI_MODEL=${process.env['GEMINI_MODEL']}`);
+    // copy DIDIM_MODEL / GEMINI_MODEL (dual-prefix)
+    const model = resolveEnv('MODEL');
+    if (model) {
+      args.push('--env', `DIDIM_MODEL=${model}`);
+      args.push('--env', `GEMINI_MODEL=${model}`);
     }
 
     // copy TERM and COLORTERM to try to maintain terminal setup
@@ -527,15 +528,16 @@ export async function start_sandbox(
       args.push('--env', `COLORTERM=${process.env['COLORTERM']}`);
     }
 
-    // Pass through IDE mode environment variables
-    for (const envVar of [
-      'GEMINI_CLI_IDE_SERVER_PORT',
-      'GEMINI_CLI_IDE_WORKSPACE_PATH',
-      'TERM_PROGRAM',
-    ]) {
-      if (process.env[envVar]) {
-        args.push('--env', `${envVar}=${process.env[envVar]}`);
+    // Pass through IDE mode environment variables (dual-prefix)
+    for (const suffix of ['CLI_IDE_SERVER_PORT', 'CLI_IDE_WORKSPACE_PATH']) {
+      const val = resolveEnv(suffix);
+      if (val) {
+        args.push('--env', `DIDIM_${suffix}=${val}`);
+        args.push('--env', `GEMINI_${suffix}=${val}`);
       }
+    }
+    if (process.env['TERM_PROGRAM']) {
+      args.push('--env', `TERM_PROGRAM=${process.env['TERM_PROGRAM']}`);
     }
 
     // copy VIRTUAL_ENV if under working directory
@@ -603,7 +605,7 @@ export async function start_sandbox(
     let userFlag = '';
     const finalEntrypoint = entrypoint(workdir, cliArgs);
 
-    if (process.env['GEMINI_CLI_INTEGRATION_TEST'] === 'true') {
+    if (resolveEnv('CLI_INTEGRATION_TEST') === 'true') {
       args.push('--user', 'root');
       userFlag = '--user root';
     } else if (await shouldUseCurrentUserInSandbox()) {

@@ -13,6 +13,7 @@ import {
   loadProviderApiKey,
   debugLogger,
   getErrorMessage,
+  resolveEnv,
 } from '@didim365/agent-cli-core';
 import { AuthState } from '../types.js';
 import { validateAuthMethod } from '../../config/auth.js';
@@ -326,7 +327,7 @@ export const useAuthCommand = (
           return;
         }
 
-        const defaultAuthType = process.env['GEMINI_DEFAULT_AUTH_TYPE'];
+        const defaultAuthType = resolveEnv('DEFAULT_AUTH_TYPE');
         if (
           defaultAuthType &&
           !Object.values(AuthType).includes(defaultAuthType as AuthType)

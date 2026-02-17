@@ -8,6 +8,7 @@ import {
   getPackageJson,
   type SandboxConfig,
   FatalSandboxError,
+  resolveEnv,
 } from '@didim365/agent-cli-core';
 import commandExists from 'command-exists';
 import * as os from 'node:os';
@@ -43,7 +44,7 @@ function getSandboxCommand(
 
   // note environment variable takes precedence over argument (from command line or settings)
   const environmentConfiguredSandbox =
-    process.env['GEMINI_SANDBOX']?.toLowerCase().trim() ?? '';
+    resolveEnv('SANDBOX')?.toLowerCase().trim() ?? '';
   sandbox =
     environmentConfiguredSandbox?.length > 0
       ? environmentConfiguredSandbox
@@ -102,7 +103,7 @@ export async function loadSandboxConfig(
 
   const packageJson = await getPackageJson(__dirname);
   const image =
-    process.env['GEMINI_SANDBOX_IMAGE'] ?? packageJson?.config?.sandboxImageUri;
+    resolveEnv('SANDBOX_IMAGE') ?? packageJson?.config?.sandboxImageUri;
 
   return command && image ? { command, image } : undefined;
 }

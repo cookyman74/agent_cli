@@ -38,6 +38,7 @@ import {
   type OutputFormat,
   coreEvents,
   GEMINI_MODEL_ALIAS_AUTO,
+  resolveEnv,
 } from '@didim365/agent-cli-core';
 import {
   type Settings,
@@ -428,7 +429,7 @@ export async function loadCliConfig(
   const loadedSettings = loadSettings(cwd);
 
   if (argv.sandbox) {
-    process.env['GEMINI_SANDBOX'] = 'true';
+    process.env['DIDIM_SANDBOX'] = 'true';
   }
 
   const memoryImportFormat = settings.context?.importFormat || 'tree';
@@ -672,7 +673,7 @@ export async function loadCliConfig(
   const specifiedModel =
     argv.model ||
     process.env['LLM_MODEL'] ||
-    process.env['GEMINI_MODEL'] ||
+    resolveEnv('MODEL') ||
     (activeProvider && settings.model?.byProvider?.[activeProvider]) ||
     settings.model?.name;
 

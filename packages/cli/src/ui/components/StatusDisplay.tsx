@@ -12,6 +12,7 @@ import { useSettings } from '../contexts/SettingsContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
 import { ContextSummaryDisplay } from './ContextSummaryDisplay.js';
 import { HookStatusDisplay } from './HookStatusDisplay.js';
+import { resolveEnv } from '@didim365/agent-cli-core';
 
 interface StatusDisplayProps {
   hideContextSummary: boolean;
@@ -24,7 +25,7 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({
   const settings = useSettings();
   const config = useConfig();
 
-  if (process.env['GEMINI_SYSTEM_MD']) {
+  if (resolveEnv('SYSTEM_MD')) {
     return <Text color={theme.status.error}>|⌐■_■|</Text>;
   }
 

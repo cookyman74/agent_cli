@@ -64,6 +64,7 @@ import {
   ValidationCancelledError,
   ValidationRequiredError,
   loadProviderApiKey,
+  resolveEnv,
   type FetchAdminControlsResponse,
 } from '@didim365/agent-cli-core';
 import {
@@ -135,7 +136,7 @@ export function getNodeMemoryArgs(isDebugMode: boolean): string[] {
     );
   }
 
-  if (process.env['GEMINI_CLI_NO_RELAUNCH']) {
+  if (resolveEnv('CLI_NO_RELAUNCH')) {
     return [];
   }
 
@@ -433,7 +434,7 @@ export async function main() {
   ) {
     if (
       process.env['CLOUD_SHELL'] === 'true' ||
-      process.env['GEMINI_CLI_USE_COMPUTE_ADC'] === 'true'
+      resolveEnv('CLI_USE_COMPUTE_ADC') === 'true'
     ) {
       settings.setValue(
         SettingScope.User,

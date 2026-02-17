@@ -30,6 +30,7 @@
 | 문서    | [문서 경로 업데이트 (.gemini→.didim)](../working_history/Phase_문서업데이트_20260216.md)                    | ✅ Complete |
 | 리뷰    | 리뷰 추가 이슈 4건 (registry dedup, sandbox/telemetry fallback, ext bidirectional)                          | ✅ Complete |
 | Phase 5 | Phase 5 최종 검증 (기능 12/12, 품질 게이트, 잔존 스캔)                                                      | ✅ Complete |
+| Phase 6 | [GEMINI* → DIDIM* 환경변수 전환](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)          | ✅ Complete |
 
 ---
 
@@ -506,6 +507,69 @@
 
 ---
 
+## 🔄 Phase 6: GEMINI* → DIDIM* 환경변수 전환 ✅ Complete (2026-02-17)
+
+> 📄 작업결과서:
+> [Phase6*환경변수\_GEMINI_DIDIM*전환\_20260217.md](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)
+
+> `.gemini` → `.didim` 화이트라벨링 마지막 단계. ~40개 `GEMINI_` 접두사
+> 환경변수를 `DIDIM_` 우선 / `GEMINI_` fallback 패턴으로 전환. 중앙 유틸리티
+> `resolveEnv()` 도입, Tidy First 5커밋 전략 적용. **57파일 변경, 10,252 tests
+> passed, 잔존 0건.**
+
+### 6.1 중앙 유틸리티 — `envResolver.ts`
+
+- [x] `resolveEnv(suffix)` — `DIDIM_{suffix}` ?? `GEMINI_{suffix}` 해석
+- [x] `resolvePromptEnv(promptName)` — 동적 프롬프트 환경변수 해석
+- [x] `isCliEnvVar(key)` — `DIDIM_CLI_*` || `GEMINI_CLI_*` 접두사 판별
+- [x] barrel export (`packages/core/src/index.ts`)
+- [x] 테스트 13케이스 (우선순위, fallback, undefined, 프롬프트, CLI 접두사)
+
+### 6.2 Core 프로덕션 (~15파일)
+
+- [x] `paths.ts`, `storage.ts` — 경로 해석 환경변수
+- [x] `prompts.ts` — system MD + 동적 프롬프트 (`resolvePromptEnv`)
+- [x] `contentGenerator.ts` — 커스텀 헤더, 인증 메커니즘
+- [x] `telemetry/config.ts` — 8개 텔레메트리 변수
+- [x] `trace.ts`, `debugLogger.ts` — 디버그/추적
+- [x] `ide-client.ts` — 5개 IDE 변수
+- [x] `hybrid-token-storage.ts`, `token-storage/index.ts` — 토큰 저장소
+- [x] `experiments.ts` — 실험 플래그
+- [x] `environmentSanitization.ts` — `isCliEnvVar()` allowlist
+- [x] `hookRunner.ts` — `DIDIM_PROJECT_DIR` + `GEMINI_PROJECT_DIR` 양쪽 설정
+
+### 6.3 CLI 프로덕션 (~12파일)
+
+- [x] `sandboxConfig.ts`, `config.ts` — 샌드박스/모델 설정
+- [x] `settings.ts`, `trustedFolders.ts` — 설정 경로
+- [x] `useAuth.ts`, `AuthDialog.tsx` — 인증 관련
+- [x] `sandbox.ts` — Docker passthrough (DIDIM* + GEMINI* 양쪽 전달)
+- [x] `relaunch.ts`, `gemini.tsx`, `handleAutoUpdate.ts` — CLI 실행
+- [x] `StatusDisplay.tsx`, `IdeIntegrationNudge.tsx` — UI 컴포넌트
+
+### 6.4 Satellite 패키지 + 스크립트 (~9파일)
+
+- [x] `a2a-server/config.ts` — `resolveEnv` import, `FOLDER_TRUST`, `YOLO_MODE`
+- [x] `vscode-ide-companion/ide-server.ts` — DIDIM* primary + GEMINI* legacy
+      상수 (producer)
+- [x] `scripts/start.js`, `telemetry_utils.js`, `sandbox_command.js`, `lint.js`,
+      `build_sandbox.js` — 인라인 fallback 패턴
+
+### 6.5 테스트 (18파일)
+
+- [x] Core 테스트 11파일 — `DIDIM_` 접두사 기준으로 업데이트
+- [x] CLI 테스트 6파일 — `DIDIM_` 접두사 기준으로 업데이트
+- [x] 스크립트 테스트 1파일 — `DIDIM_CLI_CREDENTIALS_PATH` cleanup 추가
+
+### 6.6 전환 제외 확인
+
+- [x] `GEMINI_API_KEY` — 프로바이더 인증 표준, 정상 잔존
+- [x] `GOOGLE_API_KEY` — Google API 인증 표준, 정상 잔존
+- [x] 잔존 스캔 ZERO — `process.env['GEMINI_']` 및 `process.env.GEMINI_` 모두
+      0건
+
+---
+
 ## 🛠️ Phase 4: 마이그레이션 도구/가이드
 
 ### 4.1 마이그레이션 동작 정의
@@ -669,3 +733,4 @@
 | 2026-02-16 | Claude | **문서 경로 업데이트 완료**             | 2커밋 Tidy First: `f12b48194` 파일 리네임(gemini-ignore.md→didim-ignore.md, gemini-md.md→agents-md.md) + sidebar.json slug/label 변경, `0ba31234a` 40파일 내용 변환(~300건: `.gemini/`→`.didim/`, `.geminiignore`→`.didimignore`, `gemini-extension.json`→`didim-extension.json`, `GEMINI.md`→`AGENTS.md`, CLI `gemini`→`didim`). 검증: rg 잔존 0건. → [문서업데이트 작업결과서](../working_history/Phase_문서업데이트_20260216.md) |
 | 2026-02-17 | Claude | **리뷰 추가 이슈 4건 수정**             | (1) Agent registry 비결정적 우선순위 → Map 기반 name dedup (primary 우선). (2) sandbox_command.js `.gemini` fallback 추가. (3) telemetry.js `resolveSettingsPath` 추가. (4) Extension uninstall 양방향 삭제. + Storage 단일 경로 getter 3개 `@deprecated` 추가. QG: core 5425/cli 4772/a2a 105 passed, 0 lint/typecheck errors                                                                                                      |
 | 2026-02-17 | Claude | **Phase 5 검증 완료**                   | 5.1 기능 검증 12/12 항목 통과, 5.2 품질 게이트 전항목 통과 (10,302 tests, lint, typecheck, .sb 프로필). 잔존 하드코딩 스캔 ZERO RISK, 쓰기 경로 94개 전수 검사 ALL SAFE. 5.3 릴리스 체크 미완 (마이그레이션 안내/deprecation/롤백 체크리스트)                                                                                                                                                                                       |
+| 2026-02-17 | Claude | **Phase 6 환경변수 전환 완료**          | 5커밋 Tidy First: `0c5f96b` envResolver 유틸리티(structural, 3files), `3b12c98` Core 15파일(behavioral), `9edb0d7` CLI 12파일(behavioral), `112cd18` Satellite+스크립트 9파일(behavioral), `dd032e8` 테스트 18파일. **57파일 변경, 10,252 tests passed, 잔존 0건.** → [Phase6 작업결과서](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)                                                                         |

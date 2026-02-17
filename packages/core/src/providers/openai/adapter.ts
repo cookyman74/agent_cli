@@ -75,8 +75,8 @@ const OPENAI_CAPABILITIES: LlmProviderCapabilities = {
   supportsTokenCount: false,
   supportsSystemMessage: true,
   supportsThought: false,
-  maxContextLength: 128_000,
-  maxOutputTokens: 16_384,
+  maxContextLength: 400_000,
+  maxOutputTokens: 128_000,
 };
 
 /**

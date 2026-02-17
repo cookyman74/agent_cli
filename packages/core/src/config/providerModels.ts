@@ -108,24 +108,27 @@ export const PROVIDER_MODEL_REGISTRY: Record<string, ProviderModelGroup> = {
     providerKey: 'openai',
     presets: [
       {
-        value: 'gpt-4.1',
-        title: 'Recommended (gpt-4.1)',
-        description: 'Smartest non-reasoning model for complex tasks',
+        value: 'gpt-5.2',
+        title: 'Recommended (gpt-5.2)',
+        description: 'Flagship reasoning model with 400K context',
       },
     ],
     models: [
       {
-        id: 'gpt-4.1',
-        description: 'Smartest non-reasoning model',
+        id: 'gpt-5.2',
+        description: 'Flagship reasoning model, 400K context',
         isDefault: true,
       },
-      { id: 'gpt-4.1-mini', description: 'Fast, balanced performance' },
-      { id: 'gpt-4.1-nano', description: 'Fastest, most cost-efficient' },
       {
-        id: 'gpt-4o',
-        description: 'High-intelligence flagship',
+        id: 'gpt-5-mini',
+        description: 'Compact GPT-5, fast and efficient',
+      },
+      {
+        id: 'gpt-4.1',
+        description: 'Best 1M context non-reasoning model',
         category: 'general',
       },
+      { id: 'gpt-4.1-mini', description: 'Fast, balanced performance' },
       {
         id: 'o3',
         description: 'Most powerful reasoning model',

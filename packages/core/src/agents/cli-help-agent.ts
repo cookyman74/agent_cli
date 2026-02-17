@@ -13,14 +13,16 @@ import { GetInternalDocsTool } from '../tools/get-internal-docs.js';
 const CliHelpReportSchema = z.object({
   answer: z
     .string()
-    .describe('The detailed answer to the user question about Gemini CLI.'),
+    .describe(
+      'The detailed answer to the user question about Didim Agent CLI.',
+    ),
   sources: z
     .array(z.string())
     .describe('The documentation files used to answer the question.'),
 });
 
 /**
- * An agent specialized in answering questions about Gemini CLI itself,
+ * An agent specialized in answering questions about Didim Agent CLI itself,
  * using its own documentation and runtime state.
  */
 export const CliHelpAgent = (
@@ -30,14 +32,14 @@ export const CliHelpAgent = (
   kind: 'local',
   displayName: 'CLI Help Agent',
   description:
-    'Specialized in answering questions about how users use you, (Gemini CLI): features, documentation, and current runtime configuration.',
+    'Specialized in answering questions about how users use you, (Didim Agent CLI): features, documentation, and current runtime configuration.',
   inputConfig: {
     inputSchema: {
       type: 'object',
       properties: {
         question: {
           type: 'string',
-          description: 'The specific question about Gemini CLI.',
+          description: 'The specific question about Didim Agent CLI.',
         },
       },
       required: ['question'],
@@ -74,19 +76,19 @@ export const CliHelpAgent = (
 
   promptConfig: {
     query:
-      'Your task is to answer the following question about Gemini CLI:\n' +
+      'Your task is to answer the following question about Didim Agent CLI:\n' +
       '<question>\n' +
       '${question}\n' +
       '</question>',
     systemPrompt:
-      "You are **CLI Help Agent**, an expert on Gemini CLI. Your purpose is to provide accurate information about Gemini CLI's features, configuration, and current state.\n\n" +
+      "You are **CLI Help Agent**, an expert on Didim Agent CLI. Your purpose is to provide accurate information about Didim Agent CLI's features, configuration, and current state.\n\n" +
       '### Runtime Context\n' +
       '- **CLI Version:** ${cliVersion}\n' +
       '- **Active Model:** ${activeModel}\n' +
       "- **Today's Date:** ${today}\n\n" +
       (config.isAgentsEnabled()
         ? '### Sub-Agents (Local & Remote)\n' +
-          "User defined sub-agents are defined in `.didim/agents/` or `~/.didim/agents/` as .md files. **CRITICAL:** These files **MUST** start with YAML frontmatter enclosed in triple-dashes `---`, for example:\n\n```yaml\n---\nname: my-agent\n---\n```\n\nWithout this mandatory frontmatter, the agent will not be discovered or loaded by Gemini CLI. The Markdown body following the frontmatter becomes the agent's system prompt (`system_prompt`). Always reference the types and properties outlined here directly when answering questions about sub-agents.\n" +
+          "User defined sub-agents are defined in `.didim/agents/` or `~/.didim/agents/` as .md files. **CRITICAL:** These files **MUST** start with YAML frontmatter enclosed in triple-dashes `---`, for example:\n\n```yaml\n---\nname: my-agent\n---\n```\n\nWithout this mandatory frontmatter, the agent will not be discovered or loaded by Didim Agent CLI. The Markdown body following the frontmatter becomes the agent's system prompt (`system_prompt`). Always reference the types and properties outlined here directly when answering questions about sub-agents.\n" +
           '- **Local Agent:** `kind = "local"`, `name`, `description`, `system_prompt`, and optional `tools`, `model`, `temperate`, `max_turns`, `timeout_mins`.\n' +
           '- **Remote Agent (A2A):** `kind = "remote"`, `name`, `agent_card_url`. Remote Agents do not use `system_prompt`. Multiple remote agents can be defined by using a YAML array at the top level of the frontmatter. **Note:** When users ask about "remote agents", they are referring to this Agent2Agent functionality, which is completely distinct from MCP servers.\n' +
           '- **Agent Names:** Must be valid slugs (lowercase letters, numbers, hyphens, and underscores only).\n' +

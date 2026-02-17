@@ -367,7 +367,9 @@ describe('Gemini Client (client.ts)', () => {
 
       // The first message should be the environment context
       expect(history[0].role).toBe('user');
-      expect(history[0].parts?.[0]?.text).toContain('This is the Gemini CLI');
+      expect(history[0].parts?.[0]?.text).toContain(
+        'This is the Didim Agent CLI',
+      );
       expect(history[0].parts?.[0]?.text).toContain(
         "The project's temporary directory is:",
       );

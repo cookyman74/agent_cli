@@ -7,6 +7,7 @@
 import type { Part, Content } from '@google/genai';
 import type { Config } from '../config/config.js';
 import { getFolderStructure } from './getFolderStructure.js';
+import { DIDIM_DIR } from './paths.js';
 
 export const INITIAL_HISTORY_LENGTH = 1;
 
@@ -64,8 +65,13 @@ export async function getEnvironmentContext(config: Config): Promise<Part[]> {
   const tempDir = config.storage.getProjectTempDir();
   const environmentMemory = config.getEnvironmentMemory();
 
+  const activeModel = config.getActiveModel();
+  const provider = process.env['LLM_PROVIDER'] || 'gemini';
+
   const context = `
 This is the Didim Agent CLI. We are setting up the context for our chat.
+The current model is: ${activeModel} (provider: ${provider})
+The configuration directory is: ${DIDIM_DIR}/ (e.g. .didim/settings.json, .didim/system.md)
 Today's date is ${today} (formatted according to the user's locale).
 My operating system is: ${platform}
 The project's temporary directory is: ${tempDir}

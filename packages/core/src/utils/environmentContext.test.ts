@@ -92,6 +92,7 @@ describe('getEnvironmentContext', () => {
         getDirectories: vi.fn().mockReturnValue(['/test/dir']),
       }),
       getFileService: vi.fn(),
+      getActiveModel: vi.fn().mockReturnValue('gemini-2.5-flash'),
       getEnvironmentMemory: vi.fn().mockReturnValue('Mock Environment Memory'),
 
       getToolRegistry: vi.fn().mockReturnValue(mockToolRegistry),
@@ -114,6 +115,8 @@ describe('getEnvironmentContext', () => {
     expect(parts.length).toBe(1);
     const context = parts[0].text;
 
+    expect(context).toContain('The current model is: gemini-2.5-flash');
+    expect(context).toContain('The configuration directory is: .didim/');
     expect(context).toContain("Today's date is");
     expect(context).toContain("(formatted according to the user's locale)");
     expect(context).toContain(`My operating system is: ${process.platform}`);

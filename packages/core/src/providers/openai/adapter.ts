@@ -33,8 +33,9 @@ import {
   NetworkError,
   TimeoutError,
 } from '../errors.js';
-import { createErrorEvent } from '../events.js';
+import { createErrorEvent, LlmEventType } from '../events.js';
 import { OpenAiConverter } from './converter.js';
+import { debugLogger } from '../../utils/debugLogger.js';
 
 /**
  * Interface for the OpenAI SDK client.
@@ -145,11 +146,18 @@ export class OpenAiAdapter extends BaseAdapter {
         )) as AsyncIterable<unknown>;
 
         const state = converter.createStreamState();
+        let chunkIndex = 0;
         for await (const chunk of stream) {
           const events = converter.convertStreamEvent(chunk, state);
           for (const event of events) {
+            if (event.type === LlmEventType.TextDelta) {
+              debugLogger.log(
+                `[OpenAI stream] chunk#${chunkIndex} TextDelta: "${event.text.substring(0, 80)}"`,
+              );
+            }
             yield event;
           }
+          chunkIndex++;
         }
       } catch (error) {
         const classified = classify(error);

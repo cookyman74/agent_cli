@@ -244,17 +244,15 @@ export class LoopDetectionService {
     const hasBlockquote = /(^|\n)>\s/.test(content);
     const isDivider = /^[+-_=*\u2500-\u257F]+$/.test(content);
 
-    if (
-      numFences ||
-      hasTable ||
-      hasListItem ||
-      hasHeading ||
-      hasBlockquote ||
-      isDivider
-    ) {
-      // Reset tracking when different content elements are detected to avoid analyzing content
-      // that spans across different element boundaries.
+    if (numFences || hasTable || hasHeading || hasBlockquote || isDivider) {
+      // Full reset on structural element boundaries to avoid cross-boundary false positives.
       this.resetContentTracking();
+    } else if (hasListItem) {
+      // For list items: reset stats but PRESERVE history.
+      // This prevents the loop detector from being blinded by repetitive numbered lists
+      // (e.g., "1. same text\n1. same text\n...") while still avoiding stale stats
+      // from content preceding the list.
+      this.resetContentTracking(/*resetHistory=*/ false);
     }
 
     const wasInCodeBlock = this.inCodeBlock;

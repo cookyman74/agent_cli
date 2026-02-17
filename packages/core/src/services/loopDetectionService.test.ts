@@ -480,7 +480,7 @@ describe('LoopDetectionService', () => {
       expect(loggers.logLoopDetected).not.toHaveBeenCalled();
     });
 
-    it('should reset tracking when a list item is detected', () => {
+    it('should soft-reset tracking when a list item is detected (preserve history)', () => {
       service.reset('');
       const repeatedContent = createRepetitiveContent(1, CONTENT_CHUNK_SIZE);
 
@@ -488,12 +488,38 @@ describe('LoopDetectionService', () => {
         service.addAndCheck(createContentEvent(repeatedContent));
       }
 
-      // This should reset tracking and not trigger a loop
+      // List item should soft-reset (clear stats but keep history)
       service.addAndCheck(createContentEvent('* List item'));
 
-      // Add more repeated content after list - should not trigger loop
+      // SAME content continues after list → loop IS detected because history is preserved.
+      // This prevents models from generating "1. same text\n1. same text\n..." undetected.
+      let loopDetected = false;
+      for (let i = 0; i < CONTENT_LOOP_THRESHOLD; i++) {
+        if (service.addAndCheck(createContentEvent(repeatedContent))) {
+          loopDetected = true;
+          break;
+        }
+      }
+      expect(loopDetected).toBe(true);
+    });
+
+    it('should not detect loop when different content follows a list item', () => {
+      service.reset('');
+      const repeatedContent = createRepetitiveContent(1, CONTENT_CHUNK_SIZE);
+
       for (let i = 0; i < CONTENT_LOOP_THRESHOLD - 1; i++) {
-        const isLoop = service.addAndCheck(createContentEvent(repeatedContent));
+        service.addAndCheck(createContentEvent(repeatedContent));
+      }
+
+      // List item triggers soft reset
+      service.addAndCheck(createContentEvent('* List item'));
+
+      // DIFFERENT content after list → no loop
+      const differentContent = createRepetitiveContent(99, CONTENT_CHUNK_SIZE);
+      for (let i = 0; i < CONTENT_LOOP_THRESHOLD - 1; i++) {
+        const isLoop = service.addAndCheck(
+          createContentEvent(differentContent),
+        );
         expect(isLoop).toBe(false);
       }
 

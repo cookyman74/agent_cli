@@ -57,8 +57,8 @@ if (!geminiSandbox) {
     const settings = JSON.parse(
       stripJsonComments(readFileSync(userSettingsFile, 'utf-8')),
     );
-    if (settings.sandbox) {
-      geminiSandbox = settings.sandbox;
+    if (settings.sandbox !== undefined) {
+      geminiSandbox = String(settings.sandbox);
     }
   }
 }
@@ -129,7 +129,11 @@ if (['1', 'true'].includes(geminiSandbox)) {
     );
     process.exit(1);
   }
+} else if (['0', 'false'].includes(geminiSandbox)) {
+  // Sandbox explicitly disabled via settings or env var
+  process.exit(1);
 } else {
+  // No sandbox configured — use macOS seatbelt default if available
   if (os.platform() === 'darwin' && process.env.SEATBELT_PROFILE !== 'none') {
     if (commandExists('sandbox-exec')) {
       command = 'sandbox-exec';

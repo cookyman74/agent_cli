@@ -13,7 +13,8 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import { GEMINI_DIR } from '@didim365/agent-cli-core';
+import stripJsonComments from 'strip-json-comments';
+import { GEMINI_DIR, LEGACY_GEMINI_DIR } from '@didim365/agent-cli-core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,20 +31,38 @@ const homedir = () =>
   process.env['GEMINI_CLI_HOME'] ||
   os.homedir();
 
-// User-level .gemini directory in home
+// User-level .didim directory in home (for OTEL artifacts only, not settings).
+// No legacy .gemini fallback needed — telemetry binaries are re-downloaded if missing.
 const USER_GEMINI_DIR = path.join(homedir(), GEMINI_DIR);
-// Project-level .gemini directory in the workspace
-const WORKSPACE_GEMINI_DIR = path.join(projectRoot, GEMINI_DIR);
+// Project-level .didim directory in the workspace (primary)
+const WORKSPACE_PRIMARY_DIR = path.join(projectRoot, GEMINI_DIR);
+// Project-level .gemini directory (legacy fallback)
+const WORKSPACE_LEGACY_DIR = path.join(projectRoot, LEGACY_GEMINI_DIR);
 
-// Telemetry artifacts are stored in a hashed directory under the user's ~/.gemini/tmp
+// Telemetry artifacts are stored in a hashed directory under the user's ~/.didim/tmp
 export const OTEL_DIR = path.join(USER_GEMINI_DIR, 'tmp', projectHash, 'otel');
 export const BIN_DIR = path.join(OTEL_DIR, 'bin');
 
-// Workspace settings remain in the project's .gemini directory
-export const WORKSPACE_SETTINGS_FILE = path.join(
-  WORKSPACE_GEMINI_DIR,
-  'settings.json',
-);
+// Resolve workspace settings: .didim/settings.json (primary) → .gemini/settings.json (fallback)
+// Writes always go to .didim/settings.json
+function resolveSettingsPath() {
+  const primaryPath = path.join(WORKSPACE_PRIMARY_DIR, 'settings.json');
+  if (fs.existsSync(primaryPath)) {
+    return primaryPath;
+  }
+  const legacyPath = path.join(WORKSPACE_LEGACY_DIR, 'settings.json');
+  if (fs.existsSync(legacyPath)) {
+    return legacyPath;
+  }
+  // Default to primary (.didim) for new creation
+  return primaryPath;
+}
+
+function getWriteSettingsPath() {
+  return path.join(WORKSPACE_PRIMARY_DIR, 'settings.json');
+}
+
+export const WORKSPACE_SETTINGS_FILE = resolveSettingsPath();
 
 export function getJson(url) {
   const tmpFile = path.join(
@@ -115,14 +134,20 @@ export function readJsonFile(filePath) {
   }
   const content = fs.readFileSync(filePath, 'utf-8');
   try {
-    return JSON.parse(content);
+    return JSON.parse(stripJsonComments(content));
   } catch (e) {
     console.error(`Error parsing JSON from ${filePath}: ${e.message}`);
-    return {};
+    // Return null on parse failure to distinguish from "file not found" ({}).
+    // Callers must check for null before writing back to avoid data loss.
+    return null;
   }
 }
 
 export function writeJsonFile(filePath, data) {
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
@@ -322,8 +347,17 @@ export function manageTelemetrySettings(
   originalSandboxSettingToRestore,
   otlpProtocol = 'grpc',
 ) {
+  // Read from resolved path (.didim first, .gemini fallback)
   const workspaceSettings = readJsonFile(WORKSPACE_SETTINGS_FILE);
+  if (workspaceSettings === null) {
+    console.error(
+      '⚠️  Cannot modify settings: failed to parse settings file. Skipping to avoid data loss.',
+    );
+    return undefined;
+  }
   const currentSandboxSetting = workspaceSettings.sandbox;
+  // Always write to .didim/settings.json (primary)
+  const writeSettingsPath = getWriteSettingsPath();
   let settingsModified = false;
 
   if (typeof workspaceSettings.telemetry !== 'object') {
@@ -392,7 +426,7 @@ export function manageTelemetrySettings(
   }
 
   if (settingsModified) {
-    writeJsonFile(WORKSPACE_SETTINGS_FILE, workspaceSettings);
+    writeJsonFile(writeSettingsPath, workspaceSettings);
     console.log('✅ Workspace settings updated.');
   } else {
     console.log(

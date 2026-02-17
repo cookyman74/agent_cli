@@ -54,7 +54,11 @@ export async function relaunchAppInChildProcess(
       ...additionalScriptArgs,
       ...scriptArgs,
     ];
-    const newEnv = { ...process.env, GEMINI_CLI_NO_RELAUNCH: 'true' };
+    const newEnv = {
+      ...process.env,
+      DIDIM_CLI_NO_RELAUNCH: 'true',
+      GEMINI_CLI_NO_RELAUNCH: 'true', // legacy fallback
+    };
 
     // The parent process should not be reading from stdin while the child is running.
     process.stdin.pause();

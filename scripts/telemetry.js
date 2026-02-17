@@ -8,7 +8,9 @@
 
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import os from 'node:os';
 import { existsSync, readFileSync } from 'node:fs';
+import stripJsonComments from 'strip-json-comments';
 import { GEMINI_DIR, LEGACY_GEMINI_DIR } from '@didim365/agent-cli-core';
 
 const projectRoot = join(import.meta.dirname, '..');
@@ -22,9 +24,12 @@ function resolveSettingsPath(base) {
   return primary;
 }
 
-const USER_SETTINGS_PATH = resolveSettingsPath(
-  process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH || '',
-);
+// Respect DIDIM_CLI_HOME (primary) / GEMINI_CLI_HOME (fallback) for custom home
+const homedir =
+  process.env['DIDIM_CLI_HOME'] ||
+  process.env['GEMINI_CLI_HOME'] ||
+  os.homedir();
+const USER_SETTINGS_PATH = resolveSettingsPath(homedir);
 const WORKSPACE_SETTINGS_PATH = resolveSettingsPath(projectRoot);
 
 let telemetrySettings = undefined;
@@ -33,8 +38,7 @@ function loadSettings(filePath) {
   try {
     if (existsSync(filePath)) {
       const content = readFileSync(filePath, 'utf-8');
-      const jsonContent = content.replace(/\/\/[^\n]*/g, '');
-      const settings = JSON.parse(jsonContent);
+      const settings = JSON.parse(stripJsonComments(content));
       return settings.telemetry;
     }
   } catch (e) {

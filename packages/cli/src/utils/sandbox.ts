@@ -250,7 +250,8 @@ export async function start_sandbox(
             stdio: 'inherit',
             env: {
               ...process.env,
-              GEMINI_SANDBOX: config.command, // in case sandbox is enabled via flags (see config.ts under cli package)
+              DIDIM_SANDBOX: config.command, // primary: in case sandbox is enabled via flags (see config.ts under cli package)
+              GEMINI_SANDBOX: config.command, // legacy fallback for sandbox_command.js
             },
           },
         );

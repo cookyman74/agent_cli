@@ -347,8 +347,10 @@ export function manageTelemetrySettings(
   originalSandboxSettingToRestore,
   otlpProtocol = 'grpc',
 ) {
-  // Read from resolved path (.didim first, .gemini fallback)
-  const workspaceSettings = readJsonFile(WORKSPACE_SETTINGS_FILE);
+  // Re-resolve read path each call: after enable writes .didim/settings.json,
+  // subsequent disable must read from .didim (not the stale module-level const).
+  const currentReadPath = resolveSettingsPath();
+  const workspaceSettings = readJsonFile(currentReadPath);
   if (workspaceSettings === null) {
     console.error(
       '⚠️  Cannot modify settings: failed to parse settings file. Skipping to avoid data loss.',

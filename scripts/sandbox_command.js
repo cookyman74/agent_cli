@@ -38,7 +38,7 @@ const homedir = () =>
   process.env['GEMINI_CLI_HOME'] ||
   os.homedir();
 
-let geminiSandbox = process.env.DIDIM_SANDBOX || process.env.GEMINI_SANDBOX;
+let geminiSandbox = process.env.DIDIM_SANDBOX ?? process.env.GEMINI_SANDBOX;
 
 if (!geminiSandbox) {
   // Check primary (.didim) first, then legacy (.gemini) fallback
@@ -85,7 +85,7 @@ if (!geminiSandbox) {
     }
     currentDir = parentDir;
   }
-  geminiSandbox = process.env.DIDIM_SANDBOX || process.env.GEMINI_SANDBOX;
+  geminiSandbox = process.env.DIDIM_SANDBOX ?? process.env.GEMINI_SANDBOX;
 }
 
 geminiSandbox = (geminiSandbox || '').toLowerCase();

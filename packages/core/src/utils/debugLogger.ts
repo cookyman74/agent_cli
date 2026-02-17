@@ -7,6 +7,7 @@
 /* eslint-disable no-console */
 import * as fs from 'node:fs';
 import * as util from 'node:util';
+import { resolveEnv } from './envResolver.js';
 
 /**
  * A simple, centralized logger for developer-facing debug messages.
@@ -24,8 +25,9 @@ class DebugLogger {
   private logStream: fs.WriteStream | undefined;
 
   constructor() {
-    this.logStream = process.env['GEMINI_DEBUG_LOG_FILE']
-      ? fs.createWriteStream(process.env['GEMINI_DEBUG_LOG_FILE'], {
+    const debugLogFile = resolveEnv('DEBUG_LOG_FILE');
+    this.logStream = debugLogFile
+      ? fs.createWriteStream(debugLogFile, {
           flags: 'a',
         })
       : undefined;

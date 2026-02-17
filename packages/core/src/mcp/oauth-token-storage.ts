@@ -16,10 +16,8 @@ import type {
   TokenStorage,
 } from './token-storage/types.js';
 import { HybridTokenStorage } from './token-storage/hybrid-token-storage.js';
-import {
-  DEFAULT_SERVICE_NAME,
-  FORCE_ENCRYPTED_FILE_ENV_VAR,
-} from './token-storage/index.js';
+import { DEFAULT_SERVICE_NAME } from './token-storage/index.js';
+import { resolveEnv } from '../utils/envResolver.js';
 
 /**
  * Class for managing MCP OAuth token storage and retrieval.
@@ -29,7 +27,7 @@ export class MCPOAuthTokenStorage implements TokenStorage {
     DEFAULT_SERVICE_NAME,
   );
   private readonly useEncryptedFile =
-    process.env[FORCE_ENCRYPTED_FILE_ENV_VAR] === 'true';
+    resolveEnv('FORCE_ENCRYPTED_FILE_STORAGE') === 'true';
 
   /**
    * Get the read path to the token storage file (with .gemini fallback).

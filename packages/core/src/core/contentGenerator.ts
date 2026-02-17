@@ -59,6 +59,7 @@ import { bootstrapOpenAiProvider } from '../providers/openai/bootstrap.js';
 import { bootstrapOpenAiCompatibleProvider } from '../providers/openai-compatible/bootstrap.js';
 import type { BaseAdapter } from '../providers/baseAdapter.js';
 import type { AuthType as ProviderAuthType } from '../providers/providerTypes.js';
+import { resolveEnv } from '../utils/envResolver.js';
 
 /**
  * Gemini-specific content generator interface.
@@ -270,12 +271,11 @@ export async function createContentGenerator(
       gcConfig.getModel(),
       gcConfig.getPreviewFeatures(),
     );
-    const customHeadersEnv =
-      process.env['GEMINI_CLI_CUSTOM_HEADERS'] || undefined;
+    const customHeadersEnv = resolveEnv('CLI_CUSTOM_HEADERS') || undefined;
     const userAgent = `GeminiCLI/${version}/${model} (${process.platform}; ${process.arch})`;
     const customHeadersMap = parseCustomHeaders(customHeadersEnv);
     const apiKeyAuthMechanism =
-      process.env['GEMINI_API_KEY_AUTH_MECHANISM'] || 'x-goog-api-key';
+      resolveEnv('API_KEY_AUTH_MECHANISM') || 'x-goog-api-key';
 
     const baseHeaders: Record<string, string> = {
       ...customHeadersMap,

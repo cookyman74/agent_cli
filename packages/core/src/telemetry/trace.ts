@@ -12,6 +12,7 @@ import {
   type SpanOptions,
 } from '@opentelemetry/api';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
+import { resolveEnv } from '../utils/envResolver.js';
 
 const TRACER_NAME = 'gemini-cli';
 const TRACER_VERSION = 'v1';
@@ -60,8 +61,8 @@ export async function runInDevTraceSpan<R>(
   }) => Promise<R>,
 ): Promise<R> {
   const { name: spanName, noAutoEnd, ...restOfSpanOpts } = opts;
-  if (process.env['GEMINI_DEV_TRACING'] !== 'true') {
-    // If GEMINI_DEV_TRACING env var not set, we do not trace.
+  if (resolveEnv('DEV_TRACING') !== 'true') {
+    // If DIDIM_DEV_TRACING (or GEMINI_DEV_TRACING) env var not set, we do not trace.
     return fn({
       metadata: {
         name: spanName,

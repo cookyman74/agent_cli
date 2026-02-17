@@ -25,6 +25,7 @@ import type { Config } from '../config/config.js';
 import { homedir } from '../utils/paths.js';
 import { resolveReadPath } from '../config/storage.js';
 import { debugLogger } from '../utils/debugLogger.js';
+import { resolveEnv, resolvePromptEnv } from '../utils/envResolver.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
 import { resolveModel, isPreviewModel } from '../config/models.js';
 import type { SkillDefinition } from '../skills/skillLoader.js';
@@ -90,9 +91,7 @@ export function getCoreSystemPrompt(
   // The default path for the system prompt file. This can be overridden.
   let systemMdPath = resolveReadPath(process.cwd(), 'system.md');
   // Resolve the environment variable to get either a path or a switch value.
-  const systemMdResolution = resolvePathFromEnv(
-    process.env['GEMINI_SYSTEM_MD'],
-  );
+  const systemMdResolution = resolvePathFromEnv(resolveEnv('SYSTEM_MD'));
 
   // Proceed only if the environment variable is set and is not disabled.
   if (systemMdResolution.value && !systemMdResolution.isDisabled) {
@@ -440,9 +439,9 @@ Your core function is efficient and safe assistance. Balance extreme conciseness
     );
 
     // By default, all prompts are enabled. A prompt is disabled if its corresponding
-    // GEMINI_PROMPT_<NAME> environment variable is set to "0" or "false".
+    // DIDIM_PROMPT_<NAME> (or GEMINI_PROMPT_<NAME> fallback) environment variable is set to "0" or "false".
     const enabledPrompts = orderedPrompts.filter((key) => {
-      const envVar = process.env[`GEMINI_PROMPT_${key.toUpperCase()}`];
+      const envVar = resolvePromptEnv(key.toUpperCase());
       const lowerEnvVar = envVar?.trim().toLowerCase();
       return lowerEnvVar !== '0' && lowerEnvVar !== 'false';
     });
@@ -450,12 +449,12 @@ Your core function is efficient and safe assistance. Balance extreme conciseness
     basePrompt = enabledPrompts.map((key) => promptConfig[key]).join('\n');
   }
 
-  // if GEMINI_WRITE_SYSTEM_MD is set (and not 0|false), write base system prompt to file
+  // if DIDIM_WRITE_SYSTEM_MD (or GEMINI_WRITE_SYSTEM_MD) is set (and not 0|false), write base system prompt to file
   const writeSystemMdResolution = resolvePathFromEnv(
-    process.env['GEMINI_WRITE_SYSTEM_MD'],
+    resolveEnv('WRITE_SYSTEM_MD'),
   );
 
-  // Write the base prompt to a file if the GEMINI_WRITE_SYSTEM_MD environment
+  // Write the base prompt to a file if the DIDIM_WRITE_SYSTEM_MD environment
   // variable is set and is not explicitly '0' or 'false'.
   if (writeSystemMdResolution.value && !writeSystemMdResolution.isDisabled) {
     const writePath = writeSystemMdResolution.isSwitch

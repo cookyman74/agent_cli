@@ -31,7 +31,7 @@ import readline from 'node:readline';
 import { Storage, OAUTH_FILE } from '../config/storage.js';
 import { DIDIM_DIR, LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
 import { OAuthCredentialStorage } from './oauth-credential-storage.js';
-import { FORCE_ENCRYPTED_FILE_ENV_VAR } from '../mcp/token-storage/index.js';
+import { resolveEnv } from '../utils/envResolver.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import {
   writeToStdout,
@@ -104,7 +104,7 @@ export interface OauthWebLogin {
 const oauthClientPromises = new Map<AuthType, Promise<AuthClient>>();
 
 function getUseEncryptedStorageFlag() {
-  return process.env[FORCE_ENCRYPTED_FILE_ENV_VAR] === 'true';
+  return resolveEnv('FORCE_ENCRYPTED_FILE_STORAGE') === 'true';
 }
 
 async function initOauthClient(

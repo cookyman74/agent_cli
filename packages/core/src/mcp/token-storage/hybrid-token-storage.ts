@@ -8,8 +8,7 @@ import { BaseTokenStorage } from './base-token-storage.js';
 import { FileTokenStorage } from './file-token-storage.js';
 import type { TokenStorage, OAuthCredentials } from './types.js';
 import { TokenStorageType } from './types.js';
-
-const FORCE_FILE_STORAGE_ENV_VAR = 'GEMINI_FORCE_FILE_STORAGE';
+import { resolveEnv } from '../../utils/envResolver.js';
 
 export class HybridTokenStorage extends BaseTokenStorage {
   private storage: TokenStorage | null = null;
@@ -21,7 +20,7 @@ export class HybridTokenStorage extends BaseTokenStorage {
   }
 
   private async initializeStorage(): Promise<TokenStorage> {
-    const forceFileStorage = process.env[FORCE_FILE_STORAGE_ENV_VAR] === 'true';
+    const forceFileStorage = resolveEnv('FORCE_FILE_STORAGE') === 'true';
 
     if (!forceFileStorage) {
       try {

@@ -265,7 +265,8 @@ export class HookRunner {
       // Set up environment variables
       const env = {
         ...sanitizeEnvironment(process.env, this.config.sanitizationConfig),
-        GEMINI_PROJECT_DIR: input.cwd,
+        DIDIM_PROJECT_DIR: input.cwd,
+        GEMINI_PROJECT_DIR: input.cwd, // Legacy fallback
         CLAUDE_PROJECT_DIR: input.cwd, // For compatibility
       };
 
@@ -409,7 +410,8 @@ export class HookRunner {
     debugLogger.debug(`Expanding hook command: ${command} (cwd: ${input.cwd})`);
     const escapedCwd = escapeShellArg(input.cwd, shellType);
     return command
-      .replace(/\$GEMINI_PROJECT_DIR/g, () => escapedCwd)
+      .replace(/\$DIDIM_PROJECT_DIR/g, () => escapedCwd)
+      .replace(/\$GEMINI_PROJECT_DIR/g, () => escapedCwd) // Legacy fallback
       .replace(/\$CLAUDE_PROJECT_DIR/g, () => escapedCwd); // For compatibility
   }
 

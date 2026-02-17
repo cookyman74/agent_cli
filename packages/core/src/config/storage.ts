@@ -9,6 +9,7 @@ import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import { DIDIM_DIR, LEGACY_GEMINI_DIR, homedir } from '../utils/paths.js';
+import { resolveEnv } from '../utils/envResolver.js';
 
 export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
 export const OAUTH_FILE = 'oauth_creds.json';
@@ -199,8 +200,9 @@ export class Storage {
   }
 
   static getSystemSettingsPath(): string {
-    if (process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']) {
-      return process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH'];
+    const envPath = resolveEnv('CLI_SYSTEM_SETTINGS_PATH');
+    if (envPath) {
+      return envPath;
     }
     return path.join(Storage.getSystemConfigDir(), 'settings.json');
   }

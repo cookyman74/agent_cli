@@ -25,6 +25,7 @@ import { EnvHttpProxyAgent } from 'undici';
 import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { IDE_REQUEST_TIMEOUT_MS } from './constants.js';
 import { debugLogger } from '../utils/debugLogger.js';
+import { resolveEnv } from '../utils/envResolver.js';
 
 const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,12 +143,11 @@ export class IdeClient {
 
     this.connectionConfig = await this.getConnectionConfigFromFile();
     this.authToken =
-      this.connectionConfig?.authToken ??
-      process.env['GEMINI_CLI_IDE_AUTH_TOKEN'];
+      this.connectionConfig?.authToken ?? resolveEnv('CLI_IDE_AUTH_TOKEN');
 
     const workspacePath =
       this.connectionConfig?.workspacePath ??
-      process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'];
+      resolveEnv('CLI_IDE_WORKSPACE_PATH');
 
     const { isValid, error } = IdeClient.validateWorkspacePath(
       workspacePath,
@@ -532,7 +532,7 @@ export class IdeClient {
   }
 
   private getPortFromEnv(): string | undefined {
-    const port = process.env['GEMINI_CLI_IDE_SERVER_PORT'];
+    const port = resolveEnv('CLI_IDE_SERVER_PORT');
     if (!port) {
       return undefined;
     }
@@ -540,12 +540,12 @@ export class IdeClient {
   }
 
   private getStdioConfigFromEnv(): StdioConfig | undefined {
-    const command = process.env['GEMINI_CLI_IDE_SERVER_STDIO_COMMAND'];
+    const command = resolveEnv('CLI_IDE_SERVER_STDIO_COMMAND');
     if (!command) {
       return undefined;
     }
 
-    const argsStr = process.env['GEMINI_CLI_IDE_SERVER_STDIO_ARGS'];
+    const argsStr = resolveEnv('CLI_IDE_SERVER_STDIO_ARGS');
     let args: string[] = [];
     if (argsStr) {
       try {

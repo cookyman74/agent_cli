@@ -9,6 +9,7 @@ import { getClientMetadata } from './client_metadata.js';
 import type { ListExperimentsResponse, Flag } from './types.js';
 import * as fs from 'node:fs';
 import { debugLogger } from '../../utils/debugLogger.js';
+import { resolveEnv } from '../../utils/envResolver.js';
 
 export interface Experiments {
   flags: Record<string, Flag>;
@@ -30,9 +31,9 @@ export async function getExperiments(
   }
 
   experimentsPromise = (async () => {
-    if (process.env['GEMINI_EXP']) {
+    const expPath = resolveEnv('EXP');
+    if (expPath) {
       try {
-        const expPath = process.env['GEMINI_EXP'];
         debugLogger.debug('Reading experiments from', expPath);
         const content = await fs.promises.readFile(expPath, 'utf8');
         const response = JSON.parse(content);
@@ -46,7 +47,10 @@ export async function getExperiments(
         }
         return parseExperiments(response as ListExperimentsResponse);
       } catch (e) {
-        debugLogger.debug('Failed to read experiments from GEMINI_EXP', e);
+        debugLogger.debug(
+          'Failed to read experiments from DIDIM_EXP/GEMINI_EXP',
+          e,
+        );
       }
     }
 

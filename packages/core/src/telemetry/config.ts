@@ -57,11 +57,14 @@ export async function resolveTelemetrySettings(options: {
 
   const enabled =
     argv.telemetry ??
-    parseBooleanEnvFlag(env['GEMINI_TELEMETRY_ENABLED']) ??
+    parseBooleanEnvFlag(
+      env['DIDIM_TELEMETRY_ENABLED'] ?? env['GEMINI_TELEMETRY_ENABLED'],
+    ) ??
     settings.enabled;
 
   const rawTarget =
     argv.telemetryTarget ??
+    env['DIDIM_TELEMETRY_TARGET'] ??
     env['GEMINI_TELEMETRY_TARGET'] ??
     (settings.target as string | TelemetryTarget | undefined);
   const target = parseTelemetryTargetValue(rawTarget);
@@ -75,12 +78,14 @@ export async function resolveTelemetrySettings(options: {
 
   const otlpEndpoint =
     argv.telemetryOtlpEndpoint ??
+    env['DIDIM_TELEMETRY_OTLP_ENDPOINT'] ??
     env['GEMINI_TELEMETRY_OTLP_ENDPOINT'] ??
     env['OTEL_EXPORTER_OTLP_ENDPOINT'] ??
     settings.otlpEndpoint;
 
   const rawProtocol =
     argv.telemetryOtlpProtocol ??
+    env['DIDIM_TELEMETRY_OTLP_PROTOCOL'] ??
     env['GEMINI_TELEMETRY_OTLP_PROTOCOL'] ??
     settings.otlpProtocol;
   const otlpProtocol = (['grpc', 'http'] as const).find(
@@ -96,17 +101,22 @@ export async function resolveTelemetrySettings(options: {
 
   const logPrompts =
     argv.telemetryLogPrompts ??
-    parseBooleanEnvFlag(env['GEMINI_TELEMETRY_LOG_PROMPTS']) ??
+    parseBooleanEnvFlag(
+      env['DIDIM_TELEMETRY_LOG_PROMPTS'] ?? env['GEMINI_TELEMETRY_LOG_PROMPTS'],
+    ) ??
     settings.logPrompts;
 
   const outfile =
     argv.telemetryOutfile ??
+    env['DIDIM_TELEMETRY_OUTFILE'] ??
     env['GEMINI_TELEMETRY_OUTFILE'] ??
     settings.outfile;
 
   const useCollector =
-    parseBooleanEnvFlag(env['GEMINI_TELEMETRY_USE_COLLECTOR']) ??
-    settings.useCollector;
+    parseBooleanEnvFlag(
+      env['DIDIM_TELEMETRY_USE_COLLECTOR'] ??
+        env['GEMINI_TELEMETRY_USE_COLLECTOR'],
+    ) ?? settings.useCollector;
 
   return {
     enabled,
@@ -117,7 +127,9 @@ export async function resolveTelemetrySettings(options: {
     outfile,
     useCollector,
     useCliAuth:
-      parseBooleanEnvFlag(env['GEMINI_TELEMETRY_USE_CLI_AUTH']) ??
-      settings.useCliAuth,
+      parseBooleanEnvFlag(
+        env['DIDIM_TELEMETRY_USE_CLI_AUTH'] ??
+          env['GEMINI_TELEMETRY_USE_CLI_AUTH'],
+      ) ?? settings.useCliAuth,
   };
 }

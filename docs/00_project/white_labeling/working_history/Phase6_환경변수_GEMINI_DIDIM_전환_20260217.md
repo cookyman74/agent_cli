@@ -1,7 +1,7 @@
 # Phase 6: GEMINI* → DIDIM* 환경변수 전환
 
 > **작업일**: 2026-02-17 **작업자**: Claude **브랜치**:
-> `v0.2.0/se_manager_agent` **상태**: ✅ Complete (리뷰 반영 완료)
+> `v0.2.0/se_manager_agent` **상태**: ✅ Complete (리뷰 3회 반영 완료)
 
 ---
 
@@ -452,3 +452,78 @@ const homedir =
   - Core: 282 files, 5,441 passed
   - CLI: 351 files, 4,772 passed
   - vscode: 3 files, 40 passed
+
+---
+
+## 10. 리뷰 3차 결과 반영
+
+### 10.1 리뷰 이슈 요약
+
+| #   | 심각도 | 파일                 | 이슈                                                                                                                          | 판정    | 조치        |
+| --- | ------ | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------- | ----------- |
+| 1   | HIGH   | `telemetry_utils.js` | `WORKSPACE_SETTINGS_FILE` 모듈 로드 시 1회 고정 → enable 후 `.didim` 생성되어도 disable 시 `.gemini` 읽어 telemetry 설정 잔존 | ✅ 확인 | 코드 수정   |
+| 2   | MEDIUM | `sandbox_command.js` | `\|\|` 연산자 사용으로 `DIDIM_SANDBOX=''`이면 `GEMINI_SANDBOX`로 fallback — core `resolveEnv`(`??`)와 불일치                  | ✅ 확인 | 코드 수정   |
+| 3   | LOW    | 테스트               | telemetry lifecycle (legacy read + primary write + 재호출 cleanup) 시나리오 회귀 테스트 부재                                  | ✅ 확인 | 테스트 추가 |
+
+### 10.2 수정 상세
+
+#### Issue 1: `telemetry_utils.js` — 매 호출 경로 재해석
+
+**근본 원인**: `manageTelemetrySettings()`가 모듈 레벨 상수
+`WORKSPACE_SETTINGS_FILE`을 읽기 경로로 사용. 이 상수는 모듈 로드 시
+`resolveSettingsPath()`를 1회 호출하여 고정. `.gemini`만 존재하는 환경에서:
+
+1. enable → `.gemini/settings.json` 읽기 → `.didim/settings.json`에 telemetry
+   쓰기
+2. disable → 여전히 `.gemini/settings.json` 읽기 (상수 고정) → 변경 없음 감지 →
+   `.didim/settings.json`에 telemetry 잔존
+
+**수정**:
+
+```javascript
+// Before (stale module-level const)
+const workspaceSettings = readJsonFile(WORKSPACE_SETTINGS_FILE);
+
+// After (re-resolve each call)
+const currentReadPath = resolveSettingsPath();
+const workspaceSettings = readJsonFile(currentReadPath);
+```
+
+#### Issue 2: `sandbox_command.js` — `||` → `??` 연산자 변경
+
+**근본 원인**: `||` 연산자는 빈 문자열(`''`)을 falsy로 취급하여 fallback 실행.
+core의 `resolveEnv()`는 `??`(nullish coalescing)를 사용하여 빈 문자열도 유효한
+DIDIM 값으로 인정.
+
+**수정** (lines 41, 88):
+
+```javascript
+// Before
+let geminiSandbox = process.env.DIDIM_SANDBOX || process.env.GEMINI_SANDBOX;
+
+// After
+let geminiSandbox = process.env.DIDIM_SANDBOX ?? process.env.GEMINI_SANDBOX;
+```
+
+#### Issue 3: telemetry lifecycle 회귀 테스트 추가
+
+**신규 파일**: `scripts/tests/telemetry_utils_lifecycle.test.ts` (3 tests)
+
+| 테스트                                                                | 검증 내용                                                             |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `should clean up .didim settings on disable after legacy-only enable` | `.gemini`만 존재 → enable → disable 후 `.didim`에 telemetry 잔존 없음 |
+| `should read from .didim when both dirs exist`                        | 양쪽 존재 시 `.didim` 우선 읽기 확인                                  |
+| `should handle no settings file gracefully`                           | 설정 파일 없이 enable 시 `.didim` 신규 생성 확인                      |
+
+테스트 구조: `node:fs`를 in-memory Map으로 mock하여 파일 시스템 상태를 제어,
+`vi.resetModules()` + dynamic import로 모듈 레벨 상수 초기화.
+
+### 10.3 검증
+
+- **커밋**: `b3a303359`
+- **테스트**: 전체 10,358 통과, 0 실패
+  - Core: 282 files, 5,441 passed (24 skipped)
+  - CLI: 351 files, 4,772 passed (2 skipped)
+  - a2a-server: 12 files, 105 passed
+  - vscode: 3 files, 40 passed (1 skipped)
+  - scripts: 8 files, 46 passed (3 pre-existing failures 별도)

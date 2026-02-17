@@ -30,7 +30,7 @@
 | 문서    | [문서 경로 업데이트 (.gemini→.didim)](../working_history/Phase_문서업데이트_20260216.md)                    | ✅ Complete                 |
 | 리뷰    | 리뷰 추가 이슈 4건 (registry dedup, sandbox/telemetry fallback, ext bidirectional)                          | ✅ Complete                 |
 | Phase 5 | Phase 5 최종 검증 (기능 12/12, 품질 게이트, 잔존 스캔)                                                      | ✅ Complete                 |
-| Phase 6 | [GEMINI* → DIDIM* 환경변수 전환](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)          | ✅ Complete (리뷰 2회 반영) |
+| Phase 6 | [GEMINI* → DIDIM* 환경변수 전환](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)          | ✅ Complete (리뷰 3회 반영) |
 
 ---
 
@@ -769,3 +769,4 @@
 | 2026-02-17 | Claude | Phase 6 사용자 안내 메시지 업데이트     | `0f7a258` — 에러/안내 메시지 `DIDIM_*` 기준 업데이트 (GEMINI\_ 병기). 7파일: contentGenerator, telemetry/config, hookRunner, sandboxConfig, AuthDialog, StatusDisplay, IdeIntegrationNudge                                                                                                                                                                                                                                          |
 | 2026-02-17 | Claude | Phase 6 리뷰 1차 (4건) + 2차 (5건) 수정 | `bb9dcd4` — 리뷰 9건 통합 수정. relaunch/sandbox env passthrough, telemetry JSONC 파싱 안전성(`strip-json-comments`), URL 손상 방지, `DIDIM_CLI_HOME` 지원, `sandbox=false` 명시적 비활성화. QG: 10,253 tests passed                                                                                                                                                                                                                |
 | 2026-02-17 | Claude | Phase 6 커밋 정리 + push                | 11커밋 → 8커밋 squash. `b989d0f` docs, `bb9dcd4` review fixes, `0f7a258` messages, `dd032e8` tests, `112cd18` satellite, `9edb0d7` cli, `3b12c98` core, `0c5f96b` envResolver. push to `origin/v0.2.0/se_manager_agent` 완료. → [Phase6 작업결과서](../working_history/Phase6_환경변수_GEMINI_DIDIM_전환_20260217.md)                                                                                                               |
+| 2026-02-17 | Claude | Phase 6 리뷰 3차 (3건) 수정             | `b3a303359` — (1) telemetry_utils `manageTelemetrySettings` 매 호출 경로 재해석 (legacy-only start bug), (2) sandbox_command.js `\|\|`→`??` (core resolveEnv 정책 일치), (3) lifecycle 회귀 테스트 3건 추가. QG: 10,358 tests passed                                                                                                                                                                                                |

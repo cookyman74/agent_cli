@@ -396,5 +396,5 @@
 | RED: non-Gemini web-fetch/web-search throw 에러 + 일반 modelConfigKey 통과 테스트 [4차 #2 + 5차 #2~#3] | ✅   |
 | GREEN: client.ts llm\* 직접 분기 + retryWithBackoff + 가드 + 테스트 통과                               | ✅   |
 | REFACTOR: \_convertLlmResponseToGeminiResponse DRY 검토                                                | ✅   |
-| Phase 3 커밋 완료                                                                                      | ⬜   |
+| Phase 3 커밋 완료                                                                                      | ✅   |
 | 완료 조건 체크표시 + 작업 결과서 작성                                                                  | ✅   |

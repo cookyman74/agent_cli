@@ -39,10 +39,12 @@
 
 ## 2. 변경 파일
 
-| 파일                  | 액션     | 변경량 |
-| --------------------- | -------- | ------ |
-| `core/client.ts`      | **수정** | +95줄  |
-| `core/client.test.ts` | **수정** | +175줄 |
+| 파일                       | 액션     | 변경량       |
+| -------------------------- | -------- | ------------ |
+| `core/client.ts`           | **수정** | +95줄 +리뷰  |
+| `core/client.test.ts`      | **수정** | +175줄 +리뷰 |
+| `tools/web-fetch.test.ts`  | **수정** | +리뷰        |
+| `tools/web-search.test.ts` | **수정** | +리뷰        |
 
 ---
 
@@ -147,10 +149,79 @@ lint: 0 errors
 | REFACTOR: \_convertLlmResponseToGeminiResponse DRY 검토                           | ✅ (TODO 주석 추가) |
 | Phase 3 커밋 완료                                                                 | ✅                  |
 | 완료 조건 체크표시 + 작업 결과서 작성                                             | ✅                  |
+| 리뷰 #1: retryWithBackoff signal 전달                                             | ✅                  |
+| 리뷰 #2: non-Gemini mismatch guard 추가                                           | ✅                  |
+| 리뷰 #3: web-fetch/web-search 도구 단위 테스트 추가                               | ✅                  |
 
 ---
 
-## 6. Phase 4 전달사항
+## 6. 리뷰 반영 (3건)
+
+### 리뷰 #1 [HIGH] — retryWithBackoff signal 미전달
+
+**검증 결과**: 확인됨 — `_generateContentNonGemini()` line 1322:
+`retryWithBackoff(apiCall, { authType })` — `signal: abortSignal` 누락. backoff
+delay 중 취소 신호가 반영되지 않아 abort 후에도 재시도가 계속될 수 있음.
+
+**수정 내용**:
+
+- `retryWithBackoff()` 호출 시 `signal: abortSignal` 옵션 추가
+- `retry.ts:147`에서 `signal.aborted` 체크 → 즉시 AbortError throw
+- `retry.ts:273`에서 `delay(backoffTime, signal)` → abort 시 delay 즉시 중단
+
+**테스트**: C9 — pre-abort 상태에서 `retryWithBackoff`가 signal.aborted 체크 후
+즉시 AbortError throw, API 호출 0회 검증
+
+### 리뷰 #2 [MEDIUM] — non-Gemini + llm\* 없는 비정상 wiring fail-fast 없음
+
+**검증 결과**: 확인됨 — `generateContent()` line 1129-1139:
+`isNonGemini && isProviderIndependentGenerator()` 분기만 존재.
+`isNonGemini && !isProviderIndependentGenerator()` 시 Gemini legacy path로
+fallthrough → 결국 "Provider does not support legacy Gemini API" 에러 발생.
+`sendMessageStream()` (line 651)에는 동일 가드가 있으나 `generateContent()`에는
+누락.
+
+**수정 내용**:
+
+- non-Gemini llm\* 분기와 Gemini legacy path 사이에 mismatch guard 추가
+- `throw new Error(...)` — sendMessageStream의 yield 에러 이벤트와 달리 throw
+  방식 사용 (generateContent는 Promise 반환 함수이므로 throw가 자연스러움)
+- 에러 메시지에 "This is a configuration error." 문구 추가 — 디버깅 용이성
+
+**테스트**: C10 — llm\* 메서드 없는 non-Gemini generator 생성 후
+`generateContent()` 호출 시 `requires llm* methods` 에러 검증
+
+### 리뷰 #3 [LOW] — web-fetch/web-search 도구 단위 테스트 공백
+
+**검증 결과**: 확인됨 — web-fetch.test.ts와 web-search.test.ts에 non-Gemini
+guard 에러 전파 경로에 대한 직접 테스트 없음. 기존 에러 테스트(API error, fetch
+failed)는 일반 에러만 검증.
+
+**수정 내용**:
+
+- `web-fetch.test.ts`: non-Gemini urlContext guard 에러 메시지로
+  `mockGenerateContent.mockRejectedValue()` → `WEB_FETCH_PROCESSING_ERROR` 타입
+  - `urlContext` 메시지 포함 검증
+- `web-search.test.ts`: non-Gemini googleSearch guard 에러 메시지로
+  `mockGeminiClient.generateContent.mockRejectedValue()` → `WEB_SEARCH_FAILED`
+  타입 + `googleSearch` 메시지 포함 검증
+
+---
+
+## 7. 리뷰 반영 후 테스트 결과
+
+```
+client.test.ts: 96 passed, 1 skipped (기존 84 + Phase 3 10 + 리뷰 2)
+web-fetch.test.ts: 32 passed (기존 31 + 리뷰 1)
+web-search.test.ts: 10 passed (기존 9 + 리뷰 1)
+agents/ 전체: 214 passed (회귀 없음)
+typecheck: 0 errors
+lint: 0 errors
+```
+
+---
+
+## 8. Phase 4 전달사항
 
 ### 재사용 가능 유틸리티
 

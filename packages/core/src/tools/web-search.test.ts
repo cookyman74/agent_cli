@@ -136,6 +136,23 @@ describe('WebSearchTool', () => {
       expect(result.returnDisplay).toBe('Error performing web search.');
     });
 
+    // [리뷰 #3] non-Gemini provider Gemini-only tool guard error propagation
+    it('should return WEB_SEARCH_FAILED when non-Gemini provider rejects googleSearch', async () => {
+      const params: WebSearchToolParams = { query: 'search query' };
+      (mockGeminiClient.generateContent as Mock).mockRejectedValue(
+        new Error(
+          'Web search requires Gemini provider with googleSearch capability. Not available for claude. Do not retry this tool.',
+        ),
+      );
+
+      const invocation = tool.build(params);
+      const result = await invocation.execute(abortSignal);
+
+      expect(result.error?.type).toBe(ToolErrorType.WEB_SEARCH_FAILED);
+      expect(result.llmContent).toContain('googleSearch');
+      expect(result.returnDisplay).toBe('Error performing web search.');
+    });
+
     it('should correctly format results with sources and citations', async () => {
       const params: WebSearchToolParams = { query: 'grounding query' };
       (mockGeminiClient.generateContent as Mock).mockResolvedValue({

@@ -3511,6 +3511,58 @@ ${JSON.stringify(
           'Non-Gemini response',
         );
       });
+
+      // [리뷰 #1] retryWithBackoff receives abort signal
+      it('C9: passes abort signal to retryWithBackoff for abort-aware backoff', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const abortController = new AbortController();
+
+        // Pre-abort: retryWithBackoff checks signal.aborted at entry
+        abortController.abort();
+
+        await expect(
+          client.generateContent(
+            { model: 'summarizer-default' },
+            contents,
+            abortController.signal,
+          ),
+        ).rejects.toThrow('Aborted');
+
+        // API should never be called since signal was already aborted
+        expect(mockLlmGenerateContent).not.toHaveBeenCalled();
+      });
+
+      // [리뷰 #2] non-Gemini without llm* methods → fail-fast error
+      it('C10: throws for non-Gemini provider without llm* methods (mismatch guard)', async () => {
+        // Create generator with providerName but WITHOUT llm* methods
+        const mismatchedGenerator = {
+          generateContent: vi.fn(),
+          generateContentStream: vi.fn(),
+          batchEmbedContents: vi.fn(),
+          countTokens: vi.fn().mockResolvedValue({ totalTokens: 100 }),
+          providerName: 'claude',
+          // No llm* methods → isProviderIndependentGenerator() returns false
+        } as unknown as ContentGenerator;
+
+        vi.mocked(mockConfig.getContentGenerator).mockReturnValue(
+          mismatchedGenerator,
+        );
+
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await expect(
+          client.generateContent(
+            { model: 'summarizer-default' },
+            contents,
+            signal,
+          ),
+        ).rejects.toThrow(/requires llm\* methods/);
+      });
     });
   });
 

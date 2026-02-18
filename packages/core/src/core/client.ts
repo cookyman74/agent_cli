@@ -1138,6 +1138,16 @@ export class GeminiClient {
       );
     }
 
+    // [리뷰 #2] Guard: non-Gemini provider without llm* methods → fail-fast
+    if (isNonGemini && !isProviderIndependentGenerator(generator)) {
+      throw new Error(
+        `Provider "${providerName}" requires llm* methods (` +
+          'llmGenerateContent/llmGenerateContentStream/llmCountTokens), ' +
+          'but the current content generator does not implement them. ' +
+          'This is a configuration error.',
+      );
+    }
+
     // Gemini provider → legacy path
     const desiredModelConfig =
       this.config.modelConfigService.getResolvedConfig(modelConfigKey);
@@ -1321,6 +1331,7 @@ export class GeminiClient {
 
     const llmResponse = await retryWithBackoff(apiCall, {
       authType: this.config.getContentGeneratorConfig()?.authType,
+      signal: abortSignal, // [리뷰 #1] abort-aware backoff sleep
     });
 
     return this._convertLlmResponseToGeminiResponse(llmResponse);

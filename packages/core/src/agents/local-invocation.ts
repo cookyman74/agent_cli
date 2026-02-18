@@ -163,6 +163,8 @@ ${output.result}
   /**
    * Returns a ChatSessionFactory for non-Gemini providers with llm* methods,
    * or undefined for Gemini (which uses the default GeminiChat factory).
+   *
+   * Throws eagerly for non-Gemini providers that lack llm* methods [리뷰 #3].
    */
   private buildChatFactoryIfNonGemini(): ChatSessionFactory | undefined {
     let generator;
@@ -175,16 +177,20 @@ ${output.result}
 
     const providerName = generator.providerName;
 
-    // Only inject factory for non-Gemini providers with llm* methods
-    if (
-      providerName == null ||
-      providerName === 'gemini' ||
-      !isProviderIndependentGenerator(generator)
-    ) {
+    // Gemini (or unknown) → use default GeminiChat factory
+    if (providerName == null || providerName === 'gemini') {
       return undefined;
     }
 
-    return (_config, systemInstruction, tools, history) =>
+    // Non-Gemini without llm* methods → fail fast [리뷰 #3]
+    if (!isProviderIndependentGenerator(generator)) {
+      throw new Error(
+        `Provider "${providerName}" is non-Gemini but does not support ` +
+          `provider-independent API (llm* methods). Subagent execution cannot proceed.`,
+      );
+    }
+
+    return (config, systemInstruction, tools, history) =>
       new LlmAgentChatSession({
         generator,
         providerName,
@@ -211,6 +217,15 @@ ${output.result}
         },
         fixToolResultRolesFn: fixToolResultRoles,
         convertContentsToLlmMessagesFn: convertContentsToLlmMessages,
+        // Propagate generation config (temperature/topP/maxOutputTokens etc.) [리뷰 #1]
+        resolveGenerateConfigFn: (key) => {
+          try {
+            const resolved = config.modelConfigService.getResolvedConfig(key);
+            return resolved.generateContentConfig;
+          } catch {
+            return undefined;
+          }
+        },
       });
   }
 }

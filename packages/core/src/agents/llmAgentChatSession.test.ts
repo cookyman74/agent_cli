@@ -35,6 +35,7 @@ import type { LlmGenerateRequest, LlmTokenUsage } from '../providers/types.js';
 import {
   convertLlmEventToStreamEvent,
   LlmAgentChatSession,
+  type ResolvedGenerateConfig,
 } from './llmAgentChatSession.js';
 
 // ─── convertLlmEventToStreamEvent ────────────────────────────────
@@ -181,6 +182,10 @@ describe('LlmAgentChatSession', () => {
     mockConvertContentsToLlmMessages.mockReturnValue([]);
   });
 
+  // Mock for resolveGenerateConfigFn [리뷰 #1]
+  const mockResolveGenerateConfig =
+    vi.fn<() => ResolvedGenerateConfig | undefined>();
+
   /**
    * Creates a session with injectable dependencies for testing.
    */
@@ -190,6 +195,7 @@ describe('LlmAgentChatSession', () => {
       role: string;
       parts: Array<Record<string, unknown>>;
     }>;
+    resolveGenerateConfigFn?: typeof mockResolveGenerateConfig;
   }) {
     return new LlmAgentChatSession({
       generator: mockGenerator as never,
@@ -201,6 +207,7 @@ describe('LlmAgentChatSession', () => {
       buildLlmRequestFn: mockBuildLlmRequest,
       fixToolResultRolesFn: mockFixToolResultRoles,
       convertContentsToLlmMessagesFn: mockConvertContentsToLlmMessages,
+      resolveGenerateConfigFn: opts?.resolveGenerateConfigFn,
     });
   }
 
@@ -432,6 +439,84 @@ describe('LlmAgentChatSession', () => {
       expect(session.getLastPromptTokenCount()).toBe(150);
     });
 
+    it('applies generation config from resolveGenerateConfigFn to request [리뷰 #1]', async () => {
+      const genConfig: ResolvedGenerateConfig = {
+        temperature: 0.7,
+        topP: 0.9,
+        topK: 40,
+        maxOutputTokens: 4096,
+        stopSequences: ['STOP'],
+      };
+      mockResolveGenerateConfig.mockReturnValue(genConfig);
+      mockResolveProviderModel.mockReturnValue('claude-sonnet-4-5-20250929');
+      mockBuildLlmRequest.mockReturnValue({
+        model: 'placeholder',
+        messages: [],
+      });
+      mockGenerator.llmGenerateContentStream.mockReturnValue(
+        makeEventStream([{ type: LlmEventType.Finished } as LlmFinishedEvent]),
+      );
+
+      const session = createSession({
+        resolveGenerateConfigFn: mockResolveGenerateConfig,
+      });
+      const gen = await session.sendMessageStream(
+        { model: 'flash', overrideScope: 'agent-test' },
+        [{ text: 'hi' }],
+        'p1',
+        new AbortController().signal,
+      );
+      for await (const _event of gen) {
+        /* consume */
+      }
+
+      // Verify resolveGenerateConfigFn was called with the full ModelConfigKey
+      expect(mockResolveGenerateConfig).toHaveBeenCalledWith({
+        model: 'flash',
+        overrideScope: 'agent-test',
+      });
+
+      // Verify generation params were applied to the request
+      const requestArg = mockGenerator.llmGenerateContentStream.mock
+        .calls[0][0] as LlmGenerateRequest;
+      expect(requestArg.temperature).toBe(0.7);
+      expect(requestArg.topP).toBe(0.9);
+      expect(requestArg.topK).toBe(40);
+      expect(requestArg.maxTokens).toBe(4096); // maxOutputTokens → maxTokens
+      expect(requestArg.stopSequences).toEqual(['STOP']);
+    });
+
+    it('does not override request fields when resolveGenerateConfigFn returns undefined [리뷰 #1]', async () => {
+      mockResolveGenerateConfig.mockReturnValue(undefined);
+      mockResolveProviderModel.mockReturnValue('model');
+      mockBuildLlmRequest.mockReturnValue({
+        model: 'placeholder',
+        messages: [],
+        temperature: 0.5, // pre-existing value
+      });
+      mockGenerator.llmGenerateContentStream.mockReturnValue(
+        makeEventStream([{ type: LlmEventType.Finished } as LlmFinishedEvent]),
+      );
+
+      const session = createSession({
+        resolveGenerateConfigFn: mockResolveGenerateConfig,
+      });
+      const gen = await session.sendMessageStream(
+        { model: 'm' },
+        [{ text: 'hi' }],
+        'p1',
+        new AbortController().signal,
+      );
+      for await (const _event of gen) {
+        /* consume */
+      }
+
+      // Pre-existing temperature should remain unchanged
+      const requestArg = mockGenerator.llmGenerateContentStream.mock
+        .calls[0][0] as LlmGenerateRequest;
+      expect(requestArg.temperature).toBe(0.5);
+    });
+
     it('updates lastPromptTokenCount from MessageEnd event usage', async () => {
       const usage: LlmTokenUsage = {
         promptTokens: 200,
@@ -569,12 +654,47 @@ describe('LlmAgentChatSession', () => {
       session.setHistory(newHistory);
       expect(session.getHistory()).toEqual(newHistory);
     });
+
+    it('getHistory returns deep copy — external mutation does not affect internal state [리뷰 #2]', () => {
+      const session = createSession({
+        initialHistory: [
+          { role: 'user', parts: [{ text: 'original question' }] },
+        ],
+      });
+
+      const history1 = session.getHistory();
+      // Mutate the returned copy
+      history1[0].parts = [{ text: 'MUTATED' }] as never;
+      history1.push({ role: 'model', parts: [{ text: 'injected' }] } as never);
+
+      // Internal state should be unaffected
+      const history2 = session.getHistory();
+      expect(history2).toHaveLength(1); // No injected entry
+      expect(
+        (history2[0].parts as Array<Record<string, unknown>>)[0]['text'],
+      ).toBe('original question'); // Not mutated
+    });
   });
 
   describe('getLastPromptTokenCount', () => {
     it('returns 0 before any streaming', () => {
       const session = createSession();
       expect(session.getLastPromptTokenCount()).toBe(0);
+    });
+
+    it('recalculates token count after setHistory [리뷰 #5]', () => {
+      const session = createSession();
+      expect(session.getLastPromptTokenCount()).toBe(0);
+
+      // Set history with substantial text content
+      const longText = 'word '.repeat(100); // ~100 tokens
+      session.setHistory([
+        { role: 'user', parts: [{ text: longText }] },
+        { role: 'model', parts: [{ text: 'response text here' }] },
+      ] as never);
+
+      // Token count should be recalculated to a non-zero value
+      expect(session.getLastPromptTokenCount()).toBeGreaterThan(0);
     });
   });
 });

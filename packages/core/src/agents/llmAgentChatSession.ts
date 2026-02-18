@@ -26,6 +26,7 @@ import type {
   PartListUnion,
   Tool,
 } from '@google/genai';
+import { estimateTokenCountSync } from '../utils/tokenCalculation.js';
 
 import { LlmEventType } from '../providers/events.js';
 import type { LlmEvent } from '../providers/events.js';
@@ -137,6 +138,18 @@ export function convertLlmEventToStreamEvent(
  * Constructor options for LlmAgentChatSession.
  * All external dependencies are injected for testability.
  */
+/**
+ * Generation parameters resolved from model config aliases/overrides.
+ * Maps to GenerateContentConfig fields from @google/genai SDK.
+ */
+export interface ResolvedGenerateConfig {
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  maxOutputTokens?: number;
+  stopSequences?: string[];
+}
+
 export interface LlmAgentChatSessionOptions {
   /** Content generator with llm* methods */
   generator: {
@@ -164,6 +177,15 @@ export interface LlmAgentChatSessionOptions {
   }) => LlmGenerateRequest;
   fixToolResultRolesFn: (messages: LlmMessage[]) => LlmMessage[];
   convertContentsToLlmMessagesFn: (contents: Content[]) => LlmMessage[];
+
+  /**
+   * Resolves generation parameters (temperature, topP, maxOutputTokens, etc.)
+   * from a ModelConfigKey. Used to propagate agent alias/override config
+   * to non-Gemini provider requests. [리뷰 #1]
+   */
+  resolveGenerateConfigFn?: (
+    key: ModelConfigKey,
+  ) => ResolvedGenerateConfig | undefined;
 }
 
 /**
@@ -186,6 +208,7 @@ export class LlmAgentChatSession implements AgentChatSession {
   private readonly buildLlmRequestFn: LlmAgentChatSessionOptions['buildLlmRequestFn'];
   private readonly fixToolResultRolesFn: LlmAgentChatSessionOptions['fixToolResultRolesFn'];
   private readonly convertContentsToLlmMessagesFn: LlmAgentChatSessionOptions['convertContentsToLlmMessagesFn'];
+  private readonly resolveGenerateConfigFn: LlmAgentChatSessionOptions['resolveGenerateConfigFn'];
 
   constructor(options: LlmAgentChatSessionOptions) {
     this.generator = options.generator;
@@ -198,6 +221,7 @@ export class LlmAgentChatSession implements AgentChatSession {
     this.fixToolResultRolesFn = options.fixToolResultRolesFn;
     this.convertContentsToLlmMessagesFn =
       options.convertContentsToLlmMessagesFn;
+    this.resolveGenerateConfigFn = options.resolveGenerateConfigFn;
   }
 
   // ─── AgentChatSession interface ──────────────────────────────────
@@ -235,6 +259,21 @@ export class LlmAgentChatSession implements AgentChatSession {
     request.messages = this.fixToolResultRolesFn(request.messages);
     request.model = resolvedModel;
 
+    // 4b. Apply generation config from model config aliases/overrides [리뷰 #1]
+    if (this.resolveGenerateConfigFn) {
+      const genConfig = this.resolveGenerateConfigFn(modelConfigKey);
+      if (genConfig) {
+        if (genConfig.temperature != null)
+          request.temperature = genConfig.temperature;
+        if (genConfig.topP != null) request.topP = genConfig.topP;
+        if (genConfig.topK != null) request.topK = genConfig.topK;
+        if (genConfig.maxOutputTokens != null)
+          request.maxTokens = genConfig.maxOutputTokens;
+        if (genConfig.stopSequences != null)
+          request.stopSequences = genConfig.stopSequences;
+      }
+    }
+
     // 5. Call provider stream (returns AsyncGenerator directly, not Promise)
     const eventStream = this.generator.llmGenerateContentStream(
       request,
@@ -248,10 +287,15 @@ export class LlmAgentChatSession implements AgentChatSession {
 
   setHistory(history: Content[]): void {
     this.history = history;
+    // Recalculate token count to keep compression threshold accurate [리뷰 #5]
+    this.lastPromptTokenCount = estimateTokenCountSync(
+      this.history.flatMap((c) => c.parts || []),
+    );
   }
 
   getHistory(_curated?: boolean): Content[] {
-    return this.history;
+    // Return a deep copy to prevent external mutation of internal state [리뷰 #2]
+    return structuredClone(this.history);
   }
 
   getLastPromptTokenCount(): number {

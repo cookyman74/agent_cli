@@ -393,7 +393,7 @@ describe('LocalSubagentInvocation', () => {
       );
     });
 
-    it('does not pass chatFactory for non-Gemini provider without llm* methods', async () => {
+    it('fails fast for non-Gemini provider without llm* methods [리뷰 #3]', async () => {
       const noLlmGenerator = {
         providerName: 'claude',
         generateContent: vi.fn(),
@@ -405,25 +405,21 @@ describe('LocalSubagentInvocation', () => {
         noLlmGenerator,
       );
 
-      mockExecutorInstance.run.mockResolvedValue({
-        result: 'Done',
-        terminate_reason: AgentTerminateMode.GOAL,
-      });
-
       const inv = new LocalSubagentInvocation(
         testDefinition,
         mockConfig,
         { task: 'test' },
         createMockMessageBus(),
       );
-      await inv.execute(new AbortController().signal);
+      const result = await inv.execute(new AbortController().signal);
 
-      // Should be called with 3 args (no chatFactory — fallback to Gemini)
-      expect(MockLocalAgentExecutor.create).toHaveBeenCalledWith(
-        testDefinition,
-        mockConfig,
-        expect.any(Function),
-      );
+      // Should return error result (caught by execute try/catch)
+      expect(result.error).toBeDefined();
+      expect(result.error!.type).toBe(ToolErrorType.EXECUTION_FAILED);
+      expect(result.error!.message).toContain('does not support');
+      expect(result.error!.message).toContain('provider-independent API');
+      // Executor should NOT be created
+      expect(MockLocalAgentExecutor.create).not.toHaveBeenCalled();
     });
   });
 });

@@ -1145,4 +1145,172 @@ describe('BaseLlmClient - non-Gemini provider', () => {
     // 'claude-haiku' is not Gemini-specific → resolveProviderModel passes through
     expect(request.model).toBe('claude-haiku');
   });
+
+  // ── Review finding tests ──────────────────────────────────────────
+
+  // [리뷰 #1] temperature/topP/maxOutputTokens from generateContentConfig
+  it('applies temperature and topP from generateContentConfig to LlmGenerateRequest [리뷰 #1]', async () => {
+    mockLlmGenerateContent.mockResolvedValue(createLlmResponse('{"ok":true}'));
+
+    vi.mocked(mockConfig.modelConfigService.getResolvedConfig).mockReturnValue(
+      makeResolvedModelConfig('claude-haiku', {
+        temperature: 0.7,
+        topP: 0.9,
+        maxOutputTokens: 2048,
+      }),
+    );
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    await client.generateJson({
+      modelConfigKey: { model: 'test' },
+      contents: [{ role: 'user', parts: [{ text: 'test' }] }],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-config',
+    });
+
+    const request = mockLlmGenerateContent.mock
+      .calls[0][0] as LlmGenerateRequest;
+    expect(request.temperature).toBe(0.7);
+    expect(request.topP).toBe(0.9);
+    expect(request.maxTokens).toBe(2048);
+  });
+
+  // [리뷰 #2] tool_call/tool_result ID preservation in round-trip
+  it('preserves tool_call ID through convertLlmMessagesToContents round-trip [리뷰 #2]', async () => {
+    mockLlmGenerateContent.mockResolvedValue(createLlmResponse('{"ok":true}'));
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    // Contents with functionCall that has an ID
+    await client.generateJson({
+      modelConfigKey: { model: 'test' },
+      contents: [
+        {
+          role: 'model',
+          parts: [
+            {
+              functionCall: {
+                id: 'call-abc-123',
+                name: 'read_file',
+                args: { path: '/tmp/test' },
+              },
+            },
+          ],
+        },
+        {
+          role: 'user',
+          parts: [
+            {
+              functionResponse: {
+                id: 'call-abc-123',
+                name: 'read_file',
+                response: { result: 'file contents' },
+              },
+            },
+          ],
+        },
+      ],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-id-roundtrip',
+    });
+
+    const request = mockLlmGenerateContent.mock
+      .calls[0][0] as LlmGenerateRequest;
+    // Find tool_call message
+    const toolCallMsg = request.messages.find((m) =>
+      m.content.some((c) => c.type === 'tool_call'),
+    );
+    expect(toolCallMsg).toBeDefined();
+    const toolCallContent = toolCallMsg!.content.find(
+      (c) => c.type === 'tool_call',
+    );
+    expect(toolCallContent).toBeDefined();
+    expect((toolCallContent as { type: 'tool_call'; id: string }).id).toBe(
+      'call-abc-123',
+    );
+
+    // Find tool_result message — after fixToolResultRoles, role should be 'tool'
+    const toolResultMsg = request.messages.find((m) =>
+      m.content.some((c) => c.type === 'tool_result'),
+    );
+    expect(toolResultMsg).toBeDefined();
+    const toolResultContent = toolResultMsg!.content.find(
+      (c) => c.type === 'tool_result',
+    );
+    expect(toolResultContent).toBeDefined();
+    expect(
+      (toolResultContent as { type: 'tool_result'; toolCallId: string })
+        .toolCallId,
+    ).toBe('call-abc-123');
+    expect(toolResultMsg!.role).toBe('tool');
+  });
+
+  // [리뷰 #4] availabilityMaxAttempts passed to non-Gemini retryWithBackoff
+  it('passes availabilityMaxAttempts to retryWithBackoff on non-Gemini path [리뷰 #4]', async () => {
+    mockLlmGenerateContent.mockResolvedValue(createLlmResponse('{"ok":true}'));
+
+    // Configure availability to return maxAttempts
+    const mockAvailabilityService = createAvailabilityServiceMock({
+      selectedModel: 'claude-haiku',
+      skipped: [],
+    });
+    vi.mocked(mockAvailabilityService.selectFirstAvailable).mockReturnValue({
+      selectedModel: 'claude-haiku',
+      attempts: 2,
+      skipped: [],
+    });
+    vi.spyOn(mockConfig, 'getModelAvailabilityService').mockReturnValue(
+      mockAvailabilityService,
+    );
+
+    vi.mocked(mockConfig.modelConfigService.getResolvedConfig).mockReturnValue(
+      makeResolvedModelConfig('claude-haiku'),
+    );
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    await client.generateJson({
+      modelConfigKey: { model: 'test' },
+      contents: [{ role: 'user', parts: [{ text: 'test' }] }],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-availability',
+    });
+
+    expect(retryWithBackoff).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        maxAttempts: 2,
+      }),
+    );
+  });
+
+  // [리뷰 #5] telemetry uses provider model name, not Gemini alias
+  it('uses provider model name for malformed JSON telemetry [리뷰 #5]', async () => {
+    const malformedResponse = '```json\n{"color": "red"}\n```';
+    mockLlmGenerateContent.mockResolvedValue(
+      createLlmResponse(malformedResponse),
+    );
+
+    vi.mocked(mockConfig.modelConfigService.getResolvedConfig).mockReturnValue(
+      makeResolvedModelConfig('claude-haiku'),
+    );
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    await client.generateJson({
+      modelConfigKey: { model: 'loop-detection' },
+      contents: [{ role: 'user', parts: [{ text: 'test' }] }],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-telemetry',
+    });
+
+    expect(logMalformedJsonResponse).toHaveBeenCalled();
+    const calls = vi.mocked(logMalformedJsonResponse).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    const event = lastCall[1];
+    // Should use the provider model name, not the Gemini model name
+    expect(event.model).toBe('claude-haiku');
+    expect(event.model).not.toBe('loop-detection');
+  });
 });

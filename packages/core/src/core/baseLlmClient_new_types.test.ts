@@ -283,6 +283,7 @@ describe('BaseLlmClient', () => {
               parts: [
                 {
                   functionCall: {
+                    id: 'call-123', // [리뷰 #2] ID preserved through round-trip
                     name: 'read_file',
                     args: { path: '/tmp/test.txt' },
                   },
@@ -332,6 +333,7 @@ describe('BaseLlmClient', () => {
               parts: [
                 {
                   functionResponse: {
+                    id: 'call-123', // [리뷰 #2] ID preserved through round-trip
                     name: 'read_file',
                     response: { result: 'file contents here' },
                   },
@@ -382,6 +384,7 @@ describe('BaseLlmClient', () => {
               parts: [
                 {
                   functionResponse: {
+                    id: 'call-456', // [리뷰 #2] ID preserved through round-trip
                     name: 'list_files',
                     response: structuredContent,
                   },

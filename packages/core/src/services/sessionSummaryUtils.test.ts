@@ -214,7 +214,8 @@ describe('sessionSummaryUtils', () => {
       await expect(generateSummary(mockConfig)).resolves.not.toThrow();
     });
 
-    it('should skip summary generation for non-Gemini provider', async () => {
+    // [리뷰 #3] Non-Gemini providers now supported via BaseLlmClient llm* path (Phase 2).
+    it('should generate summary for non-Gemini provider via llm* path', async () => {
       // Setup non-Gemini content generator with providerName
       const nonGeminiGenerator = {
         providerName: 'claude',
@@ -231,16 +232,15 @@ describe('sessionSummaryUtils', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         createSessionWithUserMessages(2),
       );
+      mockGenerateSummary.mockResolvedValue('Test summary');
 
       await generateSummary(nonGeminiConfig);
 
-      // BaseLlmClient should NOT be instantiated for non-Gemini providers
+      // BaseLlmClient SHOULD be instantiated for non-Gemini providers (llm* path)
       const { BaseLlmClient } = await import('../core/baseLlmClient.js');
-      expect(BaseLlmClient).not.toHaveBeenCalled();
-      // Summary service should NOT be called
-      expect(mockGenerateSummary).not.toHaveBeenCalled();
-      // File should NOT be written
-      expect(fs.writeFile).not.toHaveBeenCalled();
+      expect(BaseLlmClient).toHaveBeenCalled();
+      // Summary service SHOULD be called
+      expect(mockGenerateSummary).toHaveBeenCalled();
     });
   });
 });

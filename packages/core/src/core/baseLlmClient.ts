@@ -200,6 +200,7 @@ function convertLlmMessagesToContents(messages: LlmMessage[]): Content[] {
           case 'tool_call':
             return {
               functionCall: {
+                id: content.id, // [리뷰 #2] preserve tool_call ID for round-trip
                 name: content.name,
                 args: content.arguments,
               },
@@ -207,6 +208,7 @@ function convertLlmMessagesToContents(messages: LlmMessage[]): Content[] {
           case 'tool_result':
             return {
               functionResponse: {
+                id: content.toolCallId, // [리뷰 #2] preserve tool_result ID for round-trip
                 name: content.name ?? '',
                 response:
                   typeof content.content === 'string'
@@ -293,6 +295,14 @@ export class BaseLlmClient {
     const { model } =
       this.config.modelConfigService.getResolvedConfig(modelConfigKey);
 
+    // [리뷰 #5] For non-Gemini providers, resolve the actual provider model
+    // for accurate telemetry logging in cleanJsonResponse().
+    const providerName = this.contentGenerator.providerName;
+    const isNonGemini = providerName != null && providerName !== 'gemini';
+    const telemetryModel = isNonGemini
+      ? resolveProviderModel(model, providerName)
+      : model;
+
     const shouldRetryOnContent = (response: GenerateContentResponse) => {
       const text = getResponseText(response)?.trim();
       if (!text) {
@@ -300,7 +310,7 @@ export class BaseLlmClient {
       }
       try {
         // We don't use the result, just check if it's valid JSON
-        JSON.parse(this.cleanJsonResponse(text, model));
+        JSON.parse(this.cleanJsonResponse(text, telemetryModel));
         return false; // It's valid, don't retry
       } catch (_e) {
         return true; // It's not valid, retry
@@ -326,7 +336,7 @@ export class BaseLlmClient {
 
     // If we are here, the content is valid (not empty and parsable).
     return JSON.parse(
-      this.cleanJsonResponse(getResponseText(result)!.trim(), model),
+      this.cleanJsonResponse(getResponseText(result)!.trim(), telemetryModel),
     );
   }
 
@@ -451,6 +461,8 @@ export class BaseLlmClient {
         errorContext,
         currentModel,
         providerName,
+        currentGenerateContentConfig,
+        availabilityMaxAttempts,
       );
     }
 
@@ -545,6 +557,8 @@ export class BaseLlmClient {
     errorContext: 'generateJson' | 'generateContent',
     resolvedModel: string,
     providerName: string,
+    generateContentConfig?: GenerateContentConfig,
+    availabilityMaxAttempts?: number,
   ): Promise<GenerateContentResponse> {
     const {
       contents,
@@ -565,11 +579,13 @@ export class BaseLlmClient {
           promptId,
           abortSignal,
           additionalProperties,
+          generateContentConfig,
         });
 
       return await retryWithBackoff(apiCall, {
         shouldRetryOnContent,
-        maxAttempts: maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+        maxAttempts:
+          availabilityMaxAttempts ?? maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
         authType:
           this.authType ?? this.config.getContentGeneratorConfig()?.authType,
       });
@@ -613,6 +629,7 @@ export class BaseLlmClient {
     promptId: string;
     abortSignal: AbortSignal;
     additionalProperties?: _CommonGenerateOptions['additionalProperties'];
+    generateContentConfig?: GenerateContentConfig;
   }): Promise<GenerateContentResponse> {
     const {
       contents,
@@ -622,6 +639,7 @@ export class BaseLlmClient {
       promptId,
       abortSignal,
       additionalProperties,
+      generateContentConfig,
     } = params;
 
     // 1. Convert Content[] → LlmMessage[]
@@ -647,6 +665,19 @@ export class BaseLlmClient {
     }
     if (additionalProperties) {
       request.responseFormat = 'json';
+    }
+
+    // 5b. Apply generation config (temperature, topP, topK, maxOutputTokens) [리뷰 #1]
+    if (generateContentConfig) {
+      const cfg = generateContentConfig as Record<string, unknown>;
+      if (cfg['temperature'] != null)
+        request.temperature = cfg['temperature'] as number;
+      if (cfg['topP'] != null) request.topP = cfg['topP'] as number;
+      if (cfg['topK'] != null) request.topK = cfg['topK'] as number;
+      if (cfg['maxOutputTokens'] != null)
+        request.maxTokens = cfg['maxOutputTokens'] as number;
+      if (cfg['stopSequences'] != null)
+        request.stopSequences = cfg['stopSequences'] as string[];
     }
 
     // 6. Call llmGenerateContent (type-safe: isProviderIndependentGenerator checked by caller)

@@ -160,8 +160,8 @@
 
 | 검증 항목                                            | 상태 |
 | ---------------------------------------------------- | ---- |
-| RED: tokenCalculation non-Gemini 테스트              | ⬜   |
-| GREEN: tokenCalculation llmCountTokens 분기 + 테스트 | ⬜   |
-| REFACTOR: Phase 4 구조 개선                          | ⬜   |
-| Phase 4 커밋 완료                                    | ⬜   |
-| 완료 조건 체크표시 + 작업 결과서 작성                | ⬜   |
+| RED: tokenCalculation non-Gemini 테스트              | ✅   |
+| GREEN: tokenCalculation llmCountTokens 분기 + 테스트 | ✅   |
+| REFACTOR: Phase 4 구조 개선                          | ✅   |
+| Phase 4 커밋 완료                                    | ✅   |
+| 완료 조건 체크표시 + 작업 결과서 작성                | ✅   |

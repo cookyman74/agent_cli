@@ -6,7 +6,9 @@
 
 import type { PartListUnion, Part } from '@google/genai';
 import type { ContentGenerator } from '../core/contentGenerator.js';
-import type { LlmContent } from '../providers/types.js';
+import { isProviderIndependentGenerator } from '../core/contentGenerator.js';
+import type { LlmContent, LlmGenerateRequest } from '../providers/types.js';
+import { convertPartListUnionToLlmContents } from '../providers/gemini/typeConversion.js';
 import { debugLogger } from './debugLogger.js';
 import { isTextContent, isImageContent } from './llmUtils.js';
 
@@ -88,6 +90,26 @@ export async function calculateRequestTokenCount(
   });
 
   if (hasMedia) {
+    const providerName = contentGenerator.providerName;
+    const isNonGemini = providerName != null && providerName !== 'gemini';
+
+    // Non-Gemini: use llmCountTokens (provider-independent path)
+    if (isNonGemini && isProviderIndependentGenerator(contentGenerator)) {
+      try {
+        const llmContents = convertPartListUnionToLlmContents(parts);
+        const request: LlmGenerateRequest = {
+          model,
+          messages: [{ role: 'user', content: llmContents }],
+        };
+        const response = await contentGenerator.llmCountTokens(request);
+        return response.totalTokens ?? 0;
+      } catch (error) {
+        debugLogger.debug('llmCountTokens failed:', error);
+        return estimateTokenCountSync(parts);
+      }
+    }
+
+    // Gemini: use legacy countTokens
     try {
       const response = await contentGenerator.countTokens({
         model,

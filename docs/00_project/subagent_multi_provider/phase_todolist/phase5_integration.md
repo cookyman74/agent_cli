@@ -125,7 +125,7 @@
 | Core 전체 단위 테스트 PASS                 | ✅   |
 | 빌드 성공                                  | ✅   |
 | Lint + Typecheck 통과                      | ✅   |
-| 수동 E2E (Claude 프로바이더)               | ⏳   |
-| 수동 E2E (OpenAI 프로바이더)               | ⏳   |
+| 수동 E2E (Claude 프로바이더)               | ✅   |
+| 수동 E2E (OpenAI 프로바이더)               | ⚠️   |
 | 수동 E2E (Gemini 프로바이더 회귀)          | ⏳   |
 | 완료 조건 체크표시 + 최종 작업 결과서 작성 | ✅   |

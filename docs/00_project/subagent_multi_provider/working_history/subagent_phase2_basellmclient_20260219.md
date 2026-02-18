@@ -35,10 +35,13 @@ chatCompressionService, sessionSummaryService 등)가 실패하는 문제 해결
 
 ## 2. 변경 파일
 
-| 파일                                           | 액션     | 변경량 |
-| ---------------------------------------------- | -------- | ------ |
-| `packages/core/src/core/baseLlmClient.ts`      | **수정** | +120줄 |
-| `packages/core/src/core/baseLlmClient.test.ts` | **수정** | +160줄 |
+| 파일                                                     | 액션     | 변경량       |
+| -------------------------------------------------------- | -------- | ------------ |
+| `packages/core/src/core/baseLlmClient.ts`                | **수정** | +120줄 +리뷰 |
+| `packages/core/src/core/baseLlmClient.test.ts`           | **수정** | +160줄 +리뷰 |
+| `packages/core/src/core/baseLlmClient_new_types.test.ts` | **수정** | 리뷰 #2 반영 |
+| `packages/core/src/services/sessionSummaryUtils.ts`      | **수정** | 리뷰 #3 반영 |
+| `packages/core/src/services/sessionSummaryUtils.test.ts` | **수정** | 리뷰 #3 반영 |
 
 ---
 
@@ -114,7 +117,7 @@ modelConfigKey.model (config alias, e.g. 'loop-detection')
 
 ---
 
-## 4. 테스트 실행 결과
+## 4. 테스트 실행 결과 (초기)
 
 ```
 baseLlmClient.test.ts: 39 tests PASS (기존 29 + 신규 10)
@@ -138,7 +141,115 @@ lint: 0 errors
 
 ---
 
-## 6. Phase 3 전달사항
+## 6. 리뷰 반영 (5건)
+
+### 리뷰 #1 [HIGH] — non-Gemini 경로 모델 설정값(temperature/topP/maxOutputTokens) 유실
+
+**검증 결과**: 확인됨 — `_callLlmGenerateContent()`가 `LlmGenerateRequest`에
+`model`과 `messages`만 설정하고 `generateContentConfig`의 temperature/topP/
+maxOutputTokens를 적용하지 않음.
+
+**수정 내용**:
+
+- `_generateWithRetryLlm()` 시그니처에
+  `generateContentConfig?: GenerateContentConfig` 파라미터 추가
+- `_generateWithRetry()` → `_generateWithRetryLlm()` 호출 시
+  `currentGenerateContentConfig` 전달
+- `_callLlmGenerateContent()` 내부에서 bracket notation으로 `temperature`,
+  `topP`, `topK`, `maxOutputTokens`(→`maxTokens`), `stopSequences` 적용
+
+**테스트**: B10 — `temperature: 0.7, topP: 0.9, maxOutputTokens: 2048` 설정 후
+`LlmGenerateRequest`에 반영 검증
+
+### 리뷰 #2 [HIGH] — tool_call/tool_result ID 손실로 tool 컨텍스트 깨짐
+
+**검증 결과**: 확인됨 — `convertLlmMessagesToContents()`에서:
+
+- `tool_call` → `functionCall: { name, args }` (id 누락)
+- `tool_result` → `functionResponse: { name, response }` (id 누락)
+
+→ 다시 `convertContentsToLlmMessages()` 경유 시 `functionCall.id`가
+`crypto.randomUUID()`으로 대체되고, `functionResponse.id`가 빈 문자열이 됨.
+
+**수정 내용**:
+
+- `convertLlmMessagesToContents()` case `'tool_call'`:
+  `functionCall.id: content.id` 추가
+- `convertLlmMessagesToContents()` case `'tool_result'`:
+  `functionResponse.id: content.toolCallId` 추가
+- `baseLlmClient_new_types.test.ts` 3개 테스트 기대값에 `id` 필드 추가 (기존
+  Gemini 경로에서도 ID 보존 보장)
+
+**테스트**: B11 — `call-abc-123` ID가 tool_call → functionCall →
+convertContentsToLlmMessages → tool_call 라운드트립에서 보존 검증
+
+### 리뷰 #3 [MEDIUM] — non-Gemini 세션 요약 강제 비활성화
+
+**검증 결과**: 확인됨 — `sessionSummaryUtils.ts:56-67`의 skip 주석:
+"BaseLlmClient uses legacy Gemini generateContent() which non-Gemini providers
+do not support" → Phase 2에서 `llm*` 경로 추가로 이 전제가 더 이상 유효하지
+않음.
+
+**수정 내용**:
+
+- `sessionSummaryUtils.ts`: non-Gemini skip 블록 제거, 주석으로 Phase 2 llm\*
+  경로 지원 설명 추가
+- `sessionSummaryUtils.test.ts`: "should skip summary generation for non-Gemini
+  provider" → "should generate summary for non-Gemini provider via llm\* path"로
+  변경, `BaseLlmClient`와 `mockGenerateSummary` 호출 검증
+
+### 리뷰 #4 [MEDIUM] — availability 기반 retry attempt 값 미반영
+
+**검증 결과**: 확인됨 — `_generateWithRetryLlm()` line 572:
+`maxAttempts: maxAttempts ?? DEFAULT_MAX_ATTEMPTS` — Gemini 경로의
+`availabilityMaxAttempts ?? maxAttempts ?? DEFAULT_MAX_ATTEMPTS`와 불일치.
+
+**수정 내용**:
+
+- `_generateWithRetryLlm()` 시그니처에 `availabilityMaxAttempts?: number`
+  파라미터 추가
+- `retryWithBackoff` 호출 시
+  `maxAttempts: availabilityMaxAttempts ?? maxAttempts ?? DEFAULT_MAX_ATTEMPTS`로
+  변경
+- `_generateWithRetry()` → `_generateWithRetryLlm()` 호출 시
+  `availabilityMaxAttempts` 전달
+
+**테스트**: B12 — availability service가 `attempts: 2` 반환 시
+`retryWithBackoff`에 `maxAttempts: 2` 전달 검증
+
+### 리뷰 #5 [LOW] — malformed JSON telemetry 모델명 오기록
+
+**검증 결과**: 확인됨 — `generateJson()` line 293:
+`const { model } = getResolvedConfig(modelConfigKey)` → Gemini 해석 모델명 사용.
+non-Gemini일 때 `resolveProviderModel()` 적용 전 모델명이 telemetry에 기록됨.
+
+**수정 내용**:
+
+- `generateJson()` 내에서 `isNonGemini` 분기 추가
+- non-Gemini일 때 `resolveProviderModel(model, providerName)` 결과를
+  `telemetryModel`로 사용
+- `cleanJsonResponse(text, telemetryModel)` — `shouldRetryOnContent` 및 최종
+  파싱 모두에 적용
+
+**테스트**: B13 — malformed JSON 응답 시 `MalformedJsonResponseEvent.model`이
+`'claude-haiku'` (provider model)인지 검증
+
+---
+
+## 7. 리뷰 반영 후 테스트 결과
+
+```
+baseLlmClient.test.ts: 43 tests PASS (기존 29 + Phase2 10 + 리뷰 4)
+baseLlmClient_new_types.test.ts: 9 tests PASS (기대값 id 필드 업데이트)
+sessionSummaryUtils.test.ts: 11 tests PASS (non-Gemini skip → generate 전환)
+agents/ 전체: 214 tests PASS (회귀 없음)
+typecheck: 0 errors
+lint: 0 errors
+```
+
+---
+
+## 8. Phase 3 전달사항
 
 ### 재사용 가능 유틸리티
 
@@ -151,6 +262,10 @@ lint: 0 errors
   functionCall, thought). image/tool_result는 응답에서 불필요하여 skip.
 - `_generateWithRetryLlm()`는 availability context (getAvailabilityContext,
   onPersistent429)를 사용하지 않음 — non-Gemini 프로바이더는 Gemini availability
-  서비스 대상이 아님.
+  서비스 대상이 아님. 단, `availabilityMaxAttempts`는 Gemini 경로와 동일하게
+  반영됨.
 - `fixToolResultRoles()` 적용 시 `toolCallId`가 빈 문자열이면 role 변환이 skip됨
-  (isValidToolResult 조건).
+  (isValidToolResult 조건). 리뷰 #2 수정으로 ID 보존되어 이 문제 발생 가능성
+  감소.
+- non-Gemini 세션 요약 생성 활성화 (리뷰 #3) — `sessionSummaryUtils.ts` skip
+  제거됨.

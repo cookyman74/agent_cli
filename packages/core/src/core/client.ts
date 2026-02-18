@@ -10,6 +10,7 @@ import type {
   Content,
   Tool,
   GenerateContentResponse,
+  Part,
 } from '@google/genai';
 import { createUserContent } from '@google/genai';
 import {
@@ -64,6 +65,11 @@ import { debugLogger } from '../utils/debugLogger.js';
 import { buildLlmRequestFromGeminiState } from '../providers/gemini/requestBuilder.js';
 import { LlmResponseAccumulator } from '../providers/gemini/historyBuilder.js';
 import { resolveProviderModel } from '../providers/providerSelector.js';
+import { fixToolResultRoles } from './llmMessageUtils.js';
+import type {
+  LlmGenerateRequest,
+  LlmGenerateResponse,
+} from '../providers/types.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
 import {
@@ -1118,6 +1124,21 @@ export class GeminiClient {
     contents: Content[],
     abortSignal: AbortSignal,
   ): Promise<GenerateContentResponse> {
+    const generator = this.getContentGeneratorOrFail();
+    const providerName = generator.providerName;
+    const isNonGemini = providerName != null && providerName !== 'gemini';
+
+    // Non-Gemini provider → llm* path
+    if (isNonGemini && isProviderIndependentGenerator(generator)) {
+      return this._generateContentNonGemini(
+        modelConfigKey,
+        contents,
+        abortSignal,
+        providerName,
+      );
+    }
+
+    // Gemini provider → legacy path
     const desiredModelConfig =
       this.config.modelConfigService.getResolvedConfig(modelConfigKey);
     let {
@@ -1227,6 +1248,126 @@ export class GeminiClient {
         `Failed to generate content with model ${currentAttemptModel}: ${getErrorMessage(error)}`,
       );
     }
+  }
+
+  /**
+   * Non-Gemini provider path for generateContent().
+   * Uses llmGenerateContent() directly with retryWithBackoff.
+   * Gemini-only tools (urlContext, googleSearch) are guarded with throw.
+   */
+  private async _generateContentNonGemini(
+    modelConfigKey: ModelConfigKey,
+    contents: Content[],
+    abortSignal: AbortSignal,
+    providerName: string,
+  ): Promise<GenerateContentResponse> {
+    // Guard: Gemini-only tools — web-fetch uses urlContext, web-search uses googleSearch
+    const GEMINI_ONLY_TOOLS: Record<string, string> = {
+      'web-fetch': `URL context requires Gemini provider with urlContext capability. Not available for ${providerName}.`,
+      'web-fetch-fallback': `URL context requires Gemini provider. Fallback to HTTP fetch. Not available for ${providerName}.`,
+      'web-search': `Web search requires Gemini provider with googleSearch capability. Not available for ${providerName}. Do not retry this tool.`,
+    };
+    const guardMessage = GEMINI_ONLY_TOOLS[modelConfigKey.model];
+    if (guardMessage) {
+      throw new Error(guardMessage);
+    }
+
+    const generator = this.getContentGeneratorOrFail();
+    const resolvedConfig =
+      this.config.modelConfigService.getResolvedConfig(modelConfigKey);
+    const resolvedModel = resolveProviderModel(
+      resolvedConfig.model,
+      providerName,
+    );
+
+    const userMemory = this.config.getUserMemory();
+    const systemInstruction = getCoreSystemPrompt(this.config, userMemory);
+
+    // Convert Gemini Content[] → LlmMessage[] + fix tool result roles
+    const messages = fixToolResultRoles(convertContentsToLlmMessages(contents));
+
+    // Build LlmGenerateRequest with resolved config
+    const generateContentConfig = resolvedConfig.generateContentConfig;
+    const request: LlmGenerateRequest = {
+      model: resolvedModel,
+      messages,
+      systemInstruction,
+    };
+
+    // Apply generation config parameters
+    if (generateContentConfig) {
+      const cfg = generateContentConfig as Record<string, unknown>;
+      if (cfg['temperature'] != null) {
+        request.temperature = cfg['temperature'] as number;
+      }
+      if (cfg['topP'] != null) {
+        request.topP = cfg['topP'] as number;
+      }
+      if (cfg['topK'] != null) {
+        request.topK = cfg['topK'] as number;
+      }
+      if (cfg['maxOutputTokens'] != null) {
+        request.maxTokens = cfg['maxOutputTokens'] as number;
+      }
+      if (cfg['stopSequences'] != null) {
+        request.stopSequences = cfg['stopSequences'] as string[];
+      }
+    }
+
+    const apiCall = () =>
+      generator.llmGenerateContent!(request, this.lastPromptId, {
+        signal: abortSignal,
+      });
+
+    const llmResponse = await retryWithBackoff(apiCall, {
+      authType: this.config.getContentGeneratorConfig()?.authType,
+    });
+
+    return this._convertLlmResponseToGeminiResponse(llmResponse);
+  }
+
+  /**
+   * Convert LlmGenerateResponse → GenerateContentResponse for compatibility
+   * with callers expecting Gemini SDK response format.
+   * NOTE: Duplicated from BaseLlmClient._convertLlmResponseToGeminiResponse().
+   * TODO: Extract to shared utility in typeConversion.ts during refactoring.
+   */
+  private _convertLlmResponseToGeminiResponse(
+    llmResponse: LlmGenerateResponse,
+  ): GenerateContentResponse {
+    const parts: Part[] = [];
+    for (const c of llmResponse.content) {
+      switch (c.type) {
+        case 'text':
+          parts.push({ text: c.text });
+          break;
+        case 'tool_call':
+          parts.push({
+            functionCall: {
+              id: c.id,
+              name: c.name,
+              args: c.arguments,
+            },
+          });
+          break;
+        case 'thought':
+          parts.push({ text: c.thought, thought: true } as Part);
+          break;
+        default:
+          break;
+      }
+    }
+
+    return {
+      candidates: [
+        {
+          content: {
+            role: 'model',
+            parts,
+          },
+        },
+      ],
+    } as GenerateContentResponse;
   }
 
   async tryCompressChat(

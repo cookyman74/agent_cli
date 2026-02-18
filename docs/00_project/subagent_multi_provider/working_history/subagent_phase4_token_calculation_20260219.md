@@ -110,18 +110,76 @@ lint: 0 errors
 | REFACTOR: Phase 4 구조 개선                          | ✅   |
 | Phase 4 커밋 완료                                    | ✅   |
 | 완료 조건 체크표시 + 작업 결과서 작성                | ✅   |
+| 리뷰 #1: flatMap 메시지 구조 왜곡 문서화             | ✅   |
+| 리뷰 #2: llmCountTokens 단독 체크로 완화             | ✅   |
+| 리뷰 #3: warn 레벨 로깅 + 예외 fallback 문서화       | ✅   |
 
 ---
 
-## 6. Phase 5 전달사항
+## 6. 리뷰 반영 (3건)
+
+### 리뷰 #1 [MEDIUM] — 압축 경로 메시지 구조 왜곡
+
+**검증 결과**: 확인됨 — `chatCompressionService.ts:414`에서
+`fullNewHistory.flatMap((c) => c.parts || [])` 호출로 `Content[]`의 role 정보가
+소실됨. Phase 4에서 이를 단일 `{ role: 'user', content: llmContents }` 메시지로
+감싸서 `llmCountTokens`에 전달.
+
+**분석**: Gemini 경로도 동일 패턴(`contents: [{ role: 'user', parts }]`) 사용 —
+pre-existing limitation. 토큰 계산 용도로는 role 구조가 크게 영향을 미치지
+않으며, provider가 거부 시 catch → fallback으로 안전하게 처리됨.
+
+**수정 내용**: tokenCalculation.ts에 NOTE 주석 추가 — flatMap에 의한 role 소실과
+단일 user 메시지 감싸기가 pre-existing 패턴임을 문서화.
+
+### 리뷰 #2 [MEDIUM] — llmCountTokens 사용 조건 과도
+
+**검증 결과**: 확인됨 — `isProviderIndependentGenerator()`는
+`llmGenerateContent`, `llmGenerateContentStream`, `llmCountTokens` 3개 메서드
+전수 요구. 토큰 계산에는 `llmCountTokens`만 필요.
+
+**수정 내용**:
+
+- `isProviderIndependentGenerator(contentGenerator)` →
+  `typeof contentGenerator.llmCountTokens === 'function'` 으로 변경
+- `isProviderIndependentGenerator` import 제거 (tokenCalculation.ts에서 더 이상
+  미사용)
+- 테스트 D5a 추가: `llmCountTokens`만 있는 generator → 정상 호출 검증
+
+### 리뷰 #3 [LOW] — 예외 기반 fallback 상시 발생 가시성
+
+**검증 결과**: 확인됨 — OpenAI adapter `supportsTokenCount: false` →
+`BaseAdapter.countTokens()` → `UnsupportedFeatureError` sync throw →
+`wrapAdapterAsGenerator()` 경유 → `llmCountTokens()` 항상 실패 → fallback.
+
+**수정 내용**:
+
+- `debugLogger.debug(...)` → `debugLogger.warn(...)` 로 로그 레벨 상향
+- 로그 메시지에 provider 이름 포함: `llmCountTokens failed for ${providerName}`
+- 주석 추가: `supportsTokenCount=false`인 provider는 항상 heuristic fallback
+  사용하며 성능 영향 미미 (sync throw)
+
+---
+
+## 7. 리뷰 반영 후 테스트 결과
+
+```
+tokenCalculation.test.ts: 25 passed (기존 19 + Phase 4 5 + 리뷰 1)
+typecheck: 0 errors
+lint: 0 errors
+```
+
+---
+
+## 8. Phase 5 전달사항
 
 ### 주의사항
 
-- `isProviderIndependentGenerator()` type guard가 `llmCountTokens` 존재를
-  보장하므로 non-null assertion (`!`) 불필요 — ESLint
-  `no-unnecessary-type-assertion` 규칙 준수
 - `convertPartListUnionToLlmContents()` — Gemini `Part` 중 `inlineData` →
   `LlmImageContent` 변환. `fileData` (GCS URI)는 현재 미지원 → 해당 타입은 JSON
   heuristic 폴백으로 처리됨
-- non-Gemini + llm\* 없는 경우 → Gemini legacy path로 fallthrough → catch 폴백 →
-  로컬 추정치 (기존 동작 유지)
+- non-Gemini + `llmCountTokens` 없는 경우 → Gemini legacy path로 fallthrough →
+  catch 폴백 → 로컬 추정치 (기존 동작 유지)
+- `supportsTokenCount=false` provider (OpenAI 등)는 미디어 요청마다
+  `llmCountTokens()` 호출 → sync throw → warn 로그 → heuristic fallback. 성능
+  영향 미미하나 warn 로그 빈도 주의.

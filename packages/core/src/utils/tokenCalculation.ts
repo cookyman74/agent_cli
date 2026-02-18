@@ -6,7 +6,6 @@
 
 import type { PartListUnion, Part } from '@google/genai';
 import type { ContentGenerator } from '../core/contentGenerator.js';
-import { isProviderIndependentGenerator } from '../core/contentGenerator.js';
 import type { LlmContent, LlmGenerateRequest } from '../providers/types.js';
 import { convertPartListUnionToLlmContents } from '../providers/gemini/typeConversion.js';
 import { debugLogger } from './debugLogger.js';
@@ -94,8 +93,14 @@ export async function calculateRequestTokenCount(
     const isNonGemini = providerName != null && providerName !== 'gemini';
 
     // Non-Gemini: use llmCountTokens (provider-independent path)
-    if (isNonGemini && isProviderIndependentGenerator(contentGenerator)) {
+    // [리뷰 #2] llmCountTokens만 체크 — isProviderIndependentGenerator()는
+    // 3개 메서드 전수 요구라 토큰 계산에는 과도
+    if (isNonGemini && typeof contentGenerator.llmCountTokens === 'function') {
       try {
+        // NOTE: 호출자(chatCompressionService 등)가 Content[] → flatMap → Part[]로
+        // 평탄화 후 전달하므로 원래 role/tool 문맥이 소실됨.
+        // 단일 user 메시지로 감싸서 전달하며, provider가 거부 시 catch → fallback.
+        // Gemini 경로도 동일 패턴 (pre-existing limitation). [리뷰 #1]
         const llmContents = convertPartListUnionToLlmContents(parts);
         const request: LlmGenerateRequest = {
           model,
@@ -104,7 +109,12 @@ export async function calculateRequestTokenCount(
         const response = await contentGenerator.llmCountTokens(request);
         return response.totalTokens ?? 0;
       } catch (error) {
-        debugLogger.debug('llmCountTokens failed:', error);
+        // [리뷰 #3] supportsTokenCount=false인 provider(OpenAI 등)는 항상 여기로
+        // 진입하여 heuristic fallback 사용. 성능 영향은 미미 (sync throw).
+        debugLogger.warn(
+          `llmCountTokens failed for ${contentGenerator.providerName ?? 'unknown'}, using local estimate:`,
+          error,
+        );
         return estimateTokenCountSync(parts);
       }
     }

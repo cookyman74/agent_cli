@@ -374,8 +374,31 @@ describe('calculateRequestTokenCount — non-Gemini provider', () => {
     expect(mockLlmCountTokens).toHaveBeenCalled();
   });
 
+  // [리뷰 #2] llmCountTokens만 있어도 호출 (isProviderIndependentGenerator 불필요)
+  it('D5a: calls llmCountTokens even without other llm* methods', async () => {
+    const partialGenerator = {
+      countTokens: vi.fn(),
+      providerName: 'custom-provider',
+      // llmGenerateContent: 없음
+      // llmGenerateContentStream: 없음
+      llmCountTokens: vi.fn().mockResolvedValue({ totalTokens: 250 }),
+    } as unknown as ContentGenerator;
+
+    const request = [{ inlineData: { mimeType: 'image/png', data: 'data' } }];
+
+    const count = await calculateRequestTokenCount(
+      request,
+      partialGenerator,
+      'custom-model',
+    );
+
+    expect(count).toBe(250);
+    expect(partialGenerator.llmCountTokens).toHaveBeenCalled();
+    expect(partialGenerator.countTokens).not.toHaveBeenCalled();
+  });
+
   // [RED-D5] non-Gemini + media → LlmGenerateRequest 구조 검증
-  it('D5: passes correct LlmGenerateRequest structure to llmCountTokens', async () => {
+  it('D5b: passes correct LlmGenerateRequest structure to llmCountTokens', async () => {
     const request = [
       { text: 'Describe this image' },
       { inlineData: { mimeType: 'image/png', data: 'base64data' } },

@@ -30,6 +30,10 @@ import { MalformedJsonResponseEvent } from '../telemetry/types.js';
 import { getErrorMessage } from '../utils/errors.js';
 import type { ModelConfigService } from '../services/modelConfigService.js';
 import { makeResolvedModelConfig } from '../services/modelConfigServiceTestUtils.js';
+import type {
+  LlmGenerateRequest,
+  LlmGenerateResponse,
+} from '../providers/types.js';
 
 vi.mock('../utils/errorReporting.js');
 vi.mock('../telemetry/loggers.js');
@@ -826,5 +830,319 @@ describe('BaseLlmClient', () => {
       expect(secondCall?.model).toBe(fallbackModel);
       expect(secondCall?.config?.temperature).toBe(0.9);
     });
+  });
+});
+
+// ============================================================================
+// Non-Gemini provider (llm* path) tests [Phase 2]
+// ============================================================================
+
+describe('BaseLlmClient - non-Gemini provider', () => {
+  let mockLlmGenerateContent: ReturnType<typeof vi.fn>;
+  let nonGeminiGenerator: ContentGenerator;
+  let mockConfig: Mocked<Config>;
+  let abortController: AbortController;
+
+  const createLlmResponse = (text: string): LlmGenerateResponse => ({
+    id: 'resp-1',
+    content: [{ type: 'text', text }],
+    model: 'claude-sonnet-4-20250514',
+    stopReason: 'end_turn',
+    usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getErrorMessage).mockImplementation((e) =>
+      e instanceof Error ? e.message : String(e),
+    );
+
+    mockLlmGenerateContent = vi.fn();
+    nonGeminiGenerator = {
+      providerName: 'claude',
+      generateContent: vi.fn(),
+      generateContentStream: vi.fn(),
+      llmGenerateContent: mockLlmGenerateContent,
+      llmGenerateContentStream: vi.fn(),
+      llmCountTokens: vi.fn(),
+      embedContent: vi.fn(),
+    } as unknown as ContentGenerator;
+
+    mockConfig = {
+      getSessionId: vi.fn().mockReturnValue('test-session-id'),
+      getContentGeneratorConfig: vi
+        .fn()
+        .mockReturnValue({ authType: AuthType.USE_GEMINI }),
+      getEmbeddingModel: vi.fn().mockReturnValue('test-embedding-model'),
+      isInteractive: vi.fn().mockReturnValue(false),
+      modelConfigService: {
+        getResolvedConfig: vi
+          .fn()
+          .mockImplementation(({ model }: { model: string }) =>
+            makeResolvedModelConfig(model),
+          ),
+      } as unknown as ModelConfigService,
+      getModelAvailabilityService: vi
+        .fn()
+        .mockReturnValue(createAvailabilityServiceMock()),
+      setActiveModel: vi.fn(),
+      getPreviewFeatures: vi.fn().mockReturnValue(false),
+      getUserTier: vi.fn().mockReturnValue(undefined),
+      getModel: vi.fn().mockReturnValue('gemini-2.5-flash'),
+      getActiveModel: vi.fn().mockReturnValue('gemini-2.5-flash'),
+    } as unknown as Mocked<Config>;
+
+    abortController = new AbortController();
+  });
+
+  afterEach(() => {
+    abortController.abort();
+  });
+
+  // [RED-B1] non-Gemini generateJson() calls llmGenerateContent
+  it('calls llmGenerateContent for non-Gemini generateJson', async () => {
+    mockLlmGenerateContent.mockResolvedValue(
+      createLlmResponse('{"color": "blue"}'),
+    );
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    const result = await client.generateJson({
+      modelConfigKey: { model: 'summarizer-default' },
+      contents: [{ role: 'user', parts: [{ text: 'analyze' }] }],
+      schema: { type: 'object', properties: { color: { type: 'string' } } },
+      abortSignal: abortController.signal,
+      promptId: 'test-json',
+    });
+
+    expect(mockLlmGenerateContent).toHaveBeenCalled();
+    expect(nonGeminiGenerator.generateContent).not.toHaveBeenCalled();
+    expect(result).toEqual({ color: 'blue' });
+  });
+
+  // [RED-B2] non-Gemini generateContent() calls llmGenerateContent
+  it('calls llmGenerateContent for non-Gemini generateContent', async () => {
+    mockLlmGenerateContent.mockResolvedValue(
+      createLlmResponse('summarized text'),
+    );
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    const result = await client.generateContent({
+      modelConfigKey: { model: 'web-fetch' },
+      contents: [{ role: 'user', parts: [{ text: 'summarize' }] }],
+      abortSignal: abortController.signal,
+      promptId: 'test-content',
+    });
+
+    expect(mockLlmGenerateContent).toHaveBeenCalled();
+    expect(nonGeminiGenerator.generateContent).not.toHaveBeenCalled();
+    // Verify getResponseText() compatibility
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    expect(text).toBe('summarized text');
+  });
+
+  // [RED-B3] Gemini provider still uses legacy path (regression)
+  it('calls legacy generateContent for Gemini provider', async () => {
+    const geminiGenerator = {
+      providerName: undefined, // Gemini has no providerName
+      generateContent: vi.fn().mockResolvedValue({
+        candidates: [
+          { content: { role: 'model', parts: [{ text: '{"ok":true}' }] } },
+        ],
+      } as unknown as GenerateContentResponse),
+      generateContentStream: vi.fn(),
+      embedContent: vi.fn(),
+    } as unknown as ContentGenerator;
+
+    const client = new BaseLlmClient(geminiGenerator, mockConfig);
+    const result = await client.generateJson({
+      modelConfigKey: { model: 'test-model' },
+      contents: [{ role: 'user', parts: [{ text: 'test' }] }],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-gemini',
+    });
+
+    expect(geminiGenerator.generateContent).toHaveBeenCalled();
+    expect(result).toEqual({ ok: true });
+  });
+
+  // [RED-B4] _convertLlmResponseToGeminiResponse compatibility
+  it('converts LlmGenerateResponse to GenerateContentResponse compatible with getResponseText', async () => {
+    mockLlmGenerateContent.mockResolvedValue(createLlmResponse('hello world'));
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    const result = await client.generateContent({
+      modelConfigKey: { model: 'test' },
+      contents: [{ role: 'user', parts: [{ text: 'greet' }] }],
+      abortSignal: abortController.signal,
+      promptId: 'test-convert',
+    });
+
+    // Verify the structure matches getResponseText() expectations
+    expect(result.candidates).toBeDefined();
+    expect(result.candidates!.length).toBeGreaterThan(0);
+    expect(result.candidates![0].content).toBeDefined();
+    expect(result.candidates![0].content!.role).toBe('model');
+    expect(result.candidates![0].content!.parts).toBeDefined();
+    expect(result.candidates![0].content!.parts![0]).toEqual({
+      text: 'hello world',
+    });
+  });
+
+  // [RED-B5] systemInstruction normalization (string form)
+  it('passes systemInstruction string to llmGenerateContent request', async () => {
+    mockLlmGenerateContent.mockResolvedValue(
+      createLlmResponse('{"result":"ok"}'),
+    );
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    await client.generateJson({
+      modelConfigKey: { model: 'test' },
+      contents: [{ role: 'user', parts: [{ text: 'test' }] }],
+      schema: { type: 'object' },
+      systemInstruction: 'You are a helpful assistant.',
+      abortSignal: abortController.signal,
+      promptId: 'test-si',
+    });
+
+    const request = mockLlmGenerateContent.mock
+      .calls[0][0] as LlmGenerateRequest;
+    expect(request.systemInstruction).toBe('You are a helpful assistant.');
+  });
+
+  // [RED-B6] retry works on non-Gemini path
+  it('retries on non-Gemini path when content is invalid', async () => {
+    // First call returns invalid JSON, second returns valid
+    mockLlmGenerateContent
+      .mockResolvedValueOnce(createLlmResponse('not json'))
+      .mockResolvedValueOnce(createLlmResponse('{"color":"red"}'));
+
+    // Override retryWithBackoff to simulate retry
+    vi.mocked(retryWithBackoff).mockImplementation(async (fn, options) => {
+      const first = await fn();
+      if (options?.shouldRetryOnContent?.(first as GenerateContentResponse)) {
+        return (await fn()) as GenerateContentResponse;
+      }
+      return first as GenerateContentResponse;
+    });
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    const result = await client.generateJson({
+      modelConfigKey: { model: 'test' },
+      contents: [{ role: 'user', parts: [{ text: 'color' }] }],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-retry',
+    });
+
+    expect(mockLlmGenerateContent).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ color: 'red' });
+  });
+
+  // [RED-B7] responseFormat: 'json' for generateJson
+  it('passes responseFormat json for generateJson on non-Gemini', async () => {
+    mockLlmGenerateContent.mockResolvedValue(createLlmResponse('{"ok":true}'));
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    await client.generateJson({
+      modelConfigKey: { model: 'test' },
+      contents: [{ role: 'user', parts: [{ text: 'test' }] }],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-json-format',
+    });
+
+    const request = mockLlmGenerateContent.mock
+      .calls[0][0] as LlmGenerateRequest;
+    expect(request.responseFormat).toBe('json');
+  });
+
+  // [RED-B8] fixToolResultRoles applied to messages
+  it('applies fixToolResultRoles to messages before llmGenerateContent call', async () => {
+    mockLlmGenerateContent.mockResolvedValue(createLlmResponse('{"ok":true}'));
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    // Contents with functionResponse part (tool_result in Gemini format)
+    await client.generateJson({
+      modelConfigKey: { model: 'test' },
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              functionResponse: {
+                id: 'call-123',
+                name: 'read_file',
+                response: { result: 'file contents' },
+              },
+            },
+          ],
+        },
+      ],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-fix-roles',
+    });
+
+    const request = mockLlmGenerateContent.mock
+      .calls[0][0] as LlmGenerateRequest;
+    // After conversion from Content[] → LlmMessage[] → fixToolResultRoles(),
+    // tool_result messages should have role 'tool' (not 'user')
+    const toolResultMsg = request.messages.find((m) =>
+      m.content.some((c) => c.type === 'tool_result'),
+    );
+    expect(toolResultMsg).toBeDefined();
+    expect(toolResultMsg!.role).toBe('tool');
+  });
+
+  // [RED-B9] resolvedConfig.model-based model resolution
+  it('uses getResolvedConfig().model for model resolution, not config alias', async () => {
+    mockLlmGenerateContent.mockResolvedValue(createLlmResponse('{"ok":true}'));
+
+    // Config alias 'loop-detection' resolves to 'gemini-2.5-flash'
+    vi.mocked(mockConfig.modelConfigService.getResolvedConfig).mockReturnValue(
+      makeResolvedModelConfig('gemini-2.5-flash'),
+    );
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    await client.generateJson({
+      modelConfigKey: { model: 'loop-detection' }, // config alias
+      contents: [{ role: 'user', parts: [{ text: 'detect' }] }],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-model-resolution',
+    });
+
+    const request = mockLlmGenerateContent.mock
+      .calls[0][0] as LlmGenerateRequest;
+    // Should NOT be the config alias 'loop-detection'
+    expect(request.model).not.toBe('loop-detection');
+    // Should be resolved through resolveProviderModel()
+    // 'gemini-2.5-flash' is Gemini-specific → resolveProviderModel returns provider default
+    expect(request.model).toBeDefined();
+    expect(typeof request.model).toBe('string');
+  });
+
+  it('passes through user override model from resolvedConfig', async () => {
+    mockLlmGenerateContent.mockResolvedValue(createLlmResponse('{"ok":true}'));
+
+    // User has overridden the alias to a specific Claude model
+    vi.mocked(mockConfig.modelConfigService.getResolvedConfig).mockReturnValue(
+      makeResolvedModelConfig('claude-haiku'),
+    );
+
+    const client = new BaseLlmClient(nonGeminiGenerator, mockConfig);
+    await client.generateJson({
+      modelConfigKey: { model: 'loop-detection' },
+      contents: [{ role: 'user', parts: [{ text: 'detect' }] }],
+      schema: { type: 'object' },
+      abortSignal: abortController.signal,
+      promptId: 'test-model-passthrough',
+    });
+
+    const request = mockLlmGenerateContent.mock
+      .calls[0][0] as LlmGenerateRequest;
+    // 'claude-haiku' is not Gemini-specific → resolveProviderModel passes through
+    expect(request.model).toBe('claude-haiku');
   });
 });

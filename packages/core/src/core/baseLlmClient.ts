@@ -16,6 +16,7 @@ import type { Config } from '../config/config.js';
 // TODO(M2.2): Replace with provider-independent ContentGenerator from '../providers/types.js'
 // after GeminiAdapter implementation. Currently bound to Gemini-specific GeminiContentGenerator.
 import type { ContentGenerator } from './contentGenerator.js';
+import { isProviderIndependentGenerator } from './contentGenerator.js';
 import type { AuthType } from './contentGenerator.js';
 import { handleFallback } from '../fallback/handler.js';
 import { getResponseText } from '../utils/partUtils.js';
@@ -29,7 +30,14 @@ import {
   applyModelSelection,
   createAvailabilityContextProvider,
 } from '../availability/policyHelpers.js';
-import type { LlmMessage } from '../providers/types.js';
+import type {
+  LlmMessage,
+  LlmGenerateRequest,
+  LlmGenerateResponse,
+} from '../providers/types.js';
+import { convertContentsToLlmMessages } from '../providers/gemini/typeConversion.js';
+import { fixToolResultRoles } from './llmMessageUtils.js';
+import { resolveProviderModel } from '../providers/providerSelector.js';
 
 const DEFAULT_MAX_ATTEMPTS = 5;
 
@@ -432,6 +440,22 @@ export class BaseLlmClient {
     let currentModel = model;
     let currentGenerateContentConfig = generateContentConfig;
 
+    // ── Non-Gemini provider: use llm* path ──────────────────────────
+    const providerName = this.contentGenerator.providerName;
+    const isNonGemini = providerName != null && providerName !== 'gemini';
+
+    if (isNonGemini && isProviderIndependentGenerator(this.contentGenerator)) {
+      return this._generateWithRetryLlm(
+        options,
+        shouldRetryOnContent,
+        errorContext,
+        currentModel,
+        providerName,
+      );
+    }
+
+    // ── Gemini (legacy) path ────────────────────────────────────────
+
     // Define callback to fetch context dynamically since active model may get updated during retry loop
     const getAvailabilityContext = createAvailabilityContextProvider(
       this.config,
@@ -506,5 +530,210 @@ export class BaseLlmClient {
 
       throw new Error(`Failed to generate content: ${getErrorMessage(error)}`);
     }
+  }
+
+  // ── Non-Gemini llm* path ────────────────────────────────────────
+
+  /**
+   * Non-Gemini variant of _generateWithRetry.
+   * Converts Content[] → LlmMessage[], calls llmGenerateContent(),
+   * and converts the response back to GenerateContentResponse.
+   */
+  private async _generateWithRetryLlm(
+    options: _CommonGenerateOptions,
+    shouldRetryOnContent: (response: GenerateContentResponse) => boolean,
+    errorContext: 'generateJson' | 'generateContent',
+    resolvedModel: string,
+    providerName: string,
+  ): Promise<GenerateContentResponse> {
+    const {
+      contents,
+      systemInstruction,
+      abortSignal,
+      promptId,
+      maxAttempts,
+      additionalProperties,
+    } = options;
+
+    try {
+      const apiCall = () =>
+        this._callLlmGenerateContent({
+          contents,
+          systemInstruction,
+          resolvedModel,
+          providerName,
+          promptId,
+          abortSignal,
+          additionalProperties,
+        });
+
+      return await retryWithBackoff(apiCall, {
+        shouldRetryOnContent,
+        maxAttempts: maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+        authType:
+          this.authType ?? this.config.getContentGeneratorConfig()?.authType,
+      });
+    } catch (error) {
+      if (abortSignal?.aborted) {
+        throw error;
+      }
+
+      if (
+        error instanceof Error &&
+        error.message.includes('Retry attempts exhausted')
+      ) {
+        await reportError(
+          error,
+          `API returned invalid content after all retries.`,
+          contents,
+          `${errorContext}-invalid-content`,
+        );
+      } else {
+        await reportError(
+          error,
+          `Error generating content via API.`,
+          contents,
+          `${errorContext}-api`,
+        );
+      }
+
+      throw new Error(`Failed to generate content: ${getErrorMessage(error)}`);
+    }
+  }
+
+  /**
+   * Builds an LlmGenerateRequest from Gemini Content[] and calls llmGenerateContent().
+   * Returns GenerateContentResponse for compatibility with existing callers.
+   */
+  private async _callLlmGenerateContent(params: {
+    contents: Content[];
+    systemInstruction?: string | Part | Part[] | Content;
+    resolvedModel: string;
+    providerName: string;
+    promptId: string;
+    abortSignal: AbortSignal;
+    additionalProperties?: _CommonGenerateOptions['additionalProperties'];
+  }): Promise<GenerateContentResponse> {
+    const {
+      contents,
+      systemInstruction,
+      resolvedModel,
+      providerName,
+      promptId,
+      abortSignal,
+      additionalProperties,
+    } = params;
+
+    // 1. Convert Content[] → LlmMessage[]
+    const messages = convertContentsToLlmMessages(contents);
+
+    // 2. Apply fixToolResultRoles (role correction + multi-tool_result split)
+    const fixedMessages = fixToolResultRoles(messages);
+
+    // 3. Resolve provider model
+    const providerModel = resolveProviderModel(resolvedModel, providerName);
+
+    // 4. Normalize systemInstruction to string
+    const systemInstructionStr =
+      this._normalizeSystemInstruction(systemInstruction);
+
+    // 5. Build LlmGenerateRequest
+    const request: LlmGenerateRequest = {
+      model: providerModel,
+      messages: fixedMessages,
+    };
+    if (systemInstructionStr) {
+      request.systemInstruction = systemInstructionStr;
+    }
+    if (additionalProperties) {
+      request.responseFormat = 'json';
+    }
+
+    // 6. Call llmGenerateContent (type-safe: isProviderIndependentGenerator checked by caller)
+    const llmResponse = await this.contentGenerator.llmGenerateContent!(
+      request,
+      promptId,
+      { signal: abortSignal },
+    );
+
+    // 7. Convert to GenerateContentResponse
+    return this._convertLlmResponseToGeminiResponse(llmResponse);
+  }
+
+  /**
+   * Normalizes various systemInstruction forms to a plain string.
+   * BaseLlmClient callers pass string | Part | Part[] | Content.
+   */
+  private _normalizeSystemInstruction(
+    si: string | Part | Part[] | Content | undefined,
+  ): string | undefined {
+    if (si === undefined) return undefined;
+    if (typeof si === 'string') return si;
+
+    // Part[] form
+    if (Array.isArray(si)) {
+      return si
+        .map((p) => p.text ?? '')
+        .filter(Boolean)
+        .join('\n');
+    }
+
+    // Content form (has 'role' and 'parts')
+    if ('parts' in si && Array.isArray(si.parts)) {
+      return si.parts
+        .map((p: Part) => p.text ?? '')
+        .filter(Boolean)
+        .join('\n');
+    }
+
+    // Single Part form
+    if ('text' in si) {
+      return si.text ?? undefined;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Converts LlmGenerateResponse to GenerateContentResponse.
+   * Builds the minimal structure needed by getResponseText() and callers:
+   * `candidates[0].content.parts[0].text`
+   */
+  private _convertLlmResponseToGeminiResponse(
+    llmResponse: LlmGenerateResponse,
+  ): GenerateContentResponse {
+    const parts: Part[] = [];
+    for (const c of llmResponse.content) {
+      switch (c.type) {
+        case 'text':
+          parts.push({ text: c.text });
+          break;
+        case 'tool_call':
+          parts.push({
+            functionCall: {
+              id: c.id,
+              name: c.name,
+              args: c.arguments,
+            },
+          });
+          break;
+        case 'thought':
+          parts.push({ text: c.thought, thought: true } as Part);
+          break;
+        default:
+          break;
+      }
+    }
+
+    return {
+      candidates: [
+        {
+          content: {
+            role: 'model',
+            parts,
+          },
+        },
+      ],
+    } as GenerateContentResponse;
   }
 }

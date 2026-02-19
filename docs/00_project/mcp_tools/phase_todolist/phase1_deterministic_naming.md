@@ -9,7 +9,7 @@
 
 ## 1.1 사전 작업 (Pre-Work)
 
-- [ ] **[PREV-REVIEW]** 선행 작업 결과서 확인
+- [x] **[PREV-REVIEW]** 선행 작업 결과서 확인
   - 참조:
     `../subagent_multi_provider/working_history/hotfix_tool_param_normalize_20260219.md`
   - 확인 항목:
@@ -19,11 +19,11 @@
   - 참고: Phase 1은 첫 번째 Phase이므로 이전 Phase 결과서는 없음. 선행 hotfix
     결과서만 확인.
 
-- [ ] **[CONTEXT]** 작업 목적 및 배경 확인
+- [x] **[CONTEXT]** 작업 목적 및 배경 확인
   - 현상: `Promise.all()`로 MCP 서버 병렬 디스커버리 → 서버 등록 순서 비결정적
   - 영향: 동일 이름 도구가 세션마다 다른 이름(unqualified vs qualified)으로 등록
 
-- [ ] **[ANALYSIS-1]** 현재 등록 흐름 분석 (전체 경로)
+- [x] **[ANALYSIS-1]** 현재 등록 흐름 분석 (전체 경로)
   - **경로 1: 초기 디스커버리** — `mcp-client-manager.ts:323`: `Promise.all()` →
     `client.discover()` → 내부에서 `toolRegistry.registerTool()` 개별 호출
     (`mcp-client.ts:193`)
@@ -37,7 +37,7 @@
     qualified name 전환
   - **핵심 문제**: 4개 경로 모두 개별 `registerTool()` 사용 → 비결정적
 
-- [ ] **[ANALYSIS-2]** 충돌 시나리오 구체화
+- [x] **[ANALYSIS-2]** 충돌 시나리오 구체화
   - 시나리오 A: 서버 A, B가 모두 `read_file` 도구 제공 → A 먼저 등록되면 A는
     `read_file`, B는 `serverB__read_file`
   - 시나리오 B: B 먼저 등록되면 B는 `read_file`, A는 `serverA__read_file` —
@@ -50,12 +50,12 @@
     유실**
   - 시나리오 E: 도구 리프레시 시 다른 서버 도구와의 충돌 재검사 누락
 
-- [ ] **[ANALYSIS-3]** `getTool()` lookup 경로 확인
+- [x] **[ANALYSIS-3]** `getTool()` lookup 경로 확인
   - `tool-registry.ts:532-549`: 직접 lookup 실패 시 `__` 포함 이름으로 FQN 검색
   - 현재: LLM이 unqualified 이름으로 호출하면 직접 lookup → 등록된 쪽만 발견
   - 비결정성에 의해 어느 서버의 도구가 발견되는지 달라짐
 
-- [ ] **[ANALYSIS-4]** 기존 테스트 베이스라인 기록
+- [x] **[ANALYSIS-4]** 기존 테스트 베이스라인 기록
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/tool-registry
   npm test -w @didim365/agent-cli-core -- src/tools/mcp-tool
@@ -286,16 +286,16 @@ npm run typecheck && npm run lint
 
 | 검증 항목                                                       | 상태 |
 | --------------------------------------------------------------- | ---- |
-| 2-pass 등록 TDD — 7개 테스트 작성 및 통과 (충돌 5 + 유실 2)     | ⬜   |
-| 충돌 도구 양쪽 모두 qualified name 확인                         | ⬜   |
-| 동일 서버 sanitize 충돌 시 hash suffix로 구분 (도구 유실 0)     | ⬜   |
-| 단일 서버 기존 동작 유지 (unqualified 이름)                     | ⬜   |
-| 내장 도구와 MCP 충돌 시 MCP만 qualified                         | ⬜   |
-| McpClient 3개 경로 배치 등록 전환 (discover/refresh/standalone) | ⬜   |
-| 도구 리프레시 후 이름 결정성 유지 확인                          | ⬜   |
-| 기존 tool-registry 테스트 회귀 없음                             | ⬜   |
-| Core 전체 테스트 PASS                                           | ⬜   |
-| 커밋 완료 + 작업 결과서 작성                                    | ⬜   |
+| 2-pass 등록 TDD — 7개 테스트 작성 및 통과 (충돌 5 + 유실 2)     | ✅   |
+| 충돌 도구 양쪽 모두 qualified name 확인                         | ✅   |
+| 동일 서버 sanitize 충돌 시 hash suffix로 구분 (도구 유실 0)     | ✅   |
+| 단일 서버 기존 동작 유지 (unqualified 이름)                     | ✅   |
+| 내장 도구와 MCP 충돌 시 MCP만 qualified                         | ✅   |
+| McpClient 3개 경로 배치 등록 전환 (discover/refresh/standalone) | ✅   |
+| 도구 리프레시 후 이름 결정성 유지 확인                          | ✅   |
+| 기존 tool-registry 테스트 회귀 없음                             | ✅   |
+| Core 전체 테스트 PASS                                           | ✅   |
+| 커밋 완료 + 작업 결과서 작성                                    | ✅   |
 
 ---
 

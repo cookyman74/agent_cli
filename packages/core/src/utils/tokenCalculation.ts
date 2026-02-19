@@ -27,6 +27,10 @@ const PDF_TOKEN_ESTIMATE = 25800;
 // Above this, we use a faster approximation to avoid performance bottlenecks.
 const MAX_CHARS_FOR_FULL_HEURISTIC = 100_000;
 
+// Track providers that have already emitted llmCountTokens failure warning
+// to avoid spamming logs on every media request (e.g. OpenAI supportsTokenCount=false).
+const warnedProviders = new Set<string>();
+
 /**
  * Estimates token count for parts synchronously using a heuristic.
  * - Text: character-based heuristic (ASCII vs CJK) for small strings, length/4 for massive ones.
@@ -111,10 +115,16 @@ export async function calculateRequestTokenCount(
       } catch (error) {
         // [리뷰 #3] supportsTokenCount=false인 provider(OpenAI 등)는 항상 여기로
         // 진입하여 heuristic fallback 사용. 성능 영향은 미미 (sync throw).
-        debugLogger.warn(
-          `llmCountTokens failed for ${contentGenerator.providerName ?? 'unknown'}, using local estimate:`,
-          error,
-        );
+        // [리뷰 #6] provider별 최초 1회만 warn 로그 출력 → 반복 경고 방지
+        const provider = contentGenerator.providerName ?? 'unknown';
+        if (!warnedProviders.has(provider)) {
+          warnedProviders.add(provider);
+          debugLogger.warn(
+            `llmCountTokens not supported for ${provider}, using local estimate. ` +
+              `(This warning is shown once per provider.)`,
+            error,
+          );
+        }
         return estimateTokenCountSync(parts);
       }
     }

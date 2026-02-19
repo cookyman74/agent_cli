@@ -1,6 +1,10 @@
 # Provider Guide
 
-This guide describes the current multi-provider behavior in this repository.
+This guide describes the current multi-provider behavior in Didim Agent CLI.
+
+> **Note:** Both `DIDIM_*` and `GEMINI_*` environment variable prefixes are
+> supported throughout the CLI. The central `resolveEnv()` utility checks
+> `DIDIM_*` first, then falls back to `GEMINI_*` for backward compatibility.
 
 ## Scope
 
@@ -8,6 +12,10 @@ This guide describes the current multi-provider behavior in this repository.
 - Providers covered here: `gemini`, `claude`, `openai`, `openai-compatible`.
 - `openai-compatible` can be used for vLLM, LM Studio, Ollama-compatible
   gateways, and other OpenAI-compatible endpoints.
+- All built-in tools (file system, shell, web fetch, etc.) and MCP tools work
+  across all providers.
+- Sub-agents work with all providers via the provider-independent `llm*`
+  pipeline.
 
 ## Provider Matrix
 
@@ -72,7 +80,7 @@ docker run --rm -it \
   --model Qwen/Qwen2.5-7B-Instruct
 ```
 
-### 2) Configure Gemini CLI for vLLM
+### 2) Configure Didim Agent CLI for vLLM
 
 ```bash
 export ENABLE_MULTI_PROVIDER=true
@@ -123,6 +131,17 @@ Override with `LLM_MODEL` for non-Gemini providers when needed.
   Claude/OpenAI/OpenAI-compatible paths.
 - If you call legacy methods on non-Gemini providers, runtime throws:
   `Provider "<name>" does not support legacy Gemini API. Use llm* methods.`
+
+## MCP Tool Compatibility
+
+MCP tools from external servers work with all providers. Tool naming is
+**deterministic** — tools are registered with consistent names regardless of
+server discovery order. Tool parameters are automatically normalized via
+schema-based coercion (`normalizeToolParamsBySchema`), with enhanced tolerance
+for sLM (small Language Model) tool call formatting.
+
+See the [MCP Server Integration guide](./tools/mcp-server.md) for setup
+instructions.
 
 ## vLLM Troubleshooting
 

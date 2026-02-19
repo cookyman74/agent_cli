@@ -2,6 +2,11 @@
 
 This page documents environment variables for provider selection and routing.
 
+> **Note:** Both `DIDIM_*` and `GEMINI_*` environment variable prefixes are
+> supported. The CLI uses a central `resolveEnv()` utility that checks `DIDIM_*`
+> first, then falls back to `GEMINI_*` for backward compatibility. For example,
+> `DIDIM_API_KEY` takes precedence over `GEMINI_API_KEY`.
+
 ## Core Flags
 
 | Variable                | Required                      | Description                                          |
@@ -62,10 +67,23 @@ Model resolution precedence:
 
 1. `--model` flag (argv).
 2. `LLM_MODEL` environment variable.
-3. `GEMINI_MODEL` environment variable.
+3. `DIDIM_MODEL` or `GEMINI_MODEL` environment variable.
 4. Per-provider saved model (`model.byProvider[provider]` in user settings).
 5. Global saved model (`model.name` in user settings).
 6. Provider default model (`claude-opus-4-6`, `gpt-4.1`, `default`).
+
+## Configuration Paths
+
+User settings and configuration are stored in `~/.didim/` (with `~/.gemini/`
+fallback for backward compatibility):
+
+| File                              | Description                             |
+| --------------------------------- | --------------------------------------- |
+| `~/.didim/settings.json`          | User settings, MCP server configuration |
+| `~/.didim/model.json`             | Saved model selection per provider      |
+| `~/.didim/update_notified_at.txt` | Update notification timestamp           |
+
+Project-level context files use `AGENTS.md` (with `GEMINI.md` fallback).
 
 ## Notes
 

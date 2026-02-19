@@ -1,30 +1,33 @@
-# Gemini CLI
+# Didim Agent CLI
 
-[![Gemini CLI CI](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml)
-[![Gemini CLI E2E (Chained)](https://github.com/google-gemini/gemini-cli/actions/workflows/chained_e2e.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/chained_e2e.yml)
+[![CI](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml)
+[![E2E](https://github.com/google-gemini/gemini-cli/actions/workflows/chained_e2e.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/chained_e2e.yml)
 [![Version](https://img.shields.io/npm/v/@didim365/agent-cli)](https://www.npmjs.com/package/@didim365/agent-cli)
 [![License](https://img.shields.io/github/license/google-gemini/gemini-cli)](https://github.com/google-gemini/gemini-cli/blob/main/LICENSE)
-[![View Code Wiki](https://assets.codewiki.google/readme-badge/static.svg)](https://codewiki.google/github.com/google-gemini/gemini-cli?utm_source=badge&utm_medium=github&utm_campaign=github.com/google-gemini/gemini-cli)
 
-![Gemini CLI Screenshot](./docs/assets/gemini-screenshot.png)
+![Didim Agent CLI Screenshot](./docs/assets/gemini-screenshot.png)
 
-Gemini CLI is an open-source AI agent that brings the power of multiple AI
-providers directly into your terminal. It supports **Gemini**, **Claude**,
-**OpenAI**, and **OpenAI-compatible** (vLLM, Ollama, LM Studio) endpoints,
-giving you the most direct path from your prompt to your preferred model.
+Didim Agent CLI is an open-source AI agent that brings the power of multiple AI
+providers directly into your terminal. Built on the Gemini CLI foundation, it
+supports **Gemini**, **Claude**, **OpenAI**, and **OpenAI-compatible** (vLLM,
+Ollama, LM Studio) endpoints through a unified **provider adapter
+architecture**, giving you the most direct path from your prompt to your
+preferred model.
 
-Learn all about Gemini CLI in our [documentation](https://geminicli.com/docs/).
+Learn all about Didim Agent CLI in our [documentation](./docs/index.md).
 
-## 🚀 Why Gemini CLI?
+## 🚀 Why Didim Agent CLI?
 
 - **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google
-  account.
+  account (Gemini provider).
 - **🧠 Multi-provider support**: Use Gemini, Claude, OpenAI, or local models
-  (vLLM/Ollama) — switch providers and models with `/model`.
+  (vLLM/Ollama) — switch providers and models with `/model` or `/auth login`.
 - **🔧 Built-in tools**: Google Search grounding, file operations, shell
-  commands, web fetching.
-- **🔌 Extensible**: MCP (Model Context Protocol) support for custom
-  integrations.
+  commands, web fetching — all tools work across providers.
+- **🔌 Extensible**: MCP (Model Context Protocol) support with deterministic
+  tool naming and sLM-compatible parameter normalization.
+- **🤖 Sub-agent support**: Sub-agents work with all providers via the
+  provider-independent `llm*` pipeline.
 - **💻 Terminal-first**: Designed for developers who live in the command line.
 - **🛡️ Open source**: Apache 2.0 licensed.
 
@@ -129,7 +132,7 @@ npm install -g @didim365/agent-cli@nightly
   [Google Search](https://ai.google.dev/gemini-api/docs/grounding) for real-time
   information
 - Conversation checkpointing to save and resume complex sessions
-- Custom context files (GEMINI.md) to tailor behavior for your projects
+- Custom context files (AGENTS.md) to tailor behavior for your projects
 
 ### GitHub Integration
 
@@ -151,12 +154,16 @@ Choose the authentication method that best fits your needs. You can also use
 `/auth login` inside the CLI to interactively select a provider and enter your
 API key.
 
+> **Note:** Both `DIDIM_*` and `GEMINI_*` environment variable prefixes are
+> supported. The CLI uses a central `resolveEnv()` utility that checks `DIDIM_*`
+> first, then falls back to `GEMINI_*` for backward compatibility.
+
 ### Option 1: Login with Google (Gemini)
 
 **✨ Best for:** Individual developers and Gemini Code Assist license holders.
 
 ```bash
-gemini
+didim
 # Select "Login with Google" and follow the browser authentication flow
 ```
 
@@ -164,7 +171,7 @@ For organization accounts, set your Google Cloud project first:
 
 ```bash
 export GOOGLE_CLOUD_PROJECT="YOUR_PROJECT_ID"
-gemini
+didim
 ```
 
 ### Option 2: Gemini API Key
@@ -173,7 +180,7 @@ gemini
 
 ```bash
 export GEMINI_API_KEY="YOUR_API_KEY"
-gemini
+didim
 ```
 
 ### Option 3: Claude (Anthropic)
@@ -182,7 +189,7 @@ gemini
 
 ```bash
 export ANTHROPIC_API_KEY="YOUR_API_KEY"
-gemini
+didim
 ```
 
 ### Option 4: OpenAI
@@ -191,7 +198,7 @@ gemini
 
 ```bash
 export OPENAI_API_KEY="YOUR_API_KEY"
-gemini
+didim
 ```
 
 ### Option 5: Vertex AI
@@ -201,7 +208,7 @@ gemini
 ```bash
 export GOOGLE_API_KEY="YOUR_API_KEY"
 export GOOGLE_GENAI_USE_VERTEXAI=true
-gemini
+didim
 ```
 
 ### Option 6: OpenAI-compatible (vLLM, Ollama, LM Studio)
@@ -212,7 +219,7 @@ gemini
 export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=openai-compatible
 export LLM_BASE_URL="http://localhost:8000/v1"
-gemini
+didim
 ```
 
 For detailed setup for each provider, see the
@@ -226,21 +233,21 @@ For detailed setup for each provider, see the
 #### Start in current directory
 
 ```bash
-gemini
+didim
 ```
 
 #### Include multiple directories
 
 ```bash
-gemini --include-directories ../lib,../docs
+didim --include-directories ../lib,../docs
 ```
 
 #### Use specific model
 
 ```bash
-gemini -m gemini-2.5-flash          # Gemini
-gemini -m claude-sonnet-4-5-20250929  # Claude
-gemini -m gpt-4.1                    # OpenAI
+didim -m gemini-2.5-flash            # Gemini
+didim -m claude-sonnet-4-5-20250929  # Claude
+didim -m gpt-4.1                     # OpenAI
 ```
 
 #### Non-interactive mode for scripts
@@ -248,21 +255,21 @@ gemini -m gpt-4.1                    # OpenAI
 Get a simple text response:
 
 ```bash
-gemini -p "Explain the architecture of this codebase"
+didim -p "Explain the architecture of this codebase"
 ```
 
 For more advanced scripting, including how to parse JSON and handle errors, use
 the `--output-format json` flag to get structured output:
 
 ```bash
-gemini -p "Explain the architecture of this codebase" --output-format json
+didim -p "Explain the architecture of this codebase" --output-format json
 ```
 
 For real-time event streaming (useful for monitoring long-running operations),
 use `--output-format stream-json` to get newline-delimited JSON events:
 
 ```bash
-gemini -p "Run tests and deploy" --output-format stream-json
+didim -p "Run tests and deploy" --output-format stream-json
 ```
 
 ### Quick Examples
@@ -271,16 +278,16 @@ gemini -p "Run tests and deploy" --output-format stream-json
 
 ```bash
 cd new-project/
-gemini
+didim
 > Write me a Discord bot that answers questions using a FAQ.md file I will provide
 ```
 
 #### Analyze existing code
 
 ```bash
-git clone https://github.com/google-gemini/gemini-cli
-cd gemini-cli
-gemini
+git clone https://github.com/user/project
+cd project
+didim
 > Give me a summary of all of the changes that went in yesterday
 ```
 
@@ -303,8 +310,8 @@ gemini
   (`/help`, `/chat`, etc).
 - [**Custom Commands**](./docs/cli/custom-commands.md) - Create your own
   reusable commands.
-- [**Context Files (GEMINI.md)**](./docs/cli/gemini-md.md) - Provide persistent
-  context to Gemini CLI.
+- [**Context Files (AGENTS.md)**](./docs/cli/gemini-md.md) - Provide persistent
+  context to the CLI.
 - [**Checkpointing**](./docs/cli/checkpointing.md) - Save and resume
   conversations.
 - [**Token Caching**](./docs/cli/token-caching.md) - Optimize token usage.
@@ -352,7 +359,7 @@ export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=openai-compatible
 export LLM_BASE_URL="http://localhost:8000/v1"
 export LLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
-gemini -m Qwen/Qwen2.5-7B-Instruct
+didim -m Qwen/Qwen2.5-7B-Instruct
 ```
 
 ### Troubleshooting & Support
@@ -364,14 +371,19 @@ gemini -m Qwen/Qwen2.5-7B-Instruct
 
 ### Using MCP Servers
 
-Configure MCP servers in `~/.gemini/settings.json` to extend Gemini CLI with
-custom tools:
+Configure MCP servers in `~/.didim/settings.json` (or `~/.gemini/settings.json`
+for backward compatibility) to extend the CLI with custom tools:
 
 ```text
 > @github List my open pull requests
 > @slack Send a summary of today's commits to #dev channel
 > @database Run a query to find inactive users
 ```
+
+MCP tool naming is **deterministic** — tools are registered with consistent
+names regardless of server discovery order. Tool parameters are automatically
+normalized via schema-based coercion, with enhanced tolerance for sLM (small
+Language Model) tool call formatting.
 
 See the [MCP Server Integration guide](./docs/tools/mcp-server.md) for setup
 instructions.
@@ -416,5 +428,5 @@ See the [Uninstall Guide](docs/cli/uninstall.md) for removal instructions.
 ---
 
 <p align="center">
-  Built with ❤️ by Google and the open source community
+  Built on Gemini CLI by Google — extended by Didim365
 </p>

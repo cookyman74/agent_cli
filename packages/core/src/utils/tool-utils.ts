@@ -116,3 +116,99 @@ export function doesToolInvocationMatch(
 
   return false;
 }
+
+// ============================================================================
+// Tool parameter alias normalization
+// ============================================================================
+
+/**
+ * Maps tool API names to their parameter alias normalization rules.
+ * Each entry maps an alias name (sent by non-Gemini LLMs) to the canonical
+ * parameter name expected by the tool's JSON schema.
+ *
+ * Non-Gemini models (OpenAI, Claude) may send alternative parameter names
+ * on their first tool call (e.g., 'path' instead of 'file_path') because
+ * of training data conventions. This map enables transparent normalization
+ * before AJV schema validation.
+ */
+const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
+  read_file: {
+    path: 'file_path',
+    filepath: 'file_path',
+    filePath: 'file_path',
+    file: 'file_path',
+  },
+  search_file_content: {
+    query: 'pattern',
+    search_query: 'pattern',
+    regex: 'pattern',
+    search: 'pattern',
+  },
+  list_directory: {
+    path: 'dir_path',
+    directory: 'dir_path',
+    dirPath: 'dir_path',
+    dir: 'dir_path',
+  },
+  glob: {
+    glob_pattern: 'pattern',
+    search_pattern: 'pattern',
+  },
+  write_file: {
+    path: 'file_path',
+    filepath: 'file_path',
+    filePath: 'file_path',
+  },
+  replace: {
+    path: 'file_path',
+    filepath: 'file_path',
+    filePath: 'file_path',
+  },
+  run_shell_command: {
+    cmd: 'command',
+    shell_command: 'command',
+  },
+  google_web_search: {
+    search_query: 'query',
+    search: 'query',
+    q: 'query',
+  },
+};
+
+/**
+ * Normalizes tool parameter names by applying known aliases.
+ *
+ * Rules:
+ * - If the canonical parameter already exists in args, no aliasing occurs
+ *   (protects correct calls from Gemini or properly-learned non-Gemini models)
+ * - If an alias is found AND the canonical param is missing, the alias value
+ *   is moved to the canonical key
+ * - The original alias key is removed to avoid AJV additionalProperties errors
+ * - If the tool has no alias rules, args are returned unchanged (reference identity)
+ * - Original args object is never mutated (shallow copy)
+ *
+ * @param toolName The API name of the tool (e.g., 'read_file')
+ * @param args The raw arguments from the LLM
+ * @returns A new args object with normalized parameter names, or the original if unchanged
+ */
+export function normalizeToolParams(
+  toolName: string,
+  args: Record<string, unknown>,
+): Record<string, unknown> {
+  const aliasMap = TOOL_PARAM_ALIASES[toolName];
+  if (!aliasMap) {
+    return args;
+  }
+
+  const normalized = { ...args };
+  for (const [alias, canonical] of Object.entries(aliasMap)) {
+    if (
+      normalized[canonical] === undefined &&
+      normalized[alias] !== undefined
+    ) {
+      normalized[canonical] = normalized[alias];
+      delete normalized[alias];
+    }
+  }
+  return normalized;
+}

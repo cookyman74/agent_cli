@@ -317,13 +317,22 @@ describe('requestBuilder', () => {
         { role: 'user', parts: [{ text: 'Search for cats' }] },
         {
           role: 'model',
-          parts: [{ functionCall: { name: 'search', args: { q: 'cats' } } }],
+          parts: [
+            {
+              functionCall: {
+                id: 'call-search-1',
+                name: 'search',
+                args: { q: 'cats' },
+              },
+            },
+          ],
         },
         {
           role: 'user',
           parts: [
             {
               functionResponse: {
+                id: 'call-search-1',
                 name: 'search',
                 response: { result: 'Found cats' },
               },
@@ -344,9 +353,9 @@ describe('requestBuilder', () => {
       const toolCallMsg = result.messages[1];
       expect(toolCallMsg.role).toBe('assistant');
       expect(toolCallMsg.content[0].type).toBe('tool_call');
-      // tool result message
+      // tool result message — fixToolResultRoles converts role:'user' → 'tool'
       const toolResultMsg = result.messages[2];
-      expect(toolResultMsg.role).toBe('user');
+      expect(toolResultMsg.role).toBe('tool');
       expect(toolResultMsg.content[0].type).toBe('tool_result');
     });
 
@@ -392,12 +401,119 @@ describe('requestBuilder', () => {
         expect(toolCallContent.id).toBe('call-abc-123');
       }
 
-      // tool_result should have toolCallId preserved
+      // tool_result should have toolCallId preserved and role fixed to 'tool'
+      expect(result.messages[2].role).toBe('tool');
       const toolResultContent = result.messages[2].content[0];
       expect(toolResultContent.type).toBe('tool_result');
       if (toolResultContent.type === 'tool_result') {
         expect(toolResultContent.toolCallId).toBe('call-abc-123');
       }
+    });
+
+    it('should convert functionResponse in currentRequest to role:tool', () => {
+      const history: Content[] = [
+        { role: 'user', parts: [{ text: 'Do something' }] },
+        {
+          role: 'model',
+          parts: [
+            {
+              functionCall: {
+                id: 'call-xyz-789',
+                name: 'run_tool',
+                args: { input: 'test' },
+              },
+            },
+          ],
+        },
+      ];
+
+      // currentRequest contains a tool response (functionResponse)
+      const result = buildLlmRequestFromGeminiState({
+        model: 'gpt-4',
+        history,
+        currentRequest: [
+          {
+            functionResponse: {
+              id: 'call-xyz-789',
+              name: 'run_tool',
+              response: { output: 'result' },
+            },
+          },
+        ],
+      });
+
+      // The last message (currentRequest) should be role:'tool', not 'user'
+      const lastMsg = result.messages[result.messages.length - 1];
+      expect(lastMsg.role).toBe('tool');
+      expect(lastMsg.content[0].type).toBe('tool_result');
+      if (lastMsg.content[0].type === 'tool_result') {
+        expect(lastMsg.content[0].toolCallId).toBe('call-xyz-789');
+      }
+    });
+
+    it('should split multiple functionResponses into individual tool-role messages', () => {
+      const history: Content[] = [
+        { role: 'user', parts: [{ text: 'Do both' }] },
+        {
+          role: 'model',
+          parts: [
+            {
+              functionCall: {
+                id: 'call-1',
+                name: 'tool_a',
+                args: {},
+              },
+            },
+            {
+              functionCall: {
+                id: 'call-2',
+                name: 'tool_b',
+                args: {},
+              },
+            },
+          ],
+        },
+      ];
+
+      // currentRequest contains two tool responses
+      const result = buildLlmRequestFromGeminiState({
+        model: 'gpt-4',
+        history,
+        currentRequest: [
+          {
+            functionResponse: {
+              id: 'call-1',
+              name: 'tool_a',
+              response: { result: 'a' },
+            },
+          },
+          {
+            functionResponse: {
+              id: 'call-2',
+              name: 'tool_b',
+              response: { result: 'b' },
+            },
+          },
+        ],
+      });
+
+      // fixToolResultRoles splits multi-tool_result user messages into individual tool messages
+      const toolMsgs = result.messages.filter((m) => m.role === 'tool');
+      expect(toolMsgs).toHaveLength(2);
+      expect(toolMsgs[0].content[0].type).toBe('tool_result');
+      expect(toolMsgs[1].content[0].type).toBe('tool_result');
+    });
+
+    it('should keep text-only currentRequest as role:user (regression)', () => {
+      const result = buildLlmRequestFromGeminiState({
+        model: 'gpt-4',
+        history: [],
+        currentRequest: [{ text: 'Hello' }],
+      });
+
+      // Plain text message should remain role:'user'
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0].role).toBe('user');
     });
   });
 });

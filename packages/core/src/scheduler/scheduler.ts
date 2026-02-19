@@ -26,7 +26,7 @@ import {
   ToolConfirmationOutcome,
   type AnyDeclarativeTool,
 } from '../tools/tools.js';
-import { getToolSuggestion } from '../utils/tool-utils.js';
+import { getToolSuggestion, normalizeToolParams } from '../utils/tool-utils.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
 import { logToolCall } from '../telemetry/loggers.js';
 import { ToolCallEvent } from '../telemetry/types.js';
@@ -241,6 +241,7 @@ export class Scheduler {
       const newCalls: ToolCall[] = requests.map((request) => {
         const enrichedRequest: ToolCallRequestInfo = {
           ...request,
+          args: normalizeToolParams(request.name, request.args),
           schedulerId: this.schedulerId,
           parentCallId: this.parentCallId,
         };

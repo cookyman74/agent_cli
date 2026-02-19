@@ -6,7 +6,8 @@
 
 import type { PartListUnion, Part } from '@google/genai';
 import type { ContentGenerator } from '../core/contentGenerator.js';
-import type { LlmContent } from '../providers/types.js';
+import type { LlmContent, LlmGenerateRequest } from '../providers/types.js';
+import { convertPartListUnionToLlmContents } from '../providers/gemini/typeConversion.js';
 import { debugLogger } from './debugLogger.js';
 import { isTextContent, isImageContent } from './llmUtils.js';
 
@@ -25,6 +26,10 @@ const PDF_TOKEN_ESTIMATE = 25800;
 // Maximum number of characters to process with the full character-by-character heuristic.
 // Above this, we use a faster approximation to avoid performance bottlenecks.
 const MAX_CHARS_FOR_FULL_HEURISTIC = 100_000;
+
+// Track providers that have already emitted llmCountTokens failure warning
+// to avoid spamming logs on every media request (e.g. OpenAI supportsTokenCount=false).
+const warnedProviders = new Set<string>();
 
 /**
  * Estimates token count for parts synchronously using a heuristic.
@@ -88,6 +93,43 @@ export async function calculateRequestTokenCount(
   });
 
   if (hasMedia) {
+    const providerName = contentGenerator.providerName;
+    const isNonGemini = providerName != null && providerName !== 'gemini';
+
+    // Non-Gemini: use llmCountTokens (provider-independent path)
+    // [리뷰 #2] llmCountTokens만 체크 — isProviderIndependentGenerator()는
+    // 3개 메서드 전수 요구라 토큰 계산에는 과도
+    if (isNonGemini && typeof contentGenerator.llmCountTokens === 'function') {
+      try {
+        // NOTE: 호출자(chatCompressionService 등)가 Content[] → flatMap → Part[]로
+        // 평탄화 후 전달하므로 원래 role/tool 문맥이 소실됨.
+        // 단일 user 메시지로 감싸서 전달하며, provider가 거부 시 catch → fallback.
+        // Gemini 경로도 동일 패턴 (pre-existing limitation). [리뷰 #1]
+        const llmContents = convertPartListUnionToLlmContents(parts);
+        const request: LlmGenerateRequest = {
+          model,
+          messages: [{ role: 'user', content: llmContents }],
+        };
+        const response = await contentGenerator.llmCountTokens(request);
+        return response.totalTokens ?? 0;
+      } catch (error) {
+        // [리뷰 #3] supportsTokenCount=false인 provider(OpenAI 등)는 항상 여기로
+        // 진입하여 heuristic fallback 사용. 성능 영향은 미미 (sync throw).
+        // [리뷰 #6] provider별 최초 1회만 warn 로그 출력 → 반복 경고 방지
+        const provider = contentGenerator.providerName ?? 'unknown';
+        if (!warnedProviders.has(provider)) {
+          warnedProviders.add(provider);
+          debugLogger.warn(
+            `llmCountTokens not supported for ${provider}, using local estimate. ` +
+              `(This warning is shown once per provider.)`,
+            error,
+          );
+        }
+        return estimateTokenCountSync(parts);
+      }
+    }
+
+    // Gemini: use legacy countTokens
     try {
       const response = await contentGenerator.countTokens({
         model,

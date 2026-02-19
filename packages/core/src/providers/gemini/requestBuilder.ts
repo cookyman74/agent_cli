@@ -30,6 +30,7 @@ import type {
   LlmToolProperty,
   LlmToolPropertyType,
 } from '../types.js';
+import { fixToolResultRoles } from '../../core/llmMessageUtils.js';
 import {
   convertContentsToLlmMessages,
   convertPartListUnionToLlmContents,
@@ -184,10 +185,16 @@ export function buildLlmRequestFromGeminiState(
   );
 
   // Append current request as a user message
-  const messages = [
+  const rawMessages = [
     ...historyMessages,
     { role: 'user' as const, content: currentContents },
   ];
+
+  // Fix tool_result roles: Gemini stores functionResponse as role:'user',
+  // but OpenAI requires role:'tool' with tool_call_id.
+  // fixToolResultRoles() converts { role:'user', content:[tool_result] }
+  // → { role:'tool', content:[tool_result] } for provider compatibility.
+  const messages = fixToolResultRoles(rawMessages);
 
   // Build the request with required fields
   const request: LlmGenerateRequest = {

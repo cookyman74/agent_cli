@@ -10,11 +10,19 @@ import type { AnsiOutput } from '../utils/terminalSerializer.js';
 import { BaseToolInvocation, type ToolResult } from '../tools/tools.js';
 import { ToolErrorType } from '../tools/tool-error.js';
 import type {
+  ChatSessionFactory,
   LocalAgentDefinition,
   AgentInputs,
   SubagentActivityEvent,
 } from './types.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
+import { isProviderIndependentGenerator } from '../core/contentGenerator.js';
+import { resolveProviderModel } from '../providers/providerSelector.js';
+import { convertContentsToLlmMessages } from '../providers/gemini/typeConversion.js';
+import { convertGeminiToolsToLlm } from '../providers/gemini/requestBuilder.js';
+import { fixToolResultRoles } from '../core/llmMessageUtils.js';
+import { LlmAgentChatSession } from './llmAgentChatSession.js';
+import type { LlmGenerateRequest } from '../providers/types.js';
 
 const INPUT_PREVIEW_MAX_LENGTH = 50;
 const DESCRIPTION_MAX_LENGTH = 200;
@@ -101,11 +109,21 @@ export class LocalSubagentInvocation extends BaseToolInvocation<
         }
       };
 
-      const executor = await LocalAgentExecutor.create(
-        this.definition,
-        this.config,
-        onActivity,
-      );
+      // Detect non-Gemini provider and inject LlmAgentChatSession factory
+      const chatFactory = this.buildChatFactoryIfNonGemini();
+
+      const executor = chatFactory
+        ? await LocalAgentExecutor.create(
+            this.definition,
+            this.config,
+            onActivity,
+            chatFactory,
+          )
+        : await LocalAgentExecutor.create(
+            this.definition,
+            this.config,
+            onActivity,
+          );
 
       const output = await executor.run(this.params, signal);
 
@@ -140,5 +158,74 @@ ${output.result}
         },
       };
     }
+  }
+
+  /**
+   * Returns a ChatSessionFactory for non-Gemini providers with llm* methods,
+   * or undefined for Gemini (which uses the default GeminiChat factory).
+   *
+   * Throws eagerly for non-Gemini providers that lack llm* methods [리뷰 #3].
+   */
+  private buildChatFactoryIfNonGemini(): ChatSessionFactory | undefined {
+    let generator;
+    try {
+      generator = this.config.getContentGenerator();
+    } catch {
+      return undefined;
+    }
+    if (!generator) return undefined;
+
+    const providerName = generator.providerName;
+
+    // Gemini (or unknown) → use default GeminiChat factory
+    if (providerName == null || providerName === 'gemini') {
+      return undefined;
+    }
+
+    // Non-Gemini without llm* methods → fail fast [리뷰 #3]
+    if (!isProviderIndependentGenerator(generator)) {
+      throw new Error(
+        `Provider "${providerName}" is non-Gemini but does not support ` +
+          `provider-independent API (llm* methods). Subagent execution cannot proceed.`,
+      );
+    }
+
+    return (config, systemInstruction, tools, history) =>
+      new LlmAgentChatSession({
+        generator,
+        providerName,
+        systemInstruction,
+        tools,
+        initialHistory: history,
+        resolveProviderModelFn: resolveProviderModel,
+        buildLlmRequestFn: ({
+          history: msgs,
+          systemInstruction: si,
+          tools: t,
+        }) => {
+          const request: LlmGenerateRequest = {
+            model: 'placeholder', // overridden by LlmAgentChatSession
+            messages: msgs,
+          };
+          if (si !== undefined) {
+            request.systemInstruction = si;
+          }
+          if (t.length > 0) {
+            request.tools = convertGeminiToolsToLlm(t);
+          }
+          return request;
+        },
+        fixToolResultRolesFn: fixToolResultRoles,
+        convertContentsToLlmMessagesFn: convertContentsToLlmMessages,
+        // Propagate generation config (temperature/topP/maxOutputTokens etc.) [리뷰 #1]
+        resolveGenerateConfigFn: (key) => {
+          try {
+            const resolved = config.modelConfigService.getResolvedConfig(key);
+            return resolved.generateContentConfig;
+          } catch {
+            return undefined;
+          }
+        },
+      });
   }
 }

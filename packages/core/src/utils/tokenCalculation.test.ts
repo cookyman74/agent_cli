@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   calculateRequestTokenCount,
   estimateLlmTokenCount,
 } from './tokenCalculation.js';
 import type { ContentGenerator } from '../core/contentGenerator.js';
-import type { LlmContent } from '../providers/types.js';
+import type { LlmContent, LlmGenerateRequest } from '../providers/types.js';
 
 describe('calculateRequestTokenCount', () => {
   const mockContentGenerator = {
@@ -279,5 +279,143 @@ describe('estimateLlmTokenCount', () => {
 
   it('should return 0 for empty array', () => {
     expect(estimateLlmTokenCount([])).toBe(0);
+  });
+});
+
+// =================================================================
+// calculateRequestTokenCount — non-Gemini provider path
+// =================================================================
+
+describe('calculateRequestTokenCount — non-Gemini provider', () => {
+  let nonGeminiGenerator: ContentGenerator;
+  let mockLlmCountTokens: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockLlmCountTokens = vi.fn().mockResolvedValue({ totalTokens: 150 });
+    nonGeminiGenerator = {
+      countTokens: vi.fn(),
+      providerName: 'claude',
+      llmGenerateContent: vi.fn(),
+      llmGenerateContentStream: vi.fn(),
+      llmCountTokens: mockLlmCountTokens,
+    } as unknown as ContentGenerator;
+  });
+
+  // [RED-D1] non-Gemini + media → llmCountTokens 호출
+  it('D1: calls llmCountTokens for non-Gemini provider with media', async () => {
+    const request = [{ inlineData: { mimeType: 'image/png', data: 'data' } }];
+
+    const count = await calculateRequestTokenCount(
+      request,
+      nonGeminiGenerator,
+      'claude-sonnet',
+    );
+
+    expect(count).toBe(150);
+    expect(mockLlmCountTokens).toHaveBeenCalled();
+    expect(nonGeminiGenerator.countTokens).not.toHaveBeenCalled();
+  });
+
+  // [RED-D2] non-Gemini + text only → 로컬 추정치 (API 미호출)
+  it('D2: uses local estimate for non-Gemini text-only input', async () => {
+    const request = 'Hello world!';
+
+    const count = await calculateRequestTokenCount(
+      request,
+      nonGeminiGenerator,
+      'claude-sonnet',
+    );
+
+    // 12 ASCII chars * 0.25 = 3
+    expect(count).toBe(3);
+    expect(mockLlmCountTokens).not.toHaveBeenCalled();
+    expect(nonGeminiGenerator.countTokens).not.toHaveBeenCalled();
+  });
+
+  // [RED-D3] Gemini + media → 기존 countTokens 유지 (회귀)
+  it('D3: uses legacy countTokens for Gemini provider with media', async () => {
+    const geminiGenerator = {
+      countTokens: vi.fn().mockResolvedValue({ totalTokens: 200 }),
+      providerName: 'gemini',
+      llmGenerateContent: vi.fn(),
+      llmGenerateContentStream: vi.fn(),
+      llmCountTokens: vi.fn(),
+    } as unknown as ContentGenerator;
+
+    const request = [{ inlineData: { mimeType: 'image/png', data: 'data' } }];
+
+    const count = await calculateRequestTokenCount(
+      request,
+      geminiGenerator,
+      'gemini-2.5-flash',
+    );
+
+    expect(count).toBe(200);
+    expect(geminiGenerator.countTokens).toHaveBeenCalled();
+    expect(geminiGenerator.llmCountTokens).not.toHaveBeenCalled();
+  });
+
+  // [RED-D4] non-Gemini + media + llmCountTokens 실패 → fallback
+  it('D4: falls back to local estimate when llmCountTokens fails', async () => {
+    mockLlmCountTokens.mockRejectedValue(new Error('Not implemented'));
+    const request = [
+      { text: 'Hello' },
+      { inlineData: { mimeType: 'image/png', data: 'data' } },
+    ];
+
+    const count = await calculateRequestTokenCount(
+      request,
+      nonGeminiGenerator,
+      'claude-sonnet',
+    );
+
+    // Fallback: 'Hello' (5*0.25=1.25) + image (3000) = 3001.25 → 3001
+    expect(count).toBe(3001);
+    expect(mockLlmCountTokens).toHaveBeenCalled();
+  });
+
+  // [리뷰 #2] llmCountTokens만 있어도 호출 (isProviderIndependentGenerator 불필요)
+  it('D5a: calls llmCountTokens even without other llm* methods', async () => {
+    const partialGenerator = {
+      countTokens: vi.fn(),
+      providerName: 'custom-provider',
+      // llmGenerateContent: 없음
+      // llmGenerateContentStream: 없음
+      llmCountTokens: vi.fn().mockResolvedValue({ totalTokens: 250 }),
+    } as unknown as ContentGenerator;
+
+    const request = [{ inlineData: { mimeType: 'image/png', data: 'data' } }];
+
+    const count = await calculateRequestTokenCount(
+      request,
+      partialGenerator,
+      'custom-model',
+    );
+
+    expect(count).toBe(250);
+    expect(partialGenerator.llmCountTokens).toHaveBeenCalled();
+    expect(partialGenerator.countTokens).not.toHaveBeenCalled();
+  });
+
+  // [RED-D5] non-Gemini + media → LlmGenerateRequest 구조 검증
+  it('D5b: passes correct LlmGenerateRequest structure to llmCountTokens', async () => {
+    const request = [
+      { text: 'Describe this image' },
+      { inlineData: { mimeType: 'image/png', data: 'base64data' } },
+    ];
+
+    await calculateRequestTokenCount(
+      request,
+      nonGeminiGenerator,
+      'claude-sonnet',
+    );
+
+    expect(mockLlmCountTokens).toHaveBeenCalledTimes(1);
+    const llmRequest = mockLlmCountTokens.mock
+      .calls[0][0] as LlmGenerateRequest;
+    expect(llmRequest.model).toBe('claude-sonnet');
+    expect(llmRequest.messages).toHaveLength(1);
+    expect(llmRequest.messages[0].role).toBe('user');
+    expect(llmRequest.messages[0].content.length).toBeGreaterThan(0);
   });
 });

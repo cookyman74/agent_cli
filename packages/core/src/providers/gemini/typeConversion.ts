@@ -14,8 +14,18 @@
  * Gemini-specific chat history to provider-independent RoutingContext.
  */
 
-import type { Content, Part, PartListUnion } from '@google/genai';
-import type { LlmContent, LlmMessage, LlmRole } from '../types.js';
+import type {
+  Content,
+  GenerateContentResponse,
+  Part,
+  PartListUnion,
+} from '@google/genai';
+import type {
+  LlmContent,
+  LlmGenerateResponse,
+  LlmMessage,
+  LlmRole,
+} from '../types.js';
 import {
   isToolCallContent,
   isToolResultContent,
@@ -194,4 +204,50 @@ export function isContentToolResultMessage(content: Content): boolean {
   const llmMessage = convertContentToLlmMessage(content);
   if (llmMessage.content.length !== parts.length) return false;
   return llmMessage.content.every((c) => isToolResultContent(c));
+}
+
+/**
+ * Convert LlmGenerateResponse → GenerateContentResponse.
+ *
+ * Builds the minimal Gemini SDK response structure needed by callers
+ * that expect `candidates[0].content.parts[0].text` (e.g. getResponseText()).
+ *
+ * Handles text, tool_call, and thought content types.
+ */
+export function convertLlmResponseToGeminiResponse(
+  llmResponse: LlmGenerateResponse,
+): GenerateContentResponse {
+  const parts: Part[] = [];
+  for (const c of llmResponse.content) {
+    switch (c.type) {
+      case 'text':
+        parts.push({ text: c.text });
+        break;
+      case 'tool_call':
+        parts.push({
+          functionCall: {
+            id: c.id,
+            name: c.name,
+            args: c.arguments,
+          },
+        });
+        break;
+      case 'thought':
+        parts.push({ text: c.thought, thought: true } as Part);
+        break;
+      default:
+        break;
+    }
+  }
+
+  return {
+    candidates: [
+      {
+        content: {
+          role: 'model',
+          parts,
+        },
+      },
+    ],
+  } as GenerateContentResponse;
 }

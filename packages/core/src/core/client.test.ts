@@ -50,6 +50,11 @@ import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js'
 import * as policyCatalog from '../availability/policyCatalog.js';
 import { partToString } from '../utils/partUtils.js';
 import { coreEvents } from '../utils/events.js';
+import type {
+  LlmGenerateRequest,
+  LlmGenerateResponse,
+} from '../providers/types.js';
+import { LlmError, LlmErrorType } from '../providers/errors.js';
 
 // Mock fs module to prevent actual file system operations during tests
 const mockFileSystem = new Map<string, string>();
@@ -3224,6 +3229,339 @@ ${JSON.stringify(
         expect(resetChatSpy).toHaveBeenCalledTimes(1);
 
         resetChatSpy.mockRestore();
+      });
+    });
+
+    // ========================================================================
+    // [Phase 3] generateContent — non-Gemini provider path
+    // ========================================================================
+    describe('non-Gemini provider', () => {
+      let nonGeminiGenerator: ContentGenerator;
+      let mockLlmGenerateContent: Mock;
+      const mockLlmResponse: LlmGenerateResponse = {
+        id: 'resp-1',
+        content: [{ type: 'text', text: 'Non-Gemini response' }],
+        model: 'claude-sonnet',
+        stopReason: 'end_turn',
+        usage: {
+          promptTokens: 10,
+          completionTokens: 20,
+          totalTokens: 30,
+        },
+      };
+
+      beforeEach(() => {
+        vi.mocked(getCoreSystemPrompt).mockReturnValue(
+          'You are a helpful assistant.',
+        );
+        mockLlmGenerateContent = vi.fn().mockResolvedValue(mockLlmResponse);
+        nonGeminiGenerator = {
+          generateContent: vi.fn(),
+          generateContentStream: vi.fn(),
+          batchEmbedContents: vi.fn(),
+          countTokens: vi.fn().mockResolvedValue({ totalTokens: 100 }),
+          providerName: 'claude',
+          // llm* methods for isProviderIndependentGenerator()
+          llmGenerateContent: mockLlmGenerateContent,
+          llmGenerateContentStream: vi.fn(),
+          llmCountTokens: vi.fn(),
+        } as unknown as ContentGenerator;
+
+        vi.mocked(mockConfig.getContentGenerator).mockReturnValue(
+          nonGeminiGenerator,
+        );
+
+        // Override modelConfigService to resolve alias → real model
+        (mockConfig as unknown as Record<string, unknown>)[
+          'modelConfigService'
+        ] = {
+          getResolvedConfig(modelConfigKey: ModelConfigKey) {
+            const aliasMap: Record<string, string> = {
+              'web-fetch': 'gemini-2.5-flash',
+              'web-fetch-fallback': 'gemini-2.5-flash',
+              'web-search': 'gemini-2.5-flash',
+              'summarizer-default': 'gemini-2.5-flash',
+              'loop-detection': 'gemini-2.5-flash',
+            };
+            return {
+              model: aliasMap[modelConfigKey.model] ?? modelConfigKey.model,
+              generateContentConfig: {
+                temperature: 0.5,
+                topP: 0.9,
+              } as unknown as ResolvedModelConfig,
+            };
+          },
+        } as unknown as typeof mockConfig.modelConfigService;
+      });
+
+      // [RED-C1] non-Gemini calls llmGenerateContent directly
+      it('C1: calls llmGenerateContent for non-Gemini provider', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await client.generateContent(
+          { model: 'summarizer-default' },
+          contents,
+          signal,
+        );
+
+        expect(mockLlmGenerateContent).toHaveBeenCalled();
+        expect(nonGeminiGenerator.generateContent).not.toHaveBeenCalled();
+      });
+
+      // [RED-C2] non-Gemini includes systemInstruction
+      it('C2: includes systemInstruction for non-Gemini', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await client.generateContent(
+          { model: 'summarizer-default' },
+          contents,
+          signal,
+        );
+
+        const request = mockLlmGenerateContent.mock
+          .calls[0][0] as LlmGenerateRequest;
+        expect(request.systemInstruction).toBeDefined();
+        expect(typeof request.systemInstruction).toBe('string');
+      });
+
+      // [RED-C3] non-Gemini applies retryWithBackoff (without Gemini-specific callbacks)
+      it('C3: retries on transient error for non-Gemini', async () => {
+        vi.useFakeTimers();
+        const retryableError = new LlmError(
+          LlmErrorType.SERVER_ERROR,
+          'transient error',
+          { isRetryable: true },
+        );
+        mockLlmGenerateContent
+          .mockRejectedValueOnce(retryableError)
+          .mockResolvedValueOnce(mockLlmResponse);
+
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        const resultPromise = client.generateContent(
+          { model: 'summarizer-default' },
+          contents,
+          signal,
+        );
+
+        // Advance timers to bypass retry delay
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        const result = await resultPromise;
+
+        expect(mockLlmGenerateContent).toHaveBeenCalledTimes(2);
+        expect(result.candidates?.[0]?.content?.parts?.[0]?.text).toBe(
+          'Non-Gemini response',
+        );
+        vi.useRealTimers();
+      }, 15_000);
+
+      // [RED-C4] non-Gemini applies getResolvedConfig temperature/topP
+      it('C4: applies temperature/topP from resolvedConfig for non-Gemini', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await client.generateContent(
+          { model: 'summarizer-default' },
+          contents,
+          signal,
+        );
+
+        const request = mockLlmGenerateContent.mock
+          .calls[0][0] as LlmGenerateRequest;
+        expect(request.temperature).toBe(0.5);
+        expect(request.topP).toBe(0.9);
+      });
+
+      // [RED-C5] non-Gemini applies fixToolResultRoles
+      it('C5: applies fixToolResultRoles for tool results', async () => {
+        const contents: Content[] = [
+          {
+            role: 'model',
+            parts: [
+              {
+                functionCall: {
+                  id: 'call-1',
+                  name: 'read_file',
+                  args: { path: '/tmp/test' },
+                },
+              },
+            ],
+          },
+          {
+            role: 'user',
+            parts: [
+              {
+                functionResponse: {
+                  id: 'call-1',
+                  name: 'read_file',
+                  response: { result: 'file content' },
+                },
+              },
+            ],
+          },
+        ];
+        const signal = new AbortController().signal;
+
+        await client.generateContent(
+          { model: 'summarizer-default' },
+          contents,
+          signal,
+        );
+
+        const request = mockLlmGenerateContent.mock
+          .calls[0][0] as LlmGenerateRequest;
+        // tool_result messages should have role 'tool' after fixToolResultRoles
+        const toolMsg = request.messages.find((m) =>
+          m.content.some((c) => c.type === 'tool_result'),
+        );
+        expect(toolMsg?.role).toBe('tool');
+      });
+
+      // [RED-C6] Gemini provider uses legacy generateContent (regression)
+      it('C6: uses legacy generateContent for Gemini provider', async () => {
+        // Restore Gemini generator
+        vi.mocked(mockConfig.getContentGenerator).mockReturnValue(
+          mockContentGenerator,
+        );
+
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await client.generateContent({ model: 'test-model' }, contents, signal);
+
+        expect(mockContentGenerator.generateContent).toHaveBeenCalled();
+      });
+
+      // [RED-C7] resolvedConfig.model based model resolution
+      it('C7: uses resolvedConfig.model for model resolution, not config alias', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await client.generateContent(
+          { model: 'loop-detection' },
+          contents,
+          signal,
+        );
+
+        const request = mockLlmGenerateContent.mock
+          .calls[0][0] as LlmGenerateRequest;
+        // Should NOT be the config alias 'loop-detection'
+        expect(request.model).not.toBe('loop-detection');
+        // Should be resolved through resolveProviderModel()
+        // (provider default model for 'claude')
+        expect(request.model).toBeDefined();
+        expect(typeof request.model).toBe('string');
+      });
+
+      // [RED-C8a] non-Gemini web-fetch → throw error
+      it('C8a: throws for non-Gemini web-fetch (Gemini-only urlContext tool)', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'fetch url' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await expect(
+          client.generateContent({ model: 'web-fetch' }, contents, signal),
+        ).rejects.toThrow(/requires Gemini provider/);
+      });
+
+      // [RED-C8b] non-Gemini web-search → throw error
+      it('C8b: throws for non-Gemini web-search (Gemini-only googleSearch tool)', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'search query' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await expect(
+          client.generateContent({ model: 'web-search' }, contents, signal),
+        ).rejects.toThrow(/requires Gemini provider/);
+      });
+
+      // [RED-C8c] non-Gemini general modelConfigKey → should NOT throw
+      it('C8c: does not throw for non-Gemini with general model config key', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'summarize' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        const result = await client.generateContent(
+          { model: 'summarizer-default' },
+          contents,
+          signal,
+        );
+
+        expect(result).toBeDefined();
+        expect(result.candidates?.[0]?.content?.parts?.[0]?.text).toBe(
+          'Non-Gemini response',
+        );
+      });
+
+      // [리뷰 #1] retryWithBackoff receives abort signal
+      it('C9: passes abort signal to retryWithBackoff for abort-aware backoff', async () => {
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const abortController = new AbortController();
+
+        // Pre-abort: retryWithBackoff checks signal.aborted at entry
+        abortController.abort();
+
+        await expect(
+          client.generateContent(
+            { model: 'summarizer-default' },
+            contents,
+            abortController.signal,
+          ),
+        ).rejects.toThrow('Aborted');
+
+        // API should never be called since signal was already aborted
+        expect(mockLlmGenerateContent).not.toHaveBeenCalled();
+      });
+
+      // [리뷰 #2] non-Gemini without llm* methods → fail-fast error
+      it('C10: throws for non-Gemini provider without llm* methods (mismatch guard)', async () => {
+        // Create generator with providerName but WITHOUT llm* methods
+        const mismatchedGenerator = {
+          generateContent: vi.fn(),
+          generateContentStream: vi.fn(),
+          batchEmbedContents: vi.fn(),
+          countTokens: vi.fn().mockResolvedValue({ totalTokens: 100 }),
+          providerName: 'claude',
+          // No llm* methods → isProviderIndependentGenerator() returns false
+        } as unknown as ContentGenerator;
+
+        vi.mocked(mockConfig.getContentGenerator).mockReturnValue(
+          mismatchedGenerator,
+        );
+
+        const contents: Content[] = [
+          { role: 'user', parts: [{ text: 'test' }] },
+        ];
+        const signal = new AbortController().signal;
+
+        await expect(
+          client.generateContent(
+            { model: 'summarizer-default' },
+            contents,
+            signal,
+          ),
+        ).rejects.toThrow(/requires llm\* methods/);
       });
     });
   });

@@ -205,6 +205,22 @@ describe('WebFetchTool', () => {
       expect(result.error?.type).toBe(ToolErrorType.WEB_FETCH_PROCESSING_ERROR);
     });
 
+    // [리뷰 #3] non-Gemini provider Gemini-only tool guard error propagation
+    it('should return WEB_FETCH_PROCESSING_ERROR when non-Gemini provider rejects urlContext', async () => {
+      vi.spyOn(fetchUtils, 'isPrivateIp').mockReturnValue(false);
+      mockGenerateContent.mockRejectedValue(
+        new Error(
+          'URL context requires Gemini provider with urlContext capability. Not available for claude.',
+        ),
+      );
+      const tool = new WebFetchTool(mockConfig, bus);
+      const params = { prompt: 'fetch https://example.com' };
+      const invocation = tool.build(params);
+      const result = await invocation.execute(new AbortController().signal);
+      expect(result.error?.type).toBe(ToolErrorType.WEB_FETCH_PROCESSING_ERROR);
+      expect(result.llmContent).toContain('urlContext');
+    });
+
     it('should log telemetry when falling back due to private IP', async () => {
       vi.spyOn(fetchUtils, 'isPrivateIp').mockReturnValue(true);
       // Mock fetchWithTimeout to succeed so fallback proceeds

@@ -5,7 +5,11 @@
  */
 
 import { expect, describe, it } from 'vitest';
-import { doesToolInvocationMatch, getToolSuggestion } from './tool-utils.js';
+import {
+  doesToolInvocationMatch,
+  getToolSuggestion,
+  normalizeToolParams,
+} from './tool-utils.js';
 import type { AnyToolInvocation, Config } from '../index.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { createMockMessageBus } from '../test-utils/mock-message-bus.js';
@@ -124,5 +128,94 @@ describe('doesToolInvocationMatch', () => {
       const result = doesToolInvocationMatch('read_file', invocation, patterns);
       expect(result).toBe(true);
     });
+  });
+});
+
+describe('normalizeToolParams', () => {
+  it('should return args unchanged when tool has no alias rules', () => {
+    const args = { foo: 'bar' };
+    const result = normalizeToolParams('unknown_tool', args);
+    expect(result).toEqual({ foo: 'bar' });
+    expect(result).toBe(args); // same reference — no copy needed
+  });
+
+  it('should normalize path to file_path for read_file', () => {
+    const result = normalizeToolParams('read_file', {
+      path: '/tmp/test.txt',
+    });
+    expect(result).toEqual({ file_path: '/tmp/test.txt' });
+  });
+
+  it('should normalize query to pattern for search_file_content', () => {
+    const result = normalizeToolParams('search_file_content', {
+      query: 'foo.*bar',
+    });
+    expect(result).toEqual({ pattern: 'foo.*bar' });
+  });
+
+  it('should not overwrite canonical param when it already exists', () => {
+    const result = normalizeToolParams('read_file', {
+      file_path: '/correct.txt',
+      path: '/wrong.txt',
+    });
+    expect(result).toEqual({
+      file_path: '/correct.txt',
+      path: '/wrong.txt',
+    });
+  });
+
+  it('should normalize path to dir_path for list_directory', () => {
+    const result = normalizeToolParams('list_directory', { path: '/tmp' });
+    expect(result).toEqual({ dir_path: '/tmp' });
+  });
+
+  it('should preserve non-aliased params alongside normalization', () => {
+    const result = normalizeToolParams('read_file', {
+      path: '/tmp/test.txt',
+      offset: 10,
+    });
+    expect(result).toEqual({ file_path: '/tmp/test.txt', offset: 10 });
+  });
+
+  it('should handle camelCase alias (filePath → file_path)', () => {
+    const result = normalizeToolParams('read_file', {
+      filePath: '/tmp/test.txt',
+    });
+    expect(result).toEqual({ file_path: '/tmp/test.txt' });
+  });
+
+  it('should return args unchanged for tool with aliases but correct params', () => {
+    const result = normalizeToolParams('read_file', {
+      file_path: '/tmp/test.txt',
+    });
+    expect(result).toEqual({ file_path: '/tmp/test.txt' });
+  });
+
+  it('should handle empty args object', () => {
+    const result = normalizeToolParams('read_file', {});
+    expect(result).toEqual({});
+  });
+
+  it('should normalize cmd to command for run_shell_command', () => {
+    const result = normalizeToolParams('run_shell_command', {
+      cmd: 'ls -la',
+    });
+    expect(result).toEqual({ command: 'ls -la' });
+  });
+
+  it('should remove alias key after normalization', () => {
+    const result = normalizeToolParams('search_file_content', {
+      query: 'test',
+      include: '*.ts',
+    });
+    expect(result).toEqual({ pattern: 'test', include: '*.ts' });
+    expect(result).not.toHaveProperty('query');
+  });
+
+  it('should not mutate the original args object', () => {
+    const original = { path: '/tmp/test.txt' };
+    normalizeToolParams('read_file', original);
+    expect(original).toEqual({ path: '/tmp/test.txt' });
+    expect(original).not.toHaveProperty('file_path');
   });
 });

@@ -16,6 +16,7 @@ import type { Config } from '../config/config.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import { type z } from 'zod';
 import { createMockMessageBus } from '../test-utils/mock-message-bus.js';
+import type { GeminiContentGenerator } from '../core/contentGenerator.js';
 
 vi.mock('./local-executor.js');
 
@@ -317,6 +318,108 @@ describe('LocalSubagentInvocation', () => {
       );
       expect(result.error?.message).toBe('Aborted');
       expect(result.error?.type).toBe(ToolErrorType.EXECUTION_FAILED);
+    });
+  });
+
+  // ─── ChatFactory injection for non-Gemini providers ────────────
+
+  describe('non-Gemini provider chatFactory injection', () => {
+    it('passes chatFactory to executor for non-Gemini provider with llm* methods', async () => {
+      const nonGeminiGenerator = {
+        providerName: 'claude',
+        generateContent: vi.fn(),
+        generateContentStream: vi.fn(),
+        llmGenerateContent: vi.fn(),
+        llmGenerateContentStream: vi.fn(),
+        llmCountTokens: vi.fn(),
+      } as unknown as GeminiContentGenerator;
+
+      vi.spyOn(mockConfig, 'getContentGenerator').mockReturnValue(
+        nonGeminiGenerator,
+      );
+      vi.spyOn(mockConfig, 'getModel').mockReturnValue('gemini-2.5-flash');
+
+      mockExecutorInstance.run.mockResolvedValue({
+        result: 'Done',
+        terminate_reason: AgentTerminateMode.GOAL,
+      });
+
+      const inv = new LocalSubagentInvocation(
+        testDefinition,
+        mockConfig,
+        { task: 'test' },
+        createMockMessageBus(),
+      );
+      await inv.execute(new AbortController().signal);
+
+      // Should be called with 4 args (including chatFactory)
+      expect(MockLocalAgentExecutor.create).toHaveBeenCalledWith(
+        testDefinition,
+        mockConfig,
+        expect.any(Function),
+        expect.any(Function), // chatFactory
+      );
+    });
+
+    it('does not pass chatFactory for Gemini provider', async () => {
+      const geminiGenerator = {
+        providerName: undefined, // Gemini has no providerName
+        generateContent: vi.fn(),
+        generateContentStream: vi.fn(),
+      } as unknown as GeminiContentGenerator;
+
+      vi.spyOn(mockConfig, 'getContentGenerator').mockReturnValue(
+        geminiGenerator,
+      );
+
+      mockExecutorInstance.run.mockResolvedValue({
+        result: 'Done',
+        terminate_reason: AgentTerminateMode.GOAL,
+      });
+
+      const inv = new LocalSubagentInvocation(
+        testDefinition,
+        mockConfig,
+        { task: 'test' },
+        createMockMessageBus(),
+      );
+      await inv.execute(new AbortController().signal);
+
+      // Should be called with 3 args (no chatFactory)
+      expect(MockLocalAgentExecutor.create).toHaveBeenCalledWith(
+        testDefinition,
+        mockConfig,
+        expect.any(Function),
+      );
+    });
+
+    it('fails fast for non-Gemini provider without llm* methods [리뷰 #3]', async () => {
+      const noLlmGenerator = {
+        providerName: 'claude',
+        generateContent: vi.fn(),
+        generateContentStream: vi.fn(),
+        // No llm* methods
+      } as unknown as GeminiContentGenerator;
+
+      vi.spyOn(mockConfig, 'getContentGenerator').mockReturnValue(
+        noLlmGenerator,
+      );
+
+      const inv = new LocalSubagentInvocation(
+        testDefinition,
+        mockConfig,
+        { task: 'test' },
+        createMockMessageBus(),
+      );
+      const result = await inv.execute(new AbortController().signal);
+
+      // Should return error result (caught by execute try/catch)
+      expect(result.error).toBeDefined();
+      expect(result.error!.type).toBe(ToolErrorType.EXECUTION_FAILED);
+      expect(result.error!.message).toContain('does not support');
+      expect(result.error!.message).toContain('provider-independent API');
+      // Executor should NOT be created
+      expect(MockLocalAgentExecutor.create).not.toHaveBeenCalled();
     });
   });
 });

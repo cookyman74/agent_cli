@@ -635,6 +635,40 @@ describe('PolicyEngine', () => {
         (await engine.check({ name: 'tool' }, 'my__server')).decision,
       ).toBe(PolicyDecision.ASK_USER);
     });
+
+    // --- Phase 3 리뷰 3차: 추가 엣지 케이스 ---
+
+    it('should reject wildcard when serverName is undefined and tool segment is empty', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'trusted__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // 'trusted__' → segments = ['trusted', ''] → length 2이지만 빈 도구명
+      // 방어: 빈 도구 세그먼트는 유효하지 않으므로 거부해야 함
+      expect(
+        (await engine.check({ name: 'trusted__' }, undefined)).decision,
+      ).toBe(PolicyDecision.ASK_USER);
+    });
+
+    it('should match exact rule via FQN when serverName contains __', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'my__server__tool',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName 'my__server' + toolName 'tool' → FQN 'my__server__tool'
+      // exact match rule → ALLOW
+      expect(
+        (await engine.check({ name: 'tool' }, 'my__server')).decision,
+      ).toBe(PolicyDecision.ALLOW);
+    });
   });
 
   describe('complex scenarios', () => {

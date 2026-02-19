@@ -63,7 +63,7 @@ function ruleMatches(
         // Require exactly 2 segments (server__tool) — reject multi-segment names
         // like 'trusted__malicious__tool' which could be spoofed FQNs.
         const segments = toolCall.name.split('__');
-        if (segments.length !== 2 || segments[0] !== prefix) {
+        if (segments.length !== 2 || segments[0] !== prefix || !segments[1]) {
           return false;
         }
       }

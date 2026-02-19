@@ -224,11 +224,76 @@ if (serverName && toolCall.name && !toolCall.name.includes('__'))
 
 ---
 
+## Phase 3 리뷰 수정 (3차)
+
+### 리뷰 이슈 검증 결과
+
+| #   | 심각도 | 이슈                                                                      | 검증    | 수정                                            |
+| --- | ------ | ------------------------------------------------------------------------- | ------- | ----------------------------------------------- |
+| 1   | MEDIUM | serverName undefined + `'trusted__'` (빈 도구 세그먼트) → 와일드카드 매칭 | ✅ 확인 | `!segments[1]` 가드 추가                        |
+| 2   | LOW    | exact-match rule + FQN (serverName에 `__` 포함) 테스트 부재               | ✅ 확인 | 테스트 추가 (기존 동작 정상 — 회귀 방지 테스트) |
+
+### 구현 세부
+
+#### Issue 1 (MEDIUM): 빈 도구 세그먼트 가드
+
+**변경 전** (`ruleMatches()` line 66):
+
+```typescript
+if (segments.length !== 2 || segments[0] !== prefix) {
+```
+
+**변경 후**:
+
+```typescript
+if (segments.length !== 2 || segments[0] !== prefix || !segments[1]) {
+```
+
+**효과**: `'trusted__'` → `segments = ['trusted', '']` → `!segments[1]` = `!''`
+= `true` → 매칭 거부. 빈 도구명을 가진 FQN은 유효하지 않으므로 와일드카드
+매칭에서 제외.
+
+#### Issue 2 (LOW): exact-match rule + serverName `__` 테스트
+
+**추가 테스트**:
+
+```typescript
+it('should match exact rule via FQN when serverName contains __', async () => {
+  // serverName 'my__server' + toolName 'tool' → FQN 'my__server__tool'
+  // exact match rule 'my__server__tool' → ALLOW
+});
+```
+
+**효과**: Issue 3 (2차)에서 `serverName.includes('__')` 가드 제거 후,
+exact-match 규칙도 FQN으로 정상 매칭됨을 검증. 기존 동작이 정상이지만, 향후 회귀
+방지용.
+
+### 테스트 추가 (2개, 총 78개)
+
+| 테스트                                                                          | 검증 대상                 |
+| ------------------------------------------------------------------------------- | ------------------------- |
+| `should reject wildcard when serverName is undefined and tool segment is empty` | 빈 도구 세그먼트 방어     |
+| `should match exact rule via FQN when serverName contains __`                   | exact-match + `__` 서버명 |
+
+### 검증 결과
+
+| 검증 항목 | 결과 |\n| ------------------------- |
+----------------------------------- | | policy-engine 단위 테스트 | ✅ 78 PASS
+(기존 76 + 신규 2) | | Phase 1, 2 회귀 | ✅ PASS | | Core 전체 테스트 | ✅ 284
+files, 5601 PASS, 24 skipped | | TypeScript typecheck | ✅ PASS | | ESLint lint
+| ✅ PASS |
+
+### 커밋 해시
+
+- (커밋 후 기록)
+
+---
+
 ## 다음 Phase 전달사항
 
 - Phase 3 완료 — MCP 도구 이름/정책/길이 문제 모두 해결 상태
 - `ruleMatches()`: serverName 제공 시 prefix 정확 일치, undefined 시 2-segment
-  FQN만 허용
+  FQN만 허용 (빈 도구 세그먼트도 거부)
 - `toolCallsToTry`: serverName에 `__` 포함 허용 — ruleMatches의
   serverName===prefix 검증으로 보호
 - checker 경로: toolCallsToTry 기반 매칭으로 규칙과 정합성 확보

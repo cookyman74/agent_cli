@@ -30,12 +30,11 @@ import {
   applyModelSelection,
   createAvailabilityContextProvider,
 } from '../availability/policyHelpers.js';
-import type {
-  LlmMessage,
-  LlmGenerateRequest,
-  LlmGenerateResponse,
-} from '../providers/types.js';
-import { convertContentsToLlmMessages } from '../providers/gemini/typeConversion.js';
+import type { LlmMessage, LlmGenerateRequest } from '../providers/types.js';
+import {
+  convertContentsToLlmMessages,
+  convertLlmResponseToGeminiResponse,
+} from '../providers/gemini/typeConversion.js';
 import { fixToolResultRoles } from './llmMessageUtils.js';
 import { resolveProviderModel } from '../providers/providerSelector.js';
 
@@ -688,7 +687,7 @@ export class BaseLlmClient {
     );
 
     // 7. Convert to GenerateContentResponse
-    return this._convertLlmResponseToGeminiResponse(llmResponse);
+    return convertLlmResponseToGeminiResponse(llmResponse);
   }
 
   /**
@@ -723,48 +722,5 @@ export class BaseLlmClient {
     }
 
     return undefined;
-  }
-
-  /**
-   * Converts LlmGenerateResponse to GenerateContentResponse.
-   * Builds the minimal structure needed by getResponseText() and callers:
-   * `candidates[0].content.parts[0].text`
-   */
-  private _convertLlmResponseToGeminiResponse(
-    llmResponse: LlmGenerateResponse,
-  ): GenerateContentResponse {
-    const parts: Part[] = [];
-    for (const c of llmResponse.content) {
-      switch (c.type) {
-        case 'text':
-          parts.push({ text: c.text });
-          break;
-        case 'tool_call':
-          parts.push({
-            functionCall: {
-              id: c.id,
-              name: c.name,
-              args: c.arguments,
-            },
-          });
-          break;
-        case 'thought':
-          parts.push({ text: c.thought, thought: true } as Part);
-          break;
-        default:
-          break;
-      }
-    }
-
-    return {
-      candidates: [
-        {
-          content: {
-            role: 'model',
-            parts,
-          },
-        },
-      ],
-    } as GenerateContentResponse;
   }
 }

@@ -10,7 +10,6 @@ import type {
   Content,
   Tool,
   GenerateContentResponse,
-  Part,
 } from '@google/genai';
 import { createUserContent } from '@google/genai';
 import {
@@ -59,6 +58,7 @@ import { handleFallback } from '../fallback/handler.js';
 import type { RoutingContext } from '../routing/routingStrategy.js';
 import {
   convertContentsToLlmMessages,
+  convertLlmResponseToGeminiResponse,
   convertPartListUnionToLlmContents,
 } from '../providers/gemini/typeConversion.js';
 import { debugLogger } from '../utils/debugLogger.js';
@@ -66,10 +66,7 @@ import { buildLlmRequestFromGeminiState } from '../providers/gemini/requestBuild
 import { LlmResponseAccumulator } from '../providers/gemini/historyBuilder.js';
 import { resolveProviderModel } from '../providers/providerSelector.js';
 import { fixToolResultRoles } from './llmMessageUtils.js';
-import type {
-  LlmGenerateRequest,
-  LlmGenerateResponse,
-} from '../providers/types.js';
+import type { LlmGenerateRequest } from '../providers/types.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
 import {
@@ -1334,51 +1331,7 @@ export class GeminiClient {
       signal: abortSignal, // [리뷰 #1] abort-aware backoff sleep
     });
 
-    return this._convertLlmResponseToGeminiResponse(llmResponse);
-  }
-
-  /**
-   * Convert LlmGenerateResponse → GenerateContentResponse for compatibility
-   * with callers expecting Gemini SDK response format.
-   * NOTE: Duplicated from BaseLlmClient._convertLlmResponseToGeminiResponse().
-   * TODO: Extract to shared utility in typeConversion.ts during refactoring.
-   */
-  private _convertLlmResponseToGeminiResponse(
-    llmResponse: LlmGenerateResponse,
-  ): GenerateContentResponse {
-    const parts: Part[] = [];
-    for (const c of llmResponse.content) {
-      switch (c.type) {
-        case 'text':
-          parts.push({ text: c.text });
-          break;
-        case 'tool_call':
-          parts.push({
-            functionCall: {
-              id: c.id,
-              name: c.name,
-              args: c.arguments,
-            },
-          });
-          break;
-        case 'thought':
-          parts.push({ text: c.thought, thought: true } as Part);
-          break;
-        default:
-          break;
-      }
-    }
-
-    return {
-      candidates: [
-        {
-          content: {
-            role: 'model',
-            parts,
-          },
-        },
-      ],
-    } as GenerateContentResponse;
+    return convertLlmResponseToGeminiResponse(llmResponse);
   }
 
   async tryCompressChat(

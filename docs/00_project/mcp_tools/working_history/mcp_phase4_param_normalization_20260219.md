@@ -86,7 +86,7 @@ LLM 호출 → args
 
 ## 커밋 해시
 
-- (커밋 후 기록)
+- `2462ca772` — `feat(utils): MCP 도구 schema-based 파라미터 정규화 — Phase 4`
 
 ## 완료 조건 달성 여부
 

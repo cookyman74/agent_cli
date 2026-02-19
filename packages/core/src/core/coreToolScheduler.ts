@@ -20,7 +20,7 @@ import { ToolErrorType } from '../tools/tool-error.js';
 import { ToolCallEvent } from '../telemetry/types.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
 import { ToolModificationHandler } from '../scheduler/tool-modifier.js';
-import { getToolSuggestion } from '../utils/tool-utils.js';
+import { getToolSuggestion, normalizeToolParams } from '../utils/tool-utils.js';
 import type { ToolConfirmationRequest } from '../confirmation-bus/types.js';
 import { MessageBusType } from '../confirmation-bus/types.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
@@ -486,7 +486,11 @@ export class CoreToolScheduler {
       this.completedToolCallsForBatch = [];
 
       const newToolCalls: ToolCall[] = requestsToProcess.map(
-        (reqInfo): ToolCall => {
+        (rawReqInfo): ToolCall => {
+          const reqInfo: ToolCallRequestInfo = {
+            ...rawReqInfo,
+            args: normalizeToolParams(rawReqInfo.name, rawReqInfo.args),
+          };
           const toolInstance = this.config
             .getToolRegistry()
             .getTool(reqInfo.name);

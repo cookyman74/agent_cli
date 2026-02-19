@@ -241,6 +241,7 @@ export class Scheduler {
       const newCalls: ToolCall[] = requests.map((request) => {
         const enrichedRequest: ToolCallRequestInfo = {
           ...request,
+          args: normalizeToolParams(request.name, request.args),
           schedulerId: this.schedulerId,
           parentCallId: this.parentCallId,
         };
@@ -296,8 +297,7 @@ export class Scheduler {
       },
       () => {
         try {
-          const args = normalizeToolParams(request.name, request.args);
-          const invocation = tool.build(args);
+          const invocation = tool.build(request.args);
           return {
             status: 'validating',
             request,

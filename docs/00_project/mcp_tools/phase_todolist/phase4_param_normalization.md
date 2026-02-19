@@ -405,6 +405,11 @@ npm run typecheck && npm run lint
 | Issue 4: scheduler/coreToolScheduler 통합 테스트 4개 추가             | ✅   |
 | Issue 5: dot-access → bracket notation + Kind.ReadOnly/abstract 수정  | ✅   |
 | 리뷰 수정 후 전체 검증 (5622 PASS, typecheck, lint)                   | ✅   |
+| **코드레벨 2차 리뷰 수정 (3건)**                                      | ✅   |
+| Issue 6: toSnakeCase PascalCase 선행 underscore 수정 + 테스트         | ✅   |
+| Issue 7: normalizeToolParams 불필요 copy → reference identity 수정    | ✅   |
+| Issue 8: extractSchemaInfo properties + allOf 공존 시 병합 리팩토링   | ✅   |
+| 2차 리뷰 수정 후 전체 검증 (5625 PASS, typecheck, lint)               | ✅   |
 
 ---
 

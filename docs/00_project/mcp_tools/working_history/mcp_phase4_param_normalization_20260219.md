@@ -161,6 +161,53 @@ LLM 호출 → args
 | TypeScript typecheck          | ✅ PASS                             |
 | ESLint lint                   | ✅ PASS                             |
 
+## 코드레벨 2차 리뷰 수정 (3건)
+
+### Issue 6 [HIGH]: `toSnakeCase` PascalCase 선행 underscore 버그
+
+- **문제**: `'FilePath'` → `'_file_path'` (선행 underscore) → schema의
+  `file_path`와 불일치하여 정규화 실패
+- **원인**: regex `/[A-Z]/g` 콜백이 offset=0인 첫 글자에도 `_` prefix 추가
+- **수정**: offset 파라미터 활용 →
+  `(offset === 0 ? '' : '_') + letter.toLowerCase()`
+- **추가 테스트**: 1개
+  (`should normalize PascalCase to snake_case (leading uppercase)`)
+
+### Issue 7 [MEDIUM]: `normalizeToolParams` 불필요 copy → reference identity 가드 실패
+
+- **문제**: `normalizeToolParams()`이 alias map 존재 시 alias 적용 여부와
+  무관하게 항상 `{ ...args }` 새 객체 반환 → scheduler의
+  `normalizedArgs === request.args` reference identity 가드가 false negative →
+  schema-based 정규화 건너뜀
+- **영향**: MCP 도구명이 내장 alias map key와 동일한 엣지 케이스에서
+  schema-based 정규화 누락 (현재 `server__toolName` 네이밍으로 인해 실제 발생
+  가능성 낮으나, 잠재적 결함)
+- **수정**: `changed` 플래그 추가 → `return changed ? normalized : args;` —
+  alias 미적용 시 원본 reference 반환
+- **추가 테스트**: 1개
+  (`should return original args reference when alias map exists but no aliases match`)
+
+### Issue 8 [LOW]: `extractSchemaInfo` top-level properties + allOf 공존 시 allOf 무시
+
+- **문제**: `if (s.properties)` early return으로 allOf 서브스키마 무시 → 일부
+  MCP 서버가 top-level + allOf 조합 schema 사용 시 allOf 속성 인식 실패
+- **수정**: early return 제거, `mergedProperties` / `mergedRequired` 수집
+  패턴으로 리팩토링 — top-level + allOf 양쪽 병합 후 반환
+- **추가 테스트**: 1개
+  (`should merge top-level properties with allOf sub-schema properties`)
+
+### 2차 리뷰 수정 검증 결과
+
+| 검증 항목                         | 결과                                |
+| --------------------------------- | ----------------------------------- |
+| tool-utils 단위 테스트            | ✅ 56 PASS (기존 53 + 신규 3)       |
+| scheduler 회귀 테스트             | ✅ PASS                             |
+| coreToolScheduler 회귀 테스트     | ✅ PASS                             |
+| 기존 `normalizeToolParams()` 회귀 | ✅ PASS (37개 전수 통과)            |
+| Core 전체 테스트                  | ✅ 284 files, 5625 PASS, 24 skipped |
+| TypeScript typecheck              | ✅ PASS                             |
+| ESLint lint                       | ✅ PASS                             |
+
 ## 다음 Phase 전달사항
 
 - Phase 4 완료 — MCP 도구 파라미터 정규화 파이프라인 구축 완료

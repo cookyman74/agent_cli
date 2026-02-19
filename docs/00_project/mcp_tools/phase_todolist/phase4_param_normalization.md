@@ -11,7 +11,7 @@
 
 ## 4.1 사전 작업 (Pre-Work)
 
-- [ ] **[PREV-REVIEW]** Phase 3 작업 결과서 확인
+- [x] **[PREV-REVIEW]** Phase 3 작업 결과서 확인
   - 참조: `../working_history/mcp_phase3_policy_hardening_{작업일자}.md`
   - 확인 항목:
     - `ruleMatches()` serverName undefined 시 와일드카드 거부 동작 확인
@@ -22,12 +22,12 @@
     변경과 직접 충돌 없음. 단, MCP 도구 이름이 Phase 1~3에서 변경된 경우 정규화
     대상 도구 이름 확인 필요.
 
-- [ ] **[CONTEXT]** 작업 배경 확인
+- [x] **[CONTEXT]** 작업 배경 확인
   - 선행 작업: `normalizeToolParams()` — 내장 도구 11개, 정적 alias map 50개
   - 한계: MCP 도구는 런타임 동적 디스커버리 → 컴파일 타임에 alias 정의 불가
   - 목표: MCP 도구의 `parameterSchema`에서 런타임으로 정규화 규칙 추론
 
-- [ ] **[ANALYSIS-1]** MCP 도구 parameterSchema 구조 확인
+- [x] **[ANALYSIS-1]** MCP 도구 parameterSchema 구조 확인
   - `mcp-tool.ts`: `parameterSchema` 필드 — JSON Schema 형식
   - 접근: `DiscoveredMCPTool.parameterSchema` (public)
   - 구조 예시:
@@ -42,7 +42,7 @@
     }
     ```
 
-- [ ] **[ANALYSIS-2]** non-Gemini LLM의 파라미터명 추측 패턴
+- [x] **[ANALYSIS-2]** non-Gemini LLM의 파라미터명 추측 패턴
   - 관찰된 패턴 (내장 도구 hotfix에서 확인):
     - `file_path` → `path`, `filePath`, `filepath`
     - `dir_path` → `path`, `directory`, `dirPath`
@@ -53,13 +53,13 @@
     - 약어 치환: `file_path` → `path` (접미사만 사용)
     - 동의어: `query` ↔ `pattern` ↔ `search`
 
-- [ ] **[ANALYSIS-3]** 정규화 적용 지점 확인
+- [x] **[ANALYSIS-3]** 정규화 적용 지점 확인
   - `scheduler.ts:244`: `normalizeToolParams()` 호출 지점
   - `coreToolScheduler.ts:488-492`: 레거시 경로 정규화 지점
   - 현재: `TOOL_PARAM_ALIASES[toolName]`에 없으면 그대로 반환
   - 목표: 없을 때 → schema-based 정규화 시도
 
-- [ ] **[ANALYSIS-4]** 정규화 전략 결정
+- [x] **[ANALYSIS-4]** 정규화 전략 결정
 
   **Option A: snake_case ↔ camelCase 변환만 (보수적)**
   - 장점: 높은 정확도, 오탐 최소화
@@ -389,15 +389,15 @@ npm run typecheck && npm run lint
 
 | 검증 항목                                                             | 상태 |
 | --------------------------------------------------------------------- | ---- |
-| `normalizeToolParamsBySchema()` camelCase→snake_case TDD — 6개 테스트 | ⬜   |
-| 접미사 매칭 TDD — 6개 테스트 (모호성 + required 복수 방지 포함)       | ⬜   |
-| 원본 args 불변 확인                                                   | ⬜   |
-| scheduler.ts MCP 도구 조건부 적용                                     | ⬜   |
-| coreToolScheduler.ts 레거시 경로 적용                                 | ⬜   |
-| 기존 `normalizeToolParams()` (내장 도구) 동작 회귀 없음               | ⬜   |
-| scheduler/coreToolScheduler 기존 테스트 회귀 없음                     | ⬜   |
-| Core 전체 테스트 PASS                                                 | ⬜   |
-| 커밋 완료 + 최종 작업 결과서 작성                                     | ⬜   |
+| `normalizeToolParamsBySchema()` camelCase→snake_case TDD — 6개 테스트 | ✅   |
+| 접미사 매칭 TDD — 6개 테스트 (모호성 + required 복수 방지 포함)       | ✅   |
+| 원본 args 불변 확인                                                   | ✅   |
+| scheduler.ts MCP 도구 조건부 적용                                     | ✅   |
+| coreToolScheduler.ts 레거시 경로 적용                                 | ✅   |
+| 기존 `normalizeToolParams()` (내장 도구) 동작 회귀 없음               | ✅   |
+| scheduler/coreToolScheduler 기존 테스트 회귀 없음                     | ✅   |
+| Core 전체 테스트 PASS                                                 | ✅   |
+| 커밋 완료 + 최종 작업 결과서 작성                                     | ✅   |
 
 ---
 

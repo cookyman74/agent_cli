@@ -216,6 +216,99 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
   },
 };
 
+// ============================================================================
+// Schema-based parameter normalization (MCP tools)
+// ============================================================================
+
+/**
+ * Converts a camelCase string to snake_case.
+ * e.g., 'filePath' → 'file_path', 'lineNumber' → 'line_number'
+ */
+function toSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+/**
+ * Schema-based parameter normalization for MCP tools.
+ *
+ * Strategy (priority order):
+ * 1. Exact match: arg name exists in schema → no change
+ * 2. camelCase→snake_case: arg 'filePath' → schema 'file_path' → rename
+ * 3. Suffix match: arg 'path' → schema 'file_path' (required param preferred)
+ *
+ * Rules:
+ * - Canonical param already exists → no aliasing (protects correct calls)
+ * - Original args never mutated (shallow copy)
+ * - Ambiguous suffix matches skipped unless exactly one required candidate
+ */
+export function normalizeToolParamsBySchema(
+  args: Record<string, unknown>,
+  schema: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!schema) return args;
+
+  const properties = (schema as { properties?: Record<string, unknown> })
+    .properties;
+  if (!properties) return args;
+
+  const schemaKeys = new Set(Object.keys(properties));
+  const requiredKeys = new Set(
+    (schema as { required?: string[] }).required ?? [],
+  );
+
+  // Check if any normalization is needed
+  const argKeys = Object.keys(args);
+  const unknownKeys = argKeys.filter((k) => !schemaKeys.has(k));
+  if (unknownKeys.length === 0) return args;
+
+  const normalized = { ...args };
+
+  for (const argKey of unknownKeys) {
+    if (normalized[argKey] === undefined) continue;
+
+    // Strategy 1: camelCase → snake_case exact match
+    const snakeKey = toSnakeCase(argKey);
+    if (
+      snakeKey !== argKey &&
+      schemaKeys.has(snakeKey) &&
+      normalized[snakeKey] === undefined
+    ) {
+      normalized[snakeKey] = normalized[argKey];
+      delete normalized[argKey];
+      continue;
+    }
+
+    // Strategy 2: Suffix match (e.g., 'path' → 'file_path')
+    const suffix = argKey; // The arg key itself is the suffix
+    const candidates = [...schemaKeys].filter(
+      (sk) => sk !== argKey && sk.endsWith(`_${suffix}`),
+    );
+
+    if (candidates.length === 1 && normalized[candidates[0]] === undefined) {
+      // Unambiguous suffix match
+      normalized[candidates[0]] = normalized[argKey];
+      delete normalized[argKey];
+    } else if (candidates.length > 1) {
+      // Ambiguous — resolve ONLY when exactly one required candidate
+      const requiredCandidates = candidates.filter((c) => requiredKeys.has(c));
+      if (
+        requiredCandidates.length === 1 &&
+        normalized[requiredCandidates[0]] === undefined
+      ) {
+        normalized[requiredCandidates[0]] = normalized[argKey];
+        delete normalized[argKey];
+      }
+      // else: skip (ambiguous — required 0개 또는 2개 이상이면 매핑하지 않음)
+    }
+  }
+
+  return normalized;
+}
+
+// ============================================================================
+// Static alias normalization (built-in tools)
+// ============================================================================
+
 /**
  * Normalizes tool parameter names by applying known aliases.
  *

@@ -26,7 +26,12 @@ import {
   ToolConfirmationOutcome,
   type AnyDeclarativeTool,
 } from '../tools/tools.js';
-import { getToolSuggestion, normalizeToolParams } from '../utils/tool-utils.js';
+import {
+  getToolSuggestion,
+  normalizeToolParams,
+  normalizeToolParamsBySchema,
+} from '../utils/tool-utils.js';
+import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
 import { logToolCall } from '../telemetry/loggers.js';
 import { ToolCallEvent } from '../telemetry/types.js';
@@ -239,13 +244,26 @@ export class Scheduler {
     try {
       const toolRegistry = this.config.getToolRegistry();
       const newCalls: ToolCall[] = requests.map((request) => {
+        let normalizedArgs = normalizeToolParams(request.name, request.args);
+
+        // MCP tools: apply schema-based normalization when static alias didn't help
+        const tool = toolRegistry.getTool(request.name);
+        if (
+          tool instanceof DiscoveredMCPTool &&
+          normalizedArgs === request.args
+        ) {
+          normalizedArgs = normalizeToolParamsBySchema(
+            normalizedArgs,
+            tool.parameterSchema as Record<string, unknown> | undefined,
+          );
+        }
+
         const enrichedRequest: ToolCallRequestInfo = {
           ...request,
-          args: normalizeToolParams(request.name, request.args),
+          args: normalizedArgs,
           schedulerId: this.schedulerId,
           parentCallId: this.parentCallId,
         };
-        const tool = toolRegistry.getTool(request.name);
 
         if (!tool) {
           return this._createToolNotFoundErroredToolCall(

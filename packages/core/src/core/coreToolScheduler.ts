@@ -20,7 +20,12 @@ import { ToolErrorType } from '../tools/tool-error.js';
 import { ToolCallEvent } from '../telemetry/types.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
 import { ToolModificationHandler } from '../scheduler/tool-modifier.js';
-import { getToolSuggestion, normalizeToolParams } from '../utils/tool-utils.js';
+import {
+  getToolSuggestion,
+  normalizeToolParams,
+  normalizeToolParamsBySchema,
+} from '../utils/tool-utils.js';
+import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import type { ToolConfirmationRequest } from '../confirmation-bus/types.js';
 import { MessageBusType } from '../confirmation-bus/types.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
@@ -487,13 +492,31 @@ export class CoreToolScheduler {
 
       const newToolCalls: ToolCall[] = requestsToProcess.map(
         (rawReqInfo): ToolCall => {
-          const reqInfo: ToolCallRequestInfo = {
-            ...rawReqInfo,
-            args: normalizeToolParams(rawReqInfo.name, rawReqInfo.args),
-          };
+          let normalizedArgs = normalizeToolParams(
+            rawReqInfo.name,
+            rawReqInfo.args,
+          );
           const toolInstance = this.config
             .getToolRegistry()
-            .getTool(reqInfo.name);
+            .getTool(rawReqInfo.name);
+
+          // MCP tools: apply schema-based normalization when static alias didn't help
+          if (
+            toolInstance instanceof DiscoveredMCPTool &&
+            normalizedArgs === rawReqInfo.args
+          ) {
+            normalizedArgs = normalizeToolParamsBySchema(
+              normalizedArgs,
+              toolInstance.parameterSchema as
+                | Record<string, unknown>
+                | undefined,
+            );
+          }
+
+          const reqInfo: ToolCallRequestInfo = {
+            ...rawReqInfo,
+            args: normalizedArgs,
+          };
           if (!toolInstance) {
             const suggestion = getToolSuggestion(
               reqInfo.name,

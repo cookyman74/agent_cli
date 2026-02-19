@@ -9,6 +9,7 @@ import {
   doesToolInvocationMatch,
   getToolSuggestion,
   normalizeToolParams,
+  normalizeToolParamsBySchema,
 } from './tool-utils.js';
 import type { AnyToolInvocation, Config } from '../index.js';
 import { ReadFileTool } from '../tools/read-file.js';
@@ -381,5 +382,145 @@ describe('normalizeToolParams', () => {
       filePath: 'cli/commands.md',
     });
     expect(result).toEqual({ path: 'cli/commands.md' });
+  });
+});
+
+describe('normalizeToolParamsBySchema', () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      file_path: { type: 'string' },
+      content: { type: 'string' },
+      line_number: { type: 'number' },
+    },
+    required: ['file_path', 'content'],
+  };
+
+  // --- camelCase → snake_case 변환 ---
+
+  it('should normalize camelCase to snake_case when schema property exists', () => {
+    const args = { filePath: '/tmp/test.txt', content: 'hello' };
+    const result = normalizeToolParamsBySchema(args, schema);
+    expect(result).toEqual({ file_path: '/tmp/test.txt', content: 'hello' });
+  });
+
+  it('should not overwrite canonical param when it already exists', () => {
+    const args = {
+      file_path: '/correct.txt',
+      filePath: '/wrong.txt',
+      content: 'hello',
+    };
+    const result = normalizeToolParamsBySchema(args, schema);
+    expect(result.file_path).toBe('/correct.txt');
+  });
+
+  it('should handle multiple camelCase conversions', () => {
+    const args = { filePath: '/tmp/f.ts', lineNumber: 42, content: 'hello' };
+    const result = normalizeToolParamsBySchema(args, schema);
+    expect(result).toEqual({
+      file_path: '/tmp/f.ts',
+      line_number: 42,
+      content: 'hello',
+    });
+  });
+
+  it('should return args unchanged when all params match schema', () => {
+    const args = { file_path: '/tmp/test.txt', content: 'hello' };
+    const result = normalizeToolParamsBySchema(args, schema);
+    expect(result).toEqual(args);
+  });
+
+  it('should return args unchanged when schema is undefined', () => {
+    const args = { foo: 'bar' };
+    const result = normalizeToolParamsBySchema(args, undefined);
+    expect(result).toBe(args); // same reference
+  });
+
+  it('should not mutate original args', () => {
+    const original = { filePath: '/tmp/test.txt', content: 'hello' };
+    normalizeToolParamsBySchema(original, schema);
+    expect(original).toEqual({ filePath: '/tmp/test.txt', content: 'hello' });
+  });
+
+  // --- 접미사 매칭 (Option B) ---
+
+  it('should normalize suffix alias to required param (e.g., path → file_path)', () => {
+    const args = { path: '/tmp/test.txt', content: 'hello' };
+    const result = normalizeToolParamsBySchema(args, schema);
+    expect(result).toEqual({ file_path: '/tmp/test.txt', content: 'hello' });
+  });
+
+  it('should prefer exact camelCase match over suffix match', () => {
+    const args = {
+      filePath: '/camel.txt',
+      path: '/suffix.txt',
+      content: 'hello',
+    };
+    const result = normalizeToolParamsBySchema(args, schema);
+    expect(result.file_path).toBe('/camel.txt');
+  });
+
+  it('should not apply suffix match for optional params when ambiguous', () => {
+    // schema has both dir_path and file_path → 'path' is ambiguous
+    const ambiguousSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        dir_path: { type: 'string' },
+      },
+      required: ['file_path'],
+    };
+    const args = { path: '/tmp' };
+    const result = normalizeToolParamsBySchema(args, ambiguousSchema);
+    // 'path' matches file_path (required) → resolves ambiguity
+    expect(result.file_path).toBe('/tmp');
+  });
+
+  it('should skip suffix match when ambiguous and no required resolution', () => {
+    const ambiguousSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        dir_path: { type: 'string' },
+      },
+      required: [],
+    };
+    const args = { path: '/tmp' };
+    const result = normalizeToolParamsBySchema(args, ambiguousSchema);
+    // ambiguous, both optional → skip normalization
+    expect(result).toEqual({ path: '/tmp' });
+  });
+
+  // --- Issue #7 대응: required 복수 시 오매핑 방지 ---
+
+  it('should skip suffix match when ambiguous and multiple required candidates', () => {
+    const ambiguousSchema = {
+      type: 'object',
+      properties: {
+        source_path: { type: 'string' },
+        dest_path: { type: 'string' },
+      },
+      required: ['source_path', 'dest_path'],
+    };
+    const args = { path: '/tmp/file.txt' };
+    const result = normalizeToolParamsBySchema(args, ambiguousSchema);
+    // ambiguous — 'path' matches both *_path, both required → skip (no mapping)
+    expect(result).toEqual({ path: '/tmp/file.txt' });
+  });
+
+  it('should skip suffix match for *_id when multiple id fields exist', () => {
+    const multiIdSchema = {
+      type: 'object',
+      properties: {
+        user_id: { type: 'string' },
+        task_id: { type: 'string' },
+        project_id: { type: 'string' },
+      },
+      required: ['user_id', 'task_id'],
+    };
+    const args = { id: '12345' };
+    const result = normalizeToolParamsBySchema(args, multiIdSchema);
+    // ambiguous — 'id' matches 3 *_id fields, 2 required → skip
+    expect(result).toEqual({ id: '12345' });
   });
 });

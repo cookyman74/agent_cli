@@ -189,10 +189,7 @@ export class McpClient {
     for (const prompt of prompts) {
       this.promptRegistry.registerPrompt(prompt);
     }
-    for (const tool of tools) {
-      this.toolRegistry.registerTool(tool);
-    }
-    this.toolRegistry.sortTools();
+    this.toolRegistry.registerMCPTools(tools);
   }
 
   /**
@@ -506,11 +503,7 @@ export class McpClient {
         }
 
         this.toolRegistry.removeMcpToolsByServer(this.serverName);
-
-        for (const tool of newTools) {
-          this.toolRegistry.registerTool(tool);
-        }
-        this.toolRegistry.sortTools();
+        this.toolRegistry.registerMCPTools(newTools);
 
         if (this.onToolsUpdated) {
           await this.onToolsUpdated(abortController.signal);
@@ -943,10 +936,7 @@ export async function connectAndDiscover(
     for (const prompt of prompts) {
       promptRegistry.registerPrompt(prompt);
     }
-    for (const tool of tools) {
-      toolRegistry.registerTool(tool);
-    }
-    toolRegistry.sortTools();
+    toolRegistry.registerMCPTools(tools);
   } catch (error) {
     if (mcpClient) {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises

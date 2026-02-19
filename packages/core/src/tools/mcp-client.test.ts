@@ -111,6 +111,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -192,6 +193,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -218,7 +220,7 @@ describe('mcp-client', () => {
       );
       await client.connect();
       await client.discover({} as Config);
-      expect(mockedToolRegistry.registerTool).toHaveBeenCalledTimes(2);
+      expect(mockedToolRegistry.registerMCPTools).toHaveBeenCalledOnce();
       expect(consoleWarnSpy).not.toHaveBeenCalled();
       consoleWarnSpy.mockRestore();
     });
@@ -245,6 +247,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
       const promptRegistry = {
@@ -298,6 +301,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -358,6 +362,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -384,7 +389,7 @@ describe('mcp-client', () => {
       );
       await client.connect();
       await client.discover({} as Config);
-      expect(mockedToolRegistry.registerTool).toHaveBeenCalledOnce();
+      expect(mockedToolRegistry.registerMCPTools).toHaveBeenCalledOnce();
     });
 
     it('should discover tools with $defs and $ref in schema', async () => {
@@ -432,6 +437,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -458,10 +464,10 @@ describe('mcp-client', () => {
       );
       await client.connect();
       await client.discover({} as Config);
-      expect(mockedToolRegistry.registerTool).toHaveBeenCalledOnce();
-      const registeredTool = vi.mocked(mockedToolRegistry.registerTool).mock
-        .calls[0][0];
-      expect(registeredTool.schema.parametersJsonSchema).toEqual({
+      expect(mockedToolRegistry.registerMCPTools).toHaveBeenCalledOnce();
+      const registeredTools = vi.mocked(mockedToolRegistry.registerMCPTools)
+        .mock.calls[0][0];
+      expect(registeredTools[0].schema.parametersJsonSchema).toEqual({
         type: 'object',
         properties: {
           param1: {
@@ -509,6 +515,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -593,6 +600,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -675,6 +683,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -754,6 +763,7 @@ describe('mcp-client', () => {
       );
       const mockedToolRegistry = {
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         unregisterTool: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
         removeMcpToolsByServer: vi.fn(),
@@ -784,7 +794,7 @@ describe('mcp-client', () => {
       await client.connect();
       await client.discover({} as Config);
 
-      expect(mockedToolRegistry.registerTool).toHaveBeenCalledOnce();
+      expect(mockedToolRegistry.registerMCPTools).toHaveBeenCalledOnce();
       expect(mockedPromptRegistry.registerPrompt).toHaveBeenCalledOnce();
 
       await client.disconnect();
@@ -906,6 +916,7 @@ describe('mcp-client', () => {
       const mockedToolRegistry = {
         removeMcpToolsByServer: vi.fn(),
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -946,7 +957,7 @@ describe('mcp-client', () => {
       expect(mockedClient.listTools).toHaveBeenCalled();
 
       // It should register the new tool
-      expect(mockedToolRegistry.registerTool).toHaveBeenCalled();
+      expect(mockedToolRegistry.registerMCPTools).toHaveBeenCalled();
 
       // It should notify the manager
       expect(onToolsUpdatedSpy).toHaveBeenCalled();
@@ -1049,6 +1060,7 @@ describe('mcp-client', () => {
       const mockedToolRegistry = {
         removeMcpToolsByServer: vi.fn(),
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -1102,7 +1114,7 @@ describe('mcp-client', () => {
       expect(mockClientB.listTools).toHaveBeenCalled();
 
       // Verify tools from both servers were registered (2 total calls)
-      expect(mockedToolRegistry.registerTool).toHaveBeenCalledTimes(2);
+      expect(mockedToolRegistry.registerMCPTools).toHaveBeenCalledTimes(2);
 
       // Verify the update callback was triggered for both
       expect(onToolsUpdatedSpy).toHaveBeenCalledTimes(2);
@@ -1149,6 +1161,7 @@ describe('mcp-client', () => {
       const mockedToolRegistry = {
         removeMcpToolsByServer: vi.fn(),
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;
@@ -1184,7 +1197,8 @@ describe('mcp-client', () => {
         }),
       );
 
-      expect(mockedToolRegistry.registerTool).not.toHaveBeenCalled();
+      // registerMCPTools is called but with empty array (no tools discovered due to timeout)
+      expect(mockedToolRegistry.registerMCPTools).toHaveBeenCalledWith([]);
 
       vi.useRealTimers();
     });
@@ -1213,6 +1227,7 @@ describe('mcp-client', () => {
       const mockedToolRegistry = {
         removeMcpToolsByServer: vi.fn(),
         registerTool: vi.fn(),
+        registerMCPTools: vi.fn(),
         sortTools: vi.fn(),
         getMessageBus: vi.fn().mockReturnValue(undefined),
       } as unknown as ToolRegistry;

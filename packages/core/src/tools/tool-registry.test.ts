@@ -586,6 +586,121 @@ describe('ToolRegistry', () => {
     });
   });
 
+  describe('registerMCPTools (batch)', () => {
+    it('should register single-server tools with unqualified names', () => {
+      const tool = createMCPTool('serverA', 'custom_tool', 'A custom tool');
+      toolRegistry.registerMCPTools([tool]);
+
+      expect(toolRegistry.getTool('custom_tool')).toBeDefined();
+      expect(toolRegistry.getTool('custom_tool')?.name).toBe('custom_tool');
+    });
+
+    it('should qualify all conflicting MCP tools when multiple servers provide same name', () => {
+      const toolA = createMCPTool('serverA', 'read_file', 'Read file from A');
+      const toolB = createMCPTool('serverB', 'read_file', 'Read file from B');
+      toolRegistry.registerMCPTools([toolA, toolB]);
+
+      // unqualified 'read_file'은 등록되지 않아야 함
+      expect(toolRegistry.getTool('read_file')).toBeUndefined();
+      // 양쪽 모두 qualified name으로 등록
+      expect(
+        toolRegistry.getTool(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+      expect(
+        toolRegistry.getTool(`serverB${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+    });
+
+    it('should always qualify MCP tool when built-in tool has same name', () => {
+      // 내장 도구 먼저 등록
+      const builtIn = new MockTool({ name: 'read_file' });
+      toolRegistry.registerTool(builtIn);
+
+      const mcpTool = createMCPTool('my-server', 'read_file', 'MCP read file');
+      toolRegistry.registerMCPTools([mcpTool]);
+
+      // 내장 도구는 그대로
+      expect(toolRegistry.getTool('read_file')).toBe(builtIn);
+      // MCP 도구는 qualified
+      expect(
+        toolRegistry.getTool(
+          `my-server${MCP_QUALIFIED_NAME_SEPARATOR}read_file`,
+        ),
+      ).toBeDefined();
+    });
+
+    it('should preserve non-conflicting tools as unqualified', () => {
+      const toolA1 = createMCPTool('serverA', 'read_file', 'Read from A');
+      const toolA2 = createMCPTool('serverA', 'custom_tool', 'Custom from A');
+      const toolB1 = createMCPTool('serverB', 'read_file', 'Read from B');
+      const toolB2 = createMCPTool('serverB', 'another_tool', 'Another from B');
+      toolRegistry.registerMCPTools([toolA1, toolA2, toolB1, toolB2]);
+
+      // read_file 충돌 → 양쪽 qualified
+      expect(toolRegistry.getTool('read_file')).toBeUndefined();
+      expect(
+        toolRegistry.getTool(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+      expect(
+        toolRegistry.getTool(`serverB${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+      // 비충돌 → unqualified
+      expect(toolRegistry.getTool('custom_tool')).toBeDefined();
+      expect(toolRegistry.getTool('another_tool')).toBeDefined();
+    });
+
+    it('should handle three-way conflict (3 servers same tool name)', () => {
+      const toolA = createMCPTool('serverA', 'search', 'Search from A');
+      const toolB = createMCPTool('serverB', 'search', 'Search from B');
+      const toolC = createMCPTool('serverC', 'search', 'Search from C');
+      toolRegistry.registerMCPTools([toolA, toolB, toolC]);
+
+      expect(toolRegistry.getTool('search')).toBeUndefined();
+      expect(
+        toolRegistry.getTool(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}search`),
+      ).toBeDefined();
+      expect(
+        toolRegistry.getTool(`serverB${MCP_QUALIFIED_NAME_SEPARATOR}search`),
+      ).toBeDefined();
+      expect(
+        toolRegistry.getTool(`serverC${MCP_QUALIFIED_NAME_SEPARATOR}search`),
+      ).toBeDefined();
+    });
+
+    it('should detect same-server sanitize collision and disambiguate with hash', () => {
+      // 'foo bar' 와 'foo@bar' 는 generateValidName() 후 둘 다 'foo_bar'
+      const tool1 = createMCPTool('serverA', 'foo bar', 'Tool 1');
+      const tool2 = createMCPTool('serverA', 'foo@bar', 'Tool 2');
+      toolRegistry.registerMCPTools([tool1, tool2]);
+
+      // 둘 다 등록되어야 함 (도구 유실 없음)
+      const allNames = toolRegistry.getAllToolNames();
+      const serverATools = allNames.filter(
+        (n) =>
+          n.startsWith(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}`) ||
+          n === 'foo_bar',
+      );
+      expect(serverATools.length).toBe(2);
+      // 두 도구의 이름이 서로 달라야 함
+      expect(serverATools[0]).not.toBe(serverATools[1]);
+    });
+
+    it('should not lose tools when same server has sanitize-colliding names', () => {
+      // 'my tool' → 'my_tool', 'my@tool' → 'my_tool' (둘 다 동일)
+      const tool1 = createMCPTool('serverA', 'my tool', 'Tool with space');
+      const tool2 = createMCPTool('serverA', 'my@tool', 'Tool with at');
+      toolRegistry.registerMCPTools([tool1, tool2]);
+
+      // 둘 다 sanitize 후 'my_tool' → FQN 'serverA__my_tool' 충돌
+      // hash disambiguation으로 2개 모두 등록 확인
+      const allNames = toolRegistry.getAllToolNames();
+      const serverATools = allNames.filter((n) =>
+        n.startsWith(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}`),
+      );
+      expect(serverATools.length).toBe(2);
+    });
+  });
+
   describe('DiscoveredToolInvocation', () => {
     it('should return the stringified params from getDescription', () => {
       const tool = new DiscoveredTool(

@@ -14,7 +14,11 @@ import { Kind, BaseDeclarativeTool, BaseToolInvocation } from './tools.js';
 import type { Config } from '../config/config.js';
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
-import { DiscoveredMCPTool } from './mcp-tool.js';
+import {
+  DiscoveredMCPTool,
+  generateValidName,
+  simpleHash,
+} from './mcp-tool.js';
 import { parse } from 'shell-quote';
 import { ToolErrorType } from './tool-error.js';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
@@ -223,6 +227,69 @@ export class ToolRegistry {
       }
     }
     this.allKnownTools.set(tool.name, tool);
+  }
+
+  /**
+   * Batch-registers MCP tools with deterministic naming.
+   *
+   * Two-pass algorithm:
+   * 1. Collect all tools, detect name conflicts (same baseName from multiple
+   *    servers, same baseName as built-in, OR same-server sanitize collision)
+   * 2. Register: conflicting → qualified name (with hash disambiguation for
+   *    same-server FQN collision), non-conflicting → unqualified name
+   *
+   * This eliminates non-determinism from Promise.all() discovery order.
+   */
+  registerMCPTools(tools: DiscoveredMCPTool[]): void {
+    // Pass 1: Group by sanitized baseName to detect conflicts
+    const nameToTools = new Map<string, DiscoveredMCPTool[]>();
+    for (const tool of tools) {
+      const baseName = generateValidName(tool.serverToolName);
+      const group = nameToTools.get(baseName) ?? [];
+      group.push(tool);
+      nameToTools.set(baseName, group);
+    }
+
+    // Pass 2: Register with deterministic naming
+    for (const [baseName, groupedTools] of nameToTools) {
+      const hasBuiltInConflict = this.allKnownTools.has(baseName);
+      const hasMultiServerConflict = groupedTools.length > 1;
+      const needsQualification = hasBuiltInConflict || hasMultiServerConflict;
+
+      if (!needsQualification) {
+        // No conflict → register with unqualified name
+        this.allKnownTools.set(baseName, groupedTools[0]);
+        continue;
+      }
+
+      // Conflict → use qualified names, detect FQN duplicates
+      const fqnMap = new Map<string, DiscoveredMCPTool[]>();
+      for (const tool of groupedTools) {
+        const fqn = tool.getFullyQualifiedName();
+        const fqnGroup = fqnMap.get(fqn) ?? [];
+        fqnGroup.push(tool);
+        fqnMap.set(fqn, fqnGroup);
+      }
+
+      for (const [fqn, fqnTools] of fqnMap) {
+        if (fqnTools.length === 1) {
+          // Unique FQN → register as qualified
+          this.allKnownTools.set(fqn, fqnTools[0].asFullyQualifiedTool());
+        } else {
+          // Same-server sanitize collision → hash disambiguation
+          for (const tool of fqnTools) {
+            const hash = simpleHash(tool.serverToolName);
+            const disambiguated = `${fqn}_${hash.slice(0, 6)}`;
+            this.allKnownTools.set(
+              disambiguated,
+              tool.asFullyQualifiedTool(disambiguated),
+            );
+          }
+        }
+      }
+    }
+
+    this.sortTools();
   }
 
   /**

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import crypto from 'node:crypto';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
 import type {
   ToolCallConfirmationDetails,
@@ -274,7 +275,7 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
     return `${this.getFullyQualifiedPrefix()}${generateValidName(this.serverToolName)}`;
   }
 
-  asFullyQualifiedTool(): DiscoveredMCPTool {
+  asFullyQualifiedTool(nameOverride?: string): DiscoveredMCPTool {
     return new DiscoveredMCPTool(
       this.mcpTool,
       this.serverName,
@@ -283,7 +284,7 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
       this.parameterSchema,
       this.messageBus,
       this.trust,
-      this.getFullyQualifiedName(),
+      nameOverride ?? this.getFullyQualifiedName(),
       this.cliConfig,
       this.extensionName,
       this.extensionId,
@@ -439,6 +440,11 @@ function getStringifiedResultForDisplay(rawResponse: Part[]): string {
   });
 
   return displayParts.join('\n');
+}
+
+/** Returns a short hex hash of the input string for name disambiguation. */
+export function simpleHash(input: string): string {
+  return crypto.createHash('sha256').update(input).digest('hex');
 }
 
 /** Visible for testing */

@@ -282,3 +282,109 @@ ESLint: 0 warnings
 | 전체 단위 테스트 PASS (5542)                        | ✅   |
 | TypeScript typecheck 0 errors                       | ✅   |
 | ESLint 0 warnings                                   | ✅   |
+
+---
+
+## 9. 2차 리뷰: TOOL_PARAM_ALIASES 커버리지 갭 분석 및 수정
+
+> **리뷰일**: 2026-02-19 (동일)
+
+### 분석 범위
+
+전체 15개 빌트인 도구의 파라미터 스키마를 코드 레벨로 검증하여, 기존 8개 도구
+alias 매핑의 커버리지 갭을 식별.
+
+### 발견된 이슈
+
+#### 🔴 P0 — 필수 파라미터 실패 (AJV 검증 에러)
+
+| 도구      | 미커버 파라미터          | 예상 alias 혼동                      | 영향              |
+| --------- | ------------------------ | ------------------------------------ | ----------------- |
+| `replace` | `old_string` (required)  | `old_text`, `oldText`, `original`    | 첫 edit 호출 실패 |
+| `replace` | `new_string` (required)  | `new_text`, `newText`, `replacement` | 첫 edit 호출 실패 |
+| `replace` | `instruction` (required) | `description`, `reason`              | 첫 edit 호출 실패 |
+
+#### 🟡 P0 — Optional 파라미터 Silent Failure
+
+| 도구                  | 미커버 파라미터       | 예상 alias 혼동                | 영향                                    |
+| --------------------- | --------------------- | ------------------------------ | --------------------------------------- |
+| `search_file_content` | `dir_path` (optional) | `path`, `directory`, `dirPath` | AJV 통과하지만 잘못된 디렉토리에서 검색 |
+| `glob`                | `dir_path` (optional) | `path`, `directory`, `dirPath` | AJV 통과하지만 잘못된 디렉토리에서 검색 |
+
+#### 🟡 P1 — 미커버 도구
+
+| 도구                | 미커버 파라미터      | 예상 alias 혼동                     |
+| ------------------- | -------------------- | ----------------------------------- |
+| `web_fetch`         | `prompt` (required)  | `url`, `input`, `request`           |
+| `read_many_files`   | `include` (required) | `files`, `paths`, `file_paths`      |
+| `get_internal_docs` | `path` (optional)    | `file_path`, `filePath`, `doc_path` |
+
+### 수정 내역
+
+`TOOL_PARAM_ALIASES` 확장 (+3 신규 도구, 기존 3 도구 보강):
+
+```typescript
+// P0: replace — old_string / new_string / instruction aliases
+replace: {
+  // (기존 file_path aliases 유지)
+  old_text: 'old_string', oldText: 'old_string',
+  original: 'old_string', original_string: 'old_string',
+  new_text: 'new_string', newText: 'new_string',
+  replacement: 'new_string', replacement_string: 'new_string',
+  description: 'instruction', reason: 'instruction',
+  change_description: 'instruction',
+},
+
+// P0: search_file_content — dir_path aliases (silent failure 방지)
+search_file_content: {
+  // (기존 pattern aliases 유지)
+  path: 'dir_path', directory: 'dir_path',
+  dirPath: 'dir_path', dir: 'dir_path',
+},
+
+// P0: glob — dir_path aliases
+glob: {
+  // (기존 pattern aliases 유지)
+  path: 'dir_path', directory: 'dir_path',
+  dirPath: 'dir_path', dir: 'dir_path',
+},
+
+// P1: 신규 도구
+web_fetch: { url: 'prompt', input: 'prompt', request: 'prompt' },
+read_many_files: {
+  files: 'include', paths: 'include',
+  file_paths: 'include', patterns: 'include',
+  glob_patterns: 'include',
+},
+get_internal_docs: {
+  file_path: 'path', filepath: 'path',
+  filePath: 'path', doc_path: 'path',
+},
+```
+
+### 미대상 도구 (위험 낮음)
+
+| 도구             | 이유                                                 |
+| ---------------- | ---------------------------------------------------- |
+| `write_todos`    | `todos` — 의미적으로 명확, 대체 이름 가능성 낮음     |
+| `save_memory`    | `fact` — 특수 의미, 혼동 가능성 낮음                 |
+| `ask_user`       | `questions` — 명확, nested 구조는 AJV가 개별 검증    |
+| `activate_skill` | `name` — 단일 필수 파라미터, 에러 메시지로 학습 용이 |
+
+### 테스트 결과
+
+```
+✓ src/utils/tool-utils.test.ts (36 tests) — +15 신규
+
+Test Files  284 passed (284)
+      Tests  5557 passed | 24 skipped (5581)
+
+TypeScript typecheck: 0 errors
+ESLint: 0 warnings
+```
+
+### 커밋
+
+| 해시      | 메시지                                                                   |
+| --------- | ------------------------------------------------------------------------ |
+| `d5b7da8` | `feat(utils): TOOL_PARAM_ALIASES 확장 — 미커버 도구 파라미터 alias 추가` |

@@ -26,7 +26,7 @@ import {
   ToolConfirmationOutcome,
   type AnyDeclarativeTool,
 } from '../tools/tools.js';
-import { getToolSuggestion } from '../utils/tool-utils.js';
+import { getToolSuggestion, normalizeToolParams } from '../utils/tool-utils.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
 import { logToolCall } from '../telemetry/loggers.js';
 import { ToolCallEvent } from '../telemetry/types.js';
@@ -296,7 +296,8 @@ export class Scheduler {
       },
       () => {
         try {
-          const invocation = tool.build(request.args);
+          const args = normalizeToolParams(request.name, request.args);
+          const invocation = tool.build(args);
           return {
             status: 'validating',
             request,

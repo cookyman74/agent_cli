@@ -308,6 +308,68 @@ describe('Scheduler (Orchestrator)', () => {
         ]),
       );
     });
+
+    it('should normalize aliased params before calling tool.build', async () => {
+      const aliasedReq: ToolCallRequestInfo = {
+        callId: 'call-alias',
+        name: 'read_file',
+        args: { path: '/tmp/test.txt' },
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+      const readFileTool = {
+        name: 'read_file',
+        build: vi.fn().mockReturnValue(mockInvocation),
+      } as unknown as AnyDeclarativeTool;
+      vi.mocked(mockToolRegistry.getTool).mockReturnValue(readFileTool);
+
+      await scheduler.schedule(aliasedReq, signal);
+
+      expect(readFileTool.build).toHaveBeenCalledWith({
+        file_path: '/tmp/test.txt',
+      });
+    });
+
+    it('should not modify args when params are already correct', async () => {
+      const correctReq: ToolCallRequestInfo = {
+        callId: 'call-correct',
+        name: 'read_file',
+        args: { file_path: '/tmp/test.txt' },
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+      const readFileTool = {
+        name: 'read_file',
+        build: vi.fn().mockReturnValue(mockInvocation),
+      } as unknown as AnyDeclarativeTool;
+      vi.mocked(mockToolRegistry.getTool).mockReturnValue(readFileTool);
+
+      await scheduler.schedule(correctReq, signal);
+
+      expect(readFileTool.build).toHaveBeenCalledWith({
+        file_path: '/tmp/test.txt',
+      });
+    });
+
+    it('should not modify args for tools without alias rules', async () => {
+      const unknownReq: ToolCallRequestInfo = {
+        callId: 'call-unknown',
+        name: 'test-tool',
+        args: { foo: 'bar' },
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+
+      await scheduler.schedule(unknownReq, signal);
+
+      expect(mockTool.build).toHaveBeenCalledWith({ foo: 'bar' });
+    });
   });
 
   describe('Phase 2: Queue Management', () => {

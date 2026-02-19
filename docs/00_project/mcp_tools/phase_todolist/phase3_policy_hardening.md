@@ -11,7 +11,7 @@
 
 ## 3.1 사전 작업 (Pre-Work)
 
-- [ ] **[PREV-REVIEW]** Phase 2 작업 결과서 확인
+- [x] **[PREV-REVIEW]** Phase 2 작업 결과서 확인
   - 참조: `../working_history/mcp_phase2_name_length_safety_{작업일자}.md`
   - 확인 항목:
     - `generateValidName()`에서 `__` sanitize 완료 (연속 underscore → 단일 `_`)
@@ -21,7 +21,7 @@
     - "다음 Phase 전달사항" 섹션의 주의점 확인
     - Phase 2 TDD 테스트 전체 PASS 확인
 
-- [ ] **[ANALYSIS-1]** 현재 정책 매칭 로직 분석
+- [x] **[ANALYSIS-1]** 현재 정책 매칭 로직 분석
 
   **`ruleMatches()` (policy-engine.ts:30-61)**:
 
@@ -44,7 +44,7 @@
   3. rules 순회 → ruleMatches() 호출
   ```
 
-- [ ] **[ANALYSIS-2]** 엣지 케이스 식별
+- [x] **[ANALYSIS-2]** 엣지 케이스 식별
 
   **엣지 케이스 1: serverName undefined + 와일드카드**
   - `ruleMatches()` line 47: `if (serverName !== undefined)` → undefined면 서버
@@ -76,7 +76,7 @@
     OK
   - **안전**: 서버 이름 자체에는 `__` sanitize 적용 안 되므로 prefix 매칭 정확
 
-- [ ] **[ANALYSIS-3]** 기존 테스트 확인
+- [x] **[ANALYSIS-3]** 기존 테스트 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/policy/policy-engine
   ```
@@ -241,16 +241,16 @@ npm run typecheck && npm run lint
 
 ## 완료 조건
 
-| 검증 항목                                                        | 상태 |
-| ---------------------------------------------------------------- | ---- |
-| 와일드카드 엣지 케이스 TDD — 7개 테스트 (prefix 추출 2 + 기존 5) | ⬜   |
-| serverName undefined + FQN 이름 prefix 매칭 기존 동작 호환       | ⬜   |
-| 기존 와일드카드 테스트 회귀 없음 (`test:349-476`)                | ⬜   |
-| toolCallsToTry serverName `__` 가드 (선택적)                     | ⬜   |
-| 정책 경로 raw serverToolName 독립 방어 확인 (Phase 2 비의존)     | ⬜   |
-| Phase 1, 2 테스트 회귀 없음                                      | ⬜   |
-| Core 전체 테스트 PASS                                            | ⬜   |
-| 커밋 완료 + 작업 결과서 작성                                     | ⬜   |
+| 검증 항목                                                    | 상태 |
+| ------------------------------------------------------------ | ---- |
+| 와일드카드 엣지 케이스 TDD — 8개 테스트                      | ✅   |
+| serverName undefined + FQN 이름 prefix 매칭 기존 동작 호환   | ✅   |
+| 기존 와일드카드 테스트 회귀 없음 (`test:349-476`)            | ✅   |
+| toolCallsToTry serverName `__` 가드                          | ✅   |
+| 정책 경로 raw serverToolName 독립 방어 확인 (Phase 2 비의존) | ✅   |
+| Phase 1, 2 테스트 회귀 없음                                  | ✅   |
+| Core 전체 테스트 PASS                                        | ✅   |
+| 커밋 완료 + 작업 결과서 작성                                 | ⬜   |
 
 ---
 

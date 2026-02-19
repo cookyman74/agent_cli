@@ -474,6 +474,134 @@ describe('PolicyEngine', () => {
         PolicyDecision.ALLOW,
       );
     });
+
+    // --- Phase 3: serverName undefined 가드 강화 ---
+
+    it('should match wildcard when serverName is undefined and toolCall.name prefix matches', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'trusted__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName undefined + toolCall.name prefix 일치 → 매칭 성공
+      expect(
+        (await engine.check({ name: 'trusted__safe_tool' }, undefined))
+          .decision,
+      ).toBe(PolicyDecision.ALLOW);
+    });
+
+    it('should reject wildcard when serverName is undefined and toolCall.name prefix does not match', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'trusted__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // prefix 'malicious' !== 'trusted' → startsWith 실패 → 매칭 거부 → default ASK_USER
+      expect(
+        (await engine.check({ name: 'malicious__exploit' }, undefined))
+          .decision,
+      ).toBe(PolicyDecision.ASK_USER);
+    });
+
+    it('should reject wildcard when serverName does not match prefix', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'trusted__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName 'malicious' !== prefix 'trusted' → 매칭 거부
+      expect(
+        (await engine.check({ name: 'trusted__exploit' }, 'malicious'))
+          .decision,
+      ).toBe(PolicyDecision.ASK_USER);
+    });
+
+    it('should match wildcard when serverName matches prefix exactly', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'trusted__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName 일치 + prefix 일치 → 매칭 성공
+      expect(
+        (await engine.check({ name: 'trusted__safe' }, 'trusted')).decision,
+      ).toBe(PolicyDecision.ALLOW);
+    });
+
+    it('should not confuse server prefix with partial match', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'srv__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName 'srv_extra' !== prefix 'srv' → 매칭 거부
+      expect(
+        (await engine.check({ name: 'srv_extra__tool' }, 'srv_extra')).decision,
+      ).toBe(PolicyDecision.ASK_USER);
+    });
+
+    it('should reject wildcard for unqualified name without serverName', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'srv__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName undefined + unqualified name → toolCallsToTry 자격 부여 없음
+      // startsWith('srv__') 실패 → 매칭 거부
+      expect(
+        (await engine.check({ name: 'some_tool' }, undefined)).decision,
+      ).toBe(PolicyDecision.ASK_USER);
+    });
+
+    it('should allow wildcard when raw toolCall.name has multiple __ but serverName matches', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'trusted__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName 일치 + startsWith 통과 → 매칭 성공 (도구명 내 __는 무해)
+      expect(
+        (await engine.check({ name: 'trusted__sub__tool' }, 'trusted'))
+          .decision,
+      ).toBe(PolicyDecision.ALLOW);
+    });
+
+    it('should not construct ambiguous FQN when serverName contains __', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'my__server__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName에 __ 포함 → toolCallsToTry에 2차 자격 부여 차단
+      // unqualified name 'tool'만으로는 wildcard 매칭 안 됨 → ASK_USER
+      expect(
+        (await engine.check({ name: 'tool' }, 'my__server')).decision,
+      ).toBe(PolicyDecision.ASK_USER);
+    });
   });
 
   describe('complex scenarios', () => {

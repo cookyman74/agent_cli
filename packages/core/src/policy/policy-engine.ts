@@ -44,16 +44,27 @@ function ruleMatches(
     // Support wildcard patterns: "serverName__*" matches "serverName__anyTool"
     if (rule.toolName.endsWith('__*')) {
       const prefix = rule.toolName.slice(0, -3); // Remove "__*"
+
+      // 1. Name prefix check first (most frequent mismatch — early return)
+      if (!toolCall.name || !toolCall.name.startsWith(prefix + '__')) {
+        return false;
+      }
+
+      // 2. Server identity verification
       if (serverName !== undefined) {
-        // Robust check: if serverName is provided, it MUST match the prefix exactly.
-        // This prevents "malicious-server" from spoofing "trusted-server" by naming itself "trusted-server__malicious".
+        // SECURITY: serverName provided → MUST match prefix exactly.
+        // Prevents spoofing: "malicious" server cannot match "trusted__*" rule.
         if (serverName !== prefix) {
           return false;
         }
-      }
-      // Always verify the prefix, even if serverName matched
-      if (!toolCall.name || !toolCall.name.startsWith(prefix + '__')) {
-        return false;
+      } else {
+        // serverName === undefined: extract prefix from toolCall.name for verification.
+        // Defense-in-depth: protects against rules with '__' in prefix (e.g., 'my__server__*')
+        // where startsWith passes but split('__')[0] differs from the full prefix.
+        const extractedPrefix = toolCall.name.split('__')[0];
+        if (extractedPrefix !== prefix) {
+          return false;
+        }
       }
     } else if (toolCall.name !== rule.toolName) {
       return false;
@@ -309,7 +320,12 @@ export class PolicyEngine {
     // For tools with a server name, we want to try matching both the
     // original name and the fully qualified name (server__tool).
     const toolCallsToTry: FunctionCall[] = [toolCall];
-    if (serverName && toolCall.name && !toolCall.name.includes('__')) {
+    if (
+      serverName &&
+      !serverName.includes('__') &&
+      toolCall.name &&
+      !toolCall.name.includes('__')
+    ) {
       toolCallsToTry.push({
         ...toolCall,
         name: `${serverName}__${toolCall.name}`,

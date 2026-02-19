@@ -59,10 +59,11 @@ function ruleMatches(
         }
       } else {
         // serverName === undefined: extract prefix from toolCall.name for verification.
-        // Defense-in-depth: protects against rules with '__' in prefix (e.g., 'my__server__*')
-        // where startsWith passes but split('__')[0] differs from the full prefix.
-        const extractedPrefix = toolCall.name.split('__')[0];
-        if (extractedPrefix !== prefix) {
+        // Defense-in-depth: without serverName, we can't verify server identity.
+        // Require exactly 2 segments (server__tool) — reject multi-segment names
+        // like 'trusted__malicious__tool' which could be spoofed FQNs.
+        const segments = toolCall.name.split('__');
+        if (segments.length !== 2 || segments[0] !== prefix) {
           return false;
         }
       }
@@ -320,12 +321,7 @@ export class PolicyEngine {
     // For tools with a server name, we want to try matching both the
     // original name and the fully qualified name (server__tool).
     const toolCallsToTry: FunctionCall[] = [toolCall];
-    if (
-      serverName &&
-      !serverName.includes('__') &&
-      toolCall.name &&
-      !toolCall.name.includes('__')
-    ) {
+    if (serverName && toolCall.name && !toolCall.name.includes('__')) {
       toolCallsToTry.push({
         ...toolCall,
         name: `${serverName}__${toolCall.name}`,
@@ -388,15 +384,18 @@ export class PolicyEngine {
     // Safety checks
     if (decision !== PolicyDecision.DENY && this.checkerRunner) {
       for (const checkerRule of this.checkers) {
-        if (
+        // Use toolCallsToTry for checker matching (same as rule matching)
+        // to ensure wildcard checkers fire for unqualified + serverName calls.
+        const checkerMatch = toolCallsToTry.some((tc) =>
           ruleMatches(
             checkerRule,
-            toolCall,
+            tc,
             stringifiedArgs,
             serverName,
             this.approvalMode,
-          )
-        ) {
+          ),
+        );
+        if (checkerMatch) {
           debugLogger.debug(
             `[PolicyEngine.check] Running safety checker: ${checkerRule.checker.name}`,
           );

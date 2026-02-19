@@ -571,6 +571,23 @@ describe('PolicyEngine', () => {
       ).toBe(PolicyDecision.ASK_USER);
     });
 
+    it('should reject wildcard when serverName is undefined and toolCall.name has multiple __ segments', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'trusted__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // 'trusted__malicious__tool' has 3 segments → suspicious without server verification
+      // Defense-in-depth: reject multi-segment FQN when serverName is absent
+      expect(
+        (await engine.check({ name: 'trusted__malicious__tool' }, undefined))
+          .decision,
+      ).toBe(PolicyDecision.ASK_USER);
+    });
+
     it('should allow wildcard when raw toolCall.name has multiple __ but serverName matches', async () => {
       const rules: PolicyRule[] = [
         {
@@ -587,7 +604,7 @@ describe('PolicyEngine', () => {
       ).toBe(PolicyDecision.ALLOW);
     });
 
-    it('should not construct ambiguous FQN when serverName contains __', async () => {
+    it('should match wildcard when serverName contains __ and matches rule prefix', async () => {
       const rules: PolicyRule[] = [
         {
           toolName: 'my__server__*',
@@ -596,8 +613,24 @@ describe('PolicyEngine', () => {
       ];
       engine = new PolicyEngine({ rules });
 
-      // serverName에 __ 포함 → toolCallsToTry에 2차 자격 부여 차단
-      // unqualified name 'tool'만으로는 wildcard 매칭 안 됨 → ASK_USER
+      // serverName에 __ 포함 → ruleMatches의 serverName === prefix 검증으로 안전 확보
+      // FQN 'my__server__tool' → rule 'my__server__*' 매칭 성공
+      expect(
+        (await engine.check({ name: 'tool' }, 'my__server')).decision,
+      ).toBe(PolicyDecision.ALLOW);
+    });
+
+    it('should reject wildcard when serverName contains __ but does not match rule prefix', async () => {
+      const rules: PolicyRule[] = [
+        {
+          toolName: 'attacker__*',
+          decision: PolicyDecision.ALLOW,
+        },
+      ];
+      engine = new PolicyEngine({ rules });
+
+      // serverName 'my__server' → FQN 'my__server__tool'
+      // rule 'attacker__*' → prefix 'attacker' → FQN 미매칭 + serverName 불일치 → ASK_USER
       expect(
         (await engine.check({ name: 'tool' }, 'my__server')).decision,
       ).toBe(PolicyDecision.ASK_USER);
@@ -1849,6 +1882,62 @@ describe('PolicyEngine', () => {
         expect.objectContaining({ name: 'wildcard' }),
       );
     });
+
+    // --- Phase 3 리뷰: checker 경로 toolCallsToTry 정합성 ---
+
+    it('should run wildcard checker for unqualified tool name when serverName is provided', async () => {
+      const rules: PolicyRule[] = [
+        { toolName: 'server__*', decision: PolicyDecision.ALLOW },
+      ];
+      const wildcardChecker: SafetyCheckerRule = {
+        checker: { type: 'external', name: 'server-checker' },
+        toolName: 'server__*',
+      };
+
+      engine = new PolicyEngine(
+        { rules, checkers: [wildcardChecker] },
+        mockCheckerRunner,
+      );
+
+      vi.mocked(mockCheckerRunner.runChecker).mockResolvedValue({
+        decision: SafetyCheckDecision.ALLOW,
+      });
+
+      // Unqualified 'tool' + serverName 'server'
+      // → toolCallsToTry: [{ name: 'tool' }, { name: 'server__tool' }]
+      // → rule matches via FQN → checker should also match via FQN
+      await engine.check({ name: 'tool' }, 'server');
+
+      expect(mockCheckerRunner.runChecker).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ name: 'server-checker' }),
+      );
+    });
+
+    it('should deny when wildcard checker rejects unqualified tool with serverName', async () => {
+      const rules: PolicyRule[] = [
+        { toolName: 'server__*', decision: PolicyDecision.ALLOW },
+      ];
+      const wildcardChecker: SafetyCheckerRule = {
+        checker: { type: 'external', name: 'server-checker' },
+        toolName: 'server__*',
+      };
+
+      engine = new PolicyEngine(
+        { rules, checkers: [wildcardChecker] },
+        mockCheckerRunner,
+      );
+
+      vi.mocked(mockCheckerRunner.runChecker).mockResolvedValue({
+        decision: SafetyCheckDecision.DENY,
+        reason: 'Blocked by checker',
+      });
+
+      // Checker fires for unqualified name + serverName → DENY
+      const result = await engine.check({ name: 'tool' }, 'server');
+      expect(result.decision).toBe(PolicyDecision.DENY);
+    });
+
     it('should run safety checkers when decision is ASK_USER and downgrade to DENY on failure', async () => {
       const rules: PolicyRule[] = [
         { toolName: 'tool', decision: PolicyDecision.ASK_USER },

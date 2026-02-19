@@ -148,6 +148,20 @@ describe('generateValidName', () => {
   it('should not truncate when name fits within custom maxLength', () => {
     expect(generateValidName('short_name', 50)).toBe('short_name');
   });
+
+  // --- Issue #4: 작은 maxLength 방어 ---
+
+  it('should enforce maxLength even when maxLength is very small', () => {
+    const longName = 'a'.repeat(80);
+    const result = generateValidName(longName, 5);
+    expect(result.length).toBeLessThanOrEqual(5);
+  });
+
+  it('should enforce maxLength when maxLength equals hash suffix size (7)', () => {
+    const longName = 'a'.repeat(80);
+    const result = generateValidName(longName, 7);
+    expect(result.length).toBeLessThanOrEqual(7);
+  });
 });
 
 describe('DiscoveredMCPTool', () => {

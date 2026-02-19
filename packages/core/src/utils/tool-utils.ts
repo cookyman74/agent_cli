@@ -292,8 +292,9 @@ export function coerceParamTypes(
 ): Record<string, unknown> {
   if (!schema) return args;
 
-  const properties = (schema as { properties?: Record<string, unknown> })
-    .properties;
+  // Reuse extractSchemaInfo to support allOf merged properties (Issue #3)
+  const schemaInfo = extractSchemaInfo(schema);
+  const properties = schemaInfo?.properties;
   if (!properties) return args;
 
   let changed = false;
@@ -317,6 +318,7 @@ export function coerceParamTypes(
       const num = Number(strValue);
       if (
         !Number.isNaN(num) &&
+        Number.isFinite(num) &&
         (targetType === 'number' || Number.isInteger(num))
       ) {
         coerced[key] = num;

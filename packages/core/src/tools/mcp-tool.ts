@@ -30,6 +30,12 @@ import type { MessageBus } from '../confirmation-bus/message-bus.js';
  */
 export const MCP_QUALIFIED_NAME_SEPARATOR = '__';
 
+/**
+ * Maximum tool name length for cross-provider compatibility.
+ * Gemini: 63, OpenAI/Anthropic: 64. Using minimum common value.
+ */
+export const DEFAULT_MAX_TOOL_NAME_LENGTH = 63;
+
 type ToolParams = Record<string, unknown>;
 
 // Discriminated union for MCP Content Blocks to ensure type safety.
@@ -279,22 +285,23 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
   }
 
   getFullyQualifiedName(): string {
+    const maxLen = DEFAULT_MAX_TOOL_NAME_LENGTH;
     const prefix = this.getFullyQualifiedPrefix();
     const toolName = generateValidName(this.serverToolName);
     const combined = `${prefix}${toolName}`;
 
-    if (combined.length <= 63) {
+    if (combined.length <= maxLen) {
       return combined;
     }
 
     // Re-truncate: preserve prefix + truncate tool name portion
-    const maxToolNameLength = 63 - prefix.length;
+    const maxToolNameLength = maxLen - prefix.length;
 
     if (maxToolNameLength < 10) {
       // Server name too long — truncate server but always preserve __ separator
       const hash = simpleHash(`${this.serverName}:${this.serverToolName}`);
-      // Budget: truncatedServer + __ (2) + hash (6) = 63
-      const maxServerLen = 63 - 2 - 6; // 55
+      // Budget: truncatedServer + __ (2) + hash (6) = maxLen
+      const maxServerLen = maxLen - 2 - 6;
       const truncServer = prefix.slice(0, maxServerLen).replace(/_+$/, '');
       return `${truncServer}${MCP_QUALIFIED_NAME_SEPARATOR}${hash.slice(0, 6)}`;
     }
@@ -493,9 +500,15 @@ export function generateValidName(name: string, maxLength: number = 63) {
   // Uses '_' + 6-char hex hash (not '___' which would contain __)
   if (validToolname.length > maxLength) {
     const hash = simpleHash(validToolname);
-    // Strip trailing underscores to prevent '_' + '_hash' = '__hash'
-    const truncated = validToolname.slice(0, maxLength - 7).replace(/_+$/, '');
-    validToolname = truncated + '_' + hash.slice(0, 6);
+    const prefixBudget = Math.max(0, maxLength - 7);
+    if (prefixBudget > 0) {
+      // Normal case: prefix + '_' + 6-char hash
+      const truncated = validToolname.slice(0, prefixBudget).replace(/_+$/, '');
+      validToolname = truncated + '_' + hash.slice(0, 6);
+    } else {
+      // Very small maxLength: hash-only, trimmed to fit
+      validToolname = hash.slice(0, maxLength);
+    }
   }
   return validToolname;
 }

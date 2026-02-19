@@ -284,14 +284,28 @@ export class Scheduler {
           if (correctedName) {
             tool = toolRegistry.getTool(correctedName);
             if (tool) {
-              enrichedRequest = { ...enrichedRequest, name: correctedName };
-              // Apply type coercion for the corrected tool
+              // Re-apply full normalization pipeline for corrected tool name
+              let correctedArgs = normalizeToolParams(
+                correctedName,
+                request.args,
+              );
+              if (
+                tool instanceof DiscoveredMCPTool &&
+                correctedArgs === request.args
+              ) {
+                correctedArgs = normalizeToolParamsBySchema(
+                  correctedArgs,
+                  tool.parameterSchema as Record<string, unknown> | undefined,
+                );
+              }
+              correctedArgs = coerceParamTypes(
+                correctedArgs,
+                tool.parameterSchema as Record<string, unknown> | undefined,
+              );
               enrichedRequest = {
                 ...enrichedRequest,
-                args: coerceParamTypes(
-                  enrichedRequest.args,
-                  tool.parameterSchema as Record<string, unknown> | undefined,
-                ),
+                name: correctedName,
+                args: correctedArgs,
               };
             }
           }

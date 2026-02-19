@@ -2452,4 +2452,115 @@ describe('CoreToolScheduler parameter normalization', () => {
       file_path: '/tmp/static.txt',
     });
   });
+
+  it('should apply full normalization pipeline after fuzzy name correction', async () => {
+    const buildResult = {
+      shouldConfirmExecute: vi.fn().mockReturnValue(false),
+      execute: vi.fn().mockResolvedValue({ llmContent: 'ok' }),
+    };
+    const readFileTool = {
+      name: 'read_file',
+      parameterSchema: undefined,
+      build: vi.fn().mockReturnValue(buildResult),
+    };
+
+    const mockToolRegistry = {
+      getTool: (name: string) =>
+        name === 'read_file' ? readFileTool : undefined,
+      getFunctionDeclarations: () => [],
+      tools: new Map(),
+      getAllToolNames: () => ['read_file', 'write_file'],
+    } as unknown as ToolRegistry;
+
+    const onAllToolCallsComplete = vi.fn();
+    const mockConfig = createMockConfig({
+      getToolRegistry: () => mockToolRegistry,
+      getApprovalMode: () => ApprovalMode.YOLO,
+    });
+
+    const scheduler = new CoreToolScheduler({
+      config: mockConfig,
+      onAllToolCallsComplete,
+      getPreferredEditor: () => 'vscode',
+    });
+
+    const request = {
+      callId: 'call-fuzzy-norm',
+      name: 'read_fil', // typo: distance 1 from 'read_file'
+      args: { path: '/tmp/test.txt' }, // alias: 'path' → 'file_path'
+      isClientInitiated: false,
+      prompt_id: 'prompt-1',
+    };
+
+    await scheduler.schedule(request, new AbortController().signal);
+
+    // Verify: name corrected AND alias applied (path → file_path)
+    expect(readFileTool.build).toHaveBeenCalledWith({
+      file_path: '/tmp/test.txt',
+    });
+  });
+
+  it('should apply fuzzy correction + schema normalization + type coercion for MCP tools', async () => {
+    const mcpSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        line_number: { type: 'number' },
+      },
+      required: ['file_path'],
+    };
+    const mockMcpCallable = {
+      tool: async () => ({ functionDeclarations: [] }),
+      callTool: async () => [],
+    };
+    const mcpTool = new DiscoveredMCPTool(
+      mockMcpCallable as unknown as CallableTool,
+      'test-server',
+      'mcp_read',
+      'Read a file',
+      mcpSchema,
+      createMockMessageBus() as unknown as MessageBus,
+    );
+    const buildSpy = vi.fn().mockReturnValue({
+      shouldConfirmExecute: vi.fn().mockReturnValue(false),
+      execute: vi.fn().mockResolvedValue({ llmContent: 'ok' }),
+    });
+    mcpTool.build = buildSpy;
+
+    const mockToolRegistry = {
+      getTool: (name: string) =>
+        name === 'test_server__mcp_read' ? mcpTool : undefined,
+      getFunctionDeclarations: () => [],
+      tools: new Map(),
+      getAllToolNames: () => ['test_server__mcp_read'],
+    } as unknown as ToolRegistry;
+
+    const onAllToolCallsComplete = vi.fn();
+    const mockConfig = createMockConfig({
+      getToolRegistry: () => mockToolRegistry,
+      getApprovalMode: () => ApprovalMode.YOLO,
+    });
+
+    const scheduler = new CoreToolScheduler({
+      config: mockConfig,
+      onAllToolCallsComplete,
+      getPreferredEditor: () => 'vscode',
+    });
+
+    const request = {
+      callId: 'call-fuzzy-mcp',
+      name: 'test_server__mcp_rea', // typo: distance 1
+      args: { filePath: '/tmp/f.ts', lineNumber: '10' }, // camelCase + string number
+      isClientInitiated: false,
+      prompt_id: 'prompt-1',
+    };
+
+    await scheduler.schedule(request, new AbortController().signal);
+
+    // Verify: name corrected + schema normalization + type coercion
+    expect(buildSpy).toHaveBeenCalledWith({
+      file_path: '/tmp/f.ts',
+      line_number: 10, // string '10' → number 10
+    });
+  });
 });

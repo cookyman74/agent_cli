@@ -15,6 +15,7 @@ import type { Config } from '../config/config.js';
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
 import {
+  DEFAULT_MAX_TOOL_NAME_LENGTH,
   DiscoveredMCPTool,
   generateValidName,
   simpleHash,
@@ -316,13 +317,14 @@ export class ToolRegistry {
           for (const tool of fqnTools) {
             const hash = simpleHash(tool.serverToolName);
             // Strip trailing underscores to prevent '_' + '_hash' = '__hash'
-            const fqnTrunc = fqn.slice(0, 56).replace(/_+$/, '');
+            const maxLen = DEFAULT_MAX_TOOL_NAME_LENGTH;
+            const fqnTrunc = fqn.slice(0, maxLen - 7).replace(/_+$/, '');
             let disambiguated = `${fqnTrunc}_${hash.slice(0, 6)}`;
             let counter = 2;
             while (usedKeys.has(disambiguated)) {
               const counterStr = String(counter);
-              // Dynamic slice to guarantee ≤63 chars: fqn + '_' + hash(6) + '_' + counter
-              const budget = 63 - 1 - 6 - 1 - counterStr.length;
+              // Dynamic slice to guarantee ≤maxLen chars: fqn + '_' + hash(6) + '_' + counter
+              const budget = maxLen - 1 - 6 - 1 - counterStr.length;
               const budgetTrunc = fqn.slice(0, budget).replace(/_+$/, '');
               disambiguated = `${budgetTrunc}_${hash.slice(0, 6)}_${counterStr}`;
               counter++;

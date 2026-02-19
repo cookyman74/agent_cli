@@ -797,6 +797,54 @@ describe('coerceParamTypes', () => {
     const result = coerceParamTypes(args, schema);
     expect(result['name']).toBe('42');
   });
+
+  // --- Issue #2: Infinity 변환 방지 ---
+
+  it('should not coerce string "Infinity" to number Infinity', () => {
+    const args = { count: 'Infinity', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['count']).toBe('Infinity'); // 원본 유지
+  });
+
+  it('should not coerce string "-Infinity" to number -Infinity', () => {
+    const args = { count: '-Infinity', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['count']).toBe('-Infinity'); // 원본 유지
+  });
+
+  // --- Issue #3: allOf 조합 스키마 지원 ---
+
+  it('should coerce types using allOf merged properties', () => {
+    const allOfSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+      },
+      allOf: [
+        {
+          type: 'object',
+          properties: {
+            count: { type: 'number' },
+            enabled: { type: 'boolean' },
+          },
+        },
+      ],
+    };
+    const args = { count: '42', enabled: 'true', name: 'test' };
+    const result = coerceParamTypes(args, allOfSchema);
+    expect(result['count']).toBe(42);
+    expect(result['enabled']).toBe(true);
+  });
+
+  it('should return args unchanged when allOf has no properties', () => {
+    const allOfOnlyRefSchema = {
+      type: 'object',
+      allOf: [{ $ref: '#/definitions/Base' }],
+    };
+    const args = { count: '42', name: 'test' };
+    const result = coerceParamTypes(args, allOfOnlyRefSchema);
+    expect(result).toBe(args); // reference identity — no change
+  });
 });
 
 describe('fuzzyMatchToolName', () => {

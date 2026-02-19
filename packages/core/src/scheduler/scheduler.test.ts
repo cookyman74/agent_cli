@@ -489,6 +489,94 @@ describe('Scheduler (Orchestrator)', () => {
         file_path: '/tmp/static.txt',
       });
     });
+
+    it('should apply full normalization pipeline after fuzzy name correction', async () => {
+      // Setup: 'read_file' exists but LLM sends 'read_fil' (typo, distance 1)
+      const readFileTool = {
+        name: 'read_file',
+        parameterSchema: undefined,
+        build: vi.fn().mockReturnValue(mockInvocation),
+      } as unknown as AnyDeclarativeTool;
+
+      // getTool: returns null for typo name, returns tool for corrected name
+      vi.mocked(mockToolRegistry.getTool).mockImplementation((name: string) => {
+        if (name === 'read_file') return readFileTool;
+        return undefined as unknown as AnyDeclarativeTool;
+      });
+      vi.mocked(mockToolRegistry.getAllToolNames).mockReturnValue([
+        'read_file',
+        'write_file',
+      ]);
+
+      const typoReq: ToolCallRequestInfo = {
+        callId: 'call-fuzzy',
+        name: 'read_fil', // typo: distance 1 from 'read_file'
+        args: { path: '/tmp/test.txt' }, // alias: 'path' → 'file_path'
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+
+      await scheduler.schedule(typoReq, signal);
+
+      // Verify: name corrected AND alias applied (path → file_path)
+      expect(readFileTool.build).toHaveBeenCalledWith({
+        file_path: '/tmp/test.txt',
+      });
+    });
+
+    it('should apply fuzzy correction + type coercion for MCP tools', async () => {
+      const mcpSchema = {
+        type: 'object',
+        properties: {
+          file_path: { type: 'string' },
+          line_number: { type: 'number' },
+        },
+        required: ['file_path'],
+      };
+      const mockMcpCallable = {
+        tool: async () => ({ functionDeclarations: [] }),
+        callTool: async () => [],
+      };
+      const mcpTool = new DiscoveredMCPTool(
+        mockMcpCallable as unknown as CallableTool,
+        'test-server',
+        'mcp_read',
+        'Read a file',
+        mcpSchema,
+        {} as never,
+      );
+      const buildSpy = vi.fn().mockReturnValue(mockInvocation);
+      mcpTool.build = buildSpy;
+
+      // getTool: returns null for typo, returns mcpTool for corrected name
+      vi.mocked(mockToolRegistry.getTool).mockImplementation((name: string) => {
+        if (name === 'test_server__mcp_read') return mcpTool;
+        return undefined as unknown as AnyDeclarativeTool;
+      });
+      vi.mocked(mockToolRegistry.getAllToolNames).mockReturnValue([
+        'test_server__mcp_read',
+      ]);
+
+      const typoReq: ToolCallRequestInfo = {
+        callId: 'call-fuzzy-mcp',
+        name: 'test_server__mcp_rea', // typo: distance 1
+        args: { filePath: '/tmp/f.ts', lineNumber: '10' }, // camelCase + string number
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+
+      await scheduler.schedule(typoReq, signal);
+
+      // Verify: name corrected + schema normalization + type coercion
+      expect(buildSpy).toHaveBeenCalledWith({
+        file_path: '/tmp/f.ts',
+        line_number: 10, // string '10' → number 10
+      });
+    });
   });
 
   describe('Phase 2: Queue Management', () => {

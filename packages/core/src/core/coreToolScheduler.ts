@@ -540,15 +540,32 @@ export class CoreToolScheduler {
                 .getToolRegistry()
                 .getTool(correctedName);
               if (toolInstance) {
-                reqInfo = {
-                  ...reqInfo,
-                  name: correctedName,
-                  args: coerceParamTypes(
-                    reqInfo.args,
+                // Re-apply full normalization pipeline for corrected tool name
+                let correctedArgs = normalizeToolParams(
+                  correctedName,
+                  rawReqInfo.args,
+                );
+                if (
+                  toolInstance instanceof DiscoveredMCPTool &&
+                  correctedArgs === rawReqInfo.args
+                ) {
+                  correctedArgs = normalizeToolParamsBySchema(
+                    correctedArgs,
                     toolInstance.parameterSchema as
                       | Record<string, unknown>
                       | undefined,
-                  ),
+                  );
+                }
+                correctedArgs = coerceParamTypes(
+                  correctedArgs,
+                  toolInstance.parameterSchema as
+                    | Record<string, unknown>
+                    | undefined,
+                );
+                reqInfo = {
+                  ...reqInfo,
+                  name: correctedName,
+                  args: correctedArgs,
                 };
               }
             }

@@ -272,7 +272,26 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
   }
 
   getFullyQualifiedName(): string {
-    return `${this.getFullyQualifiedPrefix()}${generateValidName(this.serverToolName)}`;
+    const prefix = this.getFullyQualifiedPrefix();
+    const toolName = generateValidName(this.serverToolName);
+    const combined = `${prefix}${toolName}`;
+
+    if (combined.length <= 63) {
+      return combined;
+    }
+
+    // Re-truncate: preserve prefix + truncate tool name portion
+    const maxToolNameLength = 63 - prefix.length;
+
+    if (maxToolNameLength < 10) {
+      // Server name too long — hash the entire combined name
+      const hash = simpleHash(`${this.serverName}:${this.serverToolName}`);
+      return combined.slice(0, 57) + hash.slice(0, 6);
+    }
+
+    // Truncate tool name: keep start + hash suffix for uniqueness
+    const hash = simpleHash(toolName);
+    return `${prefix}${toolName.slice(0, maxToolNameLength - 7)}_${hash.slice(0, 6)}`;
   }
 
   asFullyQualifiedTool(nameOverride?: string): DiscoveredMCPTool {
@@ -449,14 +468,18 @@ export function simpleHash(input: string): string {
 
 /** Visible for testing */
 export function generateValidName(name: string) {
-  // Replace invalid characters (based on 400 error message from Gemini API) with underscores
+  // Step 1: Replace invalid characters with underscores
   let validToolname = name.replace(/[^a-zA-Z0-9_.-]/g, '_');
 
-  // If longer than 63 characters, replace middle with '___'
-  // (Gemini API says max length 64, but actual limit seems to be 63)
+  // Step 2: Collapse consecutive underscores to single (protect __ separator)
+  // __ is used as MCP_QUALIFIED_NAME_SEPARATOR — must not appear in tool names
+  validToolname = validToolname.replace(/_{2,}/g, '_');
+
+  // Step 3: Truncate if longer than 63 characters — hash suffix method
+  // Uses '_' + 6-char hex hash (not '___' which would contain __)
   if (validToolname.length > 63) {
-    validToolname =
-      validToolname.slice(0, 28) + '___' + validToolname.slice(-32);
+    const hash = simpleHash(validToolname);
+    validToolname = validToolname.slice(0, 56) + '_' + hash.slice(0, 6);
   }
   return validToolname;
 }

@@ -8,7 +8,11 @@
 import type { Mocked } from 'vitest';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
-import { DiscoveredMCPTool, generateValidName } from './mcp-tool.js'; // Added getStringifiedResultForDisplay
+import {
+  DiscoveredMCPTool,
+  generateValidName,
+  simpleHash,
+} from './mcp-tool.js';
 import type { ToolResult } from './tools.js';
 import { ToolConfirmationOutcome } from './tools.js'; // Added ToolConfirmationOutcome
 import type { CallableTool, Part } from '@google/genai';
@@ -52,14 +56,17 @@ describe('generateValidName', () => {
     );
   });
 
-  it('should truncate long names', () => {
-    expect(generateValidName('x'.repeat(80))).toBe(
-      'xxxxxxxxxxxxxxxxxxxxxxxxxxxx___xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  it('should truncate long names with hash suffix', () => {
+    const name = 'x'.repeat(80);
+    const hash = simpleHash(name);
+    expect(generateValidName(name)).toBe(
+      name.slice(0, 56) + '_' + hash.slice(0, 6),
     );
   });
 
   it('should handle names with only invalid characters', () => {
-    expect(generateValidName('!@#$%^&*()')).toBe('__________');
+    // '!@#$%^&*()' → all replaced → '__________' → __ sanitize → '_'
+    expect(generateValidName('!@#$%^&*()')).toBe('_');
   });
 
   it.each([
@@ -72,6 +79,41 @@ describe('generateValidName', () => {
       expect(generateValidName('a'.repeat(length)).length).toBe(expected);
     },
   );
+
+  // --- __ sanitize tests (Phase 2) ---
+
+  describe('__ sanitize', () => {
+    it('should replace consecutive underscores with single underscore', () => {
+      expect(generateValidName('my__tool')).toBe('my_tool');
+    });
+
+    it('should replace triple underscores with single underscore', () => {
+      expect(generateValidName('my___tool')).toBe('my_tool');
+    });
+
+    it('should collapse underscores from special char replacement', () => {
+      // 'my-@-tool' → special chars replaced → 'my___tool' → __ sanitize → 'my_tool'
+      expect(generateValidName('my @_tool')).toBe('my_tool');
+    });
+
+    it('should not modify single underscores', () => {
+      expect(generateValidName('my_tool')).toBe('my_tool');
+    });
+
+    it('should handle leading/trailing underscores from sanitization', () => {
+      // '__tool__' → __ sanitize → '_tool_'
+      expect(generateValidName('__tool__')).toBe('_tool_');
+    });
+  });
+
+  // --- truncation does not produce __ ---
+
+  it('should not produce __ in truncated names', () => {
+    const longName = 'a'.repeat(80);
+    const result = generateValidName(longName);
+    expect(result).not.toContain('__');
+    expect(result.length).toBeLessThanOrEqual(63);
+  });
 });
 
 describe('DiscoveredMCPTool', () => {
@@ -116,6 +158,48 @@ describe('DiscoveredMCPTool', () => {
       expect(tool.schema.parameters).toBeUndefined();
       expect(tool.schema.parametersJsonSchema).toEqual(inputSchema);
       expect(tool.serverToolName).toBe(serverToolName);
+    });
+  });
+
+  // --- getFullyQualifiedName length safety (Phase 2) ---
+
+  describe('getFullyQualifiedName — length safety', () => {
+    const createTestTool = (server: string, toolName: string) =>
+      new DiscoveredMCPTool(
+        mockCallableToolInstance,
+        server,
+        toolName,
+        'test',
+        {},
+        createMockMessageBus(),
+      );
+
+    it('should not exceed 63 characters for long server+tool names', () => {
+      const longToolName =
+        'equally_long_tool_name_that_exceeds_normal_limits_for_testing_abc';
+      const t = createTestTool('very_long_server_name_12345', longToolName);
+      const fqn = t.getFullyQualifiedName();
+      expect(fqn.length).toBeLessThanOrEqual(63);
+    });
+
+    it('should preserve server prefix and separator in truncated name', () => {
+      const longToolName =
+        'equally_long_tool_name_that_exceeds_normal_limits_for_testing_abc';
+      const t = createTestTool('myserver', longToolName);
+      const fqn = t.getFullyQualifiedName();
+      expect(fqn.startsWith('myserver__')).toBe(true);
+      expect(fqn.length).toBeLessThanOrEqual(63);
+    });
+
+    it('should not truncate when total length is within limit', () => {
+      const t = createTestTool('srv', 'tool');
+      expect(t.getFullyQualifiedName()).toBe('srv__tool');
+    });
+
+    it('should handle very long server name gracefully', () => {
+      const t = createTestTool('a'.repeat(40), 'short_tool');
+      const fqn = t.getFullyQualifiedName();
+      expect(fqn.length).toBeLessThanOrEqual(63);
     });
   });
 

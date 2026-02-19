@@ -11,7 +11,7 @@
 
 ## 2.1 사전 작업 (Pre-Work)
 
-- [ ] **[PREV-REVIEW]** Phase 1 작업 결과서 확인
+- [x] **[PREV-REVIEW]** Phase 1 작업 결과서 확인
   - 참조: `../working_history/mcp_phase1_deterministic_naming_{작업일자}.md`
   - 확인 항목:
     - `registerMCPTools()` 2-pass 배치 등록 메서드가 `tool-registry.ts`에 존재
@@ -19,7 +19,7 @@
     - mcp-client-manager 배치 호출 전환 완료 확인
     - "다음 Phase 전달사항" 섹션의 주의점 확인 (generateValidName 변경 영향 등)
 
-- [ ] **[ANALYSIS-1]** 현재 이름 생성 로직 분석
+- [x] **[ANALYSIS-1]** 현재 이름 생성 로직 분석
   - `mcp-tool.ts:445-456` (`generateValidName()`):
     - 특수문자 → `_` 치환: `/[^a-zA-Z0-9_.-]/g`
     - 63자 초과 시: `name.slice(0, 28) + '___' + name.slice(-32)` = 63자
@@ -30,18 +30,18 @@
     - prefix = `${serverName}__`
     - **문제**: prefix 길이 + 63자 → 63자 초과 가능
 
-- [ ] **[ANALYSIS-2]** 경계값 시나리오
+- [x] **[ANALYSIS-2]** 경계값 시나리오
   - 서버명 30자 + `__` (2자) + 도구명 63자 = 95자 → API 거부
   - 서버명 5자 + `__` (2자) + 도구명 63자 = 70자 → API 거부
   - 서버명 1자 + `__` (2자) + 도구명 60자 = 63자 → OK (경계)
 
-- [ ] **[ANALYSIS-3]** `__` 구분자 보호 필요성 확인
+- [x] **[ANALYSIS-3]** `__` 구분자 보호 필요성 확인
   - `MCP_QUALIFIED_NAME_SEPARATOR` = `'__'` (`mcp-tool.ts`)
   - `tool-registry.ts:534`: `name.includes('__')` → FQN 검색 분기
   - `policy-engine.ts:312`: `!toolCall.name.includes('__')` → 2차 자격 게이트
   - 도구 이름에 `__` 포함 시 → unqualified 이름도 FQN으로 오판 → lookup 오류
 
-- [ ] **[ANALYSIS-4]** 기존 테스트 베이스라인 기록
+- [x] **[ANALYSIS-4]** 기존 테스트 베이스라인 기록
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/mcp-tool
   ```
@@ -222,13 +222,13 @@ npm run typecheck && npm run lint
 
 | 검증 항목                                                   | 상태 |
 | ----------------------------------------------------------- | ---- |
-| `generateValidName()` `__` sanitize TDD — 5개 테스트        | ⬜   |
-| `getFullyQualifiedName()` 63자 재-truncate TDD — 4개 테스트 | ⬜   |
-| 긴 서버명 + 긴 도구명 경계값 테스트 통과                    | ⬜   |
-| 기존 `generateValidName()` 테스트 회귀 없음                 | ⬜   |
-| Phase 1 테스트 회귀 없음                                    | ⬜   |
-| Core 전체 테스트 PASS                                       | ⬜   |
-| 커밋 완료 + 작업 결과서 작성                                | ⬜   |
+| `generateValidName()` `__` sanitize TDD — 6개 테스트        | ✅   |
+| `getFullyQualifiedName()` 63자 재-truncate TDD — 4개 테스트 | ✅   |
+| 긴 서버명 + 긴 도구명 경계값 테스트 통과                    | ✅   |
+| 기존 `generateValidName()` 테스트 회귀 없음                 | ✅   |
+| Phase 1 테스트 회귀 없음                                    | ✅   |
+| Core 전체 테스트 PASS                                       | ✅   |
+| 커밋 완료 + 작업 결과서 작성                                | ✅   |
 
 ---
 

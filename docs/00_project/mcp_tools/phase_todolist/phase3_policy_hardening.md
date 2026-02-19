@@ -11,9 +11,15 @@
 
 ## 3.1 사전 작업 (Pre-Work)
 
-- [ ] **[PREV-REVIEW]** Phase 2 결과서 확인
-  - `generateValidName()`에서 `__` sanitize 완료 확인
-  - `getFullyQualifiedName()` 재-truncate 동작 확인
+- [ ] **[PREV-REVIEW]** Phase 2 작업 결과서 확인
+  - 참조: `../working_history/mcp_phase2_name_length_safety_{작업일자}.md`
+  - 확인 항목:
+    - `generateValidName()`에서 `__` sanitize 완료 (연속 underscore → 단일 `_`)
+    - `getFullyQualifiedName()` 재-truncate 동작 확인 (63자 이내 보장)
+    - truncation 구분자 최종 결정 확인 (`___` vs 대안)
+    - simpleHash() 구현 방식 확인
+    - "다음 Phase 전달사항" 섹션의 주의점 확인
+    - Phase 2 TDD 테스트 전체 PASS 확인
 
 - [ ] **[ANALYSIS-1]** 현재 정책 매칭 로직 분석
 
@@ -208,6 +214,46 @@ npm run typecheck && npm run lint
    - policy-engine.test.ts (5개 테스트)
 2. **커밋 2** `fix(policy): 와일드카드 정책 serverName undefined 가드 강화`
    - policy-engine.ts
+
+---
+
+## 작업 결과서 작성
+
+> Phase 완료 시 반드시 작성. 다음 Phase 착수 시 `[PREV-REVIEW]`에서 참조.
+
+**파일**: `working_history/mcp_phase3_policy_hardening_{작업일자}.md`
+
+**포함 항목**:
+
+```markdown
+# Phase 3 작업 결과서 — 정책 엔진 와일드카드 엣지 케이스 강화
+
+## 작업 요약
+
+- 변경 파일: (목록)
+- 핵심 구현: ruleMatches() serverName undefined 가드 + toolCallsToTry 검증 강화
+
+## 검증 결과
+
+- 단위 테스트: (PASS/FAIL, 테스트 수)
+- Phase 1, 2 회귀: (PASS/FAIL)
+- 빌드: (성공/실패)
+- 린트 + 타입체크: (PASS/FAIL)
+
+## 커밋 해시
+
+- 커밋 1: (해시) — (메시지)
+- 커밋 2: (해시) — (메시지)
+
+## 완료 조건 달성 여부
+
+(완료 조건 테이블 복사 + ✅/⬜ 상태 업데이트)
+
+## 다음 Phase 전달사항
+
+- Phase 4에서 확인할 사항
+- MCP 도구 이름/정책/길이 문제 해결 상태 확인
+```
 
 ---
 

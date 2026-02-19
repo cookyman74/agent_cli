@@ -29,9 +29,16 @@
 
 ## 5.1 사전 작업 (Pre-Work)
 
-- [ ] **[PREV-REVIEW]** Phase 4 결과서 확인
-  - `normalizeToolParamsBySchema()` 정상 동작 확인
-  - scheduler 양쪽 경로(scheduler.ts + coreToolScheduler.ts) 정규화 적용 확인
+- [ ] **[PREV-REVIEW]** Phase 4 작업 결과서 확인
+  - 참조: `../working_history/mcp_phase4_param_normalization_{작업일자}.md`
+  - 확인 항목:
+    - `normalizeToolParamsBySchema()` 정상 동작 확인 (TDD 테스트 전체 PASS)
+    - scheduler 양쪽 경로(scheduler.ts + coreToolScheduler.ts) 정규화 적용 확인
+    - 정규화 전략 최종 결정 확인 (Option A vs B)
+    - 기존 `normalizeToolParams()` 회귀 없음 확인
+    - "다음 Phase 전달사항" 섹션의 주의점 확인 (파이프라인 순서, 호출 패턴)
+  - 참고: Phase 2 결과서도 확인 필요 — `generateValidName()` 시그니처,
+    `getFullyQualifiedName()` 재-truncate 로직 (Phase 5.4에서 가변화 예정)
 
 - [ ] **[ANALYSIS-1]** 현재 AJV 설정 분석
   - `schemaValidator.ts:12-23`: `new AjvClass({ strictSchema: false })`
@@ -768,6 +775,57 @@ LLM Tool Call Response
    호환)
 3. Phase 2 ↔ Phase 5.4 조율 — 방안 B (Phase별 독립, Phase 5에서 일괄 가변화)
    확정
+
+---
+
+## 작업 결과서 작성
+
+> Phase 5는 최종 Phase. 완료 시 **최종 작업 결과서**를 작성하여 전체 작업을
+> 마무리한다.
+
+**파일**: `working_history/mcp_phase5_slm_compatibility_{작업일자}.md`
+
+**포함 항목**:
+
+```markdown
+# Phase 5 최종 작업 결과서 — 로컬 LLM(sLM) 도구 호출 내결함성 보강
+
+## 작업 요약
+
+- 변경 파일: (목록)
+- 핵심 구현: coerceParamTypes() + fuzzyMatchToolName() + 프로바이더별 이름 길이
+
+## 검증 결과
+
+- 단위 테스트: (PASS/FAIL, 테스트 수)
+- 기존 normalizeToolParams()/AJV 회귀: (PASS/FAIL)
+- 서버 경계 보호 테스트: (PASS/FAIL)
+- 빌드: (성공/실패)
+- 린트 + 타입체크: (PASS/FAIL)
+- sLM E2E (Ollama): (수동 검증 결과)
+
+## 커밋 해시
+
+- 커밋 1: (해시) — (메시지)
+- 커밋 2: (해시) — (메시지)
+- 커밋 3: (해시) — (메시지)
+- 커밋 4: (해시) — (메시지)
+
+## 완료 조건 달성 여부
+
+(완료 조건 테이블 복사 + ✅/⬜ 상태 업데이트)
+
+## 전체 Phase 1~5 통합 확인
+
+- Core 전체 단위 테스트: (PASS/FAIL)
+- 빌드: (성공/실패)
+- 전체 정규화 파이프라인 동작 확인: (E2E 결과)
+- Phase 간 교차 리스크 해소 확인: (Issue #1~#4 교차 검증)
+
+## 미해결 이슈 / 향후 확장
+
+- (있으면 기록)
+```
 
 ---
 

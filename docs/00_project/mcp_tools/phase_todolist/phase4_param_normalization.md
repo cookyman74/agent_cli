@@ -11,7 +11,16 @@
 
 ## 4.1 사전 작업 (Pre-Work)
 
-- [ ] **[PREV-REVIEW]** Phase 3 결과서 확인 (또는 독립 착수 시 생략 가능)
+- [ ] **[PREV-REVIEW]** Phase 3 작업 결과서 확인
+  - 참조: `../working_history/mcp_phase3_policy_hardening_{작업일자}.md`
+  - 확인 항목:
+    - `ruleMatches()` serverName undefined 시 와일드카드 거부 동작 확인
+    - toolCallsToTry serverName `__` 가드 적용 확인
+    - Phase 1~3 이름/정책/길이 문제 해결 상태 확인
+    - "다음 Phase 전달사항" 섹션에서 FQN 형식(`server__tool`) 관련 주의점 확인
+  - 참고: Phase 4는 독립적인 파라미터 정규화 작업이므로 Phase 1~3 이름 관련
+    변경과 직접 충돌 없음. 단, MCP 도구 이름이 Phase 1~3에서 변경된 경우 정규화
+    대상 도구 이름 확인 필요.
 
 - [ ] **[CONTEXT]** 작업 배경 확인
   - 선행 작업: `normalizeToolParams()` — 내장 도구 11개, 정적 alias map 50개
@@ -364,6 +373,54 @@ npm run typecheck && npm run lint
 3. **커밋 3**
    `fix(scheduler): MCP 도구 호출 시 schema-based 파라미터 정규화 적용`
    - scheduler.ts + coreToolScheduler.ts
+
+---
+
+## 작업 결과서 작성
+
+> Phase 완료 시 반드시 작성. 다음 Phase 착수 시 `[PREV-REVIEW]`에서 참조.
+
+**파일**: `working_history/mcp_phase4_param_normalization_{작업일자}.md`
+
+**포함 항목**:
+
+```markdown
+# Phase 4 작업 결과서 — MCP 도구 파라미터 schema-based 정규화
+
+## 작업 요약
+
+- 변경 파일: (목록)
+- 핵심 구현: normalizeToolParamsBySchema() + scheduler 조건부 적용
+
+## 검증 결과
+
+- 단위 테스트: (PASS/FAIL, 테스트 수)
+- scheduler/coreToolScheduler 회귀: (PASS/FAIL)
+- 기존 normalizeToolParams() 회귀: (PASS/FAIL)
+- 빌드: (성공/실패)
+- 린트 + 타입체크: (PASS/FAIL)
+
+## 커밋 해시
+
+- 커밋 1: (해시) — (메시지)
+- 커밋 2: (해시) — (메시지)
+- 커밋 3: (해시) — (메시지)
+
+## 완료 조건 달성 여부
+
+(완료 조건 테이블 복사 + ✅/⬜ 상태 업데이트)
+
+## 구현 결정 사항
+
+- 정규화 전략: Option A(보수적) / Option B(균형) → (최종 결정)
+- normalizeToolParams 변경 여부 시 normalizeToolParamsBySchema 호출 조건 확인
+
+## 다음 Phase 전달사항
+
+- Phase 5에서 확인할 사항
+- schema-based 정규화 함수 시그니처 및 호출 패턴
+- scheduler 정규화 파이프라인 순서
+```
 
 ---
 

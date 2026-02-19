@@ -9,6 +9,16 @@
 
 ## 1.1 사전 작업 (Pre-Work)
 
+- [ ] **[PREV-REVIEW]** 선행 작업 결과서 확인
+  - 참조:
+    `../subagent_multi_provider/working_history/hotfix_tool_param_normalize_20260219.md`
+  - 확인 항목:
+    - `normalizeToolParams()` 유틸리티 함수가 `tool-utils.ts`에 정상 존재
+    - `scheduler.ts`, `coreToolScheduler.ts` 양쪽 경로에 정규화 적용 완료
+    - 내장 도구 11개, alias 50개 커버리지 확인
+  - 참고: Phase 1은 첫 번째 Phase이므로 이전 Phase 결과서는 없음. 선행 hotfix
+    결과서만 확인.
+
 - [ ] **[CONTEXT]** 작업 목적 및 배경 확인
   - 현상: `Promise.all()`로 MCP 서버 병렬 디스커버리 → 서버 등록 순서 비결정적
   - 영향: 동일 이름 도구가 세션마다 다른 이름(unqualified vs qualified)으로 등록
@@ -186,6 +196,46 @@ npm run typecheck && npm run lint
    - tool-registry.ts + mcp-client-manager.ts
 3. **커밋 3** `refactor(tools): registerTool MCP 분기 정리` (필요시)
    - 기존 registerTool()의 MCP 분기 코드 정리
+
+---
+
+## 작업 결과서 작성
+
+> Phase 완료 시 반드시 작성. 다음 Phase 착수 시 `[PREV-REVIEW]`에서 참조.
+
+**파일**: `working_history/mcp_phase1_deterministic_naming_{작업일자}.md`
+
+**포함 항목**:
+
+```markdown
+# Phase 1 작업 결과서 — 결정적 MCP 도구 이름 등록
+
+## 작업 요약
+
+- 변경 파일: (목록)
+- 핵심 구현: registerMCPTools() 2-pass 배치 등록
+
+## 검증 결과
+
+- 단위 테스트: (PASS/FAIL, 테스트 수)
+- 회귀 테스트: (PASS/FAIL)
+- 빌드: (성공/실패)
+- 린트 + 타입체크: (PASS/FAIL)
+
+## 커밋 해시
+
+- 커밋 1: (해시) — (메시지)
+- 커밋 2: (해시) — (메시지)
+
+## 완료 조건 달성 여부
+
+(완료 조건 테이블 복사 + ✅/⬜ 상태 업데이트)
+
+## 다음 Phase 전달사항
+
+- Phase 2에서 확인할 사항
+- 미해결 이슈 또는 주의점
+```
 
 ---
 

@@ -600,20 +600,20 @@ LLM_PROVIDER=openai-compatible LLM_BASE_URL=http://localhost:11434/v1 \
 
 | 검증 항목                                                                    | 상태 |
 | ---------------------------------------------------------------------------- | ---- |
-| `coerceParamTypes()` string↔number TDD — 6개 테스트 (빈/공백 가드 2건 포함) | ⬜   |
-| `coerceParamTypes()` string↔boolean TDD — 2개 테스트                        | ⬜   |
-| `coerceParamTypes()` integer 변환 + 에지 케이스 — 4개 테스트                 | ⬜   |
-| `coerceParamTypes()` 원본 불변 + schema undefined 처리                       | ⬜   |
-| scheduler.ts / coreToolScheduler.ts 타입 강제 변환 연결                      | ⬜   |
-| `fuzzyMatchToolName()` TDD — 10개 테스트 (서버 경계 보호 3건 포함)           | ⬜   |
-| fuzzy match 서버 경계 보호: qualified 이름 prefix 고정 검증                  | ⬜   |
-| scheduler에서 도구 lookup 실패 시 fuzzy match 시도 + 자동 교정               | ⬜   |
-| 교정 후 enrichedRequest.name 업데이트 → 정책 체크 정합성 확인                | ⬜   |
-| 프로바이더별 이름 길이 제한 TDD — 3개 테스트                                 | ⬜   |
-| 기존 `normalizeToolParams()` / AJV 검증 회귀 없음                            | ⬜   |
+| `coerceParamTypes()` string↔number TDD — 6개 테스트 (빈/공백 가드 2건 포함) | ✅   |
+| `coerceParamTypes()` string↔boolean TDD — 2개 테스트                        | ✅   |
+| `coerceParamTypes()` integer 변환 + 에지 케이스 — 4개 테스트                 | ✅   |
+| `coerceParamTypes()` 원본 불변 + schema undefined 처리                       | ✅   |
+| scheduler.ts / coreToolScheduler.ts 타입 강제 변환 연결                      | ✅   |
+| `fuzzyMatchToolName()` TDD — 10개 테스트 (서버 경계 보호 3건 포함)           | ✅   |
+| fuzzy match 서버 경계 보호: qualified 이름 prefix 고정 검증                  | ✅   |
+| scheduler에서 도구 lookup 실패 시 fuzzy match 시도 + 자동 교정               | ✅   |
+| 교정 후 enrichedRequest.name 업데이트 → 정책 체크 정합성 확인                | ✅   |
+| 프로바이더별 이름 길이 제한 TDD — 3개 테스트                                 | ✅   |
+| 기존 `normalizeToolParams()` / AJV 검증 회귀 없음                            | ✅   |
 | sLM 환경 수동 E2E (Ollama + 도구 호출)                                       | ⬜   |
-| Core 전체 테스트 PASS                                                        | ⬜   |
-| 커밋 완료 + 최종 작업 결과서 작성                                            | ⬜   |
+| Core 전체 테스트 PASS                                                        | ✅   |
+| 커밋 완료 + 최종 작업 결과서 작성                                            | ✅   |
 
 ---
 

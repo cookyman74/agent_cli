@@ -219,7 +219,8 @@ if (serverName && toolCall.name && !toolCall.name.includes('__'))
 
 ### 커밋 해시
 
-- (커밋 후 기록)
+- `4565e2442` —
+  `fix(policy): Phase 3 리뷰 — checker toolCallsToTry 정합성 + segment 검증 + __ 가드 제거`
 
 ---
 

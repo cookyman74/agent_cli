@@ -398,6 +398,13 @@ npm run typecheck && npm run lint
 | scheduler/coreToolScheduler 기존 테스트 회귀 없음                     | ✅   |
 | Core 전체 테스트 PASS                                                 | ✅   |
 | 커밋 완료 + 최종 작업 결과서 작성                                     | ✅   |
+| **코드 리뷰 수정 (5건)**                                              | ✅   |
+| Issue 1: 중복 import 제거 (coreToolScheduler.ts)                      | ✅   |
+| Issue 2: required 비배열 방어 + extractSchemaInfo 추출                | ✅   |
+| Issue 3: allOf 조합형 schema 지원                                     | ✅   |
+| Issue 4: scheduler/coreToolScheduler 통합 테스트 4개 추가             | ✅   |
+| Issue 5: dot-access → bracket notation + Kind.ReadOnly/abstract 수정  | ✅   |
+| 리뷰 수정 후 전체 검증 (5622 PASS, typecheck, lint)                   | ✅   |
 
 ---
 

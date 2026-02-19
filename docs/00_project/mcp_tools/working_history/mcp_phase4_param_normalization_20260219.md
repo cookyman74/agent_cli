@@ -114,6 +114,53 @@ LLM 호출 → args
 - **parameterSchema 타입 캐스팅**: `tool.parameterSchema`가 `unknown` 타입이므로
   `as Record<string, unknown> | undefined` 캐스팅 적용
 
+## 코드 리뷰 수정 (5건)
+
+### Issue 1 [HIGH]: 중복 import — coreToolScheduler.ts
+
+- **문제**: `DiscoveredMCPTool` import가 line 28과 line 51에 중복
+- **수정**: line 51 중복 import 제거
+
+### Issue 2 [HIGH]: 비정상 MCP schema required 필드 방어
+
+- **문제**: `required` 필드가 배열이 아닌 경우 `new Set(42)` → TypeError
+- **수정**: `extractSchemaInfo()` 헬퍼 추출 → `Array.isArray(rawRequired)`
+  가드 + 비문자열 항목 필터링
+- **추가 테스트**: 2개 (`required: 42`, `required: ['file_path', 123, null]`)
+
+### Issue 3 [MEDIUM]: allOf 조합형 schema 미지원
+
+- **문제**: `allOf` 합성 schema에서 `properties` 미발견 → 정규화 누락
+- **수정**: `extractSchemaInfo()`에서 `allOf` 서브스키마 properties/required
+  병합 지원
+- **추가 테스트**: 3개 (allOf 병합, 겹침, $ref only)
+- **범위 외**: `oneOf`/`$ref` 해석은 JSON Schema resolver 필요 → Phase 5 이후
+
+### Issue 4 [MEDIUM]: 스케줄러 통합 경로 테스트
+
+- **문제**: scheduler/coreToolScheduler에서 MCP 도구 조건부 분기 테스트 없음
+- **수정**: 각 파일에 2개씩 통합 테스트 추가 (총 4개)
+  - `should apply schema-based normalization for MCP tools when static alias has no effect`
+  - `should skip schema-based normalization when static alias already changed args`
+
+### Issue 5 [LOW]: strict typecheck dot-access 충돌
+
+- **문제**: `Record<string, unknown>` 반환값에 dot access → TS4111
+- **수정**: 6개 인스턴스 → bracket notation (`result['file_path']`)
+- **추가 수정**: 기존 Phase 4 테스트의 `BaseToolInvocation` abstract
+  인스턴스화 + `Kind.ReadOnly` 오참조 → mock 객체 패턴 + `Kind.Read`로 수정
+
+### 리뷰 수정 검증 결과
+
+| 검증 항목                     | 결과                                |
+| ----------------------------- | ----------------------------------- |
+| tool-utils 단위 테스트        | ✅ 53 PASS (기존 36 + 신규 17)      |
+| scheduler 통합 테스트         | ✅ 30 PASS (기존 28 + 신규 2)       |
+| coreToolScheduler 통합 테스트 | ✅ 25 PASS (기존 23 + 신규 2)       |
+| Core 전체 테스트              | ✅ 284 files, 5622 PASS, 24 skipped |
+| TypeScript typecheck          | ✅ PASS                             |
+| ESLint lint                   | ✅ PASS                             |
+
 ## 다음 Phase 전달사항
 
 - Phase 4 완료 — MCP 도구 파라미터 정규화 파이프라인 구축 완료

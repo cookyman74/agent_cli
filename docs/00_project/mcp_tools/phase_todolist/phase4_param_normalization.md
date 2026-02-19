@@ -189,6 +189,39 @@ describe('normalizeToolParamsBySchema', () => {
     // ambiguous, both optional → skip normalization
     expect(result).toEqual({ path: '/tmp' });
   });
+
+  // --- Issue #7 대응: required 복수 시 오매핑 방지 ---
+
+  it('should skip suffix match when ambiguous and multiple required candidates', () => {
+    const ambiguousSchema = {
+      type: 'object',
+      properties: {
+        source_path: { type: 'string' },
+        dest_path: { type: 'string' },
+      },
+      required: ['source_path', 'dest_path'],
+    };
+    const args = { path: '/tmp/file.txt' };
+    const result = normalizeToolParamsBySchema(args, ambiguousSchema);
+    // ambiguous — 'path' matches both *_path, both required → skip (no mapping)
+    expect(result).toEqual({ path: '/tmp/file.txt' });
+  });
+
+  it('should skip suffix match for *_id when multiple id fields exist', () => {
+    const multiIdSchema = {
+      type: 'object',
+      properties: {
+        user_id: { type: 'string' },
+        task_id: { type: 'string' },
+        project_id: { type: 'string' },
+      },
+      required: ['user_id', 'task_id'],
+    };
+    const args = { id: '12345' };
+    const result = normalizeToolParamsBySchema(args, multiIdSchema);
+    // ambiguous — 'id' matches 3 *_id fields, 2 required → skip
+    expect(result).toEqual({ id: '12345' });
+  });
 });
 ```
 
@@ -275,13 +308,18 @@ export function normalizeToolParamsBySchema(
       normalized[candidates[0]] = normalized[argKey];
       delete normalized[argKey];
     } else if (candidates.length > 1) {
-      // Ambiguous — prefer required param
-      const requiredCandidate = candidates.find((c) => requiredKeys.has(c));
-      if (requiredCandidate && normalized[requiredCandidate] === undefined) {
-        normalized[requiredCandidate] = normalized[argKey];
+      // Ambiguous — resolve ONLY when exactly one required candidate
+      // Issue #7 대응: find()가 첫 번째를 반환하므로 required가 복수이면 오매핑.
+      // 예: schema에 source_path(required), dest_path(required) → 'path' 매핑 불가
+      const requiredCandidates = candidates.filter((c) => requiredKeys.has(c));
+      if (
+        requiredCandidates.length === 1 &&
+        normalized[requiredCandidates[0]] === undefined
+      ) {
+        normalized[requiredCandidates[0]] = normalized[argKey];
         delete normalized[argKey];
       }
-      // else: skip (ambiguous, no required resolution)
+      // else: skip (ambiguous — required 0개 또는 2개 이상이면 매핑하지 않음)
     }
   }
 
@@ -352,7 +390,7 @@ npm run typecheck && npm run lint
 | 검증 항목                                                             | 상태 |
 | --------------------------------------------------------------------- | ---- |
 | `normalizeToolParamsBySchema()` camelCase→snake_case TDD — 6개 테스트 | ⬜   |
-| 접미사 매칭 TDD — 4개 테스트 (모호성 처리 포함)                       | ⬜   |
+| 접미사 매칭 TDD — 6개 테스트 (모호성 + required 복수 방지 포함)       | ⬜   |
 | 원본 args 불변 확인                                                   | ⬜   |
 | scheduler.ts MCP 도구 조건부 적용                                     | ⬜   |
 | coreToolScheduler.ts 레거시 경로 적용                                 | ⬜   |
@@ -367,7 +405,7 @@ npm run typecheck && npm run lint
 
 1. **커밋 1**
    `test(utils): normalizeToolParamsBySchema TDD — schema-based 파라미터 정규화`
-   - tool-utils.test.ts (10개 테스트)
+   - tool-utils.test.ts (12개 테스트: camelCase 6 + suffix 6)
 2. **커밋 2** `feat(utils): MCP 도구 schema-based 파라미터 정규화 구현`
    - tool-utils.ts
 3. **커밋 3**

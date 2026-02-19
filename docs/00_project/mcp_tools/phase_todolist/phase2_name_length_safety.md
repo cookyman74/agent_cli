@@ -95,22 +95,32 @@ export function generateValidName(name: string) {
   // Step 2: Collapse consecutive underscores to single (protect __ separator)
   validToolname = validToolname.replace(/_{2,}/g, '_');
 
-  // Step 3: Truncate if longer than 63 characters
+  // Step 3: Truncate if longer than 63 characters — hash suffix 방식
+  // IMPORTANT: `___` 마커 사용 금지 — `__`를 포함하므로 FQN 오인식 유발
+  // (tool-names.ts:89 split('__'), tool-registry.ts:534 includes('__'),
+  //  policy-engine.ts:312 includes('__'), local-executor.ts:156)
   if (validToolname.length > 63) {
-    validToolname =
-      validToolname.slice(0, 28) + '___' + validToolname.slice(-32);
+    const hash = simpleHash(validToolname);
+    validToolname = validToolname.slice(0, 56) + '_' + hash.slice(0, 6);
+    // 결과: 최대 63자, `__` 미포함 (단일 _ + 6자 hex hash)
   }
   return validToolname;
 }
 ```
 
-> **주의**: Step 3의 truncation에서 `___`가 다시 도입되지만, 이는 의도적
-> 구분자임. `getFullyQualifiedName()`의 `__`와 구별하기 위해 triple
-> underscore(`___`) 사용. 다만 `tool-registry.ts:534`의 `includes('__')`에는
-> 걸리므로, FQN 검색 분기 조건도 확인 필요.
+> **Issue #3 대응**: 기존 `___` truncation 마커가 `__`를 포함하여 다음 로직과
+> 충돌하는 문제를 해시 기반 truncation으로 해결:
 >
-> **대안**: truncation 구분자를 `___` 대신 `_X_` 등 비-underscore로 변경 검토.
-> 이 결정은 구현 시 Phase 3 정책 엣지 케이스와 함께 확정.
+> - `tool-names.ts:89`: `split('__')` — `___`가 `['prefix', '_suffix']`로
+>   분리되어 유효한 MCP 이름으로 오인식
+> - `tool-registry.ts:534`: `includes('__')` — FQN 검색 분기 잘못 진입
+> - `policy-engine.ts:312`: `includes('__')` — 2차 자격 게이트 차단
+> - `local-executor.ts:156`: `includes(MCP_QUALIFIED_NAME_SEPARATOR)` —
+>   서브에이전트 도구 지정 실패
+>
+> **hash suffix 방식**: `name.slice(0, 56) + '_' + simpleHash(name).slice(0, 6)`
+> = 최대 63자. 단일 `_` + 6자 hex hash로 `__`가 절대 생성되지 않음. 충돌 확률:
+> 16^6 = 16.7M 조합 → MCP 도구 수 대비 충분.
 
 ---
 
@@ -281,7 +291,9 @@ npm run typecheck && npm run lint
 
 ## 다음 Phase 전달사항
 
-- `__` sanitize로 인해 도구 이름에서 `__`가 불가능해짐 → Phase 3 정책 엣지
-  케이스의 전제 조건 충족
-- truncation 구분자 (`___` vs 대안)의 최종 결정을 Phase 3 착수 전에 확정
+- `__` sanitize로 인해 **registry 이름**에서 `__`가 불가능해짐 → Phase 3 정책
+  엣지 케이스의 **부분적** 전제 조건 충족
+- **주의**: 정책 경로에서는 raw `serverToolName`을 사용 (`mcp-tool.ts:91`) →
+  sanitize가 정책 입력에 적용되지 않음. Phase 3에서 독립적 방어 필요.
+- truncation 구분자: hash suffix 방식 확정 (`_` + 6자 hex, `___` 미사용)
 - `simpleHash()` 구현 방식 (내장 crypto vs 자체 구현) 결정 필요

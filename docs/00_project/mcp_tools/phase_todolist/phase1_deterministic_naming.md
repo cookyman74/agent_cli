@@ -23,13 +23,19 @@
   - 현상: `Promise.all()`로 MCP 서버 병렬 디스커버리 → 서버 등록 순서 비결정적
   - 영향: 동일 이름 도구가 세션마다 다른 이름(unqualified vs qualified)으로 등록
 
-- [ ] **[ANALYSIS-1]** 현재 등록 흐름 분석
-  - `mcp-client-manager.ts:323`: `Promise.all()` → `maybeDiscoverMcpServer()`
-    병렬 호출
-  - `maybeDiscoverMcpServer()` 내부: 도구 발견 시 `toolRegistry.registerTool()`
-    개별 호출
+- [ ] **[ANALYSIS-1]** 현재 등록 흐름 분석 (전체 경로)
+  - **경로 1: 초기 디스커버리** — `mcp-client-manager.ts:323`: `Promise.all()` →
+    `client.discover()` → 내부에서 `toolRegistry.registerTool()` 개별 호출
+    (`mcp-client.ts:193`)
+  - **경로 2: 도구 리프레시** — `mcp-client.ts:508-512`:
+    `removeMcpToolsByServer()` 후 `registerTool()` 개별 호출
+  - **경로 3: 독립 디스커버리** — `mcp-client.ts:946-948`: `discoverMcpServer()`
+    내에서 `registerTool()` 개별 호출
+  - **경로 4: mcp-client-manager.ts:235**: `client.discover(cliConfig)` 호출 →
+    경로 1과 동일 (McpClient 내부 개별 등록)
   - `tool-registry.ts:214-226`: `registerTool()` — 이름 충돌 시 MCP 도구만
     qualified name 전환
+  - **핵심 문제**: 4개 경로 모두 개별 `registerTool()` 사용 → 비결정적
 
 - [ ] **[ANALYSIS-2]** 충돌 시나리오 구체화
   - 시나리오 A: 서버 A, B가 모두 `read_file` 도구 제공 → A 먼저 등록되면 A는
@@ -38,6 +44,11 @@
     비결정적
   - 시나리오 C: 내장 도구 `read_file`이 이미 등록된 상태에서 MCP `read_file`
     등록 → MCP만 qualified
+  - **시나리오 D: 동일 서버 내 sanitize 충돌** — 서버 A가 `foo bar`와 `foo@bar`
+    모두 제공 → `generateValidName()` 결과가 둘 다 `foo_bar` → FQN도
+    `serverA__foo_bar`로 동일 → Map.set()에서 마지막이 이전을 덮어씀 → **도구
+    유실**
+  - 시나리오 E: 도구 리프레시 시 다른 서버 도구와의 충돌 재검사 누락
 
 - [ ] **[ANALYSIS-3]** `getTool()` lookup 경로 확인
   - `tool-registry.ts:532-549`: 직접 lookup 실패 시 `__` 포함 이름으로 FQN 검색
@@ -88,6 +99,19 @@ describe('registerMCPTools (batch)', () => {
     // 서버 A, B, C 모두 search 제공
     // → 모두 qualified
   });
+
+  // --- Issue #2: 동일 서버 내 sanitize 충돌 ---
+
+  it('should detect same-server sanitize collision and use hash-differentiated FQN', () => {
+    // 서버 A: 'foo bar', 'foo@bar' → 둘 다 sanitize 후 'foo_bar'
+    // → FQN 충돌 감지 → hash suffix로 구분
+    // 예: 'serverA__foo_bar', 'serverA__foo_bar_a1b2c3'
+  });
+
+  it('should not lose tools when same server has sanitize-colliding names', () => {
+    // 서버 A: 'my-tool', 'my tool' → 둘 다 'my_tool'
+    // → 양쪽 모두 등록되어야 함 (FQN + hash로 구분)
+  });
 });
 ```
 
@@ -100,13 +124,17 @@ describe('registerMCPTools (batch)', () => {
  * Batch-registers MCP tools with deterministic naming.
  *
  * Two-pass algorithm:
- * 1. Collect all tools, detect name conflicts (same name from multiple servers OR same name as built-in)
- * 2. Register: conflicting MCP tools → qualified name, non-conflicting → unqualified name
+ * 1. Collect all tools, detect name conflicts (same baseName from
+ *    multiple servers, same baseName as built-in, OR same-server
+ *    sanitize collision → all need qualification)
+ * 2. Register: conflicting MCP tools → qualified name (with hash
+ *    disambiguation for same-server FQN collision),
+ *    non-conflicting → unqualified name
  *
  * This eliminates non-determinism from Promise.all() discovery order.
  */
 registerMCPTools(tools: DiscoveredMCPTool[]): void {
-  // Pass 1: Detect conflicts
+  // Pass 1: Detect conflicts (baseName 기준 그룹화)
   const nameToServers = new Map<string, DiscoveredMCPTool[]>();
   for (const tool of tools) {
     const baseName = generateValidName(tool.serverToolName);
@@ -116,43 +144,125 @@ registerMCPTools(tools: DiscoveredMCPTool[]): void {
   }
 
   // Pass 2: Register with deterministic naming
-  for (const [baseName, serverTools] of nameToServers) {
+  for (const [baseName, groupedTools] of nameToServers) {
     const hasBuiltInConflict = this.allKnownTools.has(baseName);
-    const hasMultiServerConflict = serverTools.length > 1;
-    const needsQualification = hasBuiltInConflict || hasMultiServerConflict;
+    const hasNameConflict = hasBuiltInConflict || groupedTools.length > 1;
 
-    for (const tool of serverTools) {
-      if (needsQualification) {
-        this.allKnownTools.set(tool.getFullyQualifiedName(), tool.asFullyQualifiedTool());
+    if (!hasNameConflict) {
+      // 충돌 없음 → unqualified 등록
+      this.allKnownTools.set(baseName, groupedTools[0]);
+      continue;
+    }
+
+    // 충돌 → qualified name 등록, FQN 중복 감지
+    const fqnMap = new Map<string, DiscoveredMCPTool[]>();
+    for (const tool of groupedTools) {
+      const fqn = tool.getFullyQualifiedName();
+      const existing = fqnMap.get(fqn) ?? [];
+      existing.push(tool);
+      fqnMap.set(fqn, existing);
+    }
+
+    for (const [fqn, fqnTools] of fqnMap) {
+      if (fqnTools.length === 1) {
+        // FQN 유일 → 정상 등록
+        this.allKnownTools.set(fqn, fqnTools[0].asFullyQualifiedTool());
       } else {
-        this.allKnownTools.set(baseName, tool);
+        // 동일 서버 내 sanitize 충돌 → hash suffix로 구분
+        for (const tool of fqnTools) {
+          const hash = simpleHash(tool.serverToolName);
+          const disambiguated = `${fqn.slice(0, 56)}_${hash.slice(0, 6)}`;
+          this.allKnownTools.set(disambiguated, tool.asFullyQualifiedTool());
+        }
       }
     }
   }
 }
 ```
 
-### 1.2.3 mcp-client-manager 호출 변경
+> **Issue #2 대응**: 동일 서버 내 sanitize 충돌(`foo bar` + `foo@bar` → 둘 다
+> `foo_bar`) 시 FQN도 동일해짐(`serverA__foo_bar`). hash suffix로 구분하여 도구
+> 유실 방지. `simpleHash()`는 원본 `serverToolName` 기반이므로 유니크.
 
-**파일**: `packages/core/src/tools/mcp-client-manager.ts`
+### 1.2.3 McpClient 내부 경로 변경 (Issue #1 대응)
 
-현재 흐름:
+> **핵심**: McpClient 내부의 **3개 등록 경로** 모두 배치 등록으로 전환.
+> mcp-client-manager만 변경하면 refresh/재연결 경로에서 비결정성 재발.
 
-```
-maybeDiscoverMcpServer() → 도구 발견 즉시 → toolRegistry.registerTool(tool)
+**경로 1: 초기 디스커버리** — `mcp-client.ts:192-194` (discover 메서드)
+
+현재:
+
+```typescript
+for (const tool of tools) {
+  this.toolRegistry.registerTool(tool); // 개별 등록
+}
 ```
 
 변경 후:
 
+```typescript
+// discover()에서 도구 수집만 → 배치 등록
+this.toolRegistry.removeMcpToolsByServer(this.serverName);
+this.toolRegistry.registerMCPTools(tools);
 ```
-maybeDiscoverMcpServer() → 도구 수집만 → discoveredTools 배열에 추가
-discoverTools() 완료 후 → toolRegistry.registerMCPTools(allDiscoveredTools)
+
+**경로 2: 도구 리프레시** — `mcp-client.ts:508-512`
+
+현재:
+
+```typescript
+this.toolRegistry.removeMcpToolsByServer(this.serverName);
+for (const tool of newTools) {
+  this.toolRegistry.registerTool(tool); // 개별 등록
+}
+```
+
+변경 후:
+
+```typescript
+this.toolRegistry.removeMcpToolsByServer(this.serverName);
+this.toolRegistry.registerMCPTools(newTools);
+```
+
+> **주의**: refresh는 단일 서버 도구만 재등록하므로, 다른 서버와의 충돌은 기존
+> registry 상태에 의존. `registerMCPTools()`가 기존 `allKnownTools`의 이름과도
+> 충돌 검사를 수행하므로 안전.
+
+**경로 3: 독립 디스커버리** — `mcp-client.ts:946-948`
+
+현재:
+
+```typescript
+for (const tool of tools) {
+  toolRegistry.registerTool(tool); // 개별 등록
+}
+```
+
+변경 후:
+
+```typescript
+toolRegistry.registerMCPTools(tools);
+```
+
+**경로 4: mcp-client-manager** — `mcp-client-manager.ts:234-236`
+
+변경: `client.discover()` 호출 시 McpClient 내부가 이미 배치 등록으로 전환되므로
+**추가 변경 불필요**. 단, 초기 병렬 디스커버리 (`Promise.all()`) 완료 후 전체
+MCP 도구 일괄 재확인이 필요한 경우:
+
+```typescript
+// 모든 서버 디스커버리 완료 후 → 전체 MCP 도구 재등록 (선택적)
+const allMcpTools = this.getAllDiscoveredMCPTools();
+toolRegistry.removeAllMcpTools();
+toolRegistry.registerMCPTools(allMcpTools);
 ```
 
 ### 1.2.4 리팩터링 (Refactor)
 
-- 기존 `registerTool()`의 MCP 충돌 처리 코드는 유지 (단일 도구 등록 호환)
-- `registerMCPTools()`는 배치 등록 전용 (디스커버리 완료 후 1회 호출)
+- 기존 `registerTool()`의 MCP 충돌 처리 코드는 유지 (비-MCP 도구 등록 호환)
+- `registerMCPTools()`는 배치 등록 전용 (디스커버리/리프레시 시 호출)
+- McpClient의 3개 등록 경로 모두 배치 등록으로 전환
 
 ---
 
@@ -174,27 +284,31 @@ npm run typecheck && npm run lint
 
 ## 완료 조건
 
-| 검증 항목                                   | 상태 |
-| ------------------------------------------- | ---- |
-| 2-pass 등록 TDD — 5개 테스트 작성 및 통과   | ⬜   |
-| 충돌 도구 양쪽 모두 qualified name 확인     | ⬜   |
-| 단일 서버 기존 동작 유지 (unqualified 이름) | ⬜   |
-| 내장 도구와 MCP 충돌 시 MCP만 qualified     | ⬜   |
-| mcp-client-manager 배치 호출 전환           | ⬜   |
-| 기존 tool-registry 테스트 회귀 없음         | ⬜   |
-| Core 전체 테스트 PASS                       | ⬜   |
-| 커밋 완료 + 작업 결과서 작성                | ⬜   |
+| 검증 항목                                                       | 상태 |
+| --------------------------------------------------------------- | ---- |
+| 2-pass 등록 TDD — 7개 테스트 작성 및 통과 (충돌 5 + 유실 2)     | ⬜   |
+| 충돌 도구 양쪽 모두 qualified name 확인                         | ⬜   |
+| 동일 서버 sanitize 충돌 시 hash suffix로 구분 (도구 유실 0)     | ⬜   |
+| 단일 서버 기존 동작 유지 (unqualified 이름)                     | ⬜   |
+| 내장 도구와 MCP 충돌 시 MCP만 qualified                         | ⬜   |
+| McpClient 3개 경로 배치 등록 전환 (discover/refresh/standalone) | ⬜   |
+| 도구 리프레시 후 이름 결정성 유지 확인                          | ⬜   |
+| 기존 tool-registry 테스트 회귀 없음                             | ⬜   |
+| Core 전체 테스트 PASS                                           | ⬜   |
+| 커밋 완료 + 작업 결과서 작성                                    | ⬜   |
 
 ---
 
 ## 커밋 전략
 
 1. **커밋 1** `test(tools): registerMCPTools 2-pass 일괄 등록 TDD`
-   - tool-registry.test.ts (5개 테스트)
+   - tool-registry.test.ts (7개 테스트: 충돌 5 + sanitize 유실 2)
 2. **커밋 2**
-   `feat(tools): 결정적 MCP 도구 이름 등록 — registerMCPTools 2-pass 구현`
-   - tool-registry.ts + mcp-client-manager.ts
-3. **커밋 3** `refactor(tools): registerTool MCP 분기 정리` (필요시)
+   `feat(tools): 결정적 MCP 도구 이름 등록 — registerMCPTools 2-pass + FQN 충돌 해시`
+   - tool-registry.ts (registerMCPTools + simpleHash FQN 구분)
+3. **커밋 3** `refactor(tools): McpClient 3개 등록 경로 배치 전환`
+   - mcp-client.ts (discover, refreshTools, discoverMcpServer)
+4. **커밋 4** `refactor(tools): registerTool MCP 분기 정리` (필요시)
    - 기존 registerTool()의 MCP 분기 코드 정리
 
 ---

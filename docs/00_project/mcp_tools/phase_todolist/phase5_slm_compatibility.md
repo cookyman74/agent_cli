@@ -126,6 +126,20 @@ describe('coerceParamTypes', () => {
     expect(result.count).toBe('abc'); // 변환 불가 → 원본 유지 (AJV가 에러 처리)
   });
 
+  // --- Issue #8 대응: 빈/공백 문자열 → 0 변환 방지 ---
+
+  it('should not coerce empty string to number 0', () => {
+    const args = { count: '', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result.count).toBe(''); // '' → 0 방지
+  });
+
+  it('should not coerce whitespace-only string to number 0', () => {
+    const args = { count: '   ', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result.count).toBe('   '); // '   ' → 0 방지
+  });
+
   // --- string → boolean 변환 ---
 
   it('should coerce string "true" to boolean true', () => {
@@ -229,11 +243,15 @@ export function coerceParamTypes(
     const actualType = typeof value;
 
     // string → number/integer
+    // Issue #8 대응: Number('') = 0, Number('   ') = 0 → 의도치 않은 변환 방지
     if (
       actualType === 'string' &&
       (targetType === 'number' || targetType === 'integer')
     ) {
-      const num = Number(value);
+      const strValue = value as string;
+      if (strValue.trim() === '') continue; // 빈/공백 문자열은 변환하지 않음
+
+      const num = Number(strValue);
       if (
         !Number.isNaN(num) &&
         (targetType === 'number' || Number.isInteger(num))
@@ -466,29 +484,45 @@ if (!tool) {
 
 ## 5.4 프로바이더별 도구 이름 길이 제한 (TDD)
 
-> **설계**: `generateValidName()`의 하드코딩 63을 프로바이더별 설정으로 분리.
-> 도구 등록은 프로바이더 확정 전에 발생하므로, 가장 관대한 제한(128)으로 등록 후
-> API 호출 시점에 프로바이더 제한에 맞춰 재-truncate.
+> **설계 변경 (Issue #4 대응)**: 기존 "등록 시 128자, provider 변환 시
+> 재-truncate" 전략을 **폐기**. 이유:
+>
+> - Provider converter(`toGeminiTools()` 등)는 tool.name을 그대로 전달
+>   (`converter.ts:221`)
+> - LLM이 반환하는 `functionCall.name`은 provider 측 이름 (`adapter.ts:186`)
+> - Scheduler는 LLM이 반환한 이름으로 registry lookup (`scheduler.ts:248`)
+> - **문제**: 등록 128자, provider 63자로 truncate하면, LLM이 63자 이름을
+>   반환하지만 registry에는 128자로 등록 → **lookup 실패**
+> - 역매핑 테이블(truncated→original) 도입은 아키텍처 변경이 과도
+>
+> **새 전략: 등록 시점에서 최종 길이 확정 (63자 통일)**
+>
+> - 모든 프로바이더의 최소 공통 길이(63자)로 등록 시점에 truncate
+> - Round-trip 보장: registry 이름 = provider 이름 = LLM 반환 이름
+> - `generateValidName(name, maxLength)` 시그니처만 도입하여 향후 확장성 확보
+> - 63 vs 64 차이(Gemini 63, OpenAI/Anthropic 64)는 사실상 무의미
 
 ### 5.4.1 테스트 먼저 작성 (Red)
 
 **파일**: `packages/core/src/tools/mcp-tool.test.ts`
 
 ```typescript
-describe('generateValidName — provider-aware length', () => {
-  it('should truncate to 63 chars for gemini provider', () => {
-    const longName = 'a'.repeat(80);
-    expect(generateValidName(longName, 63).length).toBeLessThanOrEqual(63);
-  });
-
-  it('should allow up to 128 chars for openai-compatible provider', () => {
-    const name70 = 'a'.repeat(70);
-    expect(generateValidName(name70, 128)).toBe(name70); // no truncation
-  });
-
-  it('should use default 63 when maxLength not specified', () => {
+describe('generateValidName — configurable maxLength', () => {
+  it('should truncate to 63 chars by default (Gemini compatibility)', () => {
     const longName = 'a'.repeat(80);
     expect(generateValidName(longName).length).toBeLessThanOrEqual(63);
+  });
+
+  it('should truncate to custom maxLength when specified', () => {
+    const longName = 'a'.repeat(80);
+    expect(generateValidName(longName, 50).length).toBeLessThanOrEqual(50);
+  });
+
+  it('should use hash suffix truncation without __ (Phase 2 compatible)', () => {
+    const longName = 'a'.repeat(80);
+    const result = generateValidName(longName, 63);
+    expect(result).not.toContain('__'); // __ 미포함 (Issue #3)
+    expect(result.length).toBeLessThanOrEqual(63);
   });
 });
 ```
@@ -498,14 +532,15 @@ describe('generateValidName — provider-aware length', () => {
 **파일**: `packages/core/src/tools/mcp-tool.ts`
 
 ```typescript
-/** Provider-specific maximum tool name lengths */
+/** Provider-specific maximum tool name lengths (참고용) */
 export const MAX_TOOL_NAME_LENGTH: Record<string, number> = {
   gemini: 63,
   openai: 64,
   anthropic: 64,
-  'openai-compatible': 128,
+  'openai-compatible': 128, // 실질 제한 없음
 };
 
+// 기본값: 모든 프로바이더 호환을 위해 최소 공통값 사용
 export const DEFAULT_MAX_TOOL_NAME_LENGTH = 63;
 
 export function generateValidName(
@@ -517,22 +552,21 @@ export function generateValidName(
   // Collapse consecutive underscores (Phase 2)
   validToolname = validToolname.replace(/_{2,}/g, '_');
 
+  // Hash suffix truncation (Phase 2: __ 미포함 보장)
   if (validToolname.length > maxLength) {
-    const keepStart = Math.floor((maxLength - 3) / 2);
-    const keepEnd = maxLength - 3 - keepStart;
+    const hash = simpleHash(validToolname);
     validToolname =
-      validToolname.slice(0, keepStart) + '___' + validToolname.slice(-keepEnd);
+      validToolname.slice(0, maxLength - 7) + '_' + hash.slice(0, 6);
   }
   return validToolname;
 }
 ```
 
-> **주의**: `generateValidName()`의 시그니처 변경은 Phase 2의 truncation 로직과
-> 통합하여 구현. Phase 2에서 먼저 `__` sanitize가 적용된 후 이 변경이 추가됨.
+> **Issue #4 해소**: 등록 시점에서 63자로 확정하므로 provider converter에서
+> 재-truncate 불필요. LLM이 반환하는 이름 = registry 이름 → lookup 항상 성공.
 >
-> **대안**: 등록 시점에는 가장 관대한 제한(128)으로 등록하고, API 요청 변환
-> 시점에 프로바이더별 제한 적용. 이 경우 `toGeminiTools()`, `toOpenAiTools()` 등
-> converter에서 이름 재-truncate. 구현 복잡도가 높지만 정보 손실 최소화.
+> **Issue #9 해소**: 본문과 코드 모두 `DEFAULT_MAX_TOOL_NAME_LENGTH = 63`으로
+> 통일. "등록 128자" 전략은 폐기.
 
 ---
 
@@ -564,29 +598,29 @@ LLM_PROVIDER=openai-compatible LLM_BASE_URL=http://localhost:11434/v1 \
 
 ## 완료 조건
 
-| 검증 항목                                                          | 상태 |
-| ------------------------------------------------------------------ | ---- |
-| `coerceParamTypes()` string↔number TDD — 4개 테스트               | ⬜   |
-| `coerceParamTypes()` string↔boolean TDD — 2개 테스트              | ⬜   |
-| `coerceParamTypes()` integer 변환 + 에지 케이스 — 4개 테스트       | ⬜   |
-| `coerceParamTypes()` 원본 불변 + schema undefined 처리             | ⬜   |
-| scheduler.ts / coreToolScheduler.ts 타입 강제 변환 연결            | ⬜   |
-| `fuzzyMatchToolName()` TDD — 10개 테스트 (서버 경계 보호 3건 포함) | ⬜   |
-| fuzzy match 서버 경계 보호: qualified 이름 prefix 고정 검증        | ⬜   |
-| scheduler에서 도구 lookup 실패 시 fuzzy match 시도 + 자동 교정     | ⬜   |
-| 교정 후 enrichedRequest.name 업데이트 → 정책 체크 정합성 확인      | ⬜   |
-| 프로바이더별 이름 길이 제한 TDD — 3개 테스트                       | ⬜   |
-| 기존 `normalizeToolParams()` / AJV 검증 회귀 없음                  | ⬜   |
-| sLM 환경 수동 E2E (Ollama + 도구 호출)                             | ⬜   |
-| Core 전체 테스트 PASS                                              | ⬜   |
-| 커밋 완료 + 최종 작업 결과서 작성                                  | ⬜   |
+| 검증 항목                                                                    | 상태 |
+| ---------------------------------------------------------------------------- | ---- |
+| `coerceParamTypes()` string↔number TDD — 6개 테스트 (빈/공백 가드 2건 포함) | ⬜   |
+| `coerceParamTypes()` string↔boolean TDD — 2개 테스트                        | ⬜   |
+| `coerceParamTypes()` integer 변환 + 에지 케이스 — 4개 테스트                 | ⬜   |
+| `coerceParamTypes()` 원본 불변 + schema undefined 처리                       | ⬜   |
+| scheduler.ts / coreToolScheduler.ts 타입 강제 변환 연결                      | ⬜   |
+| `fuzzyMatchToolName()` TDD — 10개 테스트 (서버 경계 보호 3건 포함)           | ⬜   |
+| fuzzy match 서버 경계 보호: qualified 이름 prefix 고정 검증                  | ⬜   |
+| scheduler에서 도구 lookup 실패 시 fuzzy match 시도 + 자동 교정               | ⬜   |
+| 교정 후 enrichedRequest.name 업데이트 → 정책 체크 정합성 확인                | ⬜   |
+| 프로바이더별 이름 길이 제한 TDD — 3개 테스트                                 | ⬜   |
+| 기존 `normalizeToolParams()` / AJV 검증 회귀 없음                            | ⬜   |
+| sLM 환경 수동 E2E (Ollama + 도구 호출)                                       | ⬜   |
+| Core 전체 테스트 PASS                                                        | ⬜   |
+| 커밋 완료 + 최종 작업 결과서 작성                                            | ⬜   |
 
 ---
 
 ## 커밋 전략
 
 1. **커밋 1** `test(utils): coerceParamTypes TDD — sLM 파라미터 타입 강제 변환`
-   - tool-utils.test.ts (10개 테스트)
+   - tool-utils.test.ts (12개 테스트: 기본 10 + 빈/공백 문자열 가드 2)
 2. **커밋 2** `feat(utils): sLM 파라미터 타입 강제 변환 구현 + scheduler 연결`
    - tool-utils.ts + scheduler.ts + coreToolScheduler.ts
 3. **커밋 3**
@@ -678,40 +712,36 @@ if (name.includes('__')) {
 }
 ```
 
-### 프로바이더별 이름 길이: 등록 시 vs API 호출 시
+### 프로바이더별 이름 길이: 등록 시 63자 통일 (Issue #4 반영)
 
-| 시점        | 장점                              | 단점                                |
-| ----------- | --------------------------------- | ----------------------------------- |
-| 등록 시     | 단순, tool-registry 일관성        | 프로바이더 확정 전 적용 → 정보 손실 |
-| API 호출 시 | 최소 정보 손실, 프로바이더 최적화 | converter별 재-truncate 로직 필요   |
+| 시점       | 장점                               | 단점                                           |
+| ---------- | ---------------------------------- | ---------------------------------------------- |
+| 등록 시 63 | 단순, round-trip 보장, lookup 안전 | 63 vs 64 차이(1자)로 극소 정보 손실            |
+| 등록 128자 | 최대 정보 보존                     | **round-trip 불일치 (lookup 실패 — Issue #4)** |
 
-**권장**: 등록 시 관대한 제한(128자) 적용 후, API 호출 시 프로바이더별
-재-truncate. 다만 초기 구현은 등록 시 프로바이더 감지가 복잡하므로, **DEFAULT
-128자 + Gemini converter에서 63자 재-truncate** 방식으로 시작.
+**결정**: 등록 시 `DEFAULT_MAX_TOOL_NAME_LENGTH = 63`으로 통일.
 
-### [보완] Phase 2 ↔ Phase 5.4 교차 조율 (Issue #3 교차)
+- Converter가 name을 그대로 전달하고 LLM이 그대로 반환하는 현재 아키텍처에서,
+  등록 이름 ≠ LLM 반환 이름이면 scheduler lookup 실패
+- 역매핑 테이블(truncated→original) 도입은 아키텍처 변경이 과도
+- 63 vs 64 차이(Gemini 63, OpenAI/Anthropic 64)는 실무상 무의미
+- 향후 프로바이더별 확장이 필요하면 `generateValidName(name, maxLength)`
+  시그니처 활용
 
-> **배경**: Issue #3 검증에서 `getFullyQualifiedName()`이 prefix + 63자 = 최대
-> 112자까지 생성 가능 확인. Phase 2에서 재-truncate를 63자 하드코딩으로 설계
-> 했으나, Phase 5.4에서 프로바이더별 제한(128자)을 도입하면 두 로직이 충돌.
+### [보완] Phase 2 ↔ Phase 5.4 교차 조율 (Issue #3 + #4 반영)
 
-**문제**: Phase 2가 먼저 구현되면 `getFullyQualifiedName()`에 63자 하드코딩
-재-truncate가 들어감. Phase 5.4에서 이를 다시 가변으로 변경해야 하므로 Phase 2
-코드의 2차 수정 발생.
+> **배경**: Issue #3 검증에서 `___` truncation 마커의 `__` 충돌 확인. Issue #4
+> 검증에서 "등록 128자, provider 63자" 전략의 round-trip 불일치 확인. 두 이슈
+> 모두 반영하여 Phase 2 ↔ Phase 5.4 조율 완료.
 
-**조율 방안**:
+**최종 조율 결과**:
 
-| 방안                                    | 장점                                  | 단점                          |
-| --------------------------------------- | ------------------------------------- | ----------------------------- |
-| A: Phase 2에서 maxLength 파라미터 도입  | Phase 5에서 변경 불필요, 한 번에 설계 | Phase 2 스코프 확대           |
-| B: Phase 2는 하드코딩, Phase 5에서 교체 | Phase별 독립성 유지                   | Phase 5에서 Phase 2 코드 수정 |
-
-**권장**: **방안 B** (Phase별 독립성 유지). 이유:
-
-- Phase 2는 Gemini API 안전성이 목적 → 63자 하드코딩으로 충분
-- Phase 5에서 `generateValidName(name, maxLength)` 시그니처 변경 시
-  `getFullyQualifiedName()`도 함께 업데이트
-- Tidy-first 원칙: 동작 변경(Phase 2) → 구조 변경(Phase 5) 분리
+- Phase 2: `generateValidName()` — 하드코딩 63자 + hash suffix truncation (`___`
+  폐기)
+- Phase 5.4: `generateValidName(name, maxLength)` — 시그니처 확장, default는
+  `DEFAULT_MAX_TOOL_NAME_LENGTH = 63` (동일 값)
+- **결론**: Phase 5.4는 **시그니처만 변경** (기본값 63 유지). 실제 동작은 Phase
+  2와 동일하므로 회귀 리스크 없음.
 
 **Phase 5 구현 시 확인사항**:
 
@@ -760,12 +790,12 @@ LLM Tool Call Response
 > Issue #1~#4 독립 검증 결과, 모든 이슈가 기존 Phase 1~4에서 해소됨을 확인. 단,
 > Phase 5와의 교차점에서 **신규 리스크 3건**을 식별하여 본 문서에 반영.
 
-| 이슈                                      | Phase 대응 | Phase 5 교차 영향                                                         |
-| ----------------------------------------- | ---------- | ------------------------------------------------------------------------- |
-| #1 wildcard 정책 우회 (`__` in toolName)  | P2+P3      | fuzzyMatchToolName 서버 경계 보호 필요 → **5.3 보완 완료**                |
-| #2 비결정적 네이밍 (Promise.all 경합)     | P1         | 없음 (Phase 1이 Phase 5 전에 해소)                                        |
-| #3 qualified 이름 길이 초과 (63자+prefix) | P2         | Phase 2 하드코딩 63 ↔ Phase 5.4 가변 길이 충돌 → **설계 결정 보완 완료** |
-| #4 MCP 파라미터 정규화 미적용             | P4         | 없음 (Phase 4 인프라 위에 Phase 5 확장)                                   |
+| 이슈                                      | Phase 대응 | Phase 5 교차 영향                                                             |
+| ----------------------------------------- | ---------- | ----------------------------------------------------------------------------- |
+| #1 wildcard 정책 우회 (`__` in toolName)  | P2+P3      | fuzzyMatchToolName 서버 경계 보호 필요 → **5.3 보완 완료**                    |
+| #2 비결정적 네이밍 (Promise.all 경합)     | P1         | 없음 (Phase 1이 Phase 5 전에 해소)                                            |
+| #3 qualified 이름 길이 초과 (63자+prefix) | P2         | Phase 2 하드코딩 63 → Phase 5.4 시그니처 확장(기본값 63 유지) → **조율 완료** |
+| #4 MCP 파라미터 정규화 미적용             | P4         | 없음 (Phase 4 인프라 위에 Phase 5 확장)                                       |
 
 **보완 내역**:
 

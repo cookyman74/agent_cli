@@ -1,10 +1,10 @@
 # Phase 3: 정책 엔진 와일드카드 엣지 케이스 강화
 
 > **목적**: `server__*` 와일드카드 정책에서 서버 스푸핑 불가능 보장 +
-> `serverName` undefined 엣지 케이스 완전 차단 **핵심 변경**: `ruleMatches()`
-> serverName undefined 가드 강화 + `toolCallsToTry` 구성 시 추가 검증
-> **의존성**: Phase 2 완료 필수 (도구 이름 내 `__` 제거 보장 전제) **참고
-> 설계**:
+> `serverName` undefined 엣지 케이스 안전 처리 **핵심 변경**: `ruleMatches()`
+> serverName undefined 시 toolCall.name에서 prefix 추출 검증 + `toolCallsToTry`
+> 구성 시 추가 검증 **의존성**: Phase 2 완료 권장 (단, 정책 엔진은 Phase 2
+> sanitize에 의존하지 않고 **자체 방어**) **참고 설계**:
 > [main_todolist_mcp_tools_20260219.md Issue #1](../main_todolist_mcp_tools_20260219.md)
 
 ---
@@ -50,11 +50,16 @@
   - `ruleMatches()` line 47: `if (serverName !== undefined)` → undefined면 서버
     검증 건너뜀
   - line 55: `toolCall.name.startsWith(prefix + '__')` 만 검증
-  - **공격**: 악의적 도구가 `trusted_server__malicious_tool`이라는 이름으로 등록
-  - **현재 방어**: Phase 2에서 `__` sanitize → 도구 이름에 `__` 불가 → 이 공격
-    불가능
-  - **그러나**: 서버 이름이 아닌 직접 등록 경로(테스트, 비정상 상태)에서
-    serverName 누락 가능
+  - **기존 테스트 기대**: `policy-engine.test.ts:368` —
+    `engine.check({ name: 'my-server__tool1' }, undefined)` → ALLOW 기대
+    (serverName=undefined에서 FQN 이름의 prefix 매칭으로 와일드카드 동작)
+  - **공격 시나리오**: 악의적 도구가 `trusted_server__malicious_tool` 이름 등록
+  - **Phase 2 sanitize 한계**: sanitize는 registry 이름에만 적용. **정책
+    경로에서는 raw `serverToolName` 사용** (`mcp-tool.ts:91`:
+    `${serverName}${MCP_QUALIFIED_NAME_SEPARATOR}${serverToolName}`) → Phase 2
+    sanitize로는 정책 경로 안전성 미확보.
+  - **결론**: 정책 엔진이 **자체적으로** serverName/toolCall.name prefix 검증
+    수행해야 함 (Phase 2 sanitize에 의존 금지)
 
   **엣지 케이스 2: toolCall.name에 `__` 포함**
   - `check()` line 312: `!toolCall.name.includes('__')` → `__` 포함 시 2차 자격
@@ -88,11 +93,21 @@
 
 ```typescript
 describe('wildcard policy — edge cases', () => {
-  it('should reject wildcard match when serverName is undefined', () => {
+  // --- Issue #5 대응: serverName undefined 시 prefix 추출 방식 ---
+
+  it('should match wildcard when serverName is undefined but toolCall.name prefix matches', () => {
     // rule: { toolName: 'trusted__*', decision: 'allow' }
-    // toolCall: { name: 'trusted__malicious_tool' }
+    // toolCall: { name: 'trusted__safe_tool' }
     // serverName: undefined
-    // → 매칭 거부 (serverName 검증 불가)
+    // → toolCall.name에서 prefix 'trusted' 추출 → rule prefix와 일치 → 매칭 성공
+    // (기존 테스트 policy-engine.test.ts:368 호환 유지)
+  });
+
+  it('should reject wildcard when serverName is undefined and toolCall.name prefix does not match', () => {
+    // rule: { toolName: 'trusted__*', decision: 'allow' }
+    // toolCall: { name: 'malicious__exploit' }
+    // serverName: undefined
+    // → prefix 'malicious' !== rule prefix 'trusted' → 매칭 거부
   });
 
   it('should reject wildcard match when serverName does not match prefix', () => {
@@ -122,6 +137,17 @@ describe('wildcard policy — edge cases', () => {
     // serverName: 'srv'
     // → 매칭 거부 (toolCall.name doesn't start with 'srv__')
   });
+
+  // --- Issue #6 대응: raw serverToolName에 __ 포함 시나리오 ---
+
+  it('should reject wildcard when raw toolCall.name has multiple __ segments', () => {
+    // rule: { toolName: 'trusted__*', decision: 'allow' }
+    // toolCall: { name: 'trusted__sub__exploit' }
+    // serverName: 'trusted'
+    // → toolCall.name의 첫 번째 __ 이후에 다시 __ 포함 → 이상 이름 감지
+    // → 매칭 성공 (serverName 일치 + prefix 일치, 도구명 부분의 __는 무해)
+    // 이유: serverName이 정확히 일치하고 prefix도 일치하면 안전함
+  });
 });
 ```
 
@@ -134,21 +160,40 @@ describe('wildcard policy — edge cases', () => {
 if (rule.toolName.endsWith('__*')) {
   const prefix = rule.toolName.slice(0, -3); // Remove "__*"
 
-  // SECURITY: serverName MUST be provided and MUST match prefix
-  // Without serverName verification, any tool with matching name prefix could bypass policy
-  if (serverName === undefined || serverName !== prefix) {
-    return false;
-  }
-
   // Double-check: toolCall.name must start with prefix + separator
   if (!toolCall.name || !toolCall.name.startsWith(prefix + '__')) {
     return false;
   }
+
+  if (serverName !== undefined) {
+    // SECURITY: serverName이 제공되면 반드시 prefix와 일치해야 함
+    // 서버 스푸핑 방지: 'malicious' 서버가 'trusted__tool' 이름을 사용해도 거부
+    if (serverName !== prefix) {
+      return false;
+    }
+  } else {
+    // serverName === undefined: toolCall.name에서 prefix를 추출하여 검증
+    // 기존 동작 호환: engine.check({ name: 'my-server__tool1' }, undefined) → ALLOW
+    // toolCall.name이 이미 prefix + '__' 로 시작하는지 위에서 확인됨 → 안전
+    // 추가 검증: toolCall.name의 추출된 prefix가 rule prefix와 일치하는지 확인
+    const extractedPrefix = toolCall.name.split('__')[0];
+    if (extractedPrefix !== prefix) {
+      return false;
+    }
+  }
 }
 ```
 
-**변경 포인트**: 기존 코드에서 `serverName !== undefined` 조건이 true일 때만
-서버 검증 → **undefined일 때 무조건 거부**로 변경.
+**변경 포인트**:
+
+- **Issue #5 대응**: serverName undefined 시 **무조건 거부 대신** toolCall.name
+  에서 prefix 추출 후 검증. 기존 테스트(`policy-engine.test.ts:368-395`)와 호환
+  유지.
+- **Issue #6 대응**: Phase 2 sanitize에 의존하지 않고, 정책 엔진 자체에서
+  serverName/prefix 기반 검증으로 보안 확보. 정책 경로에서 raw
+  serverToolName(`mcp-tool.ts:91`)이 사용되더라도, serverName 매칭으로 보호됨.
+- **보안 보장**: serverName이 제공되면 반드시 prefix 일치 요구 (기존 동작 유지).
+  serverName이 없으면 toolCall.name의 prefix가 rule prefix와 일치하는지 확인.
 
 ---
 
@@ -196,23 +241,26 @@ npm run typecheck && npm run lint
 
 ## 완료 조건
 
-| 검증 항목                                               | 상태 |
-| ------------------------------------------------------- | ---- |
-| serverName undefined + 와일드카드 거부 TDD — 5개 테스트 | ⬜   |
-| 기존 와일드카드 테스트 회귀 없음                        | ⬜   |
-| toolCallsToTry serverName `__` 가드 (선택적)            | ⬜   |
-| Phase 1, 2 테스트 회귀 없음                             | ⬜   |
-| Core 전체 테스트 PASS                                   | ⬜   |
-| 커밋 완료 + 작업 결과서 작성                            | ⬜   |
+| 검증 항목                                                        | 상태 |
+| ---------------------------------------------------------------- | ---- |
+| 와일드카드 엣지 케이스 TDD — 7개 테스트 (prefix 추출 2 + 기존 5) | ⬜   |
+| serverName undefined + FQN 이름 prefix 매칭 기존 동작 호환       | ⬜   |
+| 기존 와일드카드 테스트 회귀 없음 (`test:349-476`)                | ⬜   |
+| toolCallsToTry serverName `__` 가드 (선택적)                     | ⬜   |
+| 정책 경로 raw serverToolName 독립 방어 확인 (Phase 2 비의존)     | ⬜   |
+| Phase 1, 2 테스트 회귀 없음                                      | ⬜   |
+| Core 전체 테스트 PASS                                            | ⬜   |
+| 커밋 완료 + 작업 결과서 작성                                     | ⬜   |
 
 ---
 
 ## 커밋 전략
 
 1. **커밋 1**
-   `test(policy): 와일드카드 정책 엣지 케이스 TDD — serverName undefined 거부`
-   - policy-engine.test.ts (5개 테스트)
-2. **커밋 2** `fix(policy): 와일드카드 정책 serverName undefined 가드 강화`
+   `test(policy): 와일드카드 정책 엣지 케이스 TDD — prefix 추출 + 독립 방어`
+   - policy-engine.test.ts (7개 테스트)
+2. **커밋 2**
+   `fix(policy): 와일드카드 정책 prefix 추출 검증 — serverName undefined 호환 + 자체 방어`
    - policy-engine.ts
 
 ---

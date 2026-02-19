@@ -99,7 +99,8 @@ export function isValidToolName(
     }
 
     // Basic slug validation for server and tool names
-    const slugRegex = /^[a-z0-9-_]+$/i;
+    // Allows dots to match generateValidName() which preserves '.' in names
+    const slugRegex = /^[a-z0-9._-]+$/i;
     return slugRegex.test(server) && slugRegex.test(tool);
   }
 

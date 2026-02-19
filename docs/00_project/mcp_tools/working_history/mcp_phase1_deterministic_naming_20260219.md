@@ -151,3 +151,38 @@
   적용)
 - 글로벌 재등록 패턴: `registerMCPTools()`는 호출마다 **전체 MCP 도구**를 재평가
   → 새 서버 추가 시에도 기존 서버 이름이 자동 재조정됨
+
+---
+
+## 크로스페이즈 코드 리뷰 수정 (2건, 2026-02-19)
+
+### CX-1 [MEDIUM]: 비결정적 allMcpTools 순서
+
+- **문제**: `allMcpTools = [...retainedTools, ...newTools]` 순서가 입력 순서에
+  의존. `Promise.all()` 서버 발견 시 비결정적 순서 → counter-based
+  disambiguation에서 같은 도구 세트에 다른 이름 할당 가능
+- **영향**: 정책 규칙이 특정 disambiguated 이름을 참조하면, 재시작 시 다른
+  도구에 적용
+- **수정**: `allMcpTools`를 `serverName + serverToolName` 기준으로 정렬.
+  `fqnTools`도 `serverToolName` 기준 정렬하여 counter 할당 결정론 보장
+- **추가 테스트**: 1개
+  (`should produce deterministic disambiguated names regardless of input order`)
+
+### CX-2 [LOW-MEDIUM]: getTool FQN fallback 모호성
+
+- **문제**: `getTool()` FQN fallback이 `getFullyQualifiedName()`으로 검색 시,
+  disambiguation된 여러 도구가 동일 FQN을 반환 → `break`로 첫 번째 매칭 반환
+  (모호)
+- **영향**: LLM이 disambiguation 전 FQN으로 호출 시 비결정적 도구 선택
+- **수정**: 매칭 카운트 추적, >1이면 `undefined` 반환 (모호성 → 기존 에러 경로)
+- **추가 테스트**: 1개
+  (`should return undefined for FQN lookup when multiple tools share the same FQN`)
+
+### 리뷰 수정 검증 결과
+
+| 검증 항목            | 결과                             |
+| -------------------- | -------------------------------- |
+| tool-registry 단위   | 32 PASS (기존 30 + 신규 2)       |
+| Core 전체 테스트     | 284 files, 5664 PASS, 24 skipped |
+| TypeScript typecheck | PASS                             |
+| ESLint lint          | PASS                             |

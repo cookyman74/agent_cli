@@ -258,3 +258,25 @@ return `${safeName}${MCP_QUALIFIED_NAME_SEPARATOR}`;
 - 서버명 sanitize 적용: `getFullyQualifiedPrefix()`에서 chars + `__` 단일화 +
   trailing `_` 제거
 - counter disambiguation도 63자 보장 → 극단 케이스 방어 완료
+
+---
+
+## 크로스페이즈 코드 리뷰 수정 (1건, 2026-02-19)
+
+### CX-3 [MEDIUM]: isValidToolName slugRegex에 `.` 누락
+
+- **문제**: `generateValidName()` regex `/[^a-zA-Z0-9_.-]/g`는 `.`을 허용하지만,
+  `isValidToolName()` slugRegex `/^[a-z0-9-_]+$/i`는 `.`을 거부. MCP 도구명에
+  `.` 포함 시 (예: `v1.2.3_tool`) 정책 규칙 검증 실패
+- **영향**: 사용자가 `.` 포함 MCP 도구에 대한 정책 설정 불가
+- **수정**: slugRegex를 `/^[a-z0-9._-]+$/i`로 변경 (tool-names.ts:102)
+- **추가 테스트**: 1개 (`should validate MCP tool names containing dots`)
+
+### 리뷰 수정 검증 결과
+
+| 검증 항목            | 결과                             |
+| -------------------- | -------------------------------- |
+| tool-names 단위      | 6 PASS (기존 5 + 신규 1)         |
+| Core 전체 테스트     | 284 files, 5664 PASS, 24 skipped |
+| TypeScript typecheck | PASS                             |
+| ESLint lint          | PASS                             |

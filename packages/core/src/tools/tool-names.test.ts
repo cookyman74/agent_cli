@@ -30,6 +30,15 @@ describe('tool-names', () => {
       expect(isValidToolName('my-server__my-tool')).toBe(true);
     });
 
+    // Cross-phase review: generateValidName preserves '.' but slugRegex must match
+    it('should validate MCP tool names containing dots', () => {
+      // generateValidName('my.tool') → 'my.tool' (dot preserved)
+      // isValidToolName must accept this for policy rule consistency
+      expect(isValidToolName('server__my.tool')).toBe(true);
+      expect(isValidToolName('my.server__my.tool')).toBe(true);
+      expect(isValidToolName('server__v1.2.3_tool')).toBe(true);
+    });
+
     it('should reject invalid tool names', () => {
       expect(isValidToolName('')).toBe(false);
       expect(isValidToolName('invalid-name')).toBe(false);

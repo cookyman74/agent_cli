@@ -569,6 +569,24 @@ describe('ToolRegistry', () => {
       expect(retrievedTool?.name).toBe(validToolName);
     });
 
+    // Cross-phase review: FQN fallback should return undefined when ambiguous
+    it('should return undefined for FQN lookup when multiple tools share the same FQN', () => {
+      // Two tools with same server and sanitize-colliding names → same getFullyQualifiedName()
+      // After disambiguation they get different registry keys, but FQN fallback
+      // searches by getFullyQualifiedName() which is identical for both
+      const tool1 = createMCPTool('serverA', 'foo bar', 'First');
+      const tool2 = createMCPTool('serverA', 'foo@bar', 'Second');
+      toolRegistry.registerMCPTools([tool1, tool2]);
+
+      // Their original FQN (before disambiguation) is the same: 'serverA__foo_bar'
+      const sharedFQN = tool1.getFullyQualifiedName();
+      expect(sharedFQN).toBe(tool2.getFullyQualifiedName());
+
+      // FQN fallback lookup should return undefined (ambiguous)
+      // because both tools report the same getFullyQualifiedName()
+      expect(toolRegistry.getTool(sharedFQN)).toBeUndefined();
+    });
+
     it('should resolve qualified names in getFunctionDeclarationsFiltered', () => {
       const serverName = 'my-server';
       const toolName = 'my-tool';
@@ -789,6 +807,31 @@ describe('ToolRegistry', () => {
       for (const name of allNames) {
         expect(name.length).toBeLessThanOrEqual(63);
       }
+    });
+
+    // Cross-phase review: deterministic ordering regardless of input order
+    it('should produce deterministic disambiguated names regardless of input order', () => {
+      // Same-server sanitize collision: 'foo bar' → 'foo_bar', 'foo@bar' → 'foo_bar'
+      const tool1 = createMCPTool('serverA', 'foo bar', 'First');
+      const tool2 = createMCPTool('serverA', 'foo@bar', 'Second');
+
+      // Order 1: tool1 first
+      toolRegistry.registerMCPTools([tool1, tool2]);
+      const namesOrder1 = toolRegistry
+        .getAllToolNames()
+        .filter((n) => n.startsWith(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}`))
+        .sort();
+
+      // Clear and re-register in reversed order
+      toolRegistry.removeMcpToolsByServer('serverA');
+      toolRegistry.registerMCPTools([tool2, tool1]);
+      const namesOrder2 = toolRegistry
+        .getAllToolNames()
+        .filter((n) => n.startsWith(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}`))
+        .sort();
+
+      // Same set of names regardless of input order
+      expect(namesOrder1).toEqual(namesOrder2);
     });
 
     it('should not create extra __ in disambiguated names when FQN ends with underscore', () => {

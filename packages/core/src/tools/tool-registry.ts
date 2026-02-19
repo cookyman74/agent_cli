@@ -271,8 +271,12 @@ export class ToolRegistry {
       }
     }
 
-    // Combine retained + new for global conflict resolution
-    const allMcpTools = [...retainedTools, ...newTools];
+    // Combine retained + new for global conflict resolution.
+    // Sort for deterministic naming regardless of discovery order (e.g. Promise.all).
+    const allMcpTools = [...retainedTools, ...newTools].sort((a, b) => {
+      const cmp = a.serverName.localeCompare(b.serverName);
+      return cmp !== 0 ? cmp : a.serverToolName.localeCompare(b.serverToolName);
+    });
 
     // Pass 1: Group by sanitized baseName to detect conflicts
     const nameToTools = new Map<string, DiscoveredMCPTool[]>();
@@ -313,8 +317,12 @@ export class ToolRegistry {
           this.allKnownTools.set(fqn, fqnTools[0].asFullyQualifiedTool());
         } else {
           // Same-server sanitize collision → hash + counter disambiguation
+          // Sort by serverToolName for deterministic counter assignment
+          const sortedFqnTools = [...fqnTools].sort((a, b) =>
+            a.serverToolName.localeCompare(b.serverToolName),
+          );
           const usedKeys = new Set<string>();
-          for (const tool of fqnTools) {
+          for (const tool of sortedFqnTools) {
             const hash = simpleHash(tool.serverToolName);
             // Strip trailing underscores to prevent '_' + '_hash' = '__hash'
             const maxLen = DEFAULT_MAX_TOOL_NAME_LENGTH;
@@ -649,11 +657,20 @@ export class ToolRegistry {
   getTool(name: string): AnyDeclarativeTool | undefined {
     let tool = this.allKnownTools.get(name);
     if (!tool && name.includes('__')) {
+      // FQN fallback: search by getFullyQualifiedName().
+      // If multiple tools share the same FQN (e.g. after disambiguation),
+      // return undefined to avoid ambiguous resolution.
+      let matchCount = 0;
       for (const t of this.allKnownTools.values()) {
         if (t instanceof DiscoveredMCPTool) {
           if (t.getFullyQualifiedName() === name) {
             tool = t;
-            break;
+            matchCount++;
+            if (matchCount > 1) {
+              // Ambiguous: multiple tools share this FQN
+              tool = undefined;
+              break;
+            }
           }
         }
       }

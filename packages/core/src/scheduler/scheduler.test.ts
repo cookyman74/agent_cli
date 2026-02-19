@@ -332,6 +332,34 @@ describe('Scheduler (Orchestrator)', () => {
       });
     });
 
+    it('should normalize request.args at enrichedRequest level so downstream consumers see canonical names', async () => {
+      const aliasedReq: ToolCallRequestInfo = {
+        callId: 'call-enrich',
+        name: 'read_file',
+        args: { path: '/tmp/enriched.txt' },
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+      const readFileTool = {
+        name: 'read_file',
+        build: vi.fn().mockReturnValue(mockInvocation),
+      } as unknown as AnyDeclarativeTool;
+      vi.mocked(mockToolRegistry.getTool).mockReturnValue(readFileTool);
+
+      await scheduler.schedule(aliasedReq, signal);
+
+      // Verify the enqueued ToolCall's request.args contains canonical name
+      const enqueuedCalls = vi.mocked(mockStateManager.enqueue).mock
+        .calls[0][0] as ToolCall[];
+      expect(enqueuedCalls[0].request.args).toEqual({
+        file_path: '/tmp/enriched.txt',
+      });
+      // Alias key should not exist
+      expect(enqueuedCalls[0].request.args).not.toHaveProperty('path');
+    });
+
     it('should not modify args when params are already correct', async () => {
       const correctReq: ToolCallRequestInfo = {
         callId: 'call-correct',

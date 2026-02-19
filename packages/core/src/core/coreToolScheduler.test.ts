@@ -2135,3 +2135,187 @@ describe('CoreToolScheduler Sequential Execution', () => {
     });
   });
 });
+
+describe('CoreToolScheduler parameter normalization', () => {
+  it('should normalize aliased params so tool.build receives canonical names', async () => {
+    const buildSpy = vi
+      .fn()
+      .mockImplementation(
+        (params: Record<string, unknown>) =>
+          new BaseToolInvocation(params, vi.fn()),
+      );
+
+    const readFileTool = {
+      name: 'read_file',
+      displayName: 'ReadFile',
+      build: buildSpy,
+      kind: Kind.ReadOnly,
+      isModifiableCallTool: false,
+      getConfirmationPayload: () => undefined,
+    } as unknown as typeof BaseDeclarativeTool.prototype;
+
+    const mockToolRegistry = {
+      getTool: (name: string) =>
+        name === 'read_file' ? readFileTool : undefined,
+      getFunctionDeclarations: () => [],
+      tools: new Map(),
+      discovery: {},
+      registerTool: () => {},
+      getToolByName: () => readFileTool,
+      getToolByDisplayName: () => readFileTool,
+      getTools: () => [],
+      discoverTools: async () => {},
+      getAllTools: () => [],
+      getToolsByServer: () => [],
+      getAllToolNames: () => ['read_file'],
+    } as unknown as ToolRegistry;
+
+    const onAllToolCallsComplete = vi.fn();
+    const mockConfig = createMockConfig({
+      getToolRegistry: () => mockToolRegistry,
+      getApprovalMode: () => ApprovalMode.YOLO,
+    });
+
+    const scheduler = new CoreToolScheduler({
+      config: mockConfig,
+      onAllToolCallsComplete,
+      getPreferredEditor: () => 'vscode',
+    });
+
+    const aliasedRequest = {
+      callId: 'call-normalize-1',
+      name: 'read_file',
+      args: { path: '/tmp/test.txt' },
+      isClientInitiated: false,
+      prompt_id: 'prompt-1',
+    };
+
+    await scheduler.schedule(aliasedRequest, new AbortController().signal);
+
+    expect(buildSpy).toHaveBeenCalledTimes(1);
+    expect(buildSpy).toHaveBeenCalledWith({ file_path: '/tmp/test.txt' });
+  });
+
+  it('should pass normalized args to policy check (request.args canonical)', async () => {
+    const buildSpy = vi
+      .fn()
+      .mockImplementation(
+        (params: Record<string, unknown>) =>
+          new BaseToolInvocation(params, vi.fn()),
+      );
+
+    const readFileTool = {
+      name: 'read_file',
+      displayName: 'ReadFile',
+      build: buildSpy,
+      kind: Kind.ReadOnly,
+      isModifiableCallTool: false,
+      getConfirmationPayload: () => undefined,
+    } as unknown as typeof BaseDeclarativeTool.prototype;
+
+    const mockToolRegistry = {
+      getTool: (name: string) =>
+        name === 'read_file' ? readFileTool : undefined,
+      getFunctionDeclarations: () => [],
+      tools: new Map(),
+      discovery: {},
+      registerTool: () => {},
+      getToolByName: () => readFileTool,
+      getToolByDisplayName: () => readFileTool,
+      getTools: () => [],
+      discoverTools: async () => {},
+      getAllTools: () => [],
+      getToolsByServer: () => [],
+      getAllToolNames: () => ['read_file'],
+    } as unknown as ToolRegistry;
+
+    const policySpy = vi.fn().mockResolvedValue({
+      decision: PolicyDecision.ALLOW,
+    });
+
+    const onAllToolCallsComplete = vi.fn();
+    const mockConfig = createMockConfig({
+      getToolRegistry: () => mockToolRegistry,
+      getPolicyEngine: () => ({ check: policySpy }) as unknown as PolicyEngine,
+    });
+
+    const scheduler = new CoreToolScheduler({
+      config: mockConfig,
+      onAllToolCallsComplete,
+      getPreferredEditor: () => 'vscode',
+    });
+
+    const aliasedRequest = {
+      callId: 'call-policy-1',
+      name: 'read_file',
+      args: { path: '/tmp/policy.txt' },
+      isClientInitiated: false,
+      prompt_id: 'prompt-1',
+    };
+
+    await scheduler.schedule(aliasedRequest, new AbortController().signal);
+
+    expect(policySpy).toHaveBeenCalledTimes(1);
+    const policyCallArgs = policySpy.mock.calls[0][0];
+    expect(policyCallArgs.args).toEqual({ file_path: '/tmp/policy.txt' });
+    expect(policyCallArgs.args).not.toHaveProperty('path');
+  });
+
+  it('should not modify args for tools without alias rules', async () => {
+    const buildSpy = vi
+      .fn()
+      .mockImplementation(
+        (params: Record<string, unknown>) =>
+          new BaseToolInvocation(params, vi.fn()),
+      );
+
+    const customTool = {
+      name: 'custom_tool',
+      displayName: 'CustomTool',
+      build: buildSpy,
+      kind: Kind.ReadOnly,
+      isModifiableCallTool: false,
+      getConfirmationPayload: () => undefined,
+    } as unknown as typeof BaseDeclarativeTool.prototype;
+
+    const mockToolRegistry = {
+      getTool: (name: string) =>
+        name === 'custom_tool' ? customTool : undefined,
+      getFunctionDeclarations: () => [],
+      tools: new Map(),
+      discovery: {},
+      registerTool: () => {},
+      getToolByName: () => customTool,
+      getToolByDisplayName: () => customTool,
+      getTools: () => [],
+      discoverTools: async () => {},
+      getAllTools: () => [],
+      getToolsByServer: () => [],
+      getAllToolNames: () => ['custom_tool'],
+    } as unknown as ToolRegistry;
+
+    const onAllToolCallsComplete = vi.fn();
+    const mockConfig = createMockConfig({
+      getToolRegistry: () => mockToolRegistry,
+      getApprovalMode: () => ApprovalMode.YOLO,
+    });
+
+    const scheduler = new CoreToolScheduler({
+      config: mockConfig,
+      onAllToolCallsComplete,
+      getPreferredEditor: () => 'vscode',
+    });
+
+    const request = {
+      callId: 'call-no-alias',
+      name: 'custom_tool',
+      args: { foo: 'bar', baz: 42 },
+      isClientInitiated: false,
+      prompt_id: 'prompt-1',
+    };
+
+    await scheduler.schedule(request, new AbortController().signal);
+
+    expect(buildSpy).toHaveBeenCalledWith({ foo: 'bar', baz: 42 });
+  });
+});

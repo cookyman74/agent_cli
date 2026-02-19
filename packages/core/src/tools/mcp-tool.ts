@@ -268,7 +268,12 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
   }
 
   getFullyQualifiedPrefix(): string {
-    return `${this.serverName}${MCP_QUALIFIED_NAME_SEPARATOR}`;
+    // Sanitize server name: replace invalid chars + collapse consecutive underscores
+    const sanitized = this.serverName
+      .replace(/[^a-zA-Z0-9_.-]/g, '_')
+      .replace(/_{2,}/g, '_')
+      .replace(/_+$/, ''); // strip trailing underscores to prevent ambiguous ___
+    return `${sanitized}${MCP_QUALIFIED_NAME_SEPARATOR}`;
   }
 
   getFullyQualifiedName(): string {
@@ -284,9 +289,12 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
     const maxToolNameLength = 63 - prefix.length;
 
     if (maxToolNameLength < 10) {
-      // Server name too long — hash the entire combined name
+      // Server name too long — truncate server but always preserve __ separator
       const hash = simpleHash(`${this.serverName}:${this.serverToolName}`);
-      return combined.slice(0, 57) + hash.slice(0, 6);
+      // Budget: truncatedServer + __ (2) + hash (6) = 63
+      const maxServerLen = 63 - 2 - 6; // 55
+      const truncServer = prefix.slice(0, maxServerLen).replace(/_+$/, '');
+      return `${truncServer}${MCP_QUALIFIED_NAME_SEPARATOR}${hash.slice(0, 6)}`;
     }
 
     // Truncate tool name: keep start + hash suffix for uniqueness

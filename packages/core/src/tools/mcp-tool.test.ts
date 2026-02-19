@@ -200,6 +200,35 @@ describe('DiscoveredMCPTool', () => {
       const t = createTestTool('a'.repeat(40), 'short_tool');
       const fqn = t.getFullyQualifiedName();
       expect(fqn.length).toBeLessThanOrEqual(63);
+      expect(fqn).toContain('__');
+    });
+
+    it('should preserve __ separator even with server name >= 56 chars', () => {
+      const t = createTestTool('b'.repeat(60), 'my_tool');
+      const fqn = t.getFullyQualifiedName();
+      expect(fqn.length).toBeLessThanOrEqual(63);
+      expect(fqn).toContain('__');
+      // Verify split produces exactly 2 non-empty parts
+      const parts = fqn.split('__');
+      expect(parts.length).toBe(2);
+      expect(parts[0].length).toBeGreaterThan(0);
+      expect(parts[1].length).toBeGreaterThan(0);
+    });
+
+    it('should sanitize server name with special characters in prefix', () => {
+      const t = createTestTool('my server!', 'tool');
+      const fqn = t.getFullyQualifiedName();
+      // 'my server!' → 'my_server_' → trailing _ stripped → 'my_server' → prefix 'my_server__'
+      expect(fqn).toBe('my_server__tool');
+      // No invalid chars in result
+      expect(fqn).toMatch(/^[a-zA-Z0-9_.-]+$/);
+    });
+
+    it('should collapse __ in server name to prevent ambiguous separator', () => {
+      const t = createTestTool('my__server', 'tool');
+      const prefix = t.getFullyQualifiedPrefix();
+      // 'my__server' → 'my_server' (__ collapsed) → prefix 'my_server__'
+      expect(prefix).toBe('my_server__');
     });
   });
 

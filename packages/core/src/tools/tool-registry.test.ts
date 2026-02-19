@@ -778,6 +778,18 @@ describe('ToolRegistry', () => {
       expect(serverATools.length).toBe(2);
       expect(serverATools[0]).not.toBe(serverATools[1]);
     });
+
+    it('should keep disambiguated names within 63 characters', () => {
+      // Even with counter suffix, names must not exceed 63 chars
+      const tool1 = createMCPTool('serverA', 'foo bar', 'First');
+      const tool2 = createMCPTool('serverA', 'foo bar', 'Second');
+      toolRegistry.registerMCPTools([tool1, tool2]);
+
+      const allNames = toolRegistry.getAllToolNames();
+      for (const name of allNames) {
+        expect(name.length).toBeLessThanOrEqual(63);
+      }
+    });
   });
 
   describe('DiscoveredToolInvocation', () => {

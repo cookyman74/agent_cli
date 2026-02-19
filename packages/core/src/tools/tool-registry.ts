@@ -318,7 +318,10 @@ export class ToolRegistry {
             let disambiguated = `${fqn.slice(0, 56)}_${hash.slice(0, 6)}`;
             let counter = 2;
             while (usedKeys.has(disambiguated)) {
-              disambiguated = `${fqn.slice(0, 53)}_${hash.slice(0, 6)}_${counter}`;
+              const counterStr = String(counter);
+              // Dynamic slice to guarantee ≤63 chars: fqn + '_' + hash(6) + '_' + counter
+              const budget = 63 - 1 - 6 - 1 - counterStr.length;
+              disambiguated = `${fqn.slice(0, budget)}_${hash.slice(0, 6)}_${counterStr}`;
               counter++;
             }
             usedKeys.add(disambiguated);

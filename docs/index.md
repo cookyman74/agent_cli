@@ -39,6 +39,8 @@ This documentation is organized into the following sections:
 
 ### Get started
 
+- **[Quick Manual (한국어)](./short_manual.md):** 빠르게 시작하기 위한 간편
+  매뉴얼.
 - **[Quickstart](./get-started/index.md):** Get started with the CLI.
 - **[Gemini 3 Pro](./get-started/gemini-3.md):** Learn how to enable and use
   Gemini 3.

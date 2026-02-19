@@ -292,7 +292,7 @@ describe('normalizeToolParams', () => {
       new_string: 'bar',
       instruction: 'fix',
     });
-    expect(result.old_string).toBe('correct');
+    expect(result['old_string']).toBe('correct');
   });
 
   // --- P0: search_file_content / glob — dir_path aliases ---
@@ -329,7 +329,7 @@ describe('normalizeToolParams', () => {
       dir_path: '/correct',
       path: '/wrong',
     });
-    expect(result.dir_path).toBe('/correct');
+    expect(result['dir_path']).toBe('/correct');
   });
 
   // --- P1: web_fetch — url → prompt alias ---
@@ -347,7 +347,7 @@ describe('normalizeToolParams', () => {
       prompt: 'Summarize https://example.com',
       url: 'https://other.com',
     });
-    expect(result.prompt).toBe('Summarize https://example.com');
+    expect(result['prompt']).toBe('Summarize https://example.com');
   });
 
   // --- P1: read_many_files — files → include alias ---
@@ -411,7 +411,7 @@ describe('normalizeToolParamsBySchema', () => {
       content: 'hello',
     };
     const result = normalizeToolParamsBySchema(args, schema);
-    expect(result.file_path).toBe('/correct.txt');
+    expect(result['file_path']).toBe('/correct.txt');
   });
 
   it('should handle multiple camelCase conversions', () => {
@@ -457,7 +457,7 @@ describe('normalizeToolParamsBySchema', () => {
       content: 'hello',
     };
     const result = normalizeToolParamsBySchema(args, schema);
-    expect(result.file_path).toBe('/camel.txt');
+    expect(result['file_path']).toBe('/camel.txt');
   });
 
   it('should not apply suffix match for optional params when ambiguous', () => {
@@ -473,7 +473,7 @@ describe('normalizeToolParamsBySchema', () => {
     const args = { path: '/tmp' };
     const result = normalizeToolParamsBySchema(args, ambiguousSchema);
     // 'path' matches file_path (required) → resolves ambiguity
-    expect(result.file_path).toBe('/tmp');
+    expect(result['file_path']).toBe('/tmp');
   });
 
   it('should skip suffix match when ambiguous and no required resolution', () => {
@@ -522,5 +522,117 @@ describe('normalizeToolParamsBySchema', () => {
     const result = normalizeToolParamsBySchema(args, multiIdSchema);
     // ambiguous — 'id' matches 3 *_id fields, 2 required → skip
     expect(result).toEqual({ id: '12345' });
+  });
+
+  // --- Issue #2 대응: 비정상 schema 방어 ---
+
+  it('should return args unchanged when required is not an array', () => {
+    const badSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+      },
+      required: 42, // 비정상: 숫자
+    };
+    const args = { filePath: '/tmp/test.txt' };
+    // 예외 없이 camelCase 정규화 수행 (required가 비정상이어도 camelCase는 동작)
+    const result = normalizeToolParamsBySchema(
+      args,
+      badSchema as unknown as Record<string, unknown>,
+    );
+    expect(result).toEqual({ file_path: '/tmp/test.txt' });
+  });
+
+  it('should filter non-string entries in required array', () => {
+    const badSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        dir_path: { type: 'string' },
+      },
+      required: ['file_path', 123, null], // 비정상 항목 포함
+    };
+    const args = { path: '/tmp' };
+    const result = normalizeToolParamsBySchema(
+      args,
+      badSchema as unknown as Record<string, unknown>,
+    );
+    // 'path' → file_path(required) vs dir_path(optional) → 모호성 해소
+    expect(result['file_path']).toBe('/tmp');
+  });
+
+  // --- Issue #3 대응: allOf 조합형 schema ---
+
+  it('should merge properties from allOf sub-schemas', () => {
+    const compositeSchema = {
+      allOf: [
+        {
+          type: 'object',
+          properties: {
+            file_path: { type: 'string' },
+          },
+          required: ['file_path'],
+        },
+        {
+          type: 'object',
+          properties: {
+            content: { type: 'string' },
+            line_number: { type: 'number' },
+          },
+        },
+      ],
+    };
+    const args = { filePath: '/tmp/f.ts', lineNumber: 10, content: 'hello' };
+    const result = normalizeToolParamsBySchema(
+      args,
+      compositeSchema as unknown as Record<string, unknown>,
+    );
+    expect(result).toEqual({
+      file_path: '/tmp/f.ts',
+      line_number: 10,
+      content: 'hello',
+    });
+  });
+
+  it('should handle allOf with overlapping properties', () => {
+    const compositeSchema = {
+      allOf: [
+        {
+          type: 'object',
+          properties: {
+            file_path: { type: 'string' },
+          },
+          required: ['file_path'],
+        },
+        {
+          type: 'object',
+          properties: {
+            file_path: { type: 'string', description: 'overridden' },
+            dir_path: { type: 'string' },
+          },
+          required: ['dir_path'],
+        },
+      ],
+    };
+    const args = { path: '/tmp' };
+    const result = normalizeToolParamsBySchema(
+      args,
+      compositeSchema as unknown as Record<string, unknown>,
+    );
+    // 'path' → file_path(required) + dir_path(required) → 모호, both required → skip
+    expect(result).toEqual({ path: '/tmp' });
+  });
+
+  it('should return args unchanged for schema with only $ref (no properties/allOf)', () => {
+    const refSchema = {
+      $ref: '#/definitions/SomeType',
+    };
+    const args = { filePath: '/tmp/test.txt' };
+    const result = normalizeToolParamsBySchema(
+      args,
+      refSchema as unknown as Record<string, unknown>,
+    );
+    // $ref만 있고 properties/allOf 없음 → 정규화 불가 → args 반환
+    expect(result).toBe(args);
   });
 });

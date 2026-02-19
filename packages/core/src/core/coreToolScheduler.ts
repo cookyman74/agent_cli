@@ -48,7 +48,6 @@ import {
   type ToolCallResponseInfo,
 } from '../scheduler/types.js';
 import { ToolExecutor } from '../scheduler/tool-executor.js';
-import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 
 export type {
   ToolCall,

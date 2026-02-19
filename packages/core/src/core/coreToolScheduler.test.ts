@@ -2138,18 +2138,16 @@ describe('CoreToolScheduler Sequential Execution', () => {
 
 describe('CoreToolScheduler parameter normalization', () => {
   it('should normalize aliased params so tool.build receives canonical names', async () => {
-    const buildSpy = vi
-      .fn()
-      .mockImplementation(
-        (params: Record<string, unknown>) =>
-          new BaseToolInvocation(params, vi.fn()),
-      );
+    const buildSpy = vi.fn().mockReturnValue({
+      shouldConfirmExecute: vi.fn().mockReturnValue(false),
+      execute: vi.fn().mockResolvedValue({ llmContent: 'ok' }),
+    });
 
     const readFileTool = {
       name: 'read_file',
       displayName: 'ReadFile',
       build: buildSpy,
-      kind: Kind.ReadOnly,
+      kind: Kind.Read,
       isModifiableCallTool: false,
       getConfirmationPayload: () => undefined,
     } as unknown as typeof BaseDeclarativeTool.prototype;
@@ -2197,18 +2195,16 @@ describe('CoreToolScheduler parameter normalization', () => {
   });
 
   it('should pass normalized args to policy check (request.args canonical)', async () => {
-    const buildSpy = vi
-      .fn()
-      .mockImplementation(
-        (params: Record<string, unknown>) =>
-          new BaseToolInvocation(params, vi.fn()),
-      );
+    const buildSpy = vi.fn().mockReturnValue({
+      shouldConfirmExecute: vi.fn().mockReturnValue(false),
+      execute: vi.fn().mockResolvedValue({ llmContent: 'ok' }),
+    });
 
     const readFileTool = {
       name: 'read_file',
       displayName: 'ReadFile',
       build: buildSpy,
-      kind: Kind.ReadOnly,
+      kind: Kind.Read,
       isModifiableCallTool: false,
       getConfirmationPayload: () => undefined,
     } as unknown as typeof BaseDeclarativeTool.prototype;
@@ -2262,18 +2258,16 @@ describe('CoreToolScheduler parameter normalization', () => {
   });
 
   it('should not modify args for tools without alias rules', async () => {
-    const buildSpy = vi
-      .fn()
-      .mockImplementation(
-        (params: Record<string, unknown>) =>
-          new BaseToolInvocation(params, vi.fn()),
-      );
+    const buildSpy = vi.fn().mockReturnValue({
+      shouldConfirmExecute: vi.fn().mockReturnValue(false),
+      execute: vi.fn().mockResolvedValue({ llmContent: 'ok' }),
+    });
 
     const customTool = {
       name: 'custom_tool',
       displayName: 'CustomTool',
       build: buildSpy,
-      kind: Kind.ReadOnly,
+      kind: Kind.Read,
       isModifiableCallTool: false,
       getConfirmationPayload: () => undefined,
     } as unknown as typeof BaseDeclarativeTool.prototype;
@@ -2317,5 +2311,145 @@ describe('CoreToolScheduler parameter normalization', () => {
     await scheduler.schedule(request, new AbortController().signal);
 
     expect(buildSpy).toHaveBeenCalledWith({ foo: 'bar', baz: 42 });
+  });
+
+  it('should apply schema-based normalization for DiscoveredMCPTool when static alias has no effect', async () => {
+    const mcpSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        line_number: { type: 'number' },
+      },
+      required: ['file_path'],
+    };
+    const mockMcpCallable = {
+      tool: async () => ({ functionDeclarations: [] }),
+      callTool: async () => [],
+    };
+    const mcpTool = new DiscoveredMCPTool(
+      mockMcpCallable as unknown as CallableTool,
+      'test-server',
+      'mcp_read',
+      'Read a file',
+      mcpSchema,
+      createMockMessageBus() as unknown as MessageBus,
+    );
+    const buildSpy = vi.fn().mockReturnValue({
+      shouldConfirmExecute: vi.fn().mockReturnValue(false),
+      execute: vi.fn().mockResolvedValue({ llmContent: 'ok' }),
+    });
+    mcpTool.build = buildSpy;
+
+    const mockToolRegistry = {
+      getTool: (name: string) =>
+        name === 'test_server__mcp_read' ? mcpTool : undefined,
+      getFunctionDeclarations: () => [],
+      tools: new Map(),
+      discovery: {},
+      registerTool: () => {},
+      getToolByName: () => mcpTool,
+      getToolByDisplayName: () => mcpTool,
+      getTools: () => [],
+      discoverTools: async () => {},
+      getAllTools: () => [],
+      getToolsByServer: () => [],
+      getAllToolNames: () => ['test_server__mcp_read'],
+    } as unknown as ToolRegistry;
+
+    const onAllToolCallsComplete = vi.fn();
+    const mockConfig = createMockConfig({
+      getToolRegistry: () => mockToolRegistry,
+      getApprovalMode: () => ApprovalMode.YOLO,
+    });
+
+    const scheduler = new CoreToolScheduler({
+      config: mockConfig,
+      onAllToolCallsComplete,
+      getPreferredEditor: () => 'vscode',
+    });
+
+    const request = {
+      callId: 'call-mcp-schema',
+      name: 'test_server__mcp_read',
+      args: { filePath: '/tmp/test.txt', lineNumber: 10 },
+      isClientInitiated: false,
+      prompt_id: 'prompt-1',
+    };
+
+    await scheduler.schedule(request, new AbortController().signal);
+
+    expect(buildSpy).toHaveBeenCalledWith({
+      file_path: '/tmp/test.txt',
+      line_number: 10,
+    });
+  });
+
+  it('should skip schema-based normalization when static alias already changed args', async () => {
+    const mcpSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+      },
+      required: ['file_path'],
+    };
+    const mockMcpCallable = {
+      tool: async () => ({ functionDeclarations: [] }),
+      callTool: async () => [],
+    };
+    const mcpTool = new DiscoveredMCPTool(
+      mockMcpCallable as unknown as CallableTool,
+      'test-server',
+      'read_file',
+      'Read a file',
+      mcpSchema,
+      createMockMessageBus() as unknown as MessageBus,
+    );
+    const buildSpy = vi.fn().mockReturnValue({
+      shouldConfirmExecute: vi.fn().mockReturnValue(false),
+      execute: vi.fn().mockResolvedValue({ llmContent: 'ok' }),
+    });
+    mcpTool.build = buildSpy;
+
+    const mockToolRegistry = {
+      getTool: (name: string) => (name === 'read_file' ? mcpTool : undefined),
+      getFunctionDeclarations: () => [],
+      tools: new Map(),
+      discovery: {},
+      registerTool: () => {},
+      getToolByName: () => mcpTool,
+      getToolByDisplayName: () => mcpTool,
+      getTools: () => [],
+      discoverTools: async () => {},
+      getAllTools: () => [],
+      getToolsByServer: () => [],
+      getAllToolNames: () => ['read_file'],
+    } as unknown as ToolRegistry;
+
+    const onAllToolCallsComplete = vi.fn();
+    const mockConfig = createMockConfig({
+      getToolRegistry: () => mockToolRegistry,
+      getApprovalMode: () => ApprovalMode.YOLO,
+    });
+
+    const scheduler = new CoreToolScheduler({
+      config: mockConfig,
+      onAllToolCallsComplete,
+      getPreferredEditor: () => 'vscode',
+    });
+
+    const request = {
+      callId: 'call-mcp-static-first',
+      name: 'read_file',
+      args: { path: '/tmp/static.txt' },
+      isClientInitiated: false,
+      prompt_id: 'prompt-1',
+    };
+
+    await scheduler.schedule(request, new AbortController().signal);
+
+    // Static alias (path → file_path) handles this, schema-based skipped
+    expect(buildSpy).toHaveBeenCalledWith({
+      file_path: '/tmp/static.txt',
+    });
   });
 });

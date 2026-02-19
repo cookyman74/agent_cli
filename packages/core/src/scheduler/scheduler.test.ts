@@ -73,6 +73,8 @@ import type {
 import { ROOT_SCHEDULER_ID } from './types.js';
 import { ToolErrorType } from '../tools/tool-error.js';
 import * as ToolUtils from '../utils/tool-utils.js';
+import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
+import type { CallableTool } from '@google/genai';
 import type { EditorType } from '../utils/editor.js';
 import {
   getToolCallContext,
@@ -352,7 +354,7 @@ describe('Scheduler (Orchestrator)', () => {
 
       // Verify the enqueued ToolCall's request.args contains canonical name
       const enqueuedCalls = vi.mocked(mockStateManager.enqueue).mock
-        .calls[0][0] as ToolCall[];
+        .calls[0][0];
       expect(enqueuedCalls[0].request.args).toEqual({
         file_path: '/tmp/enriched.txt',
       });
@@ -397,6 +399,95 @@ describe('Scheduler (Orchestrator)', () => {
       await scheduler.schedule(unknownReq, signal);
 
       expect(mockTool.build).toHaveBeenCalledWith({ foo: 'bar' });
+    });
+
+    it('should apply schema-based normalization for MCP tools when static alias has no effect', async () => {
+      const mcpSchema = {
+        type: 'object',
+        properties: {
+          file_path: { type: 'string' },
+          line_number: { type: 'number' },
+        },
+        required: ['file_path'],
+      };
+      const mockMcpCallable = {
+        tool: async () => ({ functionDeclarations: [] }),
+        callTool: async () => [],
+      };
+      const mcpTool = new DiscoveredMCPTool(
+        mockMcpCallable as unknown as CallableTool,
+        'test-server',
+        'mcp_read',
+        'Read a file',
+        mcpSchema,
+        {} as never, // messageBus — not used in build path
+      );
+      const buildSpy = vi.fn().mockReturnValue(mockInvocation);
+      mcpTool.build = buildSpy;
+
+      vi.mocked(mockToolRegistry.getTool).mockReturnValue(mcpTool);
+
+      const mcpReq: ToolCallRequestInfo = {
+        callId: 'call-mcp-schema',
+        name: 'test_server__mcp_read',
+        args: { filePath: '/tmp/test.txt', lineNumber: 10 },
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+
+      await scheduler.schedule(mcpReq, signal);
+
+      expect(buildSpy).toHaveBeenCalledWith({
+        file_path: '/tmp/test.txt',
+        line_number: 10,
+      });
+    });
+
+    it('should skip schema-based normalization when static alias already changed args', async () => {
+      // 'read_file' has static alias: { path → file_path }
+      // So static normalization fires first, and schema-based is skipped
+      const mcpSchema = {
+        type: 'object',
+        properties: {
+          file_path: { type: 'string' },
+        },
+        required: ['file_path'],
+      };
+      const mockMcpCallable = {
+        tool: async () => ({ functionDeclarations: [] }),
+        callTool: async () => [],
+      };
+      const mcpTool = new DiscoveredMCPTool(
+        mockMcpCallable as unknown as CallableTool,
+        'test-server',
+        'read_file',
+        'Read a file',
+        mcpSchema,
+        {} as never,
+      );
+      const buildSpy = vi.fn().mockReturnValue(mockInvocation);
+      mcpTool.build = buildSpy;
+
+      vi.mocked(mockToolRegistry.getTool).mockReturnValue(mcpTool);
+
+      const mcpReq: ToolCallRequestInfo = {
+        callId: 'call-mcp-static-first',
+        name: 'read_file',
+        args: { path: '/tmp/static.txt' },
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+
+      await scheduler.schedule(mcpReq, signal);
+
+      // Static alias (path → file_path) handles this
+      expect(buildSpy).toHaveBeenCalledWith({
+        file_path: '/tmp/static.txt',
+      });
     });
   });
 

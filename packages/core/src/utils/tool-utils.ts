@@ -229,6 +229,55 @@ function toSnakeCase(str: string): string {
 }
 
 /**
+ * Extracts merged properties and required keys from a JSON Schema.
+ * Supports top-level properties and allOf composition.
+ * Returns undefined if no properties are found.
+ */
+function extractSchemaInfo(
+  schema: Record<string, unknown>,
+): { properties: Record<string, unknown>; required: string[] } | undefined {
+  type SchemaLike = {
+    properties?: Record<string, unknown>;
+    required?: unknown;
+    allOf?: Array<Record<string, unknown>>;
+  };
+  const s = schema as SchemaLike;
+
+  // Top-level properties
+  if (s.properties) {
+    const rawRequired = s.required;
+    const required = Array.isArray(rawRequired)
+      ? rawRequired.filter((k): k is string => typeof k === 'string')
+      : [];
+    return { properties: s.properties, required };
+  }
+
+  // allOf composition: merge properties and required from all sub-schemas
+  if (Array.isArray(s.allOf) && s.allOf.length > 0) {
+    const merged: Record<string, unknown> = {};
+    const mergedRequired: string[] = [];
+    for (const sub of s.allOf) {
+      const subSchema = sub as SchemaLike;
+      if (subSchema.properties) {
+        Object.assign(merged, subSchema.properties);
+      }
+      if (Array.isArray(subSchema.required)) {
+        for (const r of subSchema.required) {
+          if (typeof r === 'string') {
+            mergedRequired.push(r);
+          }
+        }
+      }
+    }
+    if (Object.keys(merged).length > 0) {
+      return { properties: merged, required: mergedRequired };
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Schema-based parameter normalization for MCP tools.
  *
  * Strategy (priority order):
@@ -240,6 +289,8 @@ function toSnakeCase(str: string): string {
  * - Canonical param already exists → no aliasing (protects correct calls)
  * - Original args never mutated (shallow copy)
  * - Ambiguous suffix matches skipped unless exactly one required candidate
+ * - Supports top-level properties and allOf composition
+ * - Gracefully handles malformed schema (non-array required, etc.)
  */
 export function normalizeToolParamsBySchema(
   args: Record<string, unknown>,
@@ -247,14 +298,11 @@ export function normalizeToolParamsBySchema(
 ): Record<string, unknown> {
   if (!schema) return args;
 
-  const properties = (schema as { properties?: Record<string, unknown> })
-    .properties;
-  if (!properties) return args;
+  const info = extractSchemaInfo(schema);
+  if (!info) return args;
 
-  const schemaKeys = new Set(Object.keys(properties));
-  const requiredKeys = new Set(
-    (schema as { required?: string[] }).required ?? [],
-  );
+  const schemaKeys = new Set(Object.keys(info.properties));
+  const requiredKeys = new Set(info.required);
 
   // Check if any normalization is needed
   const argKeys = Object.keys(args);

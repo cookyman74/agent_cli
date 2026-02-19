@@ -107,38 +107,35 @@ Lint: 0 warnings
 | E2E-2: Claude 루프감지/히스토리 압축 | ⏳   | 긴 대화 필요 — 비대화식 모드로 테스트 불가 |
 | E2E-3: Claude web-fetch fallback     | ✅   | urlContext 가드 → curl 폴백 → 정상 요약    |
 | E2E-4: OpenAI 기본 스트리밍          | ✅   | 도구 미사용 쿼리 정상 응답                 |
-| E2E-4: OpenAI 도구 호출              | ❌   | 별도 버그 — 아래 §6.1 참조                 |
+| E2E-4: OpenAI 도구 호출              | ✅   | §6.1 버그 수정 후 정상 동작 확인           |
 | E2E-5: Gemini 회귀                   | ⏳   | GEMINI_API_KEY 미제공                      |
 
-### 6.1 OpenAI 도구 호출 실패 — 별도 버그 (hotfix 범위 밖)
+### 6.1 OpenAI 도구 호출 role 매핑 — 수정 완료 ✅
 
 **증상**: OpenAI 프로바이더에서 도구 호출 시
 `400 An assistant message with 'tool_calls' must be followed by tool messages responding to each 'tool_call_id'`
 에러 발생.
 
-**근본 원인**: `buildLlmRequestFromGeminiState()`
-(requestBuilder.ts:186-190)에서 현재 요청을 항상 `{ role: 'user' }`로 감쌈. 도구
-응답(functionResponse)도 동일하게 처리되어 OpenAI API의
-`{ role: 'tool', tool_call_id }` 요구사항 미충족.
+**근본 원인**: `buildLlmRequestFromGeminiState()`에서 currentRequest를 항상
+`{ role: 'user' }`로 감쌈. functionResponse(도구 응답)도 동일하게 처리되어
+OpenAI API의 `{ role: 'tool', tool_call_id }` 요구사항 미충족.
 
-**왜 Claude는 동작하는가**: Anthropic API는 `tool_result`을 `user` role 메시지
-안에 포함하는 것을 허용 (공식 프로토콜).
+**수정**: `buildLlmRequestFromGeminiState()`에 `fixToolResultRoles()` 호출 추가.
+이 유틸리티는 `{ role: 'user', content: [tool_result] }` →
+`{ role: 'tool', content: [tool_result] }` 변환 수행. `llmMessageUtils.ts`에
+이미 존재하던 함수로, `client.ts` routing context에서도 사용 중이었으나
+`requestBuilder.ts`에서 누락되어 있었음.
 
-**수정 방향**: `buildLlmRequestFromGeminiState()`에서 currentRequest에
-functionResponse가 포함된 경우 `role: 'user'` 대신 tool-role 메시지로
-분리하거나, OpenAI adapter의 `toOpenAIRequest()`에서 user 메시지 내
-tool_result를 tool-role로 변환.
+**변경 파일**: `requestBuilder.ts` (+2줄), `requestBuilder.test.ts` (~60줄 추가)
 
-**영향 범위**: OpenAI 프로바이더 + 도구 호출이 필요한 모든 시나리오
-(서브에이전트, 일반 도구). 도구 미사용 쿼리(기본 스트리밍)는 정상 동작.
+**검증 결과**: OpenAI `echo hello` (shell tool) ✅, `list_directory` ✅, Claude
+프로바이더 회귀 ✅
 
 ---
 
 ## 7. 잔여 이슈 및 향후 과제
 
-1. **[HIGH] OpenAI 도구 호출 role 매핑**: §6.1 참조 —
-   `buildLlmRequestFromGeminiState` 에서 functionResponse → tool role 변환 필요.
-   hotfix 별도 브랜치에서 수정 권장.
+1. ~~**[HIGH] OpenAI 도구 호출 role 매핑**~~: ✅ 수정 완료 (§6.1 참조)
 2. **orphan tool message 구조적 해소**: non-Gemini 프로바이더에서 tool response
    매칭 시 id 기반 round-trip 의존 — 현재 typeConversion에서 id 보존으로
    해결하나 구조적 리팩터링 여지 있음
@@ -159,6 +156,6 @@ tool_result를 tool-role로 변환.
 | 빌드 성공                                  | ✅   |
 | Lint + Typecheck 통과                      | ✅   |
 | 수동 E2E (Claude 프로바이더)               | ✅   |
-| 수동 E2E (OpenAI 프로바이더)               | ⚠️   |
+| 수동 E2E (OpenAI 프로바이더)               | ✅   |
 | 수동 E2E (Gemini 프로바이더 회귀)          | ⏳   |
 | 완료 조건 체크표시 + 최종 작업 결과서 작성 | ✅   |

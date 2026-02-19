@@ -10,17 +10,17 @@
 
 ## 1.1 사전 작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** 작업 목적 및 배경 확인
+- [x] **[CONTEXT]** 작업 목적 및 배경 확인
   - 설계 문서 검토: [plan_20260218.md §5.A](../plan_20260218.md)
   - 에러 재현 경로: `LocalSubagentInvocation.execute()` →
     `GeminiChat.generateContentStream()` → throw
 
-- [ ] **[ANALYSIS-1]** `AgentChatSession` 인터페이스 확인
+- [x] **[ANALYSIS-1]** `AgentChatSession` 인터페이스 확인
   - 파일: `packages/core/src/agents/types.ts`
   - 확인: `sendMessageStream()`, `setHistory()`, `getHistory()`,
     `getLastPromptTokenCount()` 시그니처
 
-- [ ] **[ANALYSIS-2]** `local-executor.ts` StreamEvent 소비 패턴 확인
+- [x] **[ANALYSIS-2]** `local-executor.ts` StreamEvent 소비 패턴 확인
   - 파일: `packages/core/src/agents/local-executor.ts`
   - 확인: `callModel()` (line 654-744)에서 접근하는 StreamEvent 필드
   - 확인: `chunk.functionCalls`, `candidates[0].content.parts`,
@@ -29,20 +29,20 @@
     `{ role: 'user', parts: toolResponseParts }` 에 **여러 functionResponse**
     포함 가능 [3차 리뷰 #1]
 
-- [ ] **[ANALYSIS-3]** 재사용 유틸리티 시그니처 확인
+- [x] **[ANALYSIS-3]** 재사용 유틸리티 시그니처 확인
   - `buildLlmRequestFromGeminiState()` —
     `providers/gemini/requestBuilder.ts:175`
   - `LlmResponseAccumulator` — `providers/gemini/historyBuilder.ts:36`
   - `StreamEventType` enum — `providers/gemini/chat.ts:55`
   - `fixToolResultRoles()` — `core/llmMessageUtils.ts` (Phase 1.2에서 선행 구현)
 
-- [ ] **[ANALYSIS-4]** 기존 에이전트 테스트 베이스라인 기록
+- [x] **[ANALYSIS-4]** 기존 에이전트 테스트 베이스라인 기록
 
   ```bash
   npm test -w @didim365/agent-cli-core -- src/agents/
   ```
 
-- [ ] **[ANALYSIS-5]** OpenAI converter multi-tool_result 처리 확인 [3차 리뷰
+- [x] **[ANALYSIS-5]** OpenAI converter multi-tool_result 처리 확인 [3차 리뷰
       #1]
   - 파일: `packages/core/src/providers/openai/converter.ts`
   - 확인: line 499-519 — `convertToolMessage()` 이 `find()` 사용 → **첫 번째
@@ -72,7 +72,7 @@
 
 ### 1.2.1 RED: fixToolResultRoles 테스트 작성 [리뷰 #7 + 2차 #4 + 3차 #1]
 
-- [ ] **[RED-B0-1]** tool_result-only user → role: 'tool' 변환 테스트
+- [x] **[RED-B0-1]** tool_result-only user → role: 'tool' 변환 테스트
 
   ```typescript
   // packages/core/src/core/llmMessageUtils.test.ts (신규)
@@ -120,7 +120,7 @@
   });
   ```
 
-- [ ] **[RED-B0-2]** 빈 toolCallId 가드 테스트 [2차 리뷰 #4]
+- [x] **[RED-B0-2]** 빈 toolCallId 가드 테스트 [2차 리뷰 #4]
 
   ```typescript
   // [2차 리뷰 반영 #4] 빈 toolCallId면 role 변경하지 않음
@@ -162,7 +162,7 @@
   });
   ```
 
-- [ ] **[RED-B0-3]** multi-tool_result 분할 테스트 [3차 리뷰 #1]
+- [x] **[RED-B0-3]** multi-tool_result 분할 테스트 [3차 리뷰 #1]
 
   ```typescript
   // [3차 리뷰 반영 #1] OpenAI convertToolMessage() find() 대응
@@ -282,14 +282,14 @@
   });
   ```
 
-- [ ] **[RED-B0-VERIFY]** 테스트 실패 확인
+- [x] **[RED-B0-VERIFY]** 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/core/llmMessageUtils  # 반드시 FAIL
   ```
 
 ### 1.2.2 GREEN: llmMessageUtils.ts 구현
 
-- [ ] **[TASK-B00]** `llmMessageUtils.ts` 생성
+- [x] **[TASK-B00]** `llmMessageUtils.ts` 생성
   - 파일: `packages/core/src/core/llmMessageUtils.ts` (신규, ~50줄)
   - 내용: `fixToolResultRoles()` 함수
     - **role 변환**: `role: 'user'` + content 전부 `tool_result` →
@@ -301,7 +301,7 @@
     - 분할과 role 변경은 동일 조건 (전부 tool_result + 전부 non-empty
       toolCallId)에서만 수행
 
-- [ ] **[GREEN-B0-VERIFY]** llmMessageUtils 테스트 통과
+- [x] **[GREEN-B0-VERIFY]** llmMessageUtils 테스트 통과
   ```bash
   npm test -w @didim365/agent-cli-core -- src/core/llmMessageUtils  # PASS
   ```
@@ -312,7 +312,7 @@
 
 ### 1.3.1 convertLlmEventToStreamEvent() 변환 테스트 (신규)
 
-- [ ] **[RED-1]** TextDelta → CHUNK 변환 테스트
+- [x] **[RED-1]** TextDelta → CHUNK 변환 테스트
 
   ```typescript
   // packages/core/src/agents/llmAgentChatSession.test.ts (신규)
@@ -333,7 +333,7 @@
   });
   ```
 
-- [ ] **[RED-2]** ThoughtDelta → CHUNK with `thought: true` 변환 테스트
+- [x] **[RED-2]** ThoughtDelta → CHUNK with `thought: true` 변환 테스트
 
   ```typescript
   it('converts ThoughtDelta to CHUNK with thought flag', () => {
@@ -350,7 +350,7 @@
   });
   ```
 
-- [ ] **[RED-3]** ToolCallRequest → CHUNK with `functionCalls` 변환 테스트
+- [x] **[RED-3]** ToolCallRequest → CHUNK with `functionCalls` 변환 테스트
 
   ```typescript
   it('converts ToolCallRequest to CHUNK with functionCalls', () => {
@@ -371,7 +371,7 @@
   });
   ```
 
-- [ ] **[RED-4]** Retry / AgentStopped / AgentBlocked 매핑 테스트
+- [x] **[RED-4]** Retry / AgentStopped / AgentBlocked 매핑 테스트
 
   ```typescript
   it('converts Retry to RETRY event', () => {
@@ -390,7 +390,7 @@
   });
   ```
 
-- [ ] **[RED-5]** Error event → throw 전파 테스트 [리뷰 반영 #2]
+- [x] **[RED-5]** Error event → throw 전파 테스트 [리뷰 반영 #2]
 
   ```typescript
   it('throws on Error event instead of returning null', async () => {
@@ -404,7 +404,7 @@
   });
   ```
 
-- [ ] **[RED-6]** Finished/MessageEnd → null (skip) + usage 추출 테스트 [리뷰
+- [x] **[RED-6]** Finished/MessageEnd → null (skip) + usage 추출 테스트 [리뷰
       반영 #6 + 2차 리뷰 #3]
 
   ```typescript
@@ -431,7 +431,7 @@
 
 ### 1.3.2 LlmAgentChatSession 세션 관리 테스트
 
-- [ ] **[RED-7]** history 관리 테스트 (user → streaming 전 추가, model →
+- [x] **[RED-7]** history 관리 테스트 (user → streaming 전 추가, model →
       streaming 후)
 
   ```typescript
@@ -455,11 +455,11 @@
   });
   ```
 
-- [ ] **[RED-8]** error 시 model response history 미추가 테스트
+- [x] **[RED-8]** error 시 model response history 미추가 테스트
 
-- [ ] **[RED-9]** AbortSignal 전파 테스트
+- [x] **[RED-9]** AbortSignal 전파 테스트
 
-- [ ] **[RED-10]** 모델 해석 테스트 — `resolvedConfig.model` 기반 [리뷰 #1 + 3차
+- [x] **[RED-10]** 모델 해석 테스트 — `resolvedConfig.model` 기반 [리뷰 #1 + 3차
       #2 + 4차 #1]
 
   ```typescript
@@ -485,7 +485,7 @@
   });
   ```
 
-- [ ] **[RED-11]** tool_result role 교정 + 분할 테스트 [2차 리뷰 #1 + 3차 #1]
+- [x] **[RED-11]** tool_result role 교정 + 분할 테스트 [2차 리뷰 #1 + 3차 #1]
 
   ```typescript
   it('applies fixToolResultRoles (with splitting) after buildLlmRequestFromGeminiState', async () => {
@@ -499,7 +499,7 @@
 
 ### 1.3.3 local-invocation factory 주입 테스트
 
-- [ ] **[RED-12]** local-invocation factory 주입 테스트 작성
+- [x] **[RED-12]** local-invocation factory 주입 테스트 작성
 
   ```typescript
   // packages/core/src/agents/local-invocation.test.ts (기존 파일에 추가)
@@ -523,7 +523,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/agents/llmAgentChatSession  # 반드시 FAIL
   npm test -w @didim365/agent-cli-core -- src/agents/local-invocation     # 신규 테스트 FAIL
@@ -535,7 +535,7 @@
 
 ### 1.4.1 LlmAgentChatSession 구현
 
-- [ ] **[TASK-A01]** `llmAgentChatSession.ts` 생성
+- [x] **[TASK-A01]** `llmAgentChatSession.ts` 생성
   - 파일: `packages/core/src/agents/llmAgentChatSession.ts` (신규, ~200줄)
   - 내용:
     - `LlmAgentChatSession` 클래스 (`AgentChatSession` 인터페이스 구현)
@@ -561,14 +561,14 @@
     - `StreamEventType` (chat.ts)
     - `fixToolResultRoles()` (llmMessageUtils.ts — Phase 1.2에서 이미 구현 완료)
 
-- [ ] **[GREEN-VERIFY-1]** llmAgentChatSession 테스트 통과
+- [x] **[GREEN-VERIFY-1]** llmAgentChatSession 테스트 통과
   ```bash
   npm test -w @didim365/agent-cli-core -- src/agents/llmAgentChatSession  # PASS
   ```
 
 ### 1.4.2 local-invocation.ts factory 주입
 
-- [ ] **[TASK-A02]** `local-invocation.ts` 수정
+- [x] **[TASK-A02]** `local-invocation.ts` 수정
   - 파일: `packages/core/src/agents/local-invocation.ts` (+20줄)
   - 변경 위치: `execute()` 메서드, `LocalAgentExecutor.create()` 호출 전
   - 추가 import: `isProviderIndependentGenerator`, `LlmAgentChatSession`
@@ -578,7 +578,7 @@
     `resolveProviderModel(modelConfigKey.model, providerName)` per-turn 해석
     [리뷰 #1 + 4차 #1]
 
-- [ ] **[GREEN-VERIFY-2]** local-invocation 테스트 통과
+- [x] **[GREEN-VERIFY-2]** local-invocation 테스트 통과
   ```bash
   npm test -w @didim365/agent-cli-core -- src/agents/local-invocation  # PASS
   ```
@@ -587,13 +587,13 @@
 
 ## 1.5 REFACTOR Phase
 
-- [ ] **[REFACTOR-A1]** 코드 구조 개선
+- [x] **[REFACTOR-A1]** 코드 구조 개선
   - `llmMessageUtils.ts`: JSDoc 주석 정리, 분할 로직 가독성 검토
   - `llmAgentChatSession.ts`: JSDoc 주석 정리, export 순서 정리
   - `local-invocation.ts`: import 정리
   - ESLint `arrow-body-style`, `no-this-alias` 등 프로젝트 컨벤션 확인
 
-- [ ] **[REFACTOR-A-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-A-VERIFY]** 리팩터링 후 테스트 재확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/core/llmMessageUtils  # PASS
   npm test -w @didim365/agent-cli-core -- src/agents/                # 전체 에이전트 PASS
@@ -603,21 +603,21 @@
 
 ## 1.6 사후 작업 (Post-Work)
 
-- [ ] **[TEST-A]** Phase 1 관련 테스트 실행
+- [x] **[TEST-A]** Phase 1 관련 테스트 실행
 
   ```bash
   npm test -w @didim365/agent-cli-core -- src/core/llmMessageUtils
   npm test -w @didim365/agent-cli-core -- src/agents/
   ```
 
-- [ ] **[LINT-A]** 린터 + 타입체크
+- [x] **[LINT-A]** 린터 + 타입체크
 
   ```bash
   npm run typecheck -w @didim365/agent-cli-core
   npm run lint -w @didim365/agent-cli-core
   ```
 
-- [ ] **[VERIFY-A]** 기능 검증
+- [x] **[VERIFY-A]** 기능 검증
   - 확인 항목 1: `fixToolResultRoles()` — tool_result-only user → role: 'tool'
     변환 [리뷰 #7]
   - 확인 항목 2: `fixToolResultRoles()` — 빈 toolCallId면 role 변경 안 함 [2차
@@ -640,7 +640,7 @@
     `resolveProviderModel(modelConfigKey.model, providerName)` 기반,
     config.getModel() 미사용 [4차 #1]
 
-- [ ] **[COMMIT-A]** 변경사항 커밋
+- [x] **[COMMIT-A]** 변경사항 커밋
 
   ```bash
   # 1차 커밋: 공유 유틸리티 (구조적 변경)
@@ -656,11 +656,11 @@
   git commit -m "feat(agents): inject LlmAgentChatSession factory for non-Gemini providers"
   ```
 
-- [ ] **[CHECKLIST-A]** 완료 조건 체크표시
+- [x] **[CHECKLIST-A]** 완료 조건 체크표시
   - 위 "Phase 1 완료 조건" 테이블의 모든 항목을 `⬜` → `✅`로 변경
   - 미완료 항목이 있으면 사유를 기록하고 Phase 2 사전 작업에서 확인
 
-- [ ] **[DOC-A]** 작업 결과서 작성
+- [x] **[DOC-A]** 작업 결과서 작성
   - 파일:
     `docs/00_project/subagent_multi_provider/working_history/subagent_phase1_subagent_streaming_{작업일자}.md`
   - 내용:
@@ -688,15 +688,15 @@
 
 | 검증 항목                                                                   | 상태 |
 | --------------------------------------------------------------------------- | ---- |
-| RED: fixToolResultRoles 유틸 + 빈 toolCallId 가드 테스트                    | ⬜   |
-| RED: multi-tool_result 분할 테스트 [3차 #1]                                 | ⬜   |
-| GREEN: llmMessageUtils.ts 구현 (role 변환 + 분할) + 테스트 통과             | ⬜   |
-| RED: LlmAgentChatSession 변환 테스트 작성                                   | ⬜   |
-| RED: Error→throw, Finished+MessageEnd usage 테스트 작성                     | ⬜   |
-| RED: fixToolResultRoles 적용 + 분할 테스트 (Category A)                     | ⬜   |
-| RED: local-invocation factory 주입 테스트 작성                              | ⬜   |
-| GREEN: LlmAgentChatSession 구현 (resolvedConfig.model 기반) + 통과 [4차 #1] | ⬜   |
-| GREEN: local-invocation 수정 + 테스트 통과                                  | ⬜   |
-| REFACTOR: Phase 1 구조 개선                                                 | ⬜   |
-| Phase 1 커밋 완료 (3건)                                                     | ⬜   |
-| 완료 조건 체크표시 + 작업 결과서 작성                                       | ⬜   |
+| RED: fixToolResultRoles 유틸 + 빈 toolCallId 가드 테스트                    | ✅   |
+| RED: multi-tool_result 분할 테스트 [3차 #1]                                 | ✅   |
+| GREEN: llmMessageUtils.ts 구현 (role 변환 + 분할) + 테스트 통과             | ✅   |
+| RED: LlmAgentChatSession 변환 테스트 작성                                   | ✅   |
+| RED: Error→throw, Finished+MessageEnd usage 테스트 작성                     | ✅   |
+| RED: fixToolResultRoles 적용 + 분할 테스트 (Category A)                     | ✅   |
+| RED: local-invocation factory 주입 테스트 작성                              | ✅   |
+| GREEN: LlmAgentChatSession 구현 (resolvedConfig.model 기반) + 통과 [4차 #1] | ✅   |
+| GREEN: local-invocation 수정 + 테스트 통과                                  | ✅   |
+| REFACTOR: Phase 1 구조 개선                                                 | ✅   |
+| Phase 1 커밋 완료 (4건)                                                     | ✅   |
+| 완료 조건 체크표시 + 작업 결과서 작성                                       | ✅   |

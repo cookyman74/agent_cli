@@ -26,9 +26,9 @@
 
 | 리스크                                                                                                                                       | 영향      | 대응 방안                                                                                                                | 상태 |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
-| Category A: `GenerateContentResponse` 부분 구성 — local-executor 호환                                                                        | 🟡 Medium | local-executor가 접근하는 필드만 채움 + `as` 캐스팅 + 단위 테스트 검증                                                   | ⬜   |
-| Category A: tool_result role 교정 누락 시 서브에이전트 다중 턴 tool 결과 유실                                                                | 🟡 Medium | `buildLlmRequestFromGeminiState()` 후 `fixToolResultRoles()` 적용 + 통합 테스트                                          | ⬜   |
-| **[3차 #1]** multi-tool_result OpenAI 유실: `convertToolMessage()` `find()` → 첫 1개만 처리                                                  | 🔴 High   | `fixToolResultRoles()`에서 multi-tool_result 메시지를 개별 메시지로 **분할**                                             | ⬜   |
+| Category A: `GenerateContentResponse` 부분 구성 — local-executor 호환                                                                        | 🟡 Medium | local-executor가 접근하는 필드만 채움 + `as` 캐스팅 + 단위 테스트 검증                                                   | ✅   |
+| Category A: tool_result role 교정 누락 시 서브에이전트 다중 턴 tool 결과 유실                                                                | 🟡 Medium | `buildLlmRequestFromGeminiState()` 후 `fixToolResultRoles()` 적용 + 통합 테스트                                          | ✅   |
+| **[3차 #1]** multi-tool_result OpenAI 유실: `convertToolMessage()` `find()` → 첫 1개만 처리                                                  | 🔴 High   | `fixToolResultRoles()`에서 multi-tool_result 메시지를 개별 메시지로 **분할**                                             | ✅   |
 | **[3차 #2→4차 #1]** config alias 모델 해석: `'web-fetch'` 등이 `resolveProviderModel()` 통과 → API 에러                                      | 🔴 High   | `getResolvedConfig(modelConfigKey).model` → `resolveProviderModel()` (전 Phase 공통) [4차 #1]                            | ⬜   |
 | **[4차 #2]** Category C: non-Gemini web-fetch/web-search 환각 위험 — Gemini 전용 `urlContext`/`googleSearch` 도구 없이 응답 생성 → 성공 판정 | 🔴 High   | web-fetch: non-Gemini → throw 에러 → `executeFallback()` 경로 유도 [5차 #3], web-search: 미지원 에러 반환                | ⬜   |
 | **[5차 #2]** Category C: web-search 툴 무조건 등록 — non-Gemini에서도 model에 노출 → 에러 후 반복 호출 가능                                  | 🟡 Medium | web-search 에러 메시지를 명확히 하여 model 학습 유도 + 반복 호출 제한은 기존 대화 턴 제한에 의존                         | ⬜   |
@@ -36,7 +36,7 @@
 | **[5차 #4]** alias 기반 인프라 호출 시 사용자 모델 우회 — `resolveProviderModel()`이 provider default 강제                                   | 🟢 Low    | **설계 의도**: 인프라 호출(loop-detection 등)은 provider default 사용이 올바름. `LLM_MODEL` env var로 전역 override 가능 | ⬜   |
 | Category B: Content[] ↔ LlmMessage[] 왕복 변환 정합성                                                                                       | 🟡 Medium | 기존 검증된 `convertContentsToLlmMessages()` 사용 + 변환 결과 단위 테스트                                                | ⬜   |
 | Category B: LlmResponse → GenerateContentResponse 변환 누락 필드                                                                             | 🟡 Medium | `getResponseText()` 호환성 테스트 필수, Gemini 전용 필드는 미지원 허용                                                   | ⬜   |
-| Category B: fixToolResultRoles 빈 toolCallId                                                                                                 | 🟡 Medium | `functionResponse.id` 없는 레거시 케이스 → 빈 id면 role 변경 안 함                                                       | ⬜   |
+| Category B: fixToolResultRoles 빈 toolCallId                                                                                                 | 🟡 Medium | `functionResponse.id` 없는 레거시 케이스 → 빈 id면 role 변경 안 함                                                       | ✅   |
 | Category C: retry 누락 시 일시적 에러에 web-fetch/search 실패                                                                                | 🟡 Medium | non-Gemini도 `retryWithBackoff()` 적용 (Gemini 전용 콜백만 미설정)                                                       | ⬜   |
 | Category C: systemInstruction 누락 시 web-fetch/search 결과 품질 저하                                                                        | 🟡 Medium | `getCoreSystemPrompt()` 명시적 호출 + 테스트 검증                                                                        | ⬜   |
 | Category D: non-Gemini llmCountTokens 미지원 프로바이더                                                                                      | 🟢 Low    | 기존 catch 블록 → 로컬 추정치 폴백 유지                                                                                  | ⬜   |
@@ -86,8 +86,8 @@ Phase 5 완료 → [DOC-E] 최종 결과서 작성 → 전체 완료
 | 목적      | non-Gemini 서브에이전트(Codebase Investigator, CLI Help, Generalist) 실행 가능하도록 수정                                                             |
 | 핵심 변경 | `fixToolResultRoles()` 선행 구현 (role 변환 + multi-tool_result 분할 [3차 #1]) → `LlmAgentChatSession` 신규 생성 → `local-invocation.ts` factory 주입 |
 | 변경 파일 | 신규 4 + 수정 2 = **6 파일**, ~740줄                                                                                                                  |
-| 커밋      | 3건 (llmMessageUtils → llmAgentChatSession → local-invocation)                                                                                        |
-| 상태      | ⬜ 작업 대기                                                                                                                                          |
+| 커밋      | 4건 (llmMessageUtils → llmAgentChatSession → local-invocation → docs)                                                                                 |
+| 상태      | ✅ 완료 (2026-02-18)                                                                                                                                  |
 
 ### Phase 2: Category B — BaseLlmClient 유틸리티 호출 경로
 
@@ -99,8 +99,8 @@ Phase 5 완료 → [DOC-E] 최종 결과서 작성 → 전체 완료
 | 목적      | `BaseLlmClient._generateWithRetry()` 레거시 호출을 `llmGenerateContent()` 경로로 분기 |
 | 파급력    | 이 수정 하나로 11개 호출자 자동 수정 (호출자 코드 변경 0건)                           |
 | 변경 파일 | 수정 2 = **2 파일**, ~200줄                                                           |
-| 커밋      | 1건                                                                                   |
-| 상태      | ⬜ 작업 대기                                                                          |
+| 커밋      | 3건                                                                                   |
+| 상태      | ✅ 완료 (2026-02-19)                                                                  |
 
 ### Phase 3: Category C — GeminiClient.generateContent() 도구 호출 경로
 
@@ -112,8 +112,8 @@ Phase 5 완료 → [DOC-E] 최종 결과서 작성 → 전체 완료
 | 목적      | `web-fetch.ts`, `web-search.ts`가 호출하는 `GeminiClient.generateContent()`를 non-Gemini에서도 동작하도록 수정                                                            |
 | 전략      | `generateContent()` 메서드에 llm\* 분기 + `retryWithBackoff()` + `getResolvedConfig()` 적용 + web-fetch/web-search non-Gemini 가드 (throw 에러 방식) [4차 #2 + 5차 #2~#3] |
 | 변경 파일 | 수정 2 = **2 파일**, ~100줄                                                                                                                                               |
-| 커밋      | 1건                                                                                                                                                                       |
-| 상태      | ⬜ 작업 대기                                                                                                                                                              |
+| 커밋      | 4건                                                                                                                                                                       |
+| 상태      | ✅ 완료 (2026-02-19)                                                                                                                                                      |
 
 ### Phase 4: Category D — 토큰 계산 경로
 
@@ -125,8 +125,8 @@ Phase 5 완료 → [DOC-E] 최종 결과서 작성 → 전체 완료
 | 목적      | `tokenCalculation.ts`의 미디어 파일 토큰 계산에서 non-Gemini `llmCountTokens()` 경로 추가 |
 | 영향      | 미디어(이미지) 포함 입력의 토큰 계산. 텍스트만인 경우 영향 없음                           |
 | 변경 파일 | 수정 2 = **2 파일**, ~45줄                                                                |
-| 커밋      | 1건                                                                                       |
-| 상태      | ⬜ 작업 대기                                                                              |
+| 커밋      | 2건                                                                                       |
+| 상태      | ✅ 완료 (2026-02-19)                                                                      |
 
 ### Phase 5: 통합 검증
 
@@ -138,7 +138,7 @@ Phase 5 완료 → [DOC-E] 최종 결과서 작성 → 전체 완료
 | 목적 | 전체 카테고리(A~D) 수정 후 회귀 테스트 및 E2E 검증              |
 | 검증 | 단위 테스트 → 빌드 → 린트 → E2E (Claude + OpenAI + Gemini 회귀) |
 | 문서 | 작업 결과서 작성                                                |
-| 상태 | ⬜ 작업 대기                                                    |
+| 상태 | ✅ 완료 (2026-02-19)                                            |
 
 ---
 
@@ -146,31 +146,31 @@ Phase 5 완료 → [DOC-E] 최종 결과서 작성 → 전체 완료
 
 | 검증 항목                                                                                                                                 | Phase | 상태 |
 | ----------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---- |
-| fixToolResultRoles TDD (role 변환 + multi-tool_result 분할 + 빈 toolCallId 가드) [3차 #1]                                                 | 1     | ⬜   |
-| LlmAgentChatSession TDD (변환 + 세션 관리 + Error throw + resolvedConfig.model 기반) [4차 #1]                                             | 1     | ⬜   |
-| local-invocation factory 주입 + 테스트                                                                                                    | 1     | ⬜   |
-| REFACTOR: Phase 1 구조 개선                                                                                                               | 1     | ⬜   |
-| Phase 1 커밋 완료 (3건) + **작업 결과서 작성**                                                                                            | 1     | ⬜   |
-| **Phase 1 결과서 확인** → Phase 2 착수                                                                                                    | 2     | ⬜   |
-| BaseLlmClient llm\* 분기 TDD + responseFormat + fixToolResultRoles + resolvedConfig.model [4차 #1]                                        | 2     | ⬜   |
-| REFACTOR: Phase 2 구조 개선                                                                                                               | 2     | ⬜   |
-| Phase 2 커밋 완료 + **작업 결과서 작성**                                                                                                  | 2     | ⬜   |
-| **Phase 2 결과서 확인** → Phase 3 착수                                                                                                    | 3     | ⬜   |
-| GeminiClient.generateContent llm\* 분기 TDD + retry + config + resolvedConfig.model + web-fetch/search throw 가드 [4차 #1+#2 + 5차 #2~#3] | 3     | ⬜   |
-| REFACTOR: Phase 3 구조 개선 (DRY 검토)                                                                                                    | 3     | ⬜   |
-| Phase 3 커밋 완료 + **작업 결과서 작성**                                                                                                  | 3     | ⬜   |
-| **Phase 3 결과서 확인** → Phase 4 착수                                                                                                    | 4     | ⬜   |
-| tokenCalculation llmCountTokens 분기 TDD                                                                                                  | 4     | ⬜   |
-| REFACTOR: Phase 4 구조 개선                                                                                                               | 4     | ⬜   |
-| Phase 4 커밋 완료 + **작업 결과서 작성**                                                                                                  | 4     | ⬜   |
-| **Phase 1~4 결과서 전체 확인** → Phase 5 착수                                                                                             | 5     | ⬜   |
-| Core 전체 단위 테스트 PASS                                                                                                                | 5     | ⬜   |
-| 빌드 성공                                                                                                                                 | 5     | ⬜   |
-| Lint + Typecheck 통과                                                                                                                     | 5     | ⬜   |
-| 수동 E2E (Claude 프로바이더)                                                                                                              | 5     | ⬜   |
-| 수동 E2E (OpenAI 프로바이더)                                                                                                              | 5     | ⬜   |
-| 수동 E2E (Gemini 프로바이더 회귀)                                                                                                         | 5     | ⬜   |
-| **최종 작업 결과서 작성** + 메인 계획서 상태 업데이트                                                                                     | 5     | ⬜   |
+| fixToolResultRoles TDD (role 변환 + multi-tool_result 분할 + 빈 toolCallId 가드) [3차 #1]                                                 | 1     | ✅   |
+| LlmAgentChatSession TDD (변환 + 세션 관리 + Error throw + resolvedConfig.model 기반) [4차 #1]                                             | 1     | ✅   |
+| local-invocation factory 주입 + 테스트                                                                                                    | 1     | ✅   |
+| REFACTOR: Phase 1 구조 개선                                                                                                               | 1     | ✅   |
+| Phase 1 커밋 완료 (4건) + **작업 결과서 작성**                                                                                            | 1     | ✅   |
+| **Phase 1 결과서 확인** → Phase 2 착수                                                                                                    | 2     | ✅   |
+| BaseLlmClient llm\* 분기 TDD + responseFormat + fixToolResultRoles + resolvedConfig.model [4차 #1]                                        | 2     | ✅   |
+| REFACTOR: Phase 2 구조 개선                                                                                                               | 2     | ✅   |
+| Phase 2 커밋 완료 + **작업 결과서 작성**                                                                                                  | 2     | ✅   |
+| **Phase 2 결과서 확인** → Phase 3 착수                                                                                                    | 3     | ✅   |
+| GeminiClient.generateContent llm\* 분기 TDD + retry + config + resolvedConfig.model + web-fetch/search throw 가드 [4차 #1+#2 + 5차 #2~#3] | 3     | ✅   |
+| REFACTOR: Phase 3 구조 개선 (DRY 검토)                                                                                                    | 3     | ✅   |
+| Phase 3 커밋 완료 + **작업 결과서 작성**                                                                                                  | 3     | ✅   |
+| **Phase 3 결과서 확인** → Phase 4 착수                                                                                                    | 4     | ✅   |
+| tokenCalculation llmCountTokens 분기 TDD                                                                                                  | 4     | ✅   |
+| REFACTOR: Phase 4 구조 개선                                                                                                               | 4     | ✅   |
+| Phase 4 커밋 완료 + **작업 결과서 작성**                                                                                                  | 4     | ✅   |
+| **Phase 1~4 결과서 전체 확인** → Phase 5 착수                                                                                             | 5     | ✅   |
+| Core 전체 단위 테스트 PASS                                                                                                                | 5     | ✅   |
+| 빌드 성공                                                                                                                                 | 5     | ✅   |
+| Lint + Typecheck 통과                                                                                                                     | 5     | ✅   |
+| 수동 E2E (Claude 프로바이더)                                                                                                              | 5     | ✅   |
+| 수동 E2E (OpenAI 프로바이더)                                                                                                              | 5     | ✅   |
+| 수동 E2E (Gemini 프로바이더 회귀)                                                                                                         | 5     | ✅   |
+| **최종 작업 결과서 작성** + 메인 계획서 상태 업데이트                                                                                     | 5     | ✅   |
 
 ---
 
@@ -225,6 +225,5 @@ Phase 5 완료 → [DOC-E] 최종 결과서 작성 → 전체 완료
 
 ---
 
-**작성일**: 2026-02-18 **최종 수정**: 2026-02-18 (5차 리뷰 반영: plan SSOT 수정,
-web-fetch/search throw 전략, tool 등록 리스크, alias 모델 우회 설계 의도 확인)
-**상태**: ⬜ 작성 완료, 작업 대기
+**작성일**: 2026-02-18 **최종 수정**: 2026-02-19 (Phase 1~5 전체 완료) **상태**:
+✅ 전체 완료 (Phase 1~5)

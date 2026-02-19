@@ -377,6 +377,16 @@ describe('normalizeToolParams', () => {
     expect(result).not.toHaveProperty('file_path');
   });
 
+  // --- Issue #7 대응: alias map 존재 시 불필요 copy 방지 ---
+
+  it('should return original args reference when alias map exists but no aliases match', () => {
+    // read_file has an alias map (path, filepath, filePath, file → file_path)
+    // but these args already use canonical name → no alias applied
+    const args = { file_path: '/tmp/test.txt' };
+    const result = normalizeToolParams('read_file', args);
+    expect(result).toBe(args); // same reference — no aliases applied
+  });
+
   it('should normalize filePath to path for get_internal_docs', () => {
     const result = normalizeToolParams('get_internal_docs', {
       filePath: 'cli/commands.md',
@@ -621,6 +631,52 @@ describe('normalizeToolParamsBySchema', () => {
     );
     // 'path' → file_path(required) + dir_path(required) → 모호, both required → skip
     expect(result).toEqual({ path: '/tmp' });
+  });
+
+  // --- Issue #6 대응: PascalCase 선행 underscore 방지 ---
+
+  it('should normalize PascalCase to snake_case (leading uppercase)', () => {
+    const pascalSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        line_number: { type: 'number' },
+      },
+      required: ['file_path'],
+    };
+    const args = { FilePath: '/tmp/test.txt', LineNumber: 10 };
+    const result = normalizeToolParamsBySchema(args, pascalSchema);
+    expect(result['file_path']).toBe('/tmp/test.txt');
+    expect(result['line_number']).toBe(10);
+  });
+
+  // --- Issue #8 대응: properties + allOf 공존 시 allOf 병합 ---
+
+  it('should merge top-level properties with allOf sub-schema properties', () => {
+    const mixedSchema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+      },
+      required: ['file_path'],
+      allOf: [
+        {
+          type: 'object',
+          properties: {
+            line_number: { type: 'number' },
+          },
+          required: ['line_number'],
+        },
+      ],
+    };
+    const args = { filePath: '/tmp/f.ts', lineNumber: 10 };
+    const result = normalizeToolParamsBySchema(
+      args,
+      mixedSchema as unknown as Record<string, unknown>,
+    );
+    // file_path from top-level, line_number from allOf — both camelCase→snake_case
+    expect(result['file_path']).toBe('/tmp/f.ts');
+    expect(result['line_number']).toBe(10);
   });
 
   it('should return args unchanged for schema with only $ref (no properties/allOf)', () => {

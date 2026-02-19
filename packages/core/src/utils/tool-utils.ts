@@ -225,7 +225,11 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
  * e.g., 'filePath' → 'file_path', 'lineNumber' → 'line_number'
  */
 function toSnakeCase(str: string): string {
-  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  return str.replace(
+    /[A-Z]/g,
+    (letter, offset: number) =>
+      (offset === 0 ? '' : '_') + letter.toLowerCase(),
+  );
 }
 
 /**
@@ -242,36 +246,36 @@ function extractSchemaInfo(
     allOf?: Array<Record<string, unknown>>;
   };
   const s = schema as SchemaLike;
+  const mergedProperties: Record<string, unknown> = {};
+  const mergedRequired: string[] = [];
 
-  // Top-level properties
+  // Collect top-level properties
   if (s.properties) {
-    const rawRequired = s.required;
-    const required = Array.isArray(rawRequired)
-      ? rawRequired.filter((k): k is string => typeof k === 'string')
-      : [];
-    return { properties: s.properties, required };
+    Object.assign(mergedProperties, s.properties);
+    if (Array.isArray(s.required)) {
+      for (const r of s.required) {
+        if (typeof r === 'string') mergedRequired.push(r);
+      }
+    }
   }
 
-  // allOf composition: merge properties and required from all sub-schemas
+  // Collect allOf sub-schema properties (additive — merges with top-level)
   if (Array.isArray(s.allOf) && s.allOf.length > 0) {
-    const merged: Record<string, unknown> = {};
-    const mergedRequired: string[] = [];
     for (const sub of s.allOf) {
       const subSchema = sub as SchemaLike;
       if (subSchema.properties) {
-        Object.assign(merged, subSchema.properties);
+        Object.assign(mergedProperties, subSchema.properties);
       }
       if (Array.isArray(subSchema.required)) {
         for (const r of subSchema.required) {
-          if (typeof r === 'string') {
-            mergedRequired.push(r);
-          }
+          if (typeof r === 'string') mergedRequired.push(r);
         }
       }
     }
-    if (Object.keys(merged).length > 0) {
-      return { properties: merged, required: mergedRequired };
-    }
+  }
+
+  if (Object.keys(mergedProperties).length > 0) {
+    return { properties: mergedProperties, required: mergedRequired };
   }
 
   return undefined;
@@ -382,6 +386,7 @@ export function normalizeToolParams(
     return args;
   }
 
+  let changed = false;
   const normalized = { ...args };
   for (const [alias, canonical] of Object.entries(aliasMap)) {
     if (
@@ -390,7 +395,8 @@ export function normalizeToolParams(
     ) {
       normalized[canonical] = normalized[alias];
       delete normalized[alias];
+      changed = true;
     }
   }
-  return normalized;
+  return changed ? normalized : args;
 }

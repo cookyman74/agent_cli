@@ -699,6 +699,85 @@ describe('ToolRegistry', () => {
       );
       expect(serverATools.length).toBe(2);
     });
+
+    // --- Issue #1 fix: cross-server determinism via global re-registration ---
+
+    it('should qualify both servers when registered sequentially (A then B)', () => {
+      const toolA = createMCPTool('serverA', 'read_file', 'Read from A');
+      const toolB = createMCPTool('serverB', 'read_file', 'Read from B');
+
+      // Sequential: A first, then B (simulates Promise.all order variant 1)
+      toolRegistry.registerMCPTools([toolA]);
+      toolRegistry.registerMCPTools([toolB]);
+
+      expect(toolRegistry.getTool('read_file')).toBeUndefined();
+      expect(
+        toolRegistry.getTool(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+      expect(
+        toolRegistry.getTool(`serverB${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+    });
+
+    it('should produce same names when registration order is reversed (B then A)', () => {
+      const toolA = createMCPTool('serverA', 'read_file', 'Read from A');
+      const toolB = createMCPTool('serverB', 'read_file', 'Read from B');
+
+      // Sequential: B first, then A (simulates Promise.all order variant 2)
+      toolRegistry.registerMCPTools([toolB]);
+      toolRegistry.registerMCPTools([toolA]);
+
+      expect(toolRegistry.getTool('read_file')).toBeUndefined();
+      expect(
+        toolRegistry.getTool(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+      expect(
+        toolRegistry.getTool(`serverB${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+    });
+
+    it('should maintain cross-server qualification after single-server refresh', () => {
+      const toolA = createMCPTool('serverA', 'read_file', 'Read from A');
+      const toolB = createMCPTool('serverB', 'read_file', 'Read from B');
+
+      // Initial registration (both servers)
+      toolRegistry.registerMCPTools([toolA, toolB]);
+
+      // Simulate server A refresh (remove + re-register)
+      toolRegistry.removeMcpToolsByServer('serverA');
+      const newToolA = createMCPTool(
+        'serverA',
+        'read_file',
+        'Updated read from A',
+      );
+      toolRegistry.registerMCPTools([newToolA]);
+
+      // Both should remain qualified (cross-server conflict still exists)
+      expect(toolRegistry.getTool('read_file')).toBeUndefined();
+      expect(
+        toolRegistry.getTool(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+      expect(
+        toolRegistry.getTool(`serverB${MCP_QUALIFIED_NAME_SEPARATOR}read_file`),
+      ).toBeDefined();
+    });
+
+    // --- Issue #2 fix: hash collision counter ---
+
+    it('should use counter suffix when hash disambiguation produces identical keys', () => {
+      // Degenerate: same serverToolName twice (e.g. buggy MCP server) → identical hash
+      const tool1 = createMCPTool('serverA', 'foo bar', 'First');
+      const tool2 = createMCPTool('serverA', 'foo bar', 'Second (dup)');
+      toolRegistry.registerMCPTools([tool1, tool2]);
+
+      const allNames = toolRegistry.getAllToolNames();
+      const serverATools = allNames.filter((n) =>
+        n.startsWith(`serverA${MCP_QUALIFIED_NAME_SEPARATOR}`),
+      );
+      // Both must be registered (no overwrite)
+      expect(serverATools.length).toBe(2);
+      expect(serverATools[0]).not.toBe(serverATools[1]);
+    });
   });
 
   describe('DiscoveredToolInvocation', () => {

@@ -78,6 +78,67 @@
 | Core 전체 테스트 PASS                                           | ✅   |
 | 커밋 완료 + 작업 결과서 작성                                    | ✅   |
 
+---
+
+## 리뷰 이슈 수정 (2026-02-19)
+
+### 제기된 이슈
+
+| #   | 심각도 | 이슈                                    | 원인                                                                                          |
+| --- | ------ | --------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 1   | HIGH   | 교차 서버 충돌이 여전히 비결정적        | `registerMCPTools()`가 파라미터 배열만 처리, per-server 호출이므로 등록 순서에 따라 결과 변동 |
+| 2   | MEDIUM | hash disambiguation 재충돌 시 도구 유실 | 6자 해시만 사용, 카운터 없이 `Map.set` 덮어쓰기                                               |
+| 3   | LOW    | 테스트 커버리지 부족                    | 순차/동시 등록, 리프레시 후 결정성 테스트 누락                                                |
+
+### 검증 결과
+
+3개 이슈 모두 실제 문제로 확인됨.
+
+### 수정 내용
+
+#### Issue 1+2: `registerMCPTools()` 전면 재작성
+
+**핵심 변경 — 글로벌 재등록 패턴**:
+
+기존: 파라미터 배열만 내부 처리 → 교차 서버 충돌 미감지 변경: 호출 시 **전체 MCP
+도구를 재수집하여 일괄 충돌 해소**
+
+```
+1. updatingServers 집합 산출 (파라미터의 서버 목록)
+2. 기존 MCP 중 updatingServers에 포함되지 않은 도구 retainedTools로 수집
+3. 전체 MCP 도구 삭제
+4. retainedTools + newTools 합산 → allMcpTools
+5. Pass 1: baseName 그룹화 (충돌 감지)
+6. Pass 2: 결정적 등록
+   - 충돌 없음 → unqualified (asFullyQualifiedTool(baseName)로 name 보장)
+   - 충돌 → FQN 등록
+   - FQN 중복(동일 서버 sanitize 충돌) → hash + usedKeys Set + counter 방어
+```
+
+**hash 카운터 방어**: `usedKeys` Set으로 중복 키 감지 → `_${counter}` 접미사
+부여
+
+#### Issue 3: 4개 신규 테스트 추가
+
+| 테스트                                                                       | 검증 대상                             |
+| ---------------------------------------------------------------------------- | ------------------------------------- |
+| `should qualify both servers when registered sequentially (A then B)`        | 순차 등록 시 양쪽 qualified           |
+| `should produce same names when registration order is reversed (B then A)`   | 역순 등록 동일 결과 → 결정성 확인     |
+| `should maintain cross-server qualification after single-server refresh`     | 리프레시 후에도 교차 서버 충돌 유지   |
+| `should use counter suffix when hash disambiguation produces identical keys` | 동일 해시 → 카운터 접미사로 유실 방지 |
+
+### 수정 후 검증 결과
+
+| 검증 항목                 | 결과                                   |
+| ------------------------- | -------------------------------------- |
+| tool-registry 단위 테스트 | ✅ 28 PASS (기존 17 + 초기 7 + 신규 4) |
+| mcp-client 단위 테스트    | ✅ 56 PASS                             |
+| Core 전체 테스트          | ✅ 284 files, 5568 PASS, 24 skipped    |
+| TypeScript typecheck      | ✅ PASS (Phase 1 파일 에러 없음)       |
+| ESLint lint               | ✅ PASS                                |
+
+---
+
 ## 다음 Phase 전달사항
 
 - `generateValidName()` 변경 시 2-pass 로직의 baseName 그룹화에 영향 → Phase
@@ -88,3 +149,5 @@
   가능
 - mcp-client-manager.ts 자체는 변경 불필요 (McpClient 내부가 배치 전환되어 자동
   적용)
+- 글로벌 재등록 패턴: `registerMCPTools()`는 호출마다 **전체 MCP 도구**를 재평가
+  → 새 서버 추가 시에도 기존 서버 이름이 자동 재조정됨

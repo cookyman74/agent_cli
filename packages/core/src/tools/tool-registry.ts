@@ -230,20 +230,52 @@ export class ToolRegistry {
   }
 
   /**
-   * Batch-registers MCP tools with deterministic naming.
+   * Batch-registers MCP tools with deterministic naming via global
+   * re-registration.
    *
-   * Two-pass algorithm:
-   * 1. Collect all tools, detect name conflicts (same baseName from multiple
-   *    servers, same baseName as built-in, OR same-server sanitize collision)
-   * 2. Register: conflicting → qualified name (with hash disambiguation for
-   *    same-server FQN collision), non-conflicting → unqualified name
+   * Collects retained MCP tools from servers NOT being updated, clears all
+   * MCP tools, then re-registers the combined set. This ensures cross-server
+   * conflicts are always resolved consistently regardless of call order
+   * (e.g. Promise.all() discovery or sequential refresh).
    *
-   * This eliminates non-determinism from Promise.all() discovery order.
+   * Two-pass algorithm over the combined set:
+   * 1. Group by sanitized baseName → detect conflicts
+   * 2. Register: non-conflicting → unqualified, conflicting → FQN
+   *    (with hash+counter disambiguation for same-server sanitize collision)
    */
-  registerMCPTools(tools: DiscoveredMCPTool[]): void {
+  registerMCPTools(newTools: DiscoveredMCPTool[]): void {
+    if (newTools.length === 0) {
+      this.sortTools();
+      return;
+    }
+
+    // Determine which servers are being updated
+    const updatingServers = new Set(newTools.map((t) => t.serverName));
+
+    // Collect existing MCP tools from servers NOT being updated
+    const retainedTools: DiscoveredMCPTool[] = [];
+    for (const [, tool] of this.allKnownTools) {
+      if (
+        tool instanceof DiscoveredMCPTool &&
+        !updatingServers.has(tool.serverName)
+      ) {
+        retainedTools.push(tool);
+      }
+    }
+
+    // Remove ALL MCP tools from registry (will be re-registered below)
+    for (const [name, tool] of [...this.allKnownTools]) {
+      if (tool instanceof DiscoveredMCPTool) {
+        this.allKnownTools.delete(name);
+      }
+    }
+
+    // Combine retained + new for global conflict resolution
+    const allMcpTools = [...retainedTools, ...newTools];
+
     // Pass 1: Group by sanitized baseName to detect conflicts
     const nameToTools = new Map<string, DiscoveredMCPTool[]>();
-    for (const tool of tools) {
+    for (const tool of allMcpTools) {
       const baseName = generateValidName(tool.serverToolName);
       const group = nameToTools.get(baseName) ?? [];
       group.push(tool);
@@ -253,12 +285,15 @@ export class ToolRegistry {
     // Pass 2: Register with deterministic naming
     for (const [baseName, groupedTools] of nameToTools) {
       const hasBuiltInConflict = this.allKnownTools.has(baseName);
-      const hasMultiServerConflict = groupedTools.length > 1;
-      const needsQualification = hasBuiltInConflict || hasMultiServerConflict;
+      const hasNameConflict = groupedTools.length > 1;
+      const needsQualification = hasBuiltInConflict || hasNameConflict;
 
       if (!needsQualification) {
         // No conflict → register with unqualified name
-        this.allKnownTools.set(baseName, groupedTools[0]);
+        this.allKnownTools.set(
+          baseName,
+          groupedTools[0].asFullyQualifiedTool(baseName),
+        );
         continue;
       }
 
@@ -276,10 +311,17 @@ export class ToolRegistry {
           // Unique FQN → register as qualified
           this.allKnownTools.set(fqn, fqnTools[0].asFullyQualifiedTool());
         } else {
-          // Same-server sanitize collision → hash disambiguation
+          // Same-server sanitize collision → hash + counter disambiguation
+          const usedKeys = new Set<string>();
           for (const tool of fqnTools) {
             const hash = simpleHash(tool.serverToolName);
-            const disambiguated = `${fqn}_${hash.slice(0, 6)}`;
+            let disambiguated = `${fqn.slice(0, 56)}_${hash.slice(0, 6)}`;
+            let counter = 2;
+            while (usedKeys.has(disambiguated)) {
+              disambiguated = `${fqn.slice(0, 53)}_${hash.slice(0, 6)}_${counter}`;
+              counter++;
+            }
+            usedKeys.add(disambiguated);
             this.allKnownTools.set(
               disambiguated,
               tool.asFullyQualifiedTool(disambiguated),

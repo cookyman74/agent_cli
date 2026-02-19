@@ -90,6 +90,8 @@
 | MCP 서버 응답 속도 차이로 디스커버리 타임아웃           | 🟢 Low    | 기존 타임아웃 메커니즘 유지, 2-pass는 디스커버리 완료 후 처리      | 1     |
 | 타입 강제 변환이 정상 호출의 타입 안전성 훼손           | 🟡 Medium | schema의 type 필드 기반 변환만 수행 + 변환 불가 시 원본 유지       | 5     |
 | 도구 이름 자동 교정이 의도치 않은 도구 호출 유발        | 🟡 Medium | Levenshtein distance ≤ 2 + 단일 후보만 → 높은 정확도 보장          | 5     |
+| fuzzy match가 서버 경계를 넘어 교정 → 정책 우회         | 🔴 High   | qualified 이름은 서버 prefix 고정 + enrichedRequest.name 교정 반영 | 5     |
+| Phase 2 하드코딩 63 ↔ Phase 5.4 가변 길이 충돌         | 🟡 Medium | 방안 B: Phase별 독립, Phase 5에서 일괄 가변화 (Tidy-first 원칙)    | 2+5   |
 | 프로바이더별 이름 길이 분기가 tool-registry 복잡도 증가 | 🟢 Low    | 이름 생성 시점에 프로바이더 정보 주입 → 기존 로직 분기 최소화      | 5     |
 
 ---
@@ -216,8 +218,10 @@ Phase 5 완료 → [DOC-E] 최종 결과서 작성 → 전체 완료
 | Phase 4 커밋 완료 + **작업 결과서 작성**                                  | 4     | ⬜   |
 | `coerceParamTypes()` TDD (string↔number, string↔boolean)                | 5     | ⬜   |
 | AJV coercion 또는 전처리 레이어 구현 + 기존 검증 회귀 없음                | 5     | ⬜   |
-| `fuzzyMatchToolName()` TDD (Levenshtein distance ≤ 2 자동 교정)           | 5     | ⬜   |
+| `fuzzyMatchToolName()` TDD (Levenshtein ≤ 2 + 서버 경계 보호)             | 5     | ⬜   |
+| fuzzy match 교정 후 enrichedRequest.name 반영 → 정책 체크 정합성          | 5     | ⬜   |
 | 프로바이더별 이름 길이 제한 적용 (Gemini 63, OpenAI 64, sLM 128)          | 5     | ⬜   |
+| Phase 2 재-truncate ↔ Phase 5.4 가변 길이 통합 확인                      | 2+5   | ⬜   |
 | sLM 환경 수동 E2E (Ollama + 도구 호출 시나리오)                           | 5     | ⬜   |
 | Phase 5 커밋 완료 + **최종 작업 결과서 작성**                             | 5     | ⬜   |
 | Core 전체 단위 테스트 PASS                                                | 전체  | ⬜   |

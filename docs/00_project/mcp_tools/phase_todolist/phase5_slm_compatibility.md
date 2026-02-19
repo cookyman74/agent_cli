@@ -340,6 +340,28 @@ describe('fuzzyMatchToolName', () => {
       'myserver__custom_tool',
     );
   });
+
+  // --- [보완] 서버 경계 보호 (Issue #1 교차) ---
+
+  it('should not cross server boundary in qualified name fuzzy match', () => {
+    const tools = ['serverA__custom_tool', 'serverB__custom_tool'];
+    // 'serverA__cusom_tool' → prefix 'serverA' 고정 → 'serverA__custom_tool'만 후보
+    expect(fuzzyMatchToolName('serverA__cusom_tool', tools)).toBe(
+      'serverA__custom_tool',
+    );
+  });
+
+  it('should reject qualified name when prefix does not match any registered server', () => {
+    const tools = ['serverA__custom_tool'];
+    // 'serverX__custom_tool' → prefix 'serverX' 도구 없음 → null
+    expect(fuzzyMatchToolName('serverX__custom_tool', tools)).toBeNull();
+  });
+
+  it('should not match qualified name against unqualified tools', () => {
+    const tools = ['custom_tool', 'read_file'];
+    // 'server__custom_tool' → qualified이지만 후보에 같은 prefix 도구 없음 → null
+    expect(fuzzyMatchToolName('server__custom_tool', tools)).toBeNull();
+  });
 });
 ```
 
@@ -374,7 +396,16 @@ export function fuzzyMatchToolName(
 
   const MAX_DISTANCE = 2;
 
-  const matches = allToolNames
+  // [보완] 서버 경계 보호: qualified 이름은 동일 prefix 도구만 후보로 필터
+  let candidates = allToolNames;
+  if (name.includes('__')) {
+    const separatorIndex = name.indexOf('__');
+    const prefix = name.slice(0, separatorIndex);
+    candidates = allToolNames.filter((t) => t.startsWith(prefix + '__'));
+    if (candidates.length === 0) return null; // prefix 불일치 → 교정 불가
+  }
+
+  const matches = candidates
     .map((toolName) => ({
       name: toolName,
       distance: levenshtein.get(name, toolName),
@@ -400,16 +431,22 @@ export function fuzzyMatchToolName(
 
 ```typescript
 // 도구 lookup 실패 시 fuzzy match 시도:
-let tool = this.toolRegistry.getTool(request.name);
+let tool = toolRegistry.getTool(request.name);
 
 if (!tool) {
-  const correctedName = fuzzyMatchToolName(request.name, toolNames);
+  const correctedName = fuzzyMatchToolName(
+    request.name,
+    toolRegistry.getAllToolNames(),
+  );
   if (correctedName) {
     debugLogger.info(
       `[Scheduler] Auto-corrected tool name: "${request.name}" → "${correctedName}"`,
     );
-    tool = this.toolRegistry.getTool(correctedName);
-    // request.name도 교정된 이름으로 업데이트 (하류 처리 호환)
+    tool = toolRegistry.getTool(correctedName);
+    // [보완] 교정된 이름을 enrichedRequest에 반영 — 하류 정책 체크 필수
+    // enrichedRequest.name을 교정하지 않으면 정책 엔진이 원본(잘못된) 이름으로
+    // 검사하여 의도치 않은 정책 매칭/누락 발생 (Issue #1 교차 리스크)
+    enrichedRequest = { ...enrichedRequest, name: correctedName };
   }
 }
 
@@ -520,20 +557,22 @@ LLM_PROVIDER=openai-compatible LLM_BASE_URL=http://localhost:11434/v1 \
 
 ## 완료 조건
 
-| 검증 항목                                                      | 상태 |
-| -------------------------------------------------------------- | ---- |
-| `coerceParamTypes()` string↔number TDD — 4개 테스트           | ⬜   |
-| `coerceParamTypes()` string↔boolean TDD — 2개 테스트          | ⬜   |
-| `coerceParamTypes()` integer 변환 + 에지 케이스 — 4개 테스트   | ⬜   |
-| `coerceParamTypes()` 원본 불변 + schema undefined 처리         | ⬜   |
-| scheduler.ts / coreToolScheduler.ts 타입 강제 변환 연결        | ⬜   |
-| `fuzzyMatchToolName()` TDD — 7개 테스트                        | ⬜   |
-| scheduler에서 도구 lookup 실패 시 fuzzy match 시도 + 자동 교정 | ⬜   |
-| 프로바이더별 이름 길이 제한 TDD — 3개 테스트                   | ⬜   |
-| 기존 `normalizeToolParams()` / AJV 검증 회귀 없음              | ⬜   |
-| sLM 환경 수동 E2E (Ollama + 도구 호출)                         | ⬜   |
-| Core 전체 테스트 PASS                                          | ⬜   |
-| 커밋 완료 + 최종 작업 결과서 작성                              | ⬜   |
+| 검증 항목                                                          | 상태 |
+| ------------------------------------------------------------------ | ---- |
+| `coerceParamTypes()` string↔number TDD — 4개 테스트               | ⬜   |
+| `coerceParamTypes()` string↔boolean TDD — 2개 테스트              | ⬜   |
+| `coerceParamTypes()` integer 변환 + 에지 케이스 — 4개 테스트       | ⬜   |
+| `coerceParamTypes()` 원본 불변 + schema undefined 처리             | ⬜   |
+| scheduler.ts / coreToolScheduler.ts 타입 강제 변환 연결            | ⬜   |
+| `fuzzyMatchToolName()` TDD — 10개 테스트 (서버 경계 보호 3건 포함) | ⬜   |
+| fuzzy match 서버 경계 보호: qualified 이름 prefix 고정 검증        | ⬜   |
+| scheduler에서 도구 lookup 실패 시 fuzzy match 시도 + 자동 교정     | ⬜   |
+| 교정 후 enrichedRequest.name 업데이트 → 정책 체크 정합성 확인      | ⬜   |
+| 프로바이더별 이름 길이 제한 TDD — 3개 테스트                       | ⬜   |
+| 기존 `normalizeToolParams()` / AJV 검증 회귀 없음                  | ⬜   |
+| sLM 환경 수동 E2E (Ollama + 도구 호출)                             | ⬜   |
+| Core 전체 테스트 PASS                                              | ⬜   |
+| 커밋 완료 + 최종 작업 결과서 작성                                  | ⬜   |
 
 ---
 
@@ -543,11 +582,13 @@ LLM_PROVIDER=openai-compatible LLM_BASE_URL=http://localhost:11434/v1 \
    - tool-utils.test.ts (10개 테스트)
 2. **커밋 2** `feat(utils): sLM 파라미터 타입 강제 변환 구현 + scheduler 연결`
    - tool-utils.ts + scheduler.ts + coreToolScheduler.ts
-3. **커밋 3** `test(utils): fuzzyMatchToolName TDD — 도구 이름 퍼지 매칭`
-   - tool-utils.test.ts (7개 테스트)
+3. **커밋 3**
+   `test(utils): fuzzyMatchToolName TDD — 도구 이름 퍼지 매칭 + 서버 경계 보호`
+   - tool-utils.test.ts (10개 테스트: 기본 7 + 서버 경계 보호 3)
 4. **커밋 4**
    `feat(utils): 도구 이름 퍼지 매칭 자동 교정 + 프로바이더별 이름 길이 제한`
    - tool-utils.ts + coreToolScheduler.ts + scheduler.ts + mcp-tool.ts
+   - fuzzy match 서버 prefix 보호 + enrichedRequest.name 교정 반영
 
 ---
 
@@ -580,6 +621,56 @@ LLM_PROVIDER=openai-compatible LLM_BASE_URL=http://localhost:11434/v1 \
 - 복수 후보 동일 거리 → 교정 거부 (에러 메시지로 폴백)
 - 로그에 교정 기록 남김 → 디버깅 가능
 
+### [보완] fuzzyMatchToolName 서버 경계 보호 (Issue #1 교차)
+
+> **배경**: Issue #1 검증에서 `__` 구분자가 서버 정책 우회를 유발할 수 있음
+> 확인. fuzzy match가 서버 경계를 넘어 교정하면 동일 문제 재발.
+
+**시나리오**: `serverA__tool`과 `serverB__tool`이 등록된 상태에서 sLM이
+`serverA__tol`을 호출 → fuzzy match가 `serverB__tool`(distance 1)로 교정하면
+**다른 서버의 도구가 실행됨** → 정책 우회.
+
+**보호 규칙**:
+
+1. qualified 이름(`__` 포함) → **서버 prefix 부분은 고정**, 도구명 부분만 fuzzy
+   매칭
+2. unqualified 이름(`__` 미포함) → 전체 이름에 대해 fuzzy 매칭 (기존 동작)
+3. 교정 후 `enrichedRequest.name`을 반드시 교정된 이름으로 업데이트 (하류 정책
+   체크 호환)
+
+**추가 테스트 케이스**:
+
+```typescript
+it('should not cross server boundary in qualified name fuzzy match', () => {
+  const tools = ['serverA__custom_tool', 'serverB__custom_tool'];
+  // 'serverA__cusom_tool' → serverA prefix 고정 → 'serverA__custom_tool'만 후보
+  expect(fuzzyMatchToolName('serverA__cusom_tool', tools)).toBe(
+    'serverA__custom_tool',
+  );
+});
+
+it('should reject qualified name correction when prefix does not match any server', () => {
+  const tools = ['serverA__custom_tool'];
+  // 'serverX__custom_tool' → prefix 'serverX' 불일치 → null
+  expect(fuzzyMatchToolName('serverX__custom_tool', tools)).toBeNull();
+});
+
+it('should update enrichedRequest.name after correction for policy check', () => {
+  // scheduler 통합 테스트: 교정된 이름이 정책 엔진에 전달되는지 확인
+});
+```
+
+**구현 변경** (`fuzzyMatchToolName` 내부):
+
+```typescript
+// Qualified name인 경우 서버 prefix 보호
+if (name.includes('__')) {
+  const [prefix] = name.split('__', 1);
+  // 동일 prefix를 가진 도구만 후보로 필터
+  allToolNames = allToolNames.filter((t) => t.startsWith(prefix + '__'));
+}
+```
+
 ### 프로바이더별 이름 길이: 등록 시 vs API 호출 시
 
 | 시점        | 장점                              | 단점                                |
@@ -590,6 +681,38 @@ LLM_PROVIDER=openai-compatible LLM_BASE_URL=http://localhost:11434/v1 \
 **권장**: 등록 시 관대한 제한(128자) 적용 후, API 호출 시 프로바이더별
 재-truncate. 다만 초기 구현은 등록 시 프로바이더 감지가 복잡하므로, **DEFAULT
 128자 + Gemini converter에서 63자 재-truncate** 방식으로 시작.
+
+### [보완] Phase 2 ↔ Phase 5.4 교차 조율 (Issue #3 교차)
+
+> **배경**: Issue #3 검증에서 `getFullyQualifiedName()`이 prefix + 63자 = 최대
+> 112자까지 생성 가능 확인. Phase 2에서 재-truncate를 63자 하드코딩으로 설계
+> 했으나, Phase 5.4에서 프로바이더별 제한(128자)을 도입하면 두 로직이 충돌.
+
+**문제**: Phase 2가 먼저 구현되면 `getFullyQualifiedName()`에 63자 하드코딩
+재-truncate가 들어감. Phase 5.4에서 이를 다시 가변으로 변경해야 하므로 Phase 2
+코드의 2차 수정 발생.
+
+**조율 방안**:
+
+| 방안                                    | 장점                                  | 단점                          |
+| --------------------------------------- | ------------------------------------- | ----------------------------- |
+| A: Phase 2에서 maxLength 파라미터 도입  | Phase 5에서 변경 불필요, 한 번에 설계 | Phase 2 스코프 확대           |
+| B: Phase 2는 하드코딩, Phase 5에서 교체 | Phase별 독립성 유지                   | Phase 5에서 Phase 2 코드 수정 |
+
+**권장**: **방안 B** (Phase별 독립성 유지). 이유:
+
+- Phase 2는 Gemini API 안전성이 목적 → 63자 하드코딩으로 충분
+- Phase 5에서 `generateValidName(name, maxLength)` 시그니처 변경 시
+  `getFullyQualifiedName()`도 함께 업데이트
+- Tidy-first 원칙: 동작 변경(Phase 2) → 구조 변경(Phase 5) 분리
+
+**Phase 5 구현 시 확인사항**:
+
+- `getFullyQualifiedName()`의 재-truncate 로직도 `maxLength` 파라미터 수용하도록
+  변경
+- Phase 2에서 도입된 hash suffix 방식이 Phase 5의 가변 길이에서도 유니크성 보장
+  확인
+- `allKnownTools` Map의 키가 변경되면 기존 lookup 경로 회귀 테스트
 
 ---
 
@@ -622,6 +745,29 @@ LLM Tool Call Response
   ▼
 [6] tool.execute(invocation)
 ```
+
+---
+
+## 교차 검증 결과 (2026-02-19 추가 리뷰 반영)
+
+> Issue #1~#4 독립 검증 결과, 모든 이슈가 기존 Phase 1~4에서 해소됨을 확인. 단,
+> Phase 5와의 교차점에서 **신규 리스크 3건**을 식별하여 본 문서에 반영.
+
+| 이슈                                      | Phase 대응 | Phase 5 교차 영향                                                         |
+| ----------------------------------------- | ---------- | ------------------------------------------------------------------------- |
+| #1 wildcard 정책 우회 (`__` in toolName)  | P2+P3      | fuzzyMatchToolName 서버 경계 보호 필요 → **5.3 보완 완료**                |
+| #2 비결정적 네이밍 (Promise.all 경합)     | P1         | 없음 (Phase 1이 Phase 5 전에 해소)                                        |
+| #3 qualified 이름 길이 초과 (63자+prefix) | P2         | Phase 2 하드코딩 63 ↔ Phase 5.4 가변 길이 충돌 → **설계 결정 보완 완료** |
+| #4 MCP 파라미터 정규화 미적용             | P4         | 없음 (Phase 4 인프라 위에 Phase 5 확장)                                   |
+
+**보완 내역**:
+
+1. `fuzzyMatchToolName()` — qualified 이름의 서버 prefix 고정 보호 규칙 추가
+   (테스트 3건)
+2. Scheduler 연결 — 교정 후 `enrichedRequest.name` 반드시 업데이트 (정책 체크
+   호환)
+3. Phase 2 ↔ Phase 5.4 조율 — 방안 B (Phase별 독립, Phase 5에서 일괄 가변화)
+   확정
 
 ---
 

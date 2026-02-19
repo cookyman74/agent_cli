@@ -143,6 +143,11 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
     search_query: 'pattern',
     regex: 'pattern',
     search: 'pattern',
+    // dir_path aliases — optional param, silent failure if ignored
+    path: 'dir_path',
+    directory: 'dir_path',
+    dirPath: 'dir_path',
+    dir: 'dir_path',
   },
   list_directory: {
     path: 'dir_path',
@@ -153,6 +158,11 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
   glob: {
     glob_pattern: 'pattern',
     search_pattern: 'pattern',
+    // dir_path aliases — optional param, silent failure if ignored
+    path: 'dir_path',
+    directory: 'dir_path',
+    dirPath: 'dir_path',
+    dir: 'dir_path',
   },
   write_file: {
     path: 'file_path',
@@ -163,6 +173,19 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
     path: 'file_path',
     filepath: 'file_path',
     filePath: 'file_path',
+    // old_string / new_string aliases — required params
+    old_text: 'old_string',
+    oldText: 'old_string',
+    original: 'old_string',
+    original_string: 'old_string',
+    new_text: 'new_string',
+    newText: 'new_string',
+    replacement: 'new_string',
+    replacement_string: 'new_string',
+    // instruction aliases
+    description: 'instruction',
+    reason: 'instruction',
+    change_description: 'instruction',
   },
   run_shell_command: {
     cmd: 'command',
@@ -172,6 +195,24 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
     search_query: 'query',
     search: 'query',
     q: 'query',
+  },
+  web_fetch: {
+    url: 'prompt',
+    input: 'prompt',
+    request: 'prompt',
+  },
+  read_many_files: {
+    files: 'include',
+    paths: 'include',
+    file_paths: 'include',
+    patterns: 'include',
+    glob_patterns: 'include',
+  },
+  get_internal_docs: {
+    file_path: 'path',
+    filepath: 'path',
+    filePath: 'path',
+    doc_path: 'path',
   },
 };
 

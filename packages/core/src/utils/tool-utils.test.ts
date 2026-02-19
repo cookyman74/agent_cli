@@ -218,4 +218,168 @@ describe('normalizeToolParams', () => {
     expect(original).toEqual({ path: '/tmp/test.txt' });
     expect(original).not.toHaveProperty('file_path');
   });
+
+  // --- P0: replace tool — old_string / new_string / instruction aliases ---
+
+  it('should normalize old_text to old_string for replace', () => {
+    const result = normalizeToolParams('replace', {
+      file_path: '/tmp/f.ts',
+      old_text: 'foo',
+      new_string: 'bar',
+      instruction: 'fix',
+    });
+    expect(result).toEqual({
+      file_path: '/tmp/f.ts',
+      old_string: 'foo',
+      new_string: 'bar',
+      instruction: 'fix',
+    });
+    expect(result).not.toHaveProperty('old_text');
+  });
+
+  it('should normalize new_text to new_string for replace', () => {
+    const result = normalizeToolParams('replace', {
+      file_path: '/tmp/f.ts',
+      old_string: 'foo',
+      new_text: 'bar',
+      instruction: 'fix',
+    });
+    expect(result).toEqual({
+      file_path: '/tmp/f.ts',
+      old_string: 'foo',
+      new_string: 'bar',
+      instruction: 'fix',
+    });
+    expect(result).not.toHaveProperty('new_text');
+  });
+
+  it('should normalize camelCase oldText/newText for replace', () => {
+    const result = normalizeToolParams('replace', {
+      file_path: '/tmp/f.ts',
+      oldText: 'foo',
+      newText: 'bar',
+      instruction: 'fix',
+    });
+    expect(result).toEqual({
+      file_path: '/tmp/f.ts',
+      old_string: 'foo',
+      new_string: 'bar',
+      instruction: 'fix',
+    });
+  });
+
+  it('should normalize description to instruction for replace', () => {
+    const result = normalizeToolParams('replace', {
+      file_path: '/tmp/f.ts',
+      old_string: 'a',
+      new_string: 'b',
+      description: 'Fix bug',
+    });
+    expect(result).toEqual({
+      file_path: '/tmp/f.ts',
+      old_string: 'a',
+      new_string: 'b',
+      instruction: 'Fix bug',
+    });
+  });
+
+  it('should not overwrite old_string when both alias and canonical exist', () => {
+    const result = normalizeToolParams('replace', {
+      file_path: '/tmp/f.ts',
+      old_string: 'correct',
+      old_text: 'wrong',
+      new_string: 'bar',
+      instruction: 'fix',
+    });
+    expect(result.old_string).toBe('correct');
+  });
+
+  // --- P0: search_file_content / glob — dir_path aliases ---
+
+  it('should normalize path to dir_path for search_file_content', () => {
+    const result = normalizeToolParams('search_file_content', {
+      pattern: 'TODO',
+      path: '/src',
+    });
+    expect(result).toEqual({ pattern: 'TODO', dir_path: '/src' });
+    expect(result).not.toHaveProperty('path');
+  });
+
+  it('should normalize directory to dir_path for search_file_content', () => {
+    const result = normalizeToolParams('search_file_content', {
+      pattern: 'TODO',
+      directory: '/src',
+    });
+    expect(result).toEqual({ pattern: 'TODO', dir_path: '/src' });
+  });
+
+  it('should normalize path to dir_path for glob', () => {
+    const result = normalizeToolParams('glob', {
+      pattern: '**/*.ts',
+      path: '/src',
+    });
+    expect(result).toEqual({ pattern: '**/*.ts', dir_path: '/src' });
+    expect(result).not.toHaveProperty('path');
+  });
+
+  it('should not overwrite dir_path when canonical already exists for glob', () => {
+    const result = normalizeToolParams('glob', {
+      pattern: '**/*.ts',
+      dir_path: '/correct',
+      path: '/wrong',
+    });
+    expect(result.dir_path).toBe('/correct');
+  });
+
+  // --- P1: web_fetch — url → prompt alias ---
+
+  it('should normalize url to prompt for web_fetch', () => {
+    const result = normalizeToolParams('web_fetch', {
+      url: 'https://example.com',
+    });
+    expect(result).toEqual({ prompt: 'https://example.com' });
+    expect(result).not.toHaveProperty('url');
+  });
+
+  it('should not overwrite prompt when canonical already exists for web_fetch', () => {
+    const result = normalizeToolParams('web_fetch', {
+      prompt: 'Summarize https://example.com',
+      url: 'https://other.com',
+    });
+    expect(result.prompt).toBe('Summarize https://example.com');
+  });
+
+  // --- P1: read_many_files — files → include alias ---
+
+  it('should normalize files to include for read_many_files', () => {
+    const result = normalizeToolParams('read_many_files', {
+      files: ['src/**/*.ts'],
+    });
+    expect(result).toEqual({ include: ['src/**/*.ts'] });
+    expect(result).not.toHaveProperty('files');
+  });
+
+  it('should normalize paths to include for read_many_files', () => {
+    const result = normalizeToolParams('read_many_files', {
+      paths: ['README.md', 'docs/'],
+    });
+    expect(result).toEqual({ include: ['README.md', 'docs/'] });
+  });
+
+  // --- P1: get_internal_docs — file_path → path alias ---
+
+  it('should normalize file_path to path for get_internal_docs', () => {
+    const result = normalizeToolParams('get_internal_docs', {
+      file_path: 'cli/commands.md',
+    });
+    expect(result).toEqual({ path: 'cli/commands.md' });
+    expect(result).not.toHaveProperty('file_path');
+  });
+
+  it('should normalize filePath to path for get_internal_docs', () => {
+    const result = normalizeToolParams('get_internal_docs', {
+      filePath: 'cli/commands.md',
+    });
+    expect(result).toEqual({ path: 'cli/commands.md' });
+  });
 });

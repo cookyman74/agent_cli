@@ -285,7 +285,8 @@ files, 5601 PASS, 24 skipped | | TypeScript typecheck | ✅ PASS | | ESLint lint
 
 ### 커밋 해시
 
-- (커밋 후 기록)
+- `1fdd5ac93` —
+  `fix(policy): Phase 3 3차 리뷰 — 빈 도구 세그먼트 가드 + exact-match FQN 테스트`
 
 ---
 

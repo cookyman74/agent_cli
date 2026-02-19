@@ -114,6 +114,24 @@ describe('generateValidName', () => {
     expect(result).not.toContain('__');
     expect(result.length).toBeLessThanOrEqual(63);
   });
+
+  it('should not create __ when truncation boundary falls on underscore', () => {
+    // 55 'a's + '_' + 8 'b's = 64 chars → slice(0,56) ends with '_' → '_' + hash = '__'
+    const name = 'a'.repeat(55) + '_' + 'b'.repeat(8);
+    const result = generateValidName(name);
+    expect(result).not.toContain('__');
+    expect(result.length).toBeLessThanOrEqual(63);
+  });
+
+  it('should not create __ with multiple underscores near truncation boundary', () => {
+    // Ensure various positions of '_' near the 56-char boundary are safe
+    for (const pos of [54, 55]) {
+      const name = 'a'.repeat(pos) + '_' + 'b'.repeat(64 - pos - 1);
+      const result = generateValidName(name);
+      expect(result).not.toContain('__');
+      expect(result.length).toBeLessThanOrEqual(63);
+    }
+  });
 });
 
 describe('DiscoveredMCPTool', () => {
@@ -229,6 +247,26 @@ describe('DiscoveredMCPTool', () => {
       const prefix = t.getFullyQualifiedPrefix();
       // 'my__server' → 'my_server' (__ collapsed) → prefix 'my_server__'
       expect(prefix).toBe('my_server__');
+    });
+
+    it('should not create extra __ when tool name truncation boundary falls on underscore', () => {
+      // prefix = 'my_server__' (11 chars), toolName has '_' at exact cut point
+      const toolName = 'a'.repeat(44) + '_' + 'b'.repeat(18); // 63 chars
+      const t = createTestTool('my_server', toolName);
+      const fqn = t.getFullyQualifiedName();
+      // Should have exactly 1 __ (the separator), not 2
+      const parts = fqn.split('__');
+      expect(parts.length).toBe(2);
+      expect(fqn.length).toBeLessThanOrEqual(63);
+    });
+
+    it('should use fallback name for empty server name', () => {
+      const t = createTestTool('', 'my_tool');
+      const prefix = t.getFullyQualifiedPrefix();
+      // Empty server name should not produce bare '__'
+      expect(prefix).not.toBe('__');
+      expect(prefix.endsWith('__')).toBe(true);
+      expect(prefix.length).toBeGreaterThan(2);
     });
   });
 

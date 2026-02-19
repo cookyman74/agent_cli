@@ -142,6 +142,111 @@
 
 ---
 
+## 2차 코드 리뷰 이슈 수정 (2026-02-19)
+
+### 제기된 이슈
+
+| #   | 심각도 | 이슈                                                 | 원인                                                                          |
+| --- | ------ | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 1   | HIGH   | `generateValidName()` truncation이 `__` 생성         | `slice(0, 56)` 끝 문자가 `_`일 때 `+ '_' + hash` = `__hash`                   |
+| 2   | HIGH   | `getFullyQualifiedName()` normal branch가 `__` 생성  | `toolName.slice(0, maxToolNameLength-7)` 끝 문자가 `_`일 때 동일 패턴         |
+| 3   | MEDIUM | `registerMCPTools()` disambiguation이 `__` 생성      | `fqn.slice(0, 56)` 및 counter branch에서 동일 패턴                            |
+| 4   | LOW    | 빈 서버명 → prefix `'__'` → `isValidToolName()` 실패 | `getFullyQualifiedPrefix()`에서 sanitize 후 빈 문자열 + `__` = bare separator |
+| 5   | LOW    | `tool-names.ts` slugRegex가 `.` 미허용               | `/^[a-z0-9-_]+$/i`에 `.` 미포함 — Phase 2 이전 기존 이슈                      |
+| 6   | INFO   | `getFullyQualifiedPrefix()` 매 호출 재계산           | 성능 우려만 — serverName 불변이므로 캐싱 가능하나 현재 호출 빈도 낮음         |
+
+### 검증 결과
+
+- Issue 1: ✅ 재현 확인 — `'a'.repeat(55) + '_' + 'b'.repeat(8)` →
+  `'aaa...a__385f76'`
+- Issue 2: ✅ 재현 확인 — `prefix='my_server__'` + toolName
+  `'a'.repeat(44) + '_' + 'b'.repeat(18)` → `'...aa__921f4a'`
+- Issue 3: ✅ 재현 확인 — FQN position 55가 `_`일 때 disambiguation 결과에 `__`
+  2회
+- Issue 4: ✅ 재현 확인 — `serverName=''` → prefix = `'__'`
+- Issue 5: ✅ 확인 — `slugRegex.test('server.name')` = false (Phase 2 범위 외,
+  기존 이슈)
+- Issue 6: ℹ️ 확인 — 성능 우려만, 버그 아님
+
+### 수정 내용
+
+#### Issue 1 (HIGH): `generateValidName()` trailing `_` 방어
+
+`slice(0, 56)` 후 `.replace(/_+$/, '')` 추가:
+
+```typescript
+const truncated = validToolname.slice(0, 56).replace(/_+$/, '');
+validToolname = truncated + '_' + hash.slice(0, 6);
+```
+
+→ `'aaa...a_' → 'aaa...a' + '_385f76'` (단일 `_`, `__` 방지)
+
+#### Issue 2 (HIGH): `getFullyQualifiedName()` normal branch trailing `_` 방어
+
+`toolName.slice(0, maxToolNameLength - 7)` 후 `.replace(/_+$/, '')` 추가:
+
+```typescript
+const truncatedTool = toolName
+  .slice(0, maxToolNameLength - 7)
+  .replace(/_+$/, '');
+return `${prefix}${truncatedTool}_${hash.slice(0, 6)}`;
+```
+
+#### Issue 3 (MEDIUM): `registerMCPTools()` disambiguation trailing `_` 방어
+
+hash 분기와 counter 분기 모두 `.replace(/_+$/, '')` 추가:
+
+```typescript
+const fqnTrunc = fqn.slice(0, 56).replace(/_+$/, '');
+let disambiguated = `${fqnTrunc}_${hash.slice(0, 6)}`;
+// counter branch:
+const budgetTrunc = fqn.slice(0, budget).replace(/_+$/, '');
+disambiguated = `${budgetTrunc}_${hash.slice(0, 6)}_${counterStr}`;
+```
+
+#### Issue 4 (LOW): 빈 서버명 fallback
+
+`getFullyQualifiedPrefix()`에 빈 문자열 fallback 추가:
+
+```typescript
+const safeName = sanitized || 'unknown_server';
+return `${safeName}${MCP_QUALIFIED_NAME_SEPARATOR}`;
+```
+
+#### Issue 5 (LOW): 문서만 — Phase 2 범위 외 기존 이슈
+
+`tool-names.ts:102`의 `slugRegex = /^[a-z0-9-_]+$/i`가 `.` 미허용.
+`generateValidName()`과 `getFullyQualifiedPrefix()`는 `.`을 유효 문자로
+보존하므로, `.` 포함 도구명이 생성되면 `isValidToolName()` 검증 실패. Phase 2
+이전 기존 이슈이므로 별도 작업에서 해결 필요.
+
+#### Issue 6 (INFO): 문서만 — 성능 우려
+
+`getFullyQualifiedPrefix()` 매 호출 시 3회 regex 치환 수행. `serverName`
+불변이므로 캐싱 가능하나, 현재 호출 빈도가 낮아(등록 시 1회) 최적화 불필요.
+
+### 추가 테스트
+
+| 테스트                                                                              | 검증 대상                                    |
+| ----------------------------------------------------------------------------------- | -------------------------------------------- |
+| `should not create __ when truncation boundary falls on underscore`                 | `generateValidName()` slice 끝 `_` 방어      |
+| `should not create __ with multiple underscores near truncation boundary`           | 다수 위치 경계값 테스트                      |
+| `should not create extra __ when tool name truncation boundary falls on underscore` | `getFullyQualifiedName()` normal branch 방어 |
+| `should use fallback name for empty server name`                                    | 빈 서버명 → `unknown_server__` fallback      |
+| `should not create extra __ in disambiguated names when FQN ends with underscore`   | `registerMCPTools()` disambiguation 방어     |
+
+### 수정 후 검증 결과
+
+| 검증 항목                 | 결과                                |
+| ------------------------- | ----------------------------------- |
+| mcp-tool 단위 테스트      | ✅ 60 PASS (기존 56 + 신규 4)       |
+| tool-registry 단위 테스트 | ✅ 30 PASS (기존 29 + 신규 1)       |
+| Core 전체 테스트          | ✅ 284 files, 5587 PASS, 24 skipped |
+| TypeScript typecheck      | ✅ PASS                             |
+| ESLint lint               | ✅ PASS                             |
+
+---
+
 ## 다음 Phase 전달사항
 
 - `__` sanitize로 **registry 이름**에서 `__` 불가능 → Phase 3 정책 엣지 케이스의

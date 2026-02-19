@@ -273,7 +273,9 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
       .replace(/[^a-zA-Z0-9_.-]/g, '_')
       .replace(/_{2,}/g, '_')
       .replace(/_+$/, ''); // strip trailing underscores to prevent ambiguous ___
-    return `${sanitized}${MCP_QUALIFIED_NAME_SEPARATOR}`;
+    // Fallback for empty server name (all-special-char or empty string)
+    const safeName = sanitized || 'unknown_server';
+    return `${safeName}${MCP_QUALIFIED_NAME_SEPARATOR}`;
   }
 
   getFullyQualifiedName(): string {
@@ -299,7 +301,11 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
 
     // Truncate tool name: keep start + hash suffix for uniqueness
     const hash = simpleHash(toolName);
-    return `${prefix}${toolName.slice(0, maxToolNameLength - 7)}_${hash.slice(0, 6)}`;
+    // Strip trailing underscores to prevent '_' + '_hash' = '__hash'
+    const truncatedTool = toolName
+      .slice(0, maxToolNameLength - 7)
+      .replace(/_+$/, '');
+    return `${prefix}${truncatedTool}_${hash.slice(0, 6)}`;
   }
 
   asFullyQualifiedTool(nameOverride?: string): DiscoveredMCPTool {
@@ -487,7 +493,9 @@ export function generateValidName(name: string) {
   // Uses '_' + 6-char hex hash (not '___' which would contain __)
   if (validToolname.length > 63) {
     const hash = simpleHash(validToolname);
-    validToolname = validToolname.slice(0, 56) + '_' + hash.slice(0, 6);
+    // Strip trailing underscores to prevent '_' + '_hash' = '__hash'
+    const truncated = validToolname.slice(0, 56).replace(/_+$/, '');
+    validToolname = truncated + '_' + hash.slice(0, 6);
   }
   return validToolname;
 }

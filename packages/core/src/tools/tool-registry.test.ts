@@ -790,6 +790,24 @@ describe('ToolRegistry', () => {
         expect(name.length).toBeLessThanOrEqual(63);
       }
     });
+
+    it('should not create extra __ in disambiguated names when FQN ends with underscore', () => {
+      // FQN with '_' near 56-char boundary → slice + '_hash' might create '__'
+      // serverA + __ + toolName = FQN that has '_' at position 55
+      const padLen = 55 - 'serverA__'.length; // 46
+      const baseName = 'a'.repeat(padLen) + '_' + 'b'.repeat(10);
+      const tool1 = createMCPTool('serverA', baseName, 'First');
+      const tool2 = createMCPTool('serverA', baseName, 'Second');
+      toolRegistry.registerMCPTools([tool1, tool2]);
+
+      const allNames = toolRegistry.getAllToolNames();
+      for (const name of allNames) {
+        // Should have exactly 1 __ (separator), never extra
+        const parts = name.split('__');
+        expect(parts.length).toBeLessThanOrEqual(2);
+        expect(name.length).toBeLessThanOrEqual(63);
+      }
+    });
   });
 
   describe('DiscoveredToolInvocation', () => {

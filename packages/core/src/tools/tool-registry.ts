@@ -315,13 +315,16 @@ export class ToolRegistry {
           const usedKeys = new Set<string>();
           for (const tool of fqnTools) {
             const hash = simpleHash(tool.serverToolName);
-            let disambiguated = `${fqn.slice(0, 56)}_${hash.slice(0, 6)}`;
+            // Strip trailing underscores to prevent '_' + '_hash' = '__hash'
+            const fqnTrunc = fqn.slice(0, 56).replace(/_+$/, '');
+            let disambiguated = `${fqnTrunc}_${hash.slice(0, 6)}`;
             let counter = 2;
             while (usedKeys.has(disambiguated)) {
               const counterStr = String(counter);
               // Dynamic slice to guarantee ≤63 chars: fqn + '_' + hash(6) + '_' + counter
               const budget = 63 - 1 - 6 - 1 - counterStr.length;
-              disambiguated = `${fqn.slice(0, budget)}_${hash.slice(0, 6)}_${counterStr}`;
+              const budgetTrunc = fqn.slice(0, budget).replace(/_+$/, '');
+              disambiguated = `${budgetTrunc}_${hash.slice(0, 6)}_${counterStr}`;
               counter++;
             }
             usedKeys.add(disambiguated);

@@ -481,7 +481,7 @@ export function simpleHash(input: string): string {
 }
 
 /** Visible for testing */
-export function generateValidName(name: string) {
+export function generateValidName(name: string, maxLength: number = 63) {
   // Step 1: Replace invalid characters with underscores
   let validToolname = name.replace(/[^a-zA-Z0-9_.-]/g, '_');
 
@@ -489,12 +489,12 @@ export function generateValidName(name: string) {
   // __ is used as MCP_QUALIFIED_NAME_SEPARATOR — must not appear in tool names
   validToolname = validToolname.replace(/_{2,}/g, '_');
 
-  // Step 3: Truncate if longer than 63 characters — hash suffix method
+  // Step 3: Truncate if longer than maxLength characters — hash suffix method
   // Uses '_' + 6-char hex hash (not '___' which would contain __)
-  if (validToolname.length > 63) {
+  if (validToolname.length > maxLength) {
     const hash = simpleHash(validToolname);
     // Strip trailing underscores to prevent '_' + '_hash' = '__hash'
-    const truncated = validToolname.slice(0, 56).replace(/_+$/, '');
+    const truncated = validToolname.slice(0, maxLength - 7).replace(/_+$/, '');
     validToolname = truncated + '_' + hash.slice(0, 6);
   }
   return validToolname;

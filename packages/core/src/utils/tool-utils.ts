@@ -47,6 +47,58 @@ export function getToolSuggestion(
 }
 
 /**
+ * Fuzzy-matches a tool name against registered tool names.
+ *
+ * If exact match exists, returns it immediately.
+ * Otherwise, finds the closest match using Levenshtein distance.
+ * Auto-corrects only when:
+ * - Distance ≤ 2 (typo threshold)
+ * - Single unique candidate at minimum distance
+ *
+ * Server boundary protection: qualified names (containing '__') are only
+ * matched against tools with the same server prefix.
+ *
+ * @returns The matched tool name, or null if no suitable match
+ */
+export function fuzzyMatchToolName(
+  name: string,
+  allToolNames: string[],
+): string | null {
+  if (!name || allToolNames.length === 0) return null;
+
+  // Exact match — fast path
+  if (allToolNames.includes(name)) return name;
+
+  const MAX_DISTANCE = 2;
+
+  // Server boundary protection: qualified name → filter by same prefix
+  let candidates = allToolNames;
+  if (name.includes('__')) {
+    const separatorIndex = name.indexOf('__');
+    const prefix = name.slice(0, separatorIndex);
+    candidates = allToolNames.filter((t) => t.startsWith(prefix + '__'));
+    if (candidates.length === 0) return null;
+  }
+
+  const matches = candidates
+    .map((toolName) => ({
+      name: toolName,
+      distance: levenshtein.get(name, toolName),
+    }))
+    .filter((m) => m.distance <= MAX_DISTANCE)
+    .sort((a, b) => a.distance - b.distance);
+
+  if (matches.length === 0) return null;
+
+  // Ambiguity check: top candidate must be strictly closer than second
+  if (matches.length > 1 && matches[0].distance === matches[1].distance) {
+    return null;
+  }
+
+  return matches[0].name;
+}
+
+/**
  * Checks if a tool invocation matches any of a list of patterns.
  *
  * @param toolOrToolName The tool object or the name of the tool being invoked.
@@ -215,6 +267,84 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
     doc_path: 'path',
   },
 };
+
+// ============================================================================
+// Parameter type coercion (sLM fault tolerance — Phase 5)
+// ============================================================================
+
+/**
+ * Coerces parameter values to match the types declared in the JSON schema.
+ *
+ * Handles common sLM type mismatches:
+ * - string "42" → number 42 (when schema expects 'number' or 'integer')
+ * - string "true"/"false" → boolean (when schema expects 'boolean')
+ * - number 42 → string "42" (when schema expects 'string')
+ *
+ * Rules:
+ * - Only converts when the target type is unambiguous (single type in schema)
+ * - Conversion failure (e.g., "abc" → number) → original value preserved
+ * - Original args never mutated (shallow copy)
+ * - No conversion for 'object' or 'array' types (too risky)
+ */
+export function coerceParamTypes(
+  args: Record<string, unknown>,
+  schema: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!schema) return args;
+
+  const properties = (schema as { properties?: Record<string, unknown> })
+    .properties;
+  if (!properties) return args;
+
+  let changed = false;
+  const coerced = { ...args };
+
+  for (const [key, value] of Object.entries(coerced)) {
+    const propSchema = properties[key] as { type?: string } | undefined;
+    if (!propSchema?.type || value === undefined || value === null) continue;
+
+    const targetType = propSchema.type;
+    const actualType = typeof value;
+
+    // string → number/integer
+    if (
+      actualType === 'string' &&
+      (targetType === 'number' || targetType === 'integer')
+    ) {
+      const strValue = value as string;
+      if (strValue.trim() === '') continue; // 빈/공백 문자열 → 0 변환 방지
+
+      const num = Number(strValue);
+      if (
+        !Number.isNaN(num) &&
+        (targetType === 'number' || Number.isInteger(num))
+      ) {
+        coerced[key] = num;
+        changed = true;
+      }
+    }
+    // string → boolean
+    else if (actualType === 'string' && targetType === 'boolean') {
+      if (value === 'true') {
+        coerced[key] = true;
+        changed = true;
+      } else if (value === 'false') {
+        coerced[key] = false;
+        changed = true;
+      }
+    }
+    // number/boolean → string
+    else if (
+      (actualType === 'number' || actualType === 'boolean') &&
+      targetType === 'string'
+    ) {
+      coerced[key] = String(value);
+      changed = true;
+    }
+  }
+
+  return changed ? coerced : args;
+}
 
 // ============================================================================
 // Schema-based parameter normalization (MCP tools)

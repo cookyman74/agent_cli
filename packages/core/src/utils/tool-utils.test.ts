@@ -6,7 +6,9 @@
 
 import { expect, describe, it } from 'vitest';
 import {
+  coerceParamTypes,
   doesToolInvocationMatch,
+  fuzzyMatchToolName,
   getToolSuggestion,
   normalizeToolParams,
   normalizeToolParamsBySchema,
@@ -690,5 +692,172 @@ describe('normalizeToolParamsBySchema', () => {
     );
     // $ref만 있고 properties/allOf 없음 → 정규화 불가 → args 반환
     expect(result).toBe(args);
+  });
+});
+
+describe('coerceParamTypes', () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      count: { type: 'number' },
+      enabled: { type: 'boolean' },
+      name: { type: 'string' },
+      offset: { type: 'integer' },
+      tags: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['count', 'name'],
+  };
+
+  // --- string → number 변환 ---
+
+  it('should coerce string "42" to number 42 when schema expects number', () => {
+    const args = { count: '42', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['count']).toBe(42);
+    expect(typeof result['count']).toBe('number');
+  });
+
+  it('should coerce string "3.14" to float when schema expects number', () => {
+    const args = { count: '3.14', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['count']).toBe(3.14);
+  });
+
+  it('should not coerce non-numeric string to number', () => {
+    const args = { count: 'abc', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['count']).toBe('abc');
+  });
+
+  it('should not coerce empty string to number 0', () => {
+    const args = { count: '', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['count']).toBe('');
+  });
+
+  it('should not coerce whitespace-only string to number 0', () => {
+    const args = { count: '   ', name: 'test' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['count']).toBe('   ');
+  });
+
+  // --- string → boolean 변환 ---
+
+  it('should coerce string "true" to boolean true', () => {
+    const args = { count: 1, name: 'test', enabled: 'true' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['enabled']).toBe(true);
+  });
+
+  it('should coerce string "false" to boolean false', () => {
+    const args = { count: 1, name: 'test', enabled: 'false' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['enabled']).toBe(false);
+  });
+
+  // --- string → integer 변환 ---
+
+  it('should coerce string "10" to integer when schema expects integer', () => {
+    const args = { count: 1, name: 'test', offset: '10' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['offset']).toBe(10);
+    expect(Number.isInteger(result['offset'])).toBe(true);
+  });
+
+  it('should not coerce float string to integer', () => {
+    const args = { count: 1, name: 'test', offset: '3.14' };
+    const result = coerceParamTypes(args, schema);
+    expect(result['offset']).toBe('3.14');
+  });
+
+  // --- 변환 불필요 케이스 ---
+
+  it('should not modify args when types already match', () => {
+    const args = { count: 42, name: 'test', enabled: true };
+    const result = coerceParamTypes(args, schema);
+    expect(result).toEqual(args);
+  });
+
+  it('should return args unchanged when schema is undefined', () => {
+    const args = { foo: 'bar' };
+    const result = coerceParamTypes(args, undefined);
+    expect(result).toBe(args);
+  });
+
+  it('should not mutate original args', () => {
+    const original = { count: '42', name: 'test' };
+    coerceParamTypes(original, schema);
+    expect(original['count']).toBe('42');
+  });
+
+  // --- number → string 변환 (역방향) ---
+
+  it('should coerce number 42 to string "42" when schema expects string', () => {
+    const args = { count: 1, name: 42 };
+    const result = coerceParamTypes(args, schema);
+    expect(result['name']).toBe('42');
+  });
+});
+
+describe('fuzzyMatchToolName', () => {
+  const allToolNames = [
+    'read_file',
+    'write_file',
+    'list_directory',
+    'search_file_content',
+  ];
+
+  it('should return exact match as-is', () => {
+    expect(fuzzyMatchToolName('read_file', allToolNames)).toBe('read_file');
+  });
+
+  it('should auto-correct typo with distance 1', () => {
+    expect(fuzzyMatchToolName('read_fil', allToolNames)).toBe('read_file');
+  });
+
+  it('should auto-correct typo with distance 2', () => {
+    expect(fuzzyMatchToolName('raed_file', allToolNames)).toBe('read_file');
+  });
+
+  it('should return null when distance > 2 (too different)', () => {
+    expect(fuzzyMatchToolName('completely_wrong', allToolNames)).toBeNull();
+  });
+
+  it('should return null when multiple candidates at same minimum distance', () => {
+    // 'write_fil' → only 'write_file' is within distance 2
+    // Actually this should match since only one is close
+    const tools = ['file_a', 'file_b'];
+    // 'file_c' → distance 1 to both 'file_a' and 'file_b' → ambiguous
+    expect(fuzzyMatchToolName('file_c', tools)).toBeNull();
+  });
+
+  it('should return null when name is empty', () => {
+    expect(fuzzyMatchToolName('', allToolNames)).toBeNull();
+  });
+
+  it('should handle qualified MCP tool name typo', () => {
+    const mcpTools = ['myserver__custom_tool', 'myserver__other_tool'];
+    expect(fuzzyMatchToolName('myserver__cusom_tool', mcpTools)).toBe(
+      'myserver__custom_tool',
+    );
+  });
+
+  // --- 서버 경계 보호 ---
+
+  it('should not cross server boundary in qualified name fuzzy match', () => {
+    const tools = ['serverA__custom_tool', 'serverB__custom_tool'];
+    expect(fuzzyMatchToolName('serverA__cusom_tool', tools)).toBe(
+      'serverA__custom_tool',
+    );
+  });
+
+  it('should reject qualified name when prefix does not match any registered server', () => {
+    const tools = ['serverA__custom_tool'];
+    expect(fuzzyMatchToolName('serverX__custom_tool', tools)).toBeNull();
+  });
+
+  it('should not match qualified name against unqualified tools', () => {
+    const tools = ['custom_tool', 'read_file'];
+    expect(fuzzyMatchToolName('server__custom_tool', tools)).toBeNull();
   });
 });

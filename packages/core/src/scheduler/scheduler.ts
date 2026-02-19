@@ -30,6 +30,8 @@ import {
   getToolSuggestion,
   normalizeToolParams,
   normalizeToolParamsBySchema,
+  coerceParamTypes,
+  fuzzyMatchToolName,
 } from '../utils/tool-utils.js';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
@@ -247,7 +249,7 @@ export class Scheduler {
         let normalizedArgs = normalizeToolParams(request.name, request.args);
 
         // MCP tools: apply schema-based normalization when static alias didn't help
-        const tool = toolRegistry.getTool(request.name);
+        let tool = toolRegistry.getTool(request.name);
         if (
           tool instanceof DiscoveredMCPTool &&
           normalizedArgs === request.args
@@ -258,12 +260,42 @@ export class Scheduler {
           );
         }
 
-        const enrichedRequest: ToolCallRequestInfo = {
+        // Phase 5: schema-based type coercion for all tools (sLM compatibility)
+        if (tool) {
+          normalizedArgs = coerceParamTypes(
+            normalizedArgs,
+            tool.parameterSchema as Record<string, unknown> | undefined,
+          );
+        }
+
+        let enrichedRequest: ToolCallRequestInfo = {
           ...request,
           args: normalizedArgs,
           schedulerId: this.schedulerId,
           parentCallId: this.parentCallId,
         };
+
+        // Phase 5: fuzzy match fallback when tool not found
+        if (!tool) {
+          const correctedName = fuzzyMatchToolName(
+            request.name,
+            toolRegistry.getAllToolNames(),
+          );
+          if (correctedName) {
+            tool = toolRegistry.getTool(correctedName);
+            if (tool) {
+              enrichedRequest = { ...enrichedRequest, name: correctedName };
+              // Apply type coercion for the corrected tool
+              enrichedRequest = {
+                ...enrichedRequest,
+                args: coerceParamTypes(
+                  enrichedRequest.args,
+                  tool.parameterSchema as Record<string, unknown> | undefined,
+                ),
+              };
+            }
+          }
+        }
 
         if (!tool) {
           return this._createToolNotFoundErroredToolCall(

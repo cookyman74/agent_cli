@@ -132,6 +132,22 @@ describe('generateValidName', () => {
       expect(result.length).toBeLessThanOrEqual(63);
     }
   });
+
+  // --- Phase 5: configurable maxLength ---
+
+  it('should truncate to custom maxLength when specified', () => {
+    const longName = 'a'.repeat(80);
+    expect(generateValidName(longName, 50).length).toBeLessThanOrEqual(50);
+  });
+
+  it('should use default 63 when maxLength not specified', () => {
+    const longName = 'a'.repeat(80);
+    expect(generateValidName(longName).length).toBeLessThanOrEqual(63);
+  });
+
+  it('should not truncate when name fits within custom maxLength', () => {
+    expect(generateValidName('short_name', 50)).toBe('short_name');
+  });
 });
 
 describe('DiscoveredMCPTool', () => {

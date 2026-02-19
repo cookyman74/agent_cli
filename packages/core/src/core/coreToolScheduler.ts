@@ -24,6 +24,8 @@ import {
   getToolSuggestion,
   normalizeToolParams,
   normalizeToolParamsBySchema,
+  coerceParamTypes,
+  fuzzyMatchToolName,
 } from '../utils/tool-utils.js';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import type { ToolConfirmationRequest } from '../confirmation-bus/types.js';
@@ -495,7 +497,7 @@ export class CoreToolScheduler {
             rawReqInfo.name,
             rawReqInfo.args,
           );
-          const toolInstance = this.config
+          let toolInstance = this.config
             .getToolRegistry()
             .getTool(rawReqInfo.name);
 
@@ -512,10 +514,46 @@ export class CoreToolScheduler {
             );
           }
 
-          const reqInfo: ToolCallRequestInfo = {
+          // Phase 5: schema-based type coercion for all tools (sLM compatibility)
+          if (toolInstance) {
+            normalizedArgs = coerceParamTypes(
+              normalizedArgs,
+              toolInstance.parameterSchema as
+                | Record<string, unknown>
+                | undefined,
+            );
+          }
+
+          let reqInfo: ToolCallRequestInfo = {
             ...rawReqInfo,
             args: normalizedArgs,
           };
+
+          // Phase 5: fuzzy match fallback when tool not found
+          if (!toolInstance) {
+            const correctedName = fuzzyMatchToolName(
+              rawReqInfo.name,
+              this.config.getToolRegistry().getAllToolNames(),
+            );
+            if (correctedName) {
+              toolInstance = this.config
+                .getToolRegistry()
+                .getTool(correctedName);
+              if (toolInstance) {
+                reqInfo = {
+                  ...reqInfo,
+                  name: correctedName,
+                  args: coerceParamTypes(
+                    reqInfo.args,
+                    toolInstance.parameterSchema as
+                      | Record<string, unknown>
+                      | undefined,
+                  ),
+                };
+              }
+            }
+          }
+
           if (!toolInstance) {
             const suggestion = getToolSuggestion(
               reqInfo.name,

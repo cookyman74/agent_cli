@@ -162,3 +162,79 @@ LLM Tool Call → args
   변환 재적용 (원래 도구를 못 찾았으므로 초기 coercion이 미적용)
 - **generateValidName 기본값**: 63 (Gemini 호환, 모든 프로바이더 최소 공통값)
 - **fast-levenshtein 의존성**: 이미 프로젝트에 존재 (추가 설치 불필요)
+
+## 코드 리뷰 수정 (6건)
+
+### Issue 1 [HIGH]: fuzzy 교정 후 파라미터 정규화(별칭/스키마) 재적용 누락
+
+- **문제**: fuzzy 교정 후 `coerceParamTypes()`만 재적용하고,
+  `normalizeToolParams()`/`normalizeToolParamsBySchema()`를 재적용하지 않음
+- **영향**: `read_fil` → `read_file`로 교정되어도 `path`가 `file_path`로
+  변환되지 않아 AJV 실패 가능
+- **수정**: scheduler.ts + coreToolScheduler.ts의 fuzzy 교정 블록에서 전체
+  정규화 파이프라인 재적용: `normalizeToolParams(correctedName, request.args)` →
+  `normalizeToolParamsBySchema()` → `coerceParamTypes()`
+- **추가 테스트**: 4개 (scheduler 2개 + coreToolScheduler 2개 통합 테스트)
+
+### Issue 2 [HIGH]: 숫자 변환 시 Infinity 허용
+
+- **문제**: `Number("Infinity")` → `Infinity` 변환이 `!Number.isNaN()` 가드를
+  통과
+- **영향**: AJV `type: number`에서 Infinity가 통과하여 비정상 값이 도구로 전달
+- **수정**: `Number.isFinite(num)` 가드 추가 (line 320)
+- **추가 테스트**: 2개 (`"Infinity"`, `"-Infinity"`)
+
+### Issue 3 [MEDIUM]: coerceParamTypes가 allOf 조합 스키마를 해석하지 않음
+
+- **문제**: Phase 4의 `extractSchemaInfo()`는 allOf 병합 지원하지만, Phase 5
+  `coerceParamTypes()`는 top-level `properties`만 조회
+- **영향**: allOf 기반 MCP schema에서 타입 보정 미적용
+- **수정**: `extractSchemaInfo()` 재사용하여 allOf 병합된 properties 기반으로
+  타입 변환
+- **추가 테스트**: 2개 (allOf 병합 properties, allOf에 $ref only → no-op)
+
+### Issue 4 [MEDIUM]: generateValidName 작은 maxLength에서 길이 보장 실패
+
+- **문제**: `maxLength - 7`이 음수일 때 `slice(0, 음수)` → 빈 문자열이 아닌 원본
+  반환
+- **재현**: `maxLength=3`일 때 결과 길이 20+
+- **수정**: `Math.max(0, maxLength - 7)` 가드 + `prefixBudget === 0`이면
+  hash-only truncation (`hash.slice(0, maxLength)`)
+- **추가 테스트**: 2개 (`maxLength=5`, `maxLength=7`)
+
+### Issue 5 [MEDIUM]: 프로바이더별 길이 제한이 실제 경로에 연결되지 않음
+
+- **문제**: `generateValidName(name, maxLength)` 시그니처 추가했지만 호출부는
+  전부 기본값(63), `getFullyQualifiedName()`과 `tool-registry.ts`도 매직 넘버 63
+  하드코딩
+- **수정**:
+  - `DEFAULT_MAX_TOOL_NAME_LENGTH = 63` 상수 도입 (mcp-tool.ts, export)
+  - `getFullyQualifiedName()`의 4곳 하드코딩 63 → `maxLen` 지역 변수로 통일
+  - `tool-registry.ts`의 해시 충돌 해소 로직 하드코딩 56/63 →
+    `DEFAULT_MAX_TOOL_NAME_LENGTH` 기반으로 교체
+- **설계 결정**: 현재는 63자 통일 (모든 프로바이더 최소 공통), 향후 프로바이더별
+  차등 적용 시 상수만 교체하면 됨
+
+### Issue 6 [LOW]: 스케줄러 통합 테스트 공백 (fuzzy+coerce 경로)
+
+- **문제**: fuzzy name correction + 재정규화 + 타입 보정 통합 경로 회귀 테스트
+  없음
+- **수정**: scheduler.test.ts + coreToolScheduler.test.ts에 각 2개씩 통합 테스트
+  추가
+  - `should apply full normalization pipeline after fuzzy name correction` (내장
+    도구: typo 교정 + static alias)
+  - `should apply fuzzy correction + type coercion for MCP tools` (MCP 도구:
+    typo 교정 + schema 정규화 + 타입 변환)
+
+### 리뷰 수정 검증 결과
+
+| 검증 항목                     | 결과                             |
+| ----------------------------- | -------------------------------- |
+| tool-utils 단위 테스트        | 83 PASS (기존 79 + 신규 4)       |
+| mcp-tool 단위 테스트          | 65 PASS (기존 63 + 신규 2)       |
+| scheduler 통합 테스트         | 32 PASS (기존 30 + 신규 2)       |
+| coreToolScheduler 통합 테스트 | 27 PASS (기존 25 + 신규 2)       |
+| tool-registry 회귀 테스트     | 30 PASS                          |
+| Core 전체 테스트              | 284 files, 5661 PASS, 24 skipped |
+| TypeScript typecheck          | PASS                             |
+| ESLint lint                   | PASS                             |

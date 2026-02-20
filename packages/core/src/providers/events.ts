@@ -183,11 +183,23 @@ export interface LlmFinishedEvent extends LlmBaseEvent {
 }
 
 /**
+ * Rate-limit information from provider response headers.
+ */
+export interface RateLimitInfo {
+  requestsLimit?: number;
+  requestsRemaining?: number;
+  tokensLimit?: number;
+  tokensRemaining?: number;
+  resetTime?: Date;
+}
+
+/**
  * Message end event (stream completion).
  */
 export interface LlmMessageEndEvent extends LlmBaseEvent {
   type: LlmEventType.MessageEnd;
   usage?: LlmTokenUsage;
+  rateLimits?: RateLimitInfo;
 }
 
 /**

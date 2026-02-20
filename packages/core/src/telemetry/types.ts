@@ -2036,3 +2036,21 @@ export class HookCallEvent implements BaseTelemetryEvent {
     return `Hook call ${hookId} ${status} in ${this.duration_ms}ms`;
   }
 }
+
+// ============================================================================
+// Provider Quota Types
+// ============================================================================
+
+/**
+ * Provider-specific rate-limit quota information.
+ * Populated from response headers (e.g., Anthropic / OpenAI rate-limit headers).
+ */
+export interface ProviderQuota {
+  provider: string;
+  requestsLimit?: number;
+  requestsRemaining?: number;
+  tokensLimit?: number;
+  tokensRemaining?: number;
+  resetTime?: Date;
+  updatedAt: Date;
+}

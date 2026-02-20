@@ -89,4 +89,46 @@ describe('statsCommand', () => {
       type: MessageType.TOOL_STATS,
     });
   });
+
+  // ==========================================================================
+  // Phase 3 RED-5: providerQuotas from ProviderQuotaService
+  // ==========================================================================
+
+  it('should set providerQuotas from providerQuotaService.getAll()', async () => {
+    if (!statsCommand.action) throw new Error('Command has no action');
+
+    const mockProviderQuotas = {
+      claude: {
+        provider: 'claude',
+        requestsLimit: 100,
+        requestsRemaining: 50,
+        updatedAt: new Date(),
+      },
+      openai: {
+        provider: 'openai',
+        requestsLimit: 200,
+        requestsRemaining: 180,
+        updatedAt: new Date(),
+      },
+    };
+
+    // Inject mock providerQuotaService into CommandContext.services
+    (mockContext.services as unknown as Record<string, unknown>)[
+      'providerQuotaService'
+    ] = {
+      getAll: vi.fn().mockReturnValue(mockProviderQuotas),
+      get: vi.fn(),
+      update: vi.fn(),
+    };
+
+    await statsCommand.action(mockContext, '');
+
+    // RED: statsCommand does not use providerQuotaService yet
+    // → providerQuotas will NOT be set on the statsItem
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerQuotas: mockProviderQuotas,
+      }),
+    );
+  });
 });

@@ -885,4 +885,207 @@ describe('ClaudeAdapter', () => {
       }
     });
   });
+
+  // ==============================================================
+  // Phase 3 RED-1: rate-limit header extraction
+  // ==============================================================
+
+  describe('rate-limit header extraction', () => {
+    it('should include rateLimits in MessageEnd event from response headers (stream)', async () => {
+      // Arrange: mock SDK stream response with .withResponse()
+      const mockStreamEvents = [
+        {
+          type: 'message_start',
+          message: {
+            id: 'msg_rl_1',
+            type: 'message',
+            role: 'assistant',
+            content: [],
+            model: 'claude-3-5-sonnet-20241022',
+            usage: { input_tokens: 10, output_tokens: 0 },
+          },
+        },
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' },
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'Hello' },
+        },
+        {
+          type: 'content_block_stop',
+          index: 0,
+        },
+        {
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn', stop_sequence: null },
+          usage: { output_tokens: 5 },
+        },
+        { type: 'message_stop' },
+      ];
+
+      async function* mockStream() {
+        for (const event of mockStreamEvents) {
+          yield event;
+        }
+      }
+
+      // SDK's .withResponse() pattern: returns { data, response }
+      const streamInstance = mockStream();
+      const mockResponse = {
+        headers: new Map([
+          ['anthropic-ratelimit-requests-limit', '100'],
+          ['anthropic-ratelimit-requests-remaining', '50'],
+          ['anthropic-ratelimit-tokens-limit', '100000'],
+          ['anthropic-ratelimit-tokens-remaining', '80000'],
+          ['anthropic-ratelimit-requests-reset', '2026-02-21T12:00:00Z'],
+        ]),
+      };
+      // Mock: create returns a promise that resolves to the stream
+      // but the stream object also has .withResponse() which returns { data, response }
+      const streamWithResponse = Object.assign(
+        Promise.resolve(streamInstance),
+        {
+          withResponse: () =>
+            Promise.resolve({
+              data: streamInstance,
+              response: mockResponse,
+            }),
+        },
+      );
+      mockClient.messages.create.mockReturnValue(streamWithResponse);
+
+      const request = createBasicRequest();
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+
+      const events = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      // Find MessageEnd event
+      const messageEnd = events.find((e) => e.type === LlmEventType.MessageEnd);
+      expect(messageEnd).toBeDefined();
+
+      // RED: adapter does not extract headers yet → rateLimits will be undefined
+      const rateLimits = (messageEnd as unknown as Record<string, unknown>)?.[
+        'rateLimits'
+      ] as
+        | {
+            requestsLimit?: number;
+            requestsRemaining?: number;
+            tokensLimit?: number;
+            tokensRemaining?: number;
+          }
+        | undefined;
+
+      expect(rateLimits).toBeDefined();
+      expect(rateLimits?.requestsLimit).toBe(100);
+      expect(rateLimits?.requestsRemaining).toBe(50);
+      expect(rateLimits?.tokensLimit).toBe(100000);
+      expect(rateLimits?.tokensRemaining).toBe(80000);
+    });
+
+    it('should yield MessageEnd without rateLimits when headers absent (stream)', async () => {
+      const mockStreamEvents = [
+        {
+          type: 'message_start',
+          message: {
+            id: 'msg_rl_2',
+            type: 'message',
+            role: 'assistant',
+            content: [],
+            model: 'claude-3-5-sonnet-20241022',
+            usage: { input_tokens: 10, output_tokens: 0 },
+          },
+        },
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' },
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'Hi' },
+        },
+        {
+          type: 'content_block_stop',
+          index: 0,
+        },
+        {
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn', stop_sequence: null },
+          usage: { output_tokens: 3 },
+        },
+        { type: 'message_stop' },
+      ];
+
+      async function* mockStream() {
+        for (const event of mockStreamEvents) {
+          yield event;
+        }
+      }
+
+      mockClient.messages.create.mockResolvedValue(mockStream());
+
+      const request = createBasicRequest();
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+
+      const events = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      const messageEnd = events.find((e) => e.type === LlmEventType.MessageEnd);
+      expect(messageEnd).toBeDefined();
+
+      // Without .withResponse(), rateLimits should be undefined
+      const rateLimits = (messageEnd as unknown as Record<string, unknown>)?.[
+        'rateLimits'
+      ];
+      expect(rateLimits).toBeUndefined();
+    });
+
+    it('should include rateLimits in generateContent response (non-stream)', async () => {
+      // Arrange: mock non-streaming response with .withResponse()
+      const mockMsg = createMockResponse();
+      const mockResponse = {
+        headers: new Map([
+          ['anthropic-ratelimit-requests-limit', '100'],
+          ['anthropic-ratelimit-requests-remaining', '45'],
+          ['anthropic-ratelimit-tokens-limit', '50000'],
+          ['anthropic-ratelimit-tokens-remaining', '40000'],
+        ]),
+      };
+      const promiseWithResponse = Object.assign(Promise.resolve(mockMsg), {
+        withResponse: () =>
+          Promise.resolve({
+            data: mockMsg,
+            response: mockResponse,
+          }),
+      });
+      mockClient.messages.create.mockReturnValue(promiseWithResponse);
+
+      const request = createBasicRequest();
+      const result = await adapter.generateContent(request, 'prompt-1');
+
+      // RED: adapter does not extract headers yet → rateLimits will be undefined
+      const rateLimits = (result as unknown as Record<string, unknown>)?.[
+        'rateLimits'
+      ] as
+        | {
+            requestsLimit?: number;
+            requestsRemaining?: number;
+          }
+        | undefined;
+
+      expect(rateLimits).toBeDefined();
+      expect(rateLimits?.requestsLimit).toBe(100);
+      expect(rateLimits?.requestsRemaining).toBe(45);
+    });
+  });
 });

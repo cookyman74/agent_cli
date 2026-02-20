@@ -23,6 +23,7 @@ import {
 import { computeSessionStats } from '../utils/computeStats.js';
 import {
   type RetrieveUserQuotaResponse,
+  type ProviderQuota,
   PROVIDER_MODEL_REGISTRY,
   parseCompositeKey,
 } from '@didim365/agent-cli-core';
@@ -384,16 +385,52 @@ const ModelUsageTable: React.FC<{
   );
 };
 
+/** Render provider-specific rate-limit quotas (Claude, OpenAI, etc.). */
+const ProviderQuotaSection: React.FC<{
+  providerQuotas: Record<string, ProviderQuota>;
+}> = ({ providerQuotas }) => {
+  const entries = Object.values(providerQuotas);
+  if (entries.length === 0) return null;
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text bold color={theme.text.primary}>
+        Provider Rate Limits
+      </Text>
+      {entries.map((q) => (
+        <Box key={q.provider}>
+          <Box width={20}>
+            <Text color={theme.text.primary}>{q.provider}</Text>
+          </Box>
+          <Text color={theme.text.secondary}>
+            {q.requestsRemaining != null && q.requestsLimit != null
+              ? `${q.requestsRemaining}/${q.requestsLimit} reqs`
+              : ''}
+            {q.tokensRemaining != null && q.tokensLimit != null
+              ? `  ${q.tokensRemaining.toLocaleString()}/${q.tokensLimit.toLocaleString()} tokens`
+              : ''}
+            {q.resetTime
+              ? `  ${formatResetTime(q.resetTime instanceof Date ? q.resetTime.toISOString() : String(q.resetTime))}`
+              : ''}
+          </Text>
+        </Box>
+      ))}
+    </Box>
+  );
+};
+
 interface StatsDisplayProps {
   duration: string;
   title?: string;
   quotas?: RetrieveUserQuotaResponse;
+  providerQuotas?: Record<string, ProviderQuota>;
 }
 
 export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   duration,
   title,
   quotas,
+  providerQuotas,
 }) => {
   const { stats } = useSessionStats();
   const { metrics } = stats;
@@ -508,6 +545,9 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         cacheEfficiency={computed.cacheEfficiency}
         totalCachedTokens={computed.totalCachedTokens}
       />
+      {providerQuotas && Object.keys(providerQuotas).length > 0 && (
+        <ProviderQuotaSection providerQuotas={providerQuotas} />
+      )}
     </Box>
   );
 };

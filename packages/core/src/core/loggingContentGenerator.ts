@@ -54,6 +54,8 @@ import { CodeAssistServer } from '../code_assist/server.js';
 import { toContents } from '../code_assist/converter.js';
 import { isStructuredError } from '../utils/quotaErrorDetection.js';
 import { runInDevTraceSpan, type SpanMetadata } from '../telemetry/trace.js';
+import type { ProviderQuotaService } from '../telemetry/providerQuotaService.js';
+import type { RateLimitInfo } from '../providers/events.js';
 
 interface StructuredError {
   status: number;
@@ -63,10 +65,20 @@ interface StructuredError {
  * A decorator that wraps a ContentGenerator to add logging to API calls.
  */
 export class LoggingContentGenerator implements ContentGenerator {
+  private providerQuotaService?: ProviderQuotaService;
+
   constructor(
     private readonly wrapped: ContentGenerator,
     private readonly config: Config,
-  ) {}
+    providerQuotaService?: ProviderQuotaService,
+  ) {
+    this.providerQuotaService = providerQuotaService;
+  }
+
+  /** Set the ProviderQuotaService after construction (for late binding). */
+  setProviderQuotaService(service: ProviderQuotaService): void {
+    this.providerQuotaService = service;
+  }
 
   getWrapped(): ContentGenerator {
     return this.wrapped;
@@ -455,6 +467,10 @@ export class LoggingContentGenerator implements ContentGenerator {
         provider,
         response.usage,
       );
+      // Bridge rate-limit data to ProviderQuotaService (non-stream path)
+      if (response.rateLimits && this.providerQuotaService) {
+        this.providerQuotaService.update(provider, response.rateLimits);
+      }
       return response;
     } catch (error) {
       const durationMs = Date.now() - startTime;
@@ -519,6 +535,15 @@ export class LoggingContentGenerator implements ContentGenerator {
           (event as { usage?: LlmTokenUsage }).usage
         ) {
           collectedUsage = (event as { usage?: LlmTokenUsage }).usage;
+        }
+
+        // Bridge rate-limit data to ProviderQuotaService
+        if (event.type === LlmEventType.MessageEnd) {
+          const rateLimits = (event as { rateLimits?: RateLimitInfo })
+            .rateLimits;
+          if (rateLimits && this.providerQuotaService) {
+            this.providerQuotaService.update(provider, rateLimits);
+          }
         }
 
         // Detect Error events (yielded, not thrown)

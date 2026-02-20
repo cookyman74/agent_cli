@@ -37,6 +37,15 @@ async function defaultSessionView(context: CommandContext) {
     }
   }
 
+  // Non-Gemini provider quotas from response headers
+  const providerQuotaService = context.services.providerQuotaService;
+  if (providerQuotaService) {
+    const all = providerQuotaService.getAll();
+    if (Object.keys(all).length > 0) {
+      statsItem.providerQuotas = all;
+    }
+  }
+
   context.ui.addItem(statsItem);
 }
 

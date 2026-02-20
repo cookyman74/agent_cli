@@ -38,19 +38,19 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 | 리스크                                                    | 영향      | 대응 방안                                                                                                                                                                                                                                                                       | 상태 |
 | --------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| **[#2] 데이터 경로 비어있음** (adapter→quota→render)      | 🔴 High   | **전체 경로 한번에 구현**: adapter 헤더 수집 → ProviderQuotaService → statsCommand 분기 → HistoryItemStats → HistoryItemDisplay → StatsDisplay 렌더. DoD에 구간별 수동 추적 필수                                                                                                | ⬜   |
-| **[#3-v1.2] providerQuotaService 미존재**                 | 🔴 High   | `CommandContext`에 providerQuotaService 없음 (`statsCommand.ts`는 `config.refreshUserQuota()`만 사용). **ProviderQuotaService 신규 설계 필수** — 인터페이스, lifecycle, 데이터 소스, 소유권(core 또는 cli) 결정                                                                 | ⬜   |
-| **[#4-v1.2] 스트리밍 rate-limit 헤더 전달 경로 없음**     | 🔴 High   | `LlmFinishedEvent`/`LlmMessageEndEvent`에 rate-limit 필드 없음. adapter가 SDK raw response에서 헤더 접근해도 이벤트 스트림으로 전달 불가. **해결 방안**: (A) `LlmMessageEndEvent`에 `rateLimits?` 필드 추가 또는 (B) adapter에서 직접 ProviderQuotaService에 push (out-of-band) | ⬜   |
-| **[#8-v1.2] openai-compatible 범위**                      | 🟠 Medium | `OpenAiCompatibleAdapter`는 `OpenAiAdapter` 상속 → rate-limit 헤더 처리 자동 상속. 단, 커스텀 서버는 rate-limit 헤더 미반환 가능 → optional 처리 필수                                                                                                                           | ⬜   |
-| SDK 응답에서 헤더 접근 불가                               | 🔴 High   | Anthropic/OpenAI SDK 소스 사전 조사, 불가 시 Phase 보류                                                                                                                                                                                                                         | ⬜   |
-| Anthropic SDK `response.headers` 접근 방법 불확실         | 🟠 Medium | `@anthropic-ai/sdk` d.ts 및 소스 확인                                                                                                                                                                                                                                           | ⬜   |
-| OpenAI SDK `_response?.headers` 비공개 API 의존           | 🟠 Medium | `openai` SDK 릴리스 노트 확인, 대안 경로 조사                                                                                                                                                                                                                                   | ⬜   |
-| `providerQuotas` 렌더 경로 누락 (v3-6)                    | 🟡 Medium | StatsDisplayProps + HistoryItemDisplay 동시 수정                                                                                                                                                                                                                                | ⬜   |
-| `providerTypes.ts` core export 미노출 (이슈 #9)           | 🟡 Low    | `telemetry/types.ts`에 정의하여 기존 export 활용                                                                                                                                                                                                                                | ⬜   |
-| **[#2-v1.3] MessageEnd→ProviderQuotaService 브릿지 누락** | 🟠 High   | adapter가 rateLimits를 yield해도 소비자가 없으면 ProviderQuotaService 미갱신. TASK-003A로 `LoggingContentGenerator`에 브릿지 구현                                                                                                                                               | ⬜   |
-| **[#3-v1.3] statsCommand providerName 미존재**            | 🟠 High   | `statsCommand.ts`에 `providerName` 변수 없음 — Gemini 쿼타는 항상 fetch, Non-Gemini는 ProviderQuotaService로 분리                                                                                                                                                               | ⬜   |
-| **[#7-v1.3] CommandContext 인스턴스 주입 누락**           | 🟠 Medium | 타입만 추가 시 런타임 undefined. `slashCommandProcessor.ts` useMemo에 실제 인스턴스 주입 필요                                                                                                                                                                                   | ⬜   |
-| **[#8-v1.3] LlmGenerateResponse rateLimits 필드 없음**    | 🟡 Low    | 비스트림 경로에서도 rate-limit 전달 필요. TASK-000에서 `providers/types.ts` 동시 수정                                                                                                                                                                                           | ⬜   |
+| **[#2] 데이터 경로 비어있음** (adapter→quota→render)      | 🔴 High   | **전체 경로 한번에 구현**: adapter 헤더 수집 → ProviderQuotaService → statsCommand 분기 → HistoryItemStats → HistoryItemDisplay → StatsDisplay 렌더. DoD에 구간별 수동 추적 필수                                                                                                | ✅   |
+| **[#3-v1.2] providerQuotaService 미존재**                 | 🔴 High   | `CommandContext`에 providerQuotaService 없음 (`statsCommand.ts`는 `config.refreshUserQuota()`만 사용). **ProviderQuotaService 신규 설계 필수** — 인터페이스, lifecycle, 데이터 소스, 소유권(core 또는 cli) 결정                                                                 | ✅   |
+| **[#4-v1.2] 스트리밍 rate-limit 헤더 전달 경로 없음**     | 🔴 High   | `LlmFinishedEvent`/`LlmMessageEndEvent`에 rate-limit 필드 없음. adapter가 SDK raw response에서 헤더 접근해도 이벤트 스트림으로 전달 불가. **해결 방안**: (A) `LlmMessageEndEvent`에 `rateLimits?` 필드 추가 또는 (B) adapter에서 직접 ProviderQuotaService에 push (out-of-band) | ✅   |
+| **[#8-v1.2] openai-compatible 범위**                      | 🟠 Medium | `OpenAiCompatibleAdapter`는 `OpenAiAdapter` 상속 → rate-limit 헤더 처리 자동 상속. 단, 커스텀 서버는 rate-limit 헤더 미반환 가능 → optional 처리 필수                                                                                                                           | ✅   |
+| SDK 응답에서 헤더 접근 불가                               | 🔴 High   | Anthropic/OpenAI SDK 소스 사전 조사, 불가 시 Phase 보류                                                                                                                                                                                                                         | ✅   |
+| Anthropic SDK `response.headers` 접근 방법 불확실         | 🟠 Medium | `@anthropic-ai/sdk` d.ts 및 소스 확인                                                                                                                                                                                                                                           | ✅   |
+| OpenAI SDK `_response?.headers` 비공개 API 의존           | 🟠 Medium | `openai` SDK 릴리스 노트 확인, 대안 경로 조사                                                                                                                                                                                                                                   | ✅   |
+| `providerQuotas` 렌더 경로 누락 (v3-6)                    | 🟡 Medium | StatsDisplayProps + HistoryItemDisplay 동시 수정                                                                                                                                                                                                                                | ✅   |
+| `providerTypes.ts` core export 미노출 (이슈 #9)           | 🟡 Low    | `telemetry/types.ts`에 정의하여 기존 export 활용                                                                                                                                                                                                                                | ✅   |
+| **[#2-v1.3] MessageEnd→ProviderQuotaService 브릿지 누락** | 🟠 High   | adapter가 rateLimits를 yield해도 소비자가 없으면 ProviderQuotaService 미갱신. TASK-003A로 `LoggingContentGenerator`에 브릿지 구현                                                                                                                                               | ✅   |
+| **[#3-v1.3] statsCommand providerName 미존재**            | 🟠 High   | `statsCommand.ts`에 `providerName` 변수 없음 — Gemini 쿼타는 항상 fetch, Non-Gemini는 ProviderQuotaService로 분리                                                                                                                                                               | ✅   |
+| **[#7-v1.3] CommandContext 인스턴스 주입 누락**           | 🟠 Medium | 타입만 추가 시 런타임 undefined. `slashCommandProcessor.ts` useMemo에 실제 인스턴스 주입 필요                                                                                                                                                                                   | ✅   |
+| **[#8-v1.3] LlmGenerateResponse rateLimits 필드 없음**    | 🟡 Low    | 비스트림 경로에서도 rate-limit 전달 필요. TASK-000에서 `providers/types.ts` 동시 수정                                                                                                                                                                                           | ✅   |
 
 ---
 
@@ -195,7 +195,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 > (A)**: `LlmMessageEndEvent`에 `rateLimits?` 필드 추가 → adapter가 스트림 종료
 > 시 포함.
 
-- [ ] **[RED]** LlmMessageEndEvent에 rateLimits 필드 존재 테스트
+- [x] **[RED]** LlmMessageEndEvent에 rateLimits 필드 존재 테스트
 
   **파일**: `packages/core/src/providers/events.test.ts` (또는 관련 테스트)
 
@@ -218,7 +218,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED]** Claude adapter가 rate-limit 헤더를 추출하여 MessageEnd에
+- [x] **[RED]** Claude adapter가 rate-limit 헤더를 추출하여 MessageEnd에
       포함하는 테스트
 
   **파일**: `packages/core/src/providers/claude/adapter.test.ts`
@@ -240,7 +240,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED]** OpenAI adapter 동일 테스트
+- [x] **[RED]** OpenAI adapter 동일 테스트
 
   **파일**: `packages/core/src/providers/openai/adapter.test.ts`
 
@@ -253,7 +253,8 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED]** openai-compatible adapter 상속 동작 테스트
+- [x] **[RED]** openai-compatible adapter 상속 동작 테스트 _(상속으로 자동 커버
+      — 별도 테스트 불필요)_
 
   > **v1.2 이슈 #8**: openai-compatible은 OpenAiAdapter 상속 → rate-limit 처리
   > 자동 상속.
@@ -272,11 +273,11 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-2: ProviderQuota 타입
 
-- [ ] **[RED]** ProviderQuota 인터페이스 존재 및 export 테스트
+- [x] **[RED]** ProviderQuota 인터페이스 존재 및 export 테스트
 
   > **v1.4 이슈 #1 수정**: flat 스키마 사용 — TASK-003 `ProviderQuota`
   > 인터페이스 및 `RateLimitInfo`와 일관.
@@ -298,11 +299,11 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-3: HistoryItemStats providerQuotas
 
-- [ ] **[RED]** HistoryItemStats에 providerQuotas 필드 존재 테스트
+- [x] **[RED]** HistoryItemStats에 providerQuotas 필드 존재 테스트
 
   **파일**: `packages/cli/src/ui/types.test.ts` (또는 관련 테스트)
 
@@ -327,11 +328,11 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-4: StatsDisplay providerQuotas 렌더링
 
-- [ ] **[RED]** StatsDisplay가 providerQuotas를 렌더링하는 테스트
+- [x] **[RED]** StatsDisplay가 providerQuotas를 렌더링하는 테스트
 
   **파일**: `packages/cli/src/ui/components/StatsDisplay.test.tsx`
 
@@ -347,13 +348,13 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-5: ProviderQuotaService + statsCommand 쿼타 분기
 
 > **v1.2 이슈 #3**: `providerQuotaService`가 미존재. 신규 설계 필요.
 
-- [ ] **[RED]** ProviderQuotaService 인터페이스 + 구현 테스트
+- [x] **[RED]** ProviderQuotaService 인터페이스 + 구현 테스트
 
   **파일**: `packages/core/src/telemetry/providerQuotaService.test.ts` (신규)
 
@@ -387,7 +388,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED]** statsCommand가 ProviderQuotaService를 사용하는 테스트
+- [x] **[RED]** statsCommand가 ProviderQuotaService를 사용하는 테스트
 
   **파일**: `packages/cli/src/ui/commands/statsCommand.test.ts`
 
@@ -402,7 +403,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ---
 
@@ -412,7 +413,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 > **v1.2 이슈 #4 해결**: 스트리밍 경로에 rate-limit 전달 메커니즘 추가.
 
-- [ ] **[TASK-000]** LlmMessageEndEvent + LlmGenerateResponse 인터페이스 확장
+- [x] **[TASK-000]** LlmMessageEndEvent + LlmGenerateResponse 인터페이스 확장
   - 파일: `packages/core/src/providers/events.ts`
   - 변경 (스트리밍):
 
@@ -455,7 +456,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 ### TASK-001: Claude adapter 헤더 수집
 
-- [ ] **[TASK-001]** Anthropic SDK 응답에서 rate-limit 헤더 추출 → MessageEnd에
+- [x] **[TASK-001]** Anthropic SDK 응답에서 rate-limit 헤더 추출 → MessageEnd에
       포함
   - 파일: `packages/core/src/providers/claude/adapter.ts`
   - 변경: `generateContentStream()`에서 마지막 MessageEnd 이벤트에 `rateLimits`
@@ -467,7 +468,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 ### TASK-002: OpenAI adapter 헤더 수집
 
-- [ ] **[TASK-002]** OpenAI SDK 응답에서 rate-limit 헤더 추출 → MessageEnd에
+- [x] **[TASK-002]** OpenAI SDK 응답에서 rate-limit 헤더 추출 → MessageEnd에
       포함
   - 파일: `packages/core/src/providers/openai/adapter.ts`
   - 변경: 동일 패턴
@@ -480,7 +481,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 > **v1.2 이슈 #3 해결**: ProviderQuotaService 신규 설계 및 구현.
 
-- [ ] **[TASK-003]** ProviderQuota 인터페이스 + ProviderQuotaService 클래스
+- [x] **[TASK-003]** ProviderQuota 인터페이스 + ProviderQuotaService 클래스
       구현 + export
   - 파일: `packages/core/src/telemetry/types.ts` — ProviderQuota 인터페이스 정의
     ```typescript
@@ -532,7 +533,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 > 데이터를 포함해도, 이를 소비하여 `ProviderQuotaService.update()`를 호출하는
 > 코드가 없으면 UI까지 도달 불가.
 
-- [ ] **[TASK-003A]** MessageEnd 이벤트의 rateLimits를 ProviderQuotaService에
+- [x] **[TASK-003A]** MessageEnd 이벤트의 rateLimits를 ProviderQuotaService에
       전달하는 브릿지 구현
   - **호출 위치 (권장)**: `LoggingContentGenerator.llmLoggingStreamWrapper()` —
     이미 MessageEnd에서 usage를 수집하는 위치
@@ -571,14 +572,14 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 ### TASK-004: HistoryItemStats 타입 확장
 
-- [ ] **[TASK-004]** providerQuotas 필드 추가
+- [x] **[TASK-004]** providerQuotas 필드 추가
   - 파일: `packages/cli/src/ui/types.ts`
   - 변경: `providerQuotas?: Record<string, ProviderQuota>` 추가
   - 예상 소요: 10분
 
 ### TASK-005: StatsDisplayProps 확장 + 렌더링
 
-- [ ] **[TASK-005]** providerQuotas prop 추가 및 렌더 분기
+- [x] **[TASK-005]** providerQuotas prop 추가 및 렌더 분기
   - 파일: `packages/cli/src/ui/components/StatsDisplay.tsx`
   - 변경:
     - `StatsDisplayProps`에 `providerQuotas?: Record<string, ProviderQuota>`
@@ -589,7 +590,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 ### TASK-006: HistoryItemDisplay prop 전달
 
-- [ ] **[TASK-006]** providerQuotas를 StatsDisplay에 전달
+- [x] **[TASK-006]** providerQuotas를 StatsDisplay에 전달
   - 파일: `packages/cli/src/ui/components/HistoryItemDisplay.tsx`
   - 변경:
     ```typescript
@@ -606,7 +607,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 > **v1.2 이슈 #3 해결**: `CommandContext.services`에 `providerQuotaService`
 > 추가.
 
-- [ ] **[TASK-007]** CommandContext.services 확장 + 주입 + statsCommand 분기
+- [x] **[TASK-007]** CommandContext.services 확장 + 주입 + statsCommand 분기
       구현
 
   > **v1.3 이슈 #3**: 기존 `statsCommand.ts`에 `providerName` 변수가 존재하지
@@ -663,7 +664,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
   - 예상 소요: 45분
 
-- [ ] **[GREEN-VERIFY]** 테스트 통과 확인
+- [x] **[GREEN-VERIFY]** 테스트 통과 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/providers/claude/adapter.test.ts --run
   npm test -w @didim365/agent-cli-core -- src/providers/openai/adapter.test.ts --run
@@ -676,37 +677,37 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 ### 3.4.1 구조 개선 (Make it right)
 
-- [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
+- [x] **[REFACTOR-STRUCTURE]** 코드 구조 개선
   - adapter 헤더 추출 로직을 공통 유틸리티로 추출 (Claude/OpenAI 헤더 파싱 패턴
     유사)
   - `ProviderQuotaService` 클래스 분리 검토 (현재 statsCommand에 인라인이면)
   - 쿼타 표시 컴포넌트를 `GeminiQuotaSection` / `ProviderQuotaSection` 으로 분리
 
-- [ ] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
 
 ---
 
 ## 3.5 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 전체 테스트 실행
+- [x] **[TEST]** 전체 테스트 실행
 
   ```bash
   npm run test
   ```
 
-- [ ] **[TYPECHECK]** 타입체크
+- [x] **[TYPECHECK]** 타입체크
 
   ```bash
   npm run typecheck
   ```
 
-- [ ] **[LINT]** 린터 검사
+- [x] **[LINT]** 린터 검사
 
   ```bash
   npm run lint
   ```
 
-- [ ] **[VERIFY]** 기능 검증
+- [x] **[VERIFY]** 기능 검증
   - 확인 항목 1: Claude 사용 시 rate-limit 쿼타 표시
   - 확인 항목 2: OpenAI 사용 시 rate-limit 쿼타 표시
   - 확인 항목 3: Gemini 기존 쿼타 정상 동작 (regression)
@@ -724,10 +725,10 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
     → HistoryItemStats → HistoryItemDisplay → StatsDisplay. 각 구간 데이터 유실
     없음
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `../working_history/Phase3_QuotaIntegration_{작업일자}.md`
 
-- [ ] **[COMMIT]** 변경사항 커밋
+- [x] **[COMMIT]** 변경사항 커밋
 
   > **v1.4 이슈 #6 수정**: TASK 전체 범위 반영 — 누락 파일 추가.
 

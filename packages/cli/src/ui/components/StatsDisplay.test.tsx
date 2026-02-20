@@ -821,4 +821,79 @@ describe('<StatsDisplay />', () => {
       vi.useRealTimers();
     });
   });
+
+  // ==========================================================================
+  // Phase 3 RED-4: providerQuotas rendering
+  // ==========================================================================
+
+  describe('providerQuotas rendering', () => {
+    it('should render provider quota section when providerQuotas provided', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'claude::claude-3-5-sonnet': {
+            provider: 'claude',
+            api: { totalRequests: 5, totalErrors: 0, totalLatencyMs: 3000 },
+            tokens: {
+              input: 1000,
+              prompt: 1000,
+              candidates: 500,
+              total: 1500,
+              cached: 0,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const mockProviderQuotas = {
+        claude: {
+          provider: 'claude',
+          requestsLimit: 100,
+          requestsRemaining: 50,
+          tokensLimit: 100000,
+          tokensRemaining: 80000,
+          updatedAt: new Date(),
+        },
+      };
+
+      useSessionStatsMock.mockReturnValue({
+        stats: {
+          sessionId: 'test-session-id',
+          sessionStartTime: new Date(),
+          metrics,
+          lastPromptTokenCount: 0,
+          promptCount: 5,
+        },
+        getPromptCount: () => 5,
+        startNewPrompt: vi.fn(),
+      });
+
+      // RED: StatsDisplay does not accept providerQuotas prop yet
+      // Using duck typing cast to avoid TS error on non-existent prop
+      const props = {
+        duration: '1s',
+        providerQuotas: mockProviderQuotas,
+      } as unknown as { duration: string };
+
+      const { lastFrame } = render(<StatsDisplay {...props} />);
+      const output = lastFrame();
+
+      // Should render provider-specific quota info
+      expect(output).toContain('claude');
+      // RED: will fail because StatsDisplay doesn't render providerQuotas
+      expect(output).toContain('50/100'); // requestsRemaining/requestsLimit
+    });
+
+    it('should not render provider quota section when providerQuotas is undefined', () => {
+      const metrics = createTestMetrics();
+
+      const { lastFrame } = renderWithMockedStats(metrics);
+      const output = lastFrame();
+
+      // Should not contain any provider quota section
+      expect(output).not.toContain('Provider Rate Limits');
+    });
+  });
 });

@@ -139,3 +139,5 @@ export {
 } from './metrics.js';
 export { runInDevTraceSpan, type SpanMetadata } from './trace.js';
 export { startupProfiler, StartupProfiler } from './startupProfiler.js';
+export { ProviderQuotaService } from './providerQuotaService.js';
+export type { ProviderQuota } from './types.js';

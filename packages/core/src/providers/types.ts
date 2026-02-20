@@ -208,6 +208,9 @@ export interface LlmGenerateResponse {
   /** Token usage statistics (optional - may not be available during streaming) */
   usage?: LlmTokenUsage;
 
+  /** Rate-limit information from provider response headers */
+  rateLimits?: import('./events.js').RateLimitInfo;
+
   /** Raw provider response (for debugging) */
   rawResponse?: unknown;
 }

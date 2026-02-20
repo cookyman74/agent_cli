@@ -13,6 +13,7 @@ import type {
   SerializableConfirmationDetails,
   ToolResultDisplay,
   RetrieveUserQuotaResponse,
+  ProviderQuota,
   SkillDefinition,
   AgentDefinition,
 } from '@didim365/agent-cli-core';
@@ -165,6 +166,7 @@ export type HistoryItemStats = HistoryItemBase & {
   type: 'stats';
   duration: string;
   quotas?: RetrieveUserQuotaResponse;
+  providerQuotas?: Record<string, ProviderQuota>;
 };
 
 export type HistoryItemModelStats = HistoryItemBase & {

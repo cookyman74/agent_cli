@@ -122,6 +122,7 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
         <StatsDisplay
           duration={itemForDisplay.duration}
           quotas={itemForDisplay.quotas}
+          providerQuotas={itemForDisplay.providerQuotas}
         />
       )}
       {itemForDisplay.type === 'model_stats' && <ModelStatsDisplay />}

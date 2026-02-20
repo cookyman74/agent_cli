@@ -34,6 +34,7 @@ import {
   addMCPStatusChangeListener,
   removeMCPStatusChangeListener,
   MCPDiscoveryState,
+  ProviderQuotaService,
 } from '@didim365/agent-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import type {
@@ -137,6 +138,22 @@ export const useSlashCommandProcessor = (
     return l;
   }, [config]);
 
+  // Session-scoped ProviderQuotaService singleton for non-Gemini rate-limit data.
+  // Wired into LoggingContentGenerator via late binding (setProviderQuotaService).
+  const providerQuotaService = useMemo(() => {
+    const service = new ProviderQuotaService();
+    // Late-bind to content generator if it supports setProviderQuotaService
+    if (config) {
+      const gen = config.getContentGenerator();
+      if (gen && 'setProviderQuotaService' in gen) {
+        (
+          gen as { setProviderQuotaService: (s: ProviderQuotaService) => void }
+        ).setProviderQuotaService(service);
+      }
+    }
+    return service;
+  }, [config]);
+
   const [pendingItem, setPendingItem] = useState<HistoryItemWithoutId | null>(
     null,
   );
@@ -209,6 +226,7 @@ export const useSlashCommandProcessor = (
         settings,
         git: gitService,
         logger,
+        providerQuotaService,
       },
       ui: {
         addItem,
@@ -248,6 +266,7 @@ export const useSlashCommandProcessor = (
       settings,
       gitService,
       logger,
+      providerQuotaService,
       loadHistory,
       addItem,
       clearItems,

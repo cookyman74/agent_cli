@@ -25,6 +25,11 @@ import type {
   GenerateOptions,
 } from '../types.js';
 import type { LlmEvent, LlmEventStream } from '../events.js';
+import { LlmEventType } from '../events.js';
+import {
+  extractWithRateLimits,
+  CLAUDE_RATE_LIMIT_HEADERS,
+} from '../rateLimitUtils.js';
 import {
   LlmError,
   LlmErrorType,
@@ -109,10 +114,18 @@ export class ClaudeAdapter extends BaseAdapter {
 
     try {
       const params = this.converter.toClaudeRequest(request);
-      const response = await this.client.messages.create(params, {
+      const createResult = this.client.messages.create(params, {
         signal: options?.signal,
       });
-      return this.converter.fromClaudeResponse(response, request.model);
+      const { data, rateLimits } = await extractWithRateLimits(
+        createResult,
+        CLAUDE_RATE_LIMIT_HEADERS,
+      );
+      const result = this.converter.fromClaudeResponse(data, request.model);
+      if (rateLimits) {
+        result.rateLimits = rateLimits;
+      }
+      return result;
     } catch (error) {
       throw this.classifyError(error);
     }
@@ -136,19 +149,28 @@ export class ClaudeAdapter extends BaseAdapter {
 
     async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
       try {
-        const stream = (await client.messages.create(
+        const createResult = client.messages.create(
           {
             ...params,
             stream: true,
           },
           { signal },
-        )) as AsyncIterable<unknown>;
+        );
+        const { data, rateLimits } = await extractWithRateLimits(
+          createResult,
+          CLAUDE_RATE_LIMIT_HEADERS,
+        );
+        const stream = data as AsyncIterable<unknown>;
 
         const state = converter.createStreamState();
         for await (const chunk of stream) {
           const events = converter.convertStreamEvent(chunk, state);
           for (const event of events) {
-            yield event;
+            if (event.type === LlmEventType.MessageEnd && rateLimits) {
+              yield { ...event, rateLimits };
+            } else {
+              yield event;
+            }
           }
         }
       } catch (error) {

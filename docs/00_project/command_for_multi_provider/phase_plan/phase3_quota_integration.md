@@ -56,28 +56,29 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
 
 ## 3.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 2 작업 결과서 검토
-  - 파일: `../working_history/Phase2_CacheCreation_{작업일자}.md`
-  - 확인: 체크리스트 완료, 미해결 이슈
+- [x] **[REVIEW]** Phase 2 작업 결과서 검토
+  - 파일: `../working_history/Phase2_CacheCreation_20260220.md`
+  - 확인: 체크리스트 완료, 리뷰 이슈 5건 수정 반영 완료
 
-- [ ] **[CONTEXT]** Phase 3 작업 목적 확인
+- [x] **[CONTEXT]** Phase 3 작업 목적 확인
   - Non-Gemini 프로바이더의 쿼타/rate-limit 정보를 `/stats`에 표시
   - Gemini: 기존 `refreshUserQuota()` 유지
   - Claude/OpenAI/openai-compatible: 응답 헤더에서 rate-limit 추출
 
-- [ ] **[ANALYSIS-CRITICAL]** SDK 헤더 접근 가능성 조사 (Phase 실행 전 필수)
-  - `node_modules/@anthropic-ai/sdk` d.ts 확인
-    - `messages.create()` 반환 타입에 `headers` 또는 `_response` 접근 가능한지
-    - rate-limit 헤더: `anthropic-ratelimit-requests-limit`, `-remaining`,
-      `-reset`
-  - `node_modules/openai` d.ts 확인
-    - `chat.completions.create()` 반환 타입
-    - `_response?.headers` 또는 `response.headers` 접근 가능한지
-    - rate-limit 헤더: `x-ratelimit-limit-requests`, `-remaining-requests`,
-      `-reset-requests`
-  - **결과**: 접근 불가 시 Phase 3 보류, Phase 4로 건너뛰기
+- [x] **[ANALYSIS-CRITICAL]** SDK 헤더 접근 가능성 조사 (Phase 실행 전 필수)
+  - `@anthropic-ai/sdk` d.ts 확인 → ✅ **접근 가능**
+    - `messages.create()` 반환 `APIPromise<T>` → `.withResponse()` 메서드 제공
+    - `.withResponse()` 반환: `{ data: T, response: Response, request_id }`
+    - `response.headers.get('anthropic-ratelimit-requests-limit')` 등 접근 가능
+    - 스트리밍: `MessageStream`도 `.withResponse()` 지원
+  - `openai` d.ts 확인 → ✅ **접근 가능**
+    - `chat.completions.create()` 반환 `APIPromise<T>` → `.withResponse()` 동일
+    - 스트리밍: `.withResponse()` 호출 후 `data`를 AsyncIterable로 사용
+    - `response.headers.get('x-ratelimit-limit-requests')` 등 접근 가능
+  - **결과**: ✅ 양쪽 SDK 모두 `.withResponse()` 패턴으로 헤더 접근 가능 → Phase
+    3 진행
 
-- [ ] **[ANALYSIS-CRITICAL]** 스트리밍 rate-limit 전달 경로 설계 (Phase 실행 전
+- [x] **[ANALYSIS-CRITICAL]** 스트리밍 rate-limit 전달 경로 설계 (Phase 실행 전
       필수)
 
   > **v1.2 이슈 #4**: 현재 `LlmFinishedEvent`/`LlmMessageEndEvent`에 rate-limit
@@ -101,8 +102,10 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
       - 장점: 이벤트 인터페이스 변경 없음
       - 단점: adapter가 ProviderQuotaService에 의존 → DI 변경 필요
     - **권장**: 방안 (A) — 이벤트 중심 아키텍처 일관성 유지
+  - **구현 포인트**: `.withResponse()` 호출 후 httpResponse를 closure로 capture
+    → 스트림 종료 시 MessageEnd에 `rateLimits` 포함
 
-- [ ] **[ANALYSIS-NEW]** ProviderQuotaService 설계 (Phase 실행 전 필수)
+- [x] **[ANALYSIS-NEW]** ProviderQuotaService 설계 (Phase 실행 전 필수)
 
   > **v1.2 이슈 #3**: `providerQuotaService`가 코드베이스에 존재하지 않음.
   > `CommandContext`에도 없음 — `statsCommand.ts`는
@@ -119,19 +122,29 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
     - **기존 Gemini 쿼타와 분리**: `refreshUserQuota()`는 API 호출 기반,
       ProviderQuotaService는 응답 헤더 기반 → 다른 lifecycle
 
-- [ ] **[ANALYSIS]** 렌더 경로 현황 분석
+- [x] **[ANALYSIS]** 렌더 경로 현황 분석
   - `packages/cli/src/ui/components/HistoryItemDisplay.tsx` (line 122)
     - 현재: `<StatsDisplay duration={...} quotas={...quotas} />` —
-      `providerQuotas` 미전달
+      `providerQuotas` 미전달 → 단순 pass-through, 변경 최소
   - `packages/cli/src/ui/components/StatsDisplay.tsx`
     - `StatsDisplayProps`:
       `{ duration: string; title?: string; quotas?: RetrieveUserQuotaResponse }`
       — `providerQuotas` 없음
+    - `GEMINI_MODEL_ALLOWLIST` 하드코딩 → provider-aware 확장 필요
   - `packages/cli/src/ui/types.ts`
     - `HistoryItemStats`: `quotas?: RetrieveUserQuotaResponse` —
       `providerQuotas` 없음
+  - `packages/cli/src/ui/commands/statsCommand.ts`
+    - `config.refreshUserQuota()` 호출만 존재, ProviderQuotaService 미연결
+  - `packages/cli/src/ui/commands/types.ts`
+    - `CommandContext.services`: `{config, settings, git, logger}` 만 보유
+  - `packages/cli/src/ui/hooks/slashCommandProcessor.ts`
+    - `commandContext` useMemo에 providerQuotaService 미포함
+  - `packages/core/src/core/loggingContentGenerator.ts`
+    - `llmLoggingStreamWrapper()` 내 MessageEnd 처리: usage만 수집, rateLimits
+      미처리
 
-- [ ] **[ANALYSIS]** openai-compatible 범위 확인
+- [x] **[ANALYSIS]** openai-compatible 범위 확인
 
   > **v1.2 이슈 #8**: `OpenAiCompatibleAdapter extends OpenAiAdapter` —
   > rate-limit 처리 상속됨. 단, 커스텀 OpenAI-compatible 서버는 rate-limit
@@ -142,7 +155,7 @@ UI에서 `providerQuotas`를 표시하려면 adapter → 텔레메트리 → UI 
     - 단, 헤더 없는 경우 `rateLimits: undefined` →
       `ProviderQuotaService.update()` 미호출 (null 가드)
 
-- [ ] **[SCOPE-CHECK]** 2일 이내 완료 가능 범위 확인
+- [x] **[SCOPE-CHECK]** 2일 이내 완료 가능 범위 확인
   - 예상 총 소요: 2일
   - SDK 조사 결과 접근 불가 시: Phase 보류 (소요 0일)
   - 이번 Phase 완료 조건(DoD):

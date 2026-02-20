@@ -38,10 +38,10 @@
 
 | 리스크                                                                   | 영향      | 대응 방안                                                                                                                                                                          | 상태 |
 | ------------------------------------------------------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| **[#3] ProviderApiResponseEvent에 toLogRecord/toSemanticLogRecord 없음** | 🔴 High   | **3경로 통합 폐기** → UI 전용 경로(`uiTelemetryService.addEvent`) + lightweight OTEL metrics 카운터만 기록. Clearcut은 `ProviderApiResponseEvent`에 logRecord 메서드 없으므로 생략 | ⬜   |
-| Gemini 기존 경로 regression                                              | 🔴 High   | UiEvent union 확장 시 duck typing 보존, 기존 Gemini 테스트 전체 실행                                                                                                               | ⬜   |
-| adapter Error yield 패턴 미처리                                          | 🟠 Medium | 스트림 루프 내 Error 이벤트 감지 + catch 블록 이중 처리                                                                                                                            | ⬜   |
-| usage 없는 정상 응답 카운트 누락                                         | 🟡 Medium | usage 없으면 빈 usage 기본값으로 요청 카운트만 기록                                                                                                                                | ⬜   |
+| **[#3] ProviderApiResponseEvent에 toLogRecord/toSemanticLogRecord 없음** | 🔴 High   | **3경로 통합 폐기** → UI 전용 경로(`uiTelemetryService.addEvent`) + lightweight OTEL metrics 카운터만 기록. Clearcut은 `ProviderApiResponseEvent`에 logRecord 메서드 없으므로 생략 | ✅   |
+| Gemini 기존 경로 regression                                              | 🔴 High   | UiEvent union 확장 시 duck typing 보존, 기존 Gemini 테스트 전체 실행                                                                                                               | ✅   |
+| adapter Error yield 패턴 미처리                                          | 🟠 Medium | 스트림 루프 내 Error 이벤트 감지 + catch 블록 이중 처리                                                                                                                            | ✅   |
+| usage 없는 정상 응답 카운트 누락                                         | 🟡 Medium | usage 없으면 빈 usage 기본값으로 요청 카운트만 기록                                                                                                                                | ✅   |
 
 ---
 
@@ -50,13 +50,13 @@
 > **목적**: 본작업의 실패를 줄이기 위한 작업 준비 과정 **원칙**: 전체 작업의
 > 목적과 배경, 기존 코드 구조를 파악하여 맥락 이해 및 일관성 유지
 
-- [ ] **[CONTEXT]** 작업 목적 및 배경 확인
+- [x] **[CONTEXT]** 작업 목적 및 배경 확인
   - PRD 문서 검토:
     [원본 수정방안 §3.0](../stats_MultiProviderSupport_plan_20260218.md)
   - v2/v3 리뷰 반영 사항 확인: 이슈 #1 (수집 단절), v3-2 (Error yield), v3-3
     (usage-less), v3-4 (OTEL 우회)
 
-- [ ] **[ANALYSIS]** 현재 코드 분석
+- [x] **[ANALYSIS]** 현재 코드 분석
   - `packages/core/src/core/loggingContentGenerator.ts`
     - `llmLoggingStreamWrapper()` (line 473-494): 현재 debugLogger만 사용
     - `llmGenerateContent()` (line 423-449): 비스트림도 debugLogger만 사용
@@ -85,13 +85,13 @@
   - `packages/core/src/providers/claude/adapter.ts`
     - `generateContentStream()` (line 154-161): 동일 패턴
 
-- [ ] **[ANALYSIS]** 기존 테스트 현황 확인
+- [x] **[ANALYSIS]** 기존 테스트 현황 확인
   - `loggingContentGenerator.test.ts`: 기존 Gemini 경로 테스트 확인
   - `uiTelemetry.test.ts`: processApiResponse 기존 테스트 확인
   - `loggers.test.ts`: logApiResponse/logApiError 테스트 확인
   - `telemetryBridge.test.ts`: ProviderApiResponseEvent 생성 테스트 확인
 
-- [ ] **[SCOPE-CHECK]** 2일 이내 완료 가능 범위 확인
+- [x] **[SCOPE-CHECK]** 2일 이내 완료 가능 범위 확인
   - 예상 총 소요: 1.5~2일
   - 이번 Phase 완료 조건(DoD):
     1. `llmLoggingStreamWrapper`에서 Non-Gemini API 호출이 텔레메트리에 기록됨
@@ -113,7 +113,7 @@
 
 ### RED-1: llmLoggingStreamWrapper 정상 응답 텔레메트리
 
-- [ ] **[RED]** 스트림 완료 시 logProviderApiResponse 호출 테스트
+- [x] **[RED]** 스트림 완료 시 logProviderApiResponse 호출 테스트
 
   **파일**: `packages/core/src/core/loggingContentGenerator.test.ts` (신규
   describe 블록)
@@ -128,7 +128,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/core/loggingContentGenerator.test.ts --run
   # 반드시 FAIL이어야 함
@@ -136,7 +136,7 @@
 
 ### RED-2: llmLoggingStreamWrapper Error 이벤트 텔레메트리
 
-- [ ] **[RED]** adapter가 yield한 Error 이벤트에 대한 에러 텔레메트리 테스트
+- [x] **[RED]** adapter가 yield한 Error 이벤트에 대한 에러 텔레메트리 테스트
 
   ```typescript
   it('should call logProviderApiError when stream contains Error event', async () => {
@@ -146,11 +146,11 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-3: llmLoggingStreamWrapper usage 없는 정상 응답
 
-- [ ] **[RED]** usage 없는 정상 스트림에 대한 요청 카운트 테스트
+- [x] **[RED]** usage 없는 정상 스트림에 대한 요청 카운트 테스트
 
   ```typescript
   it('should call logProviderApiResponse with empty usage when stream has no MessageEnd usage', async () => {
@@ -160,11 +160,11 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-4: llmLoggingStreamWrapper 네트워크 예외
 
-- [ ] **[RED]** 스트림 소비 중 네트워크 예외 발생 시 에러 텔레메트리 테스트
+- [x] **[RED]** 스트림 소비 중 네트워크 예외 발생 시 에러 텔레메트리 테스트
 
   ```typescript
   it('should call logProviderApiError and rethrow on network-level exception', async () => {
@@ -173,11 +173,11 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-5: llmGenerateContent (비스트림) 텔레메트리
 
-- [ ] **[RED]** 비스트림 정상 응답 텔레메트리 테스트
+- [x] **[RED]** 비스트림 정상 응답 텔레메트리 테스트
 
   ```typescript
   describe('llmGenerateContent telemetry', () => {
@@ -194,7 +194,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-6: logProviderApiResponse UI 전용 + lightweight OTEL
 
@@ -204,7 +204,7 @@
 > 전용 경로(`uiTelemetryService.addEvent`) + lightweight OTEL counter metrics만
 > 기록.
 
-- [ ] **[RED]** logProviderApiResponse가 uiTelemetry + OTEL counter만 호출하는
+- [x] **[RED]** logProviderApiResponse가 uiTelemetry + OTEL counter만 호출하는
       테스트
 
   **파일**: `packages/core/src/telemetry/loggers.test.ts` (신규 describe 블록)
@@ -239,11 +239,11 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-7: UiEvent 타입 확장 및 processApiResponse provider 추출
 
-- [ ] **[RED]** processApiResponse가 ProviderApiResponseEvent의 provider를
+- [x] **[RED]** processApiResponse가 ProviderApiResponseEvent의 provider를
       인식하는 테스트
 
   **파일**: `packages/core/src/telemetry/uiTelemetry.test.ts` (신규 describe
@@ -265,7 +265,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ---
 
@@ -276,7 +276,7 @@
 
 ### TASK-001: \_logLlmApiResponse / \_logLlmApiError 메서드 추가
 
-- [ ] **[TASK-001]** LoggingContentGenerator에 Non-Gemini 텔레메트리 메서드 신설
+- [x] **[TASK-001]** LoggingContentGenerator에 Non-Gemini 텔레메트리 메서드 신설
   - 파일: `packages/core/src/core/loggingContentGenerator.ts`
   - 변경 내용:
 
@@ -303,7 +303,7 @@
 
 ### TASK-002: llmLoggingStreamWrapper 텔레메트리 추가
 
-- [ ] **[TASK-002]** 스트림 래퍼에 Error 이벤트 감지 + usage 수집 + 텔레메트리
+- [x] **[TASK-002]** 스트림 래퍼에 Error 이벤트 감지 + usage 수집 + 텔레메트리
       로깅
   - 파일: `packages/core/src/core/loggingContentGenerator.ts`
   - 변경 내용:
@@ -317,7 +317,7 @@
 
 ### TASK-003: llmGenerateContent 텔레메트리 추가
 
-- [ ] **[TASK-003]** 비스트림 호출에 텔레메트리 로깅
+- [x] **[TASK-003]** 비스트림 호출에 텔레메트리 로깅
   - 파일: `packages/core/src/core/loggingContentGenerator.ts`
   - 변경 내용:
     - `try` 블록: 성공 시
@@ -331,7 +331,7 @@
 
 > **v1.1 리뷰 반영 (이슈 #3)**: 3경로 통합 폐기 → UI 전용 + lightweight OTEL
 
-- [ ] **[TASK-004]** loggers.ts에 Non-Gemini 전용 텔레메트리 로깅 함수
+- [x] **[TASK-004]** loggers.ts에 Non-Gemini 전용 텔레메트리 로깅 함수
   - 파일: `packages/core/src/telemetry/loggers.ts`
   - 변경 내용:
     - `logProviderApiResponse(config, event)`:
@@ -351,7 +351,7 @@
 
 ### TASK-005: UiEvent 타입 확장
 
-- [ ] **[TASK-005]** ProviderApiResponseEvent / ProviderApiErrorEvent를 UiEvent
+- [x] **[TASK-005]** ProviderApiResponseEvent / ProviderApiErrorEvent를 UiEvent
       union에 추가
   - 파일: `packages/core/src/telemetry/uiTelemetry.ts`
   - 변경 내용:
@@ -375,7 +375,7 @@
 > 필드가 필요함. Phase 1은 이 필드가 존재한다고 가정하고 복합 키 + 그룹핑에
 > 집중.
 
-- [ ] **[TASK-006]** ModelMetrics.provider 추가 + duck typing으로 provider 필드
+- [x] **[TASK-006]** ModelMetrics.provider 추가 + duck typing으로 provider 필드
       감지 + 레거시 호환 (Response + Error 모두)
   - 파일: `packages/core/src/telemetry/uiTelemetry.ts`
   - 변경 — ModelMetrics 인터페이스:
@@ -412,7 +412,7 @@
     ```
   - 예상 소요: 30분
 
-- [ ] **[GREEN-VERIFY]** 전체 테스트 통과 확인
+- [x] **[GREEN-VERIFY]** 전체 테스트 통과 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/core/loggingContentGenerator.test.ts --run
   npm test -w @didim365/agent-cli-core -- src/telemetry/loggers.test.ts --run
@@ -428,7 +428,7 @@
 
 ### 0.4.1 구조 개선 (Make it right)
 
-- [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
+- [x] **[REFACTOR-STRUCTURE]** 코드 구조 개선
   - `_logLlmApiResponse`와 `_logLlmApiError`의 error message 추출 로직 검토
     - `instanceof Error`, `'error' in error`, `String(error)` 분기가 명확한지
       확인
@@ -438,7 +438,7 @@
   - import 정리 및 불필요한 타입 캐스팅 최소화
   - 네이밍 일관성: `_logLlm*` vs `_log*` 접두사 통일
 
-- [ ] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/core/loggingContentGenerator.test.ts --run
   npm test -w @didim365/agent-cli-core -- src/telemetry/ --run
@@ -448,7 +448,7 @@
 
 > 성능 민감도 🟢 Low — 이 섹션은 간략히 검토만 수행
 
-- [ ] **[REFACTOR-PERF-ANALYZE]** 성능 체크리스트 검토
+- [x] **[REFACTOR-PERF-ANALYZE]** 성능 체크리스트 검토
 
   | 항목                          | 현재 상태               | 개선 필요 | 주의사항          |
   | ----------------------------- | ----------------------- | --------- | ----------------- |
@@ -463,31 +463,31 @@
 > **목적**: 수정된 코드 검증 및 작업 결과 문서화 **원칙**: 모든 검증 완료 후
 > 작업결과서 작성
 
-- [ ] **[TEST]** 전체 테스트 실행
+- [x] **[TEST]** 전체 테스트 실행
 
   ```bash
   npm test -w @didim365/agent-cli-core -- --run
   ```
 
-- [ ] **[TYPECHECK]** 타입체크
+- [x] **[TYPECHECK]** 타입체크
 
   ```bash
   npm run typecheck
   ```
 
-- [ ] **[LINT]** 린터 검사
+- [x] **[LINT]** 린터 검사
 
   ```bash
   npm run lint
   ```
 
-- [ ] **[VERIFY]** 기능 검증
+- [x] **[VERIFY]** 기능 검증
   - 확인 항목 1: 기존 Gemini 테스트 전체 통과 (regression 없음)
   - 확인 항목 2: 새 테스트(RED-1~RED-7) 전체 통과
   - 확인 항목 3: `UiEvent` 타입이 기존 `ApiResponseEvent` + 신규
     `ProviderApiResponseEvent` 모두 수용
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `../working_history/Phase0_TelemetryCollection_{작업일자}.md`
   - 내용:
     - 작업 목표 및 범위
@@ -496,7 +496,7 @@
     - 이슈 및 해결 방법
     - Phase 1 착수 전 확인 사항
 
-- [ ] **[COMMIT]** 변경사항 커밋
+- [x] **[COMMIT]** 변경사항 커밋
   ```bash
   git add packages/core/src/core/loggingContentGenerator.ts \
          packages/core/src/telemetry/loggers.ts \
@@ -556,4 +556,4 @@
 
 ---
 
-**작성일**: 2026-02-18 **작성자**: AI Assistant **상태**: ⬜ 작성 중
+**작성일**: 2026-02-18 **작성자**: AI Assistant **상태**: ✅ 완료 (2026-02-20)

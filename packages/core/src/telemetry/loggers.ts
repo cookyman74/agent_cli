@@ -76,6 +76,8 @@ import { bufferTelemetryEvent } from './sdk.js';
 import type { UiEvent } from './uiTelemetry.js';
 import { uiTelemetryService } from './uiTelemetry.js';
 import { ClearcutLogger } from './clearcut-logger/clearcut-logger.js';
+import type { ProviderApiResponseEvent } from '../providers/telemetryBridge.js';
+import type { ProviderApiErrorEvent } from '../providers/telemetryBridge.js';
 
 export function logCliConfiguration(
   config: Config,
@@ -288,6 +290,83 @@ export function logApiResponse(config: Config, event: ApiResponseEvent): void {
         genAiAttributes: conventionAttributes,
       });
     }
+  });
+}
+
+/**
+ * Log a provider-independent API response event.
+ *
+ * Unlike logApiResponse (Gemini), this uses:
+ * - UI telemetry (uiTelemetryService) for /stats display
+ * - Lightweight OTEL counter metrics (no logRecord/Clearcut)
+ *
+ * ProviderApiResponseEvent lacks toLogRecord()/toSemanticLogRecord(),
+ * so the Clearcut and full OTEL log paths are intentionally skipped.
+ */
+export function logProviderApiResponse(
+  config: Config,
+  event: ProviderApiResponseEvent,
+): void {
+  const uiEvent = {
+    ...event,
+    'event.name': EVENT_API_RESPONSE,
+    'event.timestamp': new Date().toISOString(),
+  } as UiEvent;
+  uiTelemetryService.addEvent(uiEvent);
+
+  bufferTelemetryEvent(() => {
+    recordApiResponseMetrics(config, event.duration_ms, {
+      model: event.model,
+      status_code: event.status_code,
+    });
+
+    const tokenUsageData = [
+      { count: event.usage.input_token_count, type: 'input' as const },
+      { count: event.usage.output_token_count, type: 'output' as const },
+      {
+        count: event.usage.cached_content_token_count,
+        type: 'cache' as const,
+      },
+      { count: event.usage.thoughts_token_count, type: 'thought' as const },
+      { count: event.usage.tool_token_count, type: 'tool' as const },
+    ];
+
+    for (const { count, type } of tokenUsageData) {
+      recordTokenUsageMetrics(config, count, {
+        model: event.model,
+        type,
+      });
+    }
+  });
+}
+
+/**
+ * Log a provider-independent API error event.
+ *
+ * Same lightweight approach as logProviderApiResponse — UI + OTEL counter only.
+ */
+export function logProviderApiError(
+  config: Config,
+  event: ProviderApiErrorEvent,
+): void {
+  const uiEvent = {
+    ...event,
+    'event.name': EVENT_API_ERROR,
+    'event.timestamp': new Date().toISOString(),
+  } as UiEvent;
+  uiTelemetryService.addEvent(uiEvent);
+
+  bufferTelemetryEvent(() => {
+    recordApiErrorMetrics(config, event.duration_ms, {
+      model: event.model,
+      status_code: event.status_code,
+      error_type: event.error_type,
+    });
+
+    recordApiResponseMetrics(config, event.duration_ms, {
+      model: event.model,
+      status_code: event.status_code,
+    });
   });
 }
 

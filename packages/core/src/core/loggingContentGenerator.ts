@@ -33,14 +33,22 @@ import {
   logApiError,
   logApiRequest,
   logApiResponse,
+  logProviderApiResponse,
+  logProviderApiError,
 } from '../telemetry/loggers.js';
 import type {
   LlmGenerateRequest,
   LlmGenerateResponse,
   LlmTokenCount,
+  LlmTokenUsage,
   GenerateOptions,
 } from '../providers/types.js';
+import { LlmEventType } from '../providers/events.js';
 import type { LlmEventStream } from '../providers/events.js';
+import {
+  createProviderApiResponseEvent,
+  createProviderApiErrorEvent,
+} from '../providers/telemetryBridge.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { CodeAssistServer } from '../code_assist/server.js';
 import { toContents } from '../code_assist/converter.js';
@@ -428,6 +436,7 @@ export class LoggingContentGenerator implements ContentGenerator {
       );
     }
     const startTime = Date.now();
+    const provider = this.wrapped.providerName ?? 'unknown';
     debugLogger.debug(
       `[LLM] generateContent model=${request.model} promptId=${userPromptId}`,
     );
@@ -439,11 +448,25 @@ export class LoggingContentGenerator implements ContentGenerator {
       );
       const durationMs = Date.now() - startTime;
       debugLogger.debug(`[LLM] generateContent completed in ${durationMs}ms`);
+      this._logLlmApiResponse(
+        request.model,
+        durationMs,
+        userPromptId,
+        provider,
+        response.usage,
+      );
       return response;
     } catch (error) {
       const durationMs = Date.now() - startTime;
       debugLogger.debug(
         `[LLM] generateContent error after ${durationMs}ms: ${error}`,
+      );
+      this._logLlmApiError(
+        request.model,
+        durationMs,
+        userPromptId,
+        provider,
+        error,
       );
       throw error;
     }
@@ -462,35 +485,128 @@ export class LoggingContentGenerator implements ContentGenerator {
     debugLogger.debug(
       `[LLM] generateContentStream model=${request.model} promptId=${userPromptId}`,
     );
+    const startTime = Date.now();
     const stream = this.wrapped.llmGenerateContentStream(
       request,
       userPromptId,
       options,
     );
-    return this.llmLoggingStreamWrapper(stream, request.model, userPromptId);
+    return this.llmLoggingStreamWrapper(
+      stream,
+      request.model,
+      userPromptId,
+      startTime,
+    );
   }
 
   private async *llmLoggingStreamWrapper(
     stream: LlmEventStream,
     model: string,
     userPromptId: string,
+    startTime: number,
   ): LlmEventStream {
-    const startTime = Date.now();
+    const provider = this.wrapped.providerName ?? 'unknown';
+    let collectedUsage: LlmTokenUsage | undefined;
+    let hasError = false;
+
     try {
       for await (const event of stream) {
+        // Collect usage from MessageEnd or Finished event.
+        // OpenAI puts usage in MessageEnd; Claude puts usage in Finished.
+        if (
+          (event.type === LlmEventType.MessageEnd ||
+            event.type === LlmEventType.Finished) &&
+          (event as { usage?: LlmTokenUsage }).usage
+        ) {
+          collectedUsage = (event as { usage?: LlmTokenUsage }).usage;
+        }
+
+        // Detect Error events (yielded, not thrown)
+        if (event.type === LlmEventType.Error) {
+          hasError = true;
+          const durationMs = Date.now() - startTime;
+          this._logLlmApiError(
+            model,
+            durationMs,
+            userPromptId,
+            provider,
+            (event as { error?: Error | string }).error,
+          );
+        }
+
         yield event;
       }
+
       const durationMs = Date.now() - startTime;
       debugLogger.debug(
         `[LLM] generateContentStream completed in ${durationMs}ms`,
       );
+
+      // Log response telemetry only if no error event was encountered
+      if (!hasError) {
+        this._logLlmApiResponse(
+          model,
+          durationMs,
+          userPromptId,
+          provider,
+          collectedUsage,
+        );
+      }
     } catch (error) {
       const durationMs = Date.now() - startTime;
       debugLogger.debug(
         `[LLM] generateContentStream error after ${durationMs}ms model=${model} promptId=${userPromptId}: ${error}`,
       );
+      // Skip error telemetry if:
+      // - Error was already logged via yielded Error event (prevents double recording)
+      // - User cancelled the operation (AbortError is not an API failure)
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (!hasError && !isAbort) {
+        this._logLlmApiError(model, durationMs, userPromptId, provider, error);
+      }
       throw error;
     }
+  }
+
+  private _logLlmApiResponse(
+    model: string,
+    durationMs: number,
+    promptId: string,
+    provider: string,
+    usage?: LlmTokenUsage,
+  ): void {
+    const defaultUsage: LlmTokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
+    const event = createProviderApiResponseEvent({
+      model,
+      durationMs,
+      promptId,
+      usage: usage ?? defaultUsage,
+      provider,
+    });
+    logProviderApiResponse(this.config, event);
+  }
+
+  private _logLlmApiError(
+    model: string,
+    durationMs: number,
+    promptId: string,
+    provider: string,
+    error: unknown,
+  ): void {
+    const errorMsg =
+      error instanceof Error ? error.message : String(error ?? 'Unknown error');
+    const event = createProviderApiErrorEvent({
+      model,
+      error: errorMsg,
+      durationMs,
+      promptId,
+      provider,
+    });
+    logProviderApiError(this.config, event);
   }
 
   async llmCountTokens(request: LlmGenerateRequest): Promise<LlmTokenCount> {

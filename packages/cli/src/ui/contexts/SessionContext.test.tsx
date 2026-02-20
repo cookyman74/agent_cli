@@ -97,6 +97,7 @@ describe('SessionStatsContext', () => {
             candidates: 200,
             total: 300,
             cached: 50,
+            cacheCreation: 0,
             thoughts: 20,
             tool: 10,
           },
@@ -177,6 +178,7 @@ describe('SessionStatsContext', () => {
             candidates: 20,
             total: 30,
             cached: 0,
+            cacheCreation: 0,
             thoughts: 0,
             tool: 0,
           },
@@ -268,6 +270,7 @@ describe('SessionStatsContext', () => {
             candidates: 20,
             total: 30,
             cached: 0,
+            cacheCreation: 0,
             thoughts: 0,
             tool: 0,
           },
@@ -304,6 +307,7 @@ describe('SessionStatsContext', () => {
             candidates: 20,
             total: 30,
             cached: 0,
+            cacheCreation: 0,
             thoughts: 0,
             tool: 0,
           },
@@ -328,6 +332,106 @@ describe('SessionStatsContext', () => {
     });
 
     // Should trigger re-render because provider changed (undefined → 'gemini')
+    expect(renderCount).toBe(3);
+
+    unmount();
+  });
+
+  // Phase 2 RED-5: areModelMetricsEqual should detect cacheCreation changes
+  it('should trigger re-render when cacheCreation changes in model metrics', () => {
+    const contextRef: MutableRefObject<
+      ReturnType<typeof useSessionStats> | undefined
+    > = { current: undefined };
+
+    let renderCount = 0;
+    const CountingTestHarness = () => {
+      contextRef.current = useSessionStats();
+      renderCount++;
+      return null;
+    };
+
+    const { unmount } = render(
+      <SessionStatsProvider>
+        <CountingTestHarness />
+      </SessionStatsProvider>,
+    );
+
+    expect(renderCount).toBe(1);
+
+    // Emit initial metrics with cacheCreation: 0
+    const metricsV1: SessionMetrics = {
+      models: {
+        'claude::claude-sonnet-4': {
+          provider: 'claude',
+          api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 500 },
+          tokens: {
+            input: 100,
+            prompt: 100,
+            candidates: 50,
+            total: 150,
+            cached: 20,
+            thoughts: 0,
+            tool: 0,
+            cacheCreation: 0,
+          },
+        },
+      },
+      tools: {
+        totalCalls: 0,
+        totalSuccess: 0,
+        totalFail: 0,
+        totalDurationMs: 0,
+        totalDecisions: { accept: 0, reject: 0, modify: 0, auto_accept: 0 },
+        byName: {},
+      },
+      files: { totalLinesAdded: 0, totalLinesRemoved: 0 },
+    };
+
+    act(() => {
+      uiTelemetryService.emit('update', {
+        metrics: metricsV1,
+        lastPromptTokenCount: 0,
+      });
+    });
+    expect(renderCount).toBe(2);
+
+    // Emit metrics with ONLY cacheCreation changed: 0 → 30
+    const metricsV2: SessionMetrics = {
+      models: {
+        'claude::claude-sonnet-4': {
+          provider: 'claude',
+          api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 500 },
+          tokens: {
+            input: 100,
+            prompt: 100,
+            candidates: 50,
+            total: 150,
+            cached: 20,
+            thoughts: 0,
+            tool: 0,
+            cacheCreation: 30,
+          },
+        },
+      },
+      tools: {
+        totalCalls: 0,
+        totalSuccess: 0,
+        totalFail: 0,
+        totalDurationMs: 0,
+        totalDecisions: { accept: 0, reject: 0, modify: 0, auto_accept: 0 },
+        byName: {},
+      },
+      files: { totalLinesAdded: 0, totalLinesRemoved: 0 },
+    };
+
+    act(() => {
+      uiTelemetryService.emit('update', {
+        metrics: metricsV2,
+        lastPromptTokenCount: 0,
+      });
+    });
+
+    // Should trigger re-render because cacheCreation changed (0 → 30)
     expect(renderCount).toBe(3);
 
     unmount();

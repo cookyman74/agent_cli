@@ -60,6 +60,9 @@ export const ModelStatsDisplay: React.FC = () => {
   const hasCached = activeModels.some(
     ([, metrics]) => metrics.tokens.cached > 0,
   );
+  const hasCacheCreation = activeModels.some(
+    ([, metrics]) => metrics.tokens.cacheCreation > 0,
+  );
 
   // Helper to create a row with values for each model
   const createRow = (
@@ -131,6 +134,20 @@ export const ModelStatsDisplay: React.FC = () => {
             </Text>
           );
         },
+        { isSubtle: true },
+      ),
+    );
+  }
+
+  if (hasCacheCreation) {
+    rows.push(
+      createRow(
+        'Cache Creation',
+        (m) => (
+          <Text color={theme.text.primary}>
+            {m.tokens.cacheCreation.toLocaleString()}
+          </Text>
+        ),
         { isSubtle: true },
       ),
     );

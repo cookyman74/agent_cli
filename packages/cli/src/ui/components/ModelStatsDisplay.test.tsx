@@ -92,6 +92,7 @@ describe('<ModelStatsDisplay />', () => {
             candidates: 20,
             total: 30,
             cached: 0,
+            cacheCreation: 0,
             thoughts: 0,
             tool: 0,
           },
@@ -134,6 +135,7 @@ describe('<ModelStatsDisplay />', () => {
             candidates: 20,
             total: 30,
             cached: 5,
+            cacheCreation: 0,
             thoughts: 2,
             tool: 0,
           },
@@ -146,6 +148,7 @@ describe('<ModelStatsDisplay />', () => {
             candidates: 10,
             total: 15,
             cached: 0,
+            cacheCreation: 0,
             thoughts: 0,
             tool: 3,
           },
@@ -188,6 +191,7 @@ describe('<ModelStatsDisplay />', () => {
             candidates: 200,
             total: 300,
             cached: 50,
+            cacheCreation: 0,
             thoughts: 10,
             tool: 5,
           },
@@ -200,6 +204,7 @@ describe('<ModelStatsDisplay />', () => {
             candidates: 400,
             total: 600,
             cached: 100,
+            cacheCreation: 0,
             thoughts: 20,
             tool: 10,
           },
@@ -245,6 +250,7 @@ describe('<ModelStatsDisplay />', () => {
             candidates: 123456789,
             total: 999999999,
             cached: 123456789,
+            cacheCreation: 0,
             thoughts: 111111111,
             tool: 222222222,
           },
@@ -283,6 +289,7 @@ describe('<ModelStatsDisplay />', () => {
             candidates: 20,
             total: 30,
             cached: 5,
+            cacheCreation: 0,
             thoughts: 2,
             tool: 1,
           },
@@ -325,6 +332,7 @@ describe('<ModelStatsDisplay />', () => {
               candidates: 4000,
               total: 6000,
               cached: 500,
+              cacheCreation: 0,
               thoughts: 100,
               tool: 50,
             },
@@ -337,6 +345,7 @@ describe('<ModelStatsDisplay />', () => {
               candidates: 8000,
               total: 12000,
               cached: 1000,
+              cacheCreation: 0,
               thoughts: 200,
               tool: 100,
             },
@@ -367,5 +376,86 @@ describe('<ModelStatsDisplay />', () => {
     expect(output).toContain('gemini-3-pro-');
     expect(output).toContain('gemini-3-flash-');
     expect(output).toMatchSnapshot();
+  });
+
+  // Phase 2 RED-6: cacheCreation conditional row rendering
+  it('should display Cache Creation row when any model has cacheCreation > 0', () => {
+    const { lastFrame } = renderWithMockedStats({
+      models: {
+        'claude::claude-sonnet-4': {
+          api: { totalRequests: 5, totalErrors: 0, totalLatencyMs: 2500 },
+          tokens: {
+            input: 200,
+            prompt: 300,
+            candidates: 150,
+            total: 450,
+            cached: 50,
+            thoughts: 0,
+            tool: 0,
+            cacheCreation: 30,
+          },
+        },
+      },
+      tools: {
+        totalCalls: 0,
+        totalSuccess: 0,
+        totalFail: 0,
+        totalDurationMs: 0,
+        totalDecisions: {
+          accept: 0,
+          reject: 0,
+          modify: 0,
+          [ToolCallDecision.AUTO_ACCEPT]: 0,
+        },
+        byName: {},
+      },
+      files: {
+        totalLinesAdded: 0,
+        totalLinesRemoved: 0,
+      },
+    });
+
+    const output = lastFrame();
+    expect(output).toContain('Cache Creation');
+  });
+
+  it('should not display Cache Creation row when all models have cacheCreation = 0', () => {
+    const { lastFrame } = renderWithMockedStats({
+      models: {
+        'gemini::gemini-2.5-pro': {
+          api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+          tokens: {
+            input: 10,
+            prompt: 10,
+            candidates: 20,
+            total: 30,
+            cached: 0,
+            thoughts: 0,
+            tool: 0,
+            cacheCreation: 0,
+          },
+        },
+      },
+      tools: {
+        totalCalls: 0,
+        totalSuccess: 0,
+        totalFail: 0,
+        totalDurationMs: 0,
+        totalDecisions: {
+          accept: 0,
+          reject: 0,
+          modify: 0,
+          [ToolCallDecision.AUTO_ACCEPT]: 0,
+        },
+        byName: {},
+      },
+      files: {
+        totalLinesAdded: 0,
+        totalLinesRemoved: 0,
+      },
+    });
+
+    const output = lastFrame();
+    expect(output).not.toContain('Cache Creation');
   });
 });

@@ -55,6 +55,7 @@ export interface ModelMetrics {
     candidates: number;
     total: number;
     cached: number;
+    cacheCreation: number;
     thoughts: number;
     tool: number;
   };
@@ -93,6 +94,7 @@ const createInitialModelMetrics = (): ModelMetrics => ({
     candidates: 0,
     total: 0,
     cached: 0,
+    cacheCreation: 0,
     thoughts: 0,
     tool: 0,
   },
@@ -196,6 +198,8 @@ export class UiTelemetryService extends EventEmitter {
     modelMetrics.tokens.candidates += event.usage.output_token_count;
     modelMetrics.tokens.total += event.usage.total_token_count;
     modelMetrics.tokens.cached += event.usage.cached_content_token_count;
+    modelMetrics.tokens.cacheCreation +=
+      event.usage.cache_creation_token_count ?? 0;
     modelMetrics.tokens.thoughts += event.usage.thoughts_token_count;
     modelMetrics.tokens.tool += event.usage.tool_token_count;
     modelMetrics.tokens.input = Math.max(

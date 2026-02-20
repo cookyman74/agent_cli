@@ -45,6 +45,7 @@ function areModelMetricsEqual(a: ModelMetrics, b: ModelMetrics): boolean {
     a.tokens.candidates !== b.tokens.candidates ||
     a.tokens.total !== b.tokens.total ||
     a.tokens.cached !== b.tokens.cached ||
+    a.tokens.cacheCreation !== b.tokens.cacheCreation ||
     a.tokens.thoughts !== b.tokens.thoughts ||
     a.tokens.tool !== b.tokens.tool
   ) {

@@ -191,6 +191,7 @@ describe('UiTelemetryService', () => {
           cached: 5,
           thoughts: 2,
           tool: 3,
+          cacheCreation: 0,
         },
       });
       expect(service.getLastPromptTokenCount()).toBe(0);
@@ -247,6 +248,7 @@ describe('UiTelemetryService', () => {
           cached: 15,
           thoughts: 6,
           tool: 9,
+          cacheCreation: 0,
         },
       });
       expect(service.getLastPromptTokenCount()).toBe(0);
@@ -327,6 +329,7 @@ describe('UiTelemetryService', () => {
           cached: 0,
           thoughts: 0,
           tool: 0,
+          cacheCreation: 0,
         },
       });
     });
@@ -373,6 +376,7 @@ describe('UiTelemetryService', () => {
           cached: 5,
           thoughts: 2,
           tool: 3,
+          cacheCreation: 0,
         },
       });
     });
@@ -818,6 +822,90 @@ describe('UiTelemetryService', () => {
 });
 
 // =========================================================================
+// Phase 2 RED-4: processApiResponse cacheCreation 집계
+// =========================================================================
+
+describe('processApiResponse cacheCreation (Phase 2)', () => {
+  let service: UiTelemetryService;
+
+  beforeEach(() => {
+    service = new UiTelemetryService();
+  });
+
+  it('should accumulate cache_creation_token_count in ModelMetrics', () => {
+    const event = {
+      'event.name': EVENT_API_RESPONSE,
+      model: 'gemini-2.5-pro',
+      duration_ms: 500,
+      usage: {
+        input_token_count: 100,
+        output_token_count: 50,
+        total_token_count: 150,
+        cached_content_token_count: 20,
+        cache_creation_token_count: 30,
+        thoughts_token_count: 0,
+        tool_token_count: 0,
+      },
+    } as ApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE };
+
+    service.addEvent(event);
+
+    const metrics = service.getMetrics();
+    expect(metrics.models['gemini::gemini-2.5-pro'].tokens.cacheCreation).toBe(
+      30,
+    );
+  });
+
+  it('should default cacheCreation to 0 when field missing', () => {
+    const event = {
+      'event.name': EVENT_API_RESPONSE,
+      model: 'gemini-2.5-pro',
+      duration_ms: 500,
+      usage: {
+        input_token_count: 10,
+        output_token_count: 20,
+        total_token_count: 30,
+        cached_content_token_count: 5,
+        thoughts_token_count: 0,
+        tool_token_count: 0,
+      },
+    } as ApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE };
+
+    service.addEvent(event);
+
+    const metrics = service.getMetrics();
+    expect(metrics.models['gemini::gemini-2.5-pro'].tokens.cacheCreation).toBe(
+      0,
+    );
+  });
+
+  it('should accumulate cacheCreation from ProviderApiResponseEvent', () => {
+    const event = {
+      ...new ProviderApiResponseEvent({
+        model: 'claude-sonnet-4',
+        durationMs: 500,
+        promptId: 'p1',
+        usage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+          cacheCreationTokens: 45,
+        },
+        provider: 'claude',
+      }),
+      'event.name': EVENT_API_RESPONSE,
+    } as unknown as Parameters<typeof service.addEvent>[0];
+
+    service.addEvent(event);
+
+    const metrics = service.getMetrics();
+    expect(metrics.models['claude::claude-sonnet-4'].tokens.cacheCreation).toBe(
+      45,
+    );
+  });
+});
+
+// =========================================================================
 // Phase 1 RED-2: buildCompositeKey / parseCompositeKey / groupModelsByProvider
 // =========================================================================
 
@@ -864,6 +952,7 @@ describe('groupModelsByProvider', () => {
       candidates: 20,
       total: 35,
       cached: 5,
+      cacheCreation: 0,
       thoughts: 0,
       tool: 0,
     },

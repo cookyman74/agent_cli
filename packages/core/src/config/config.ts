@@ -51,6 +51,7 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
   isPreviewModel,
+  PREVIEW_GEMINI_31_MODEL,
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
 } from './models.js';
@@ -1221,7 +1222,11 @@ export class Config {
         project: codeAssistServer.projectId,
       });
       const hasAccess =
-        quota.buckets?.some((b) => b.modelId === PREVIEW_GEMINI_MODEL) ?? false;
+        quota.buckets?.some(
+          (b) =>
+            b.modelId === PREVIEW_GEMINI_31_MODEL ||
+            b.modelId === PREVIEW_GEMINI_MODEL,
+        ) ?? false;
       this.setHasAccessToPreviewModel(hasAccess);
       return quota;
     } catch (e) {

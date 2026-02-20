@@ -59,6 +59,12 @@ export const DEFAULT_MODEL_CONFIGS: ModelConfigServiceConfig = {
     // ensure these model configs can be used interactively.
     // TODO(joshualitt): Introduce internal base configs for the various models,
     // note: we will have to think carefully about names.
+    'gemini-3.1-pro-preview': {
+      extends: 'chat-base-3',
+      modelConfig: {
+        model: 'gemini-3.1-pro-preview',
+      },
+    },
     'gemini-3-pro-preview': {
       extends: 'chat-base-3',
       modelConfig: {
@@ -188,6 +194,11 @@ export const DEFAULT_MODEL_CONFIGS: ModelConfigServiceConfig = {
     'next-speaker-checker': {
       extends: 'gemini-2.5-flash-base',
       modelConfig: {},
+    },
+    'chat-compression-3.1-pro': {
+      modelConfig: {
+        model: 'gemini-3.1-pro-preview',
+      },
     },
     'chat-compression-3-pro': {
       modelConfig: {

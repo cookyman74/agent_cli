@@ -8,6 +8,7 @@ import type React from 'react';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { Box, Text } from 'ink';
 import {
+  PREVIEW_GEMINI_31_MODEL,
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_FLASH_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
@@ -117,7 +118,9 @@ export function ModelDialog({
     if (isGemini && !shouldShowPreviewModels) {
       models = models.filter(
         (m) =>
-          m.id !== PREVIEW_GEMINI_MODEL && m.id !== PREVIEW_GEMINI_FLASH_MODEL,
+          m.id !== PREVIEW_GEMINI_31_MODEL &&
+          m.id !== PREVIEW_GEMINI_MODEL &&
+          m.id !== PREVIEW_GEMINI_FLASH_MODEL,
       );
     }
 

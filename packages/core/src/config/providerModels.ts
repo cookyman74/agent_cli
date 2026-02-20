@@ -68,6 +68,11 @@ export const PROVIDER_MODEL_REGISTRY: Record<string, ProviderModelGroup> = {
       },
     ],
     models: [
+      {
+        id: 'gemini-3.1-pro-preview',
+        description: 'Most capable, complex problem-solving (1M context)',
+        category: 'general',
+      },
       { id: 'gemini-3-pro-preview', category: 'general' },
       { id: 'gemini-3-flash-preview', category: 'lite' },
       { id: 'gemini-2.5-pro', category: 'general', isDefault: true },

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export const PREVIEW_GEMINI_31_MODEL = 'gemini-3.1-pro-preview';
 export const PREVIEW_GEMINI_MODEL = 'gemini-3-pro-preview';
 export const PREVIEW_GEMINI_FLASH_MODEL = 'gemini-3-flash-preview';
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
@@ -11,6 +12,7 @@ export const DEFAULT_GEMINI_FLASH_MODEL = 'gemini-2.5-flash';
 export const DEFAULT_GEMINI_FLASH_LITE_MODEL = 'gemini-2.5-flash-lite';
 
 export const VALID_GEMINI_MODELS = new Set([
+  PREVIEW_GEMINI_31_MODEL,
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL,
@@ -131,6 +133,7 @@ export function getDisplayString(
  */
 export function isPreviewModel(model: string): boolean {
   return (
+    model === PREVIEW_GEMINI_31_MODEL ||
     model === PREVIEW_GEMINI_MODEL ||
     model === PREVIEW_GEMINI_FLASH_MODEL ||
     model === PREVIEW_GEMINI_MODEL_AUTO
@@ -169,5 +172,5 @@ export function isAutoModel(model: string): boolean {
  * @returns True if the model supports multimodal function responses.
  */
 export function supportsMultimodalFunctionResponse(model: string): boolean {
-  return model.startsWith('gemini-3-');
+  return model.startsWith('gemini-3-') || model.startsWith('gemini-3.');
 }

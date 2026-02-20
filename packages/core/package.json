@@ -1,11 +1,15 @@
 {
   "name": "@didim365/agent-cli-core",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Gemini CLI Core",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/google-gemini/gemini-cli.git"
+    "url": "git+https://github.com/cookyman74/agent_cli.git"
+  },
+  "homepage": "https://github.com/cookyman74/agent_cli#readme",
+  "bugs": {
+    "url": "https://github.com/cookyman74/agent_cli/issues"
   },
   "type": "module",
   "main": "dist/index.js",

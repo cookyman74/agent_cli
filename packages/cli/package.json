@@ -1,6 +1,6 @@
 {
   "name": "@didim365/agent-cli",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Gemini CLI",
   "license": "Apache-2.0",
   "publishConfig": {
@@ -8,7 +8,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/google-gemini/gemini-cli.git"
+    "url": "git+https://github.com/cookyman74/agent_cli.git"
+  },
+  "homepage": "https://github.com/cookyman74/agent_cli#readme",
+  "bugs": {
+    "url": "https://github.com/cookyman74/agent_cli/issues"
   },
   "type": "module",
   "main": "dist/index.js",
@@ -36,7 +40,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.12.0",
-    "@didim365/agent-cli-core": "0.2.9",
+    "@didim365/agent-cli-core": "0.2.10",
     "@google/genai": "1.30.0",
     "@iarna/toml": "^2.2.5",
     "@modelcontextprotocol/sdk": "^1.23.0",

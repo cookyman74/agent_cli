@@ -18,8 +18,6 @@ Learn all about Didim Agent CLI in our [documentation](./docs/index.md).
 
 ## 🚀 Why Didim Agent CLI?
 
-- **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google
-  account (Gemini provider).
 - **🧠 Multi-provider support**: Use Gemini, Claude, OpenAI, or local models
   (vLLM/Ollama) — switch providers and models with `/model` or `/auth login`.
 - **🔧 Built-in tools**: Google Search grounding, file operations, shell

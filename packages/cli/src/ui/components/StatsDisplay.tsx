@@ -84,23 +84,40 @@ const buildModelRows = (
   models: Record<string, ModelMetrics>,
   quotas?: RetrieveUserQuotaResponse,
 ) => {
-  const getModelName = (compositeKey: string) =>
+  const providers = new Set(
+    Object.keys(models).map((key) => parseCompositeKey(key).provider),
+  );
+  const hasMultipleProviders = providers.size > 1;
+
+  const getModelId = (compositeKey: string) =>
     parseCompositeKey(compositeKey).model.replace('-001', '');
-  const usedModelNames = new Set(Object.keys(models).map(getModelName));
+
+  const getDisplayName = (compositeKey: string) => {
+    const { provider, model } = parseCompositeKey(compositeKey);
+    const baseName = model.replace('-001', '');
+    return hasMultipleProviders ? `${baseName} (${provider})` : baseName;
+  };
+
+  // For quota-only: only consider Gemini provider models as "used"
+  const usedGeminiModelIds = new Set(
+    Object.keys(models)
+      .filter((key) => parseCompositeKey(key).provider === 'gemini')
+      .map(getModelId),
+  );
 
   // 1. Models with active usage
   const activeRows = Object.entries(models).map(([name, metrics]) => {
-    const modelName = getModelName(name);
+    const modelId = getModelId(name);
     const cachedTokens = metrics.tokens.cached;
     const inputTokens = metrics.tokens.input;
     return {
       key: name,
-      modelName,
+      modelName: getDisplayName(name),
       requests: metrics.api.totalRequests,
       cachedTokens: cachedTokens.toLocaleString(),
       inputTokens: inputTokens.toLocaleString(),
       outputTokens: metrics.tokens.candidates.toLocaleString(),
-      bucket: quotas?.buckets?.find((b) => b.modelId === modelName),
+      bucket: quotas?.buckets?.find((b) => b.modelId === modelId),
       isActive: true,
     };
   });
@@ -112,7 +129,7 @@ const buildModelRows = (
         (b) =>
           b.modelId &&
           GEMINI_MODEL_ALLOWLIST.has(b.modelId) &&
-          !usedModelNames.has(b.modelId),
+          !usedGeminiModelIds.has(b.modelId),
       )
       .map((bucket) => ({
         key: bucket.modelId!,

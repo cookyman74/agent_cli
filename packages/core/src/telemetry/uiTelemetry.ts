@@ -286,7 +286,7 @@ export function parseCompositeKey(key: string): {
   };
 }
 
-/** provider 필드 기반 모델 그룹핑 */
+/** 복합 키 파싱 기반 모델 그룹핑 */
 export function groupModelsByProvider(
   models: Record<string, ModelMetrics>,
 ): Record<string, Array<[string, ModelMetrics]>> {

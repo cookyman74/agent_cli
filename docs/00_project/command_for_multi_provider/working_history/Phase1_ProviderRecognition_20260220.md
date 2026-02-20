@@ -144,6 +144,17 @@ Non-Gemini 프로바이더 데이터를 프로바이더별로 구분하여 UI에
 - **Phase 0+1 atomic 변경**: Phase 0(수집)과 Phase 1(표시)은 함께 배포되어야 함.
   복합 키가 없는 Phase 0 데이터는 `parseCompositeKey()`의 레거시 파싱으로 호환
 
+## 리뷰 이슈 검증 및 수정 결과
+
+| #   | 심각도 | 이슈                                                                          | 판정          | 수정 내용                                                          |
+| --- | ------ | ----------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------ |
+| 1   | HIGH   | 다중 프로바이더 UI 그룹핑 미구현 — 동일 모델명 충돌 시 구분 불가              | **CONFIRMED** | `hasMultipleProviders` 감지 + `model (provider)` 형식 표시         |
+| 2   | HIGH   | ModelStatsDisplay 컬럼 헤더 동일 식별 충돌                                    | **CONFIRMED** | 동일 패턴 적용 — `hasMultipleProviders` 시 `model (provider)` 헤더 |
+| 3   | MEDIUM | quota-only 필터가 provider 미고려 — 비Gemini 모델이 Gemini quota-only 은폐    | **CONFIRMED** | `usedModelNames` → `usedGeminiModelIds` (Gemini provider만 필터)   |
+| 4   | MEDIUM | 테스트명 "group headers"이지만 실제는 prefix 미노출만 검증                    | **CONFIRMED** | 테스트명/assertions 갱신 + 동일 모델명 충돌 검증 테스트 추가       |
+| 5   | MEDIUM | 기존 테스트가 plain key 위주 — composite key 경로 미검증                      | **CONFIRMED** | StatsDisplay/ModelStatsDisplay 기존 테스트 전수 composite key 전환 |
+| 6   | LOW    | `groupModelsByProvider` 주석 부정확 — "provider 필드 기반"이지만 실제 키 파싱 | **CONFIRMED** | 주석 "복합 키 파싱 기반"으로 정정                                  |
+
 ## 검증 결과
 
 ```

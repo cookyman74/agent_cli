@@ -49,6 +49,10 @@ export const ModelStatsDisplay: React.FC = () => {
 
   const modelNames = activeModels.map(([name]) => name);
 
+  const hasMultipleProviders =
+    new Set(activeModels.map(([key]) => parseCompositeKey(key).provider)).size >
+    1;
+
   const hasThoughts = activeModels.some(
     ([, metrics]) => metrics.tokens.thoughts > 0,
   );
@@ -186,21 +190,24 @@ export const ModelStatsDisplay: React.FC = () => {
         </Text>
       ),
     },
-    ...modelNames.map((name) => ({
-      key: name,
-      header: parseCompositeKey(name).model,
-      flexGrow: 1,
-      renderCell: (row: StatRowData) => {
-        // Don't render anything for section headers in model columns
-        if (row.isSection) return null;
-        const val = row[name];
-        if (val === undefined || val === null) return null;
-        if (typeof val === 'string' || typeof val === 'number') {
-          return <Text color={theme.text.primary}>{val}</Text>;
-        }
-        return val as React.ReactNode;
-      },
-    })),
+    ...modelNames.map((name) => {
+      const { provider, model } = parseCompositeKey(name);
+      return {
+        key: name,
+        header: hasMultipleProviders ? `${model} (${provider})` : model,
+        flexGrow: 1,
+        renderCell: (row: StatRowData) => {
+          // Don't render anything for section headers in model columns
+          if (row.isSection) return null;
+          const val = row[name];
+          if (val === undefined || val === null) return null;
+          if (typeof val === 'string' || typeof val === 'number') {
+            return <Text color={theme.text.primary}>{val}</Text>;
+          }
+          return val as React.ReactNode;
+        },
+      };
+    }),
   ];
 
   return (

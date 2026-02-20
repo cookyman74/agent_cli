@@ -82,7 +82,8 @@ describe('<StatsDisplay />', () => {
   it('renders a table with two models correctly', () => {
     const metrics = createTestMetrics({
       models: {
-        'gemini-2.5-pro': {
+        'gemini::gemini-2.5-pro': {
+          provider: 'gemini',
           api: { totalRequests: 3, totalErrors: 0, totalLatencyMs: 15000 },
           tokens: {
             input: 500,
@@ -94,7 +95,8 @@ describe('<StatsDisplay />', () => {
             tool: 50,
           },
         },
-        'gemini-2.5-flash': {
+        'gemini::gemini-2.5-flash': {
+          provider: 'gemini',
           api: { totalRequests: 5, totalErrors: 1, totalLatencyMs: 4500 },
           tokens: {
             input: 15000,
@@ -122,7 +124,8 @@ describe('<StatsDisplay />', () => {
   it('renders all sections when all data is present', () => {
     const metrics = createTestMetrics({
       models: {
-        'gemini-2.5-pro': {
+        'gemini::gemini-2.5-pro': {
+          provider: 'gemini',
           api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
           tokens: {
             input: 50,
@@ -216,7 +219,8 @@ describe('<StatsDisplay />', () => {
     it('hides Efficiency section when cache is not used', () => {
       const metrics = createTestMetrics({
         models: {
-          'gemini-2.5-pro': {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
             api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
             tokens: {
               input: 100,
@@ -391,9 +395,9 @@ describe('<StatsDisplay />', () => {
     });
   });
 
-  // Phase 1 RED-5: Provider grouping in multi-provider scenarios
-  describe('Provider Grouping', () => {
-    it('renders provider group headers when multiple providers exist', () => {
+  // Phase 1 RED-5: Provider disambiguation in multi-provider scenarios
+  describe('Provider Disambiguation', () => {
+    it('shows provider-qualified names when multiple providers exist', () => {
       const metrics = createTestMetrics({
         models: {
           'gemini::gemini-2.5-pro': {
@@ -428,15 +432,15 @@ describe('<StatsDisplay />', () => {
       const { lastFrame } = renderWithMockedStats(metrics);
       const output = lastFrame();
 
-      // Should show parsed model names (without provider:: prefix)
-      expect(output).toContain('gemini-2.5-pro');
-      expect(output).toContain('claude-sonnet-4');
-      // Should NOT show raw composite keys
+      // Multi-provider: should show provider-qualified display names
+      expect(output).toContain('gemini-2.5-pro (gemini)');
+      expect(output).toContain('claude-sonnet-4 (claude)');
+      // Should NOT show raw composite key separators
       expect(output).not.toContain('gemini::');
       expect(output).not.toContain('claude::');
     });
 
-    it('does not render provider prefix when single provider', () => {
+    it('does not show provider qualification when single provider', () => {
       const metrics = createTestMetrics({
         models: {
           'gemini::gemini-2.5-pro': {
@@ -471,10 +475,52 @@ describe('<StatsDisplay />', () => {
       const { lastFrame } = renderWithMockedStats(metrics);
       const output = lastFrame();
 
-      // Should show model names without provider:: prefix
+      // Single provider: should show model names WITHOUT provider qualification
       expect(output).toContain('gemini-2.5-pro');
       expect(output).toContain('gemini-2.5-flash');
+      expect(output).not.toContain('(gemini)');
       expect(output).not.toContain('gemini::');
+    });
+
+    it('disambiguates same model name from different providers', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'openai::gpt-5.2': {
+            provider: 'openai',
+            api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+            tokens: {
+              input: 50,
+              prompt: 100,
+              candidates: 100,
+              total: 200,
+              cached: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+          'openai-compatible::gpt-5.2': {
+            provider: 'openai-compatible',
+            api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 200 },
+            tokens: {
+              input: 30,
+              prompt: 60,
+              candidates: 80,
+              total: 140,
+              cached: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const { lastFrame } = renderWithMockedStats(metrics);
+      const output = lastFrame();
+
+      // Should show provider-qualified names to prevent confusion
+      // Note: long provider names may be truncated by 25-char nameWidth
+      expect(output).toContain('gpt-5.2 (openai)');
+      expect(output).toContain('gpt-5.2 (openai-compatib');
     });
   });
 
@@ -531,6 +577,62 @@ describe('<StatsDisplay />', () => {
       const output = lastFrame();
 
       // gemini-2.5-flash should appear as quota-only row
+      expect(output).toContain('gemini-2.5-flash');
+      expect(output).toContain('50.0%');
+
+      vi.useRealTimers();
+    });
+
+    it('does not suppress Gemini quota-only when non-Gemini provider uses same modelId', () => {
+      const now = new Date('2025-01-01T12:00:00Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      // openai-compatible uses a model named 'gemini-2.5-flash' (unlikely but possible)
+      const metrics = createTestMetrics({
+        models: {
+          'openai-compatible::gemini-2.5-flash': {
+            provider: 'openai-compatible',
+            api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+            tokens: {
+              input: 50,
+              prompt: 100,
+              candidates: 100,
+              total: 200,
+              cached: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const resetTime = new Date(now.getTime() + 1000 * 60 * 60).toISOString();
+
+      const quotas: RetrieveUserQuotaResponse = {
+        buckets: [
+          { modelId: 'gemini-2.5-flash', remainingFraction: 0.5, resetTime },
+        ],
+      };
+
+      useSessionStatsMock.mockReturnValue({
+        stats: {
+          sessionId: 'test-session-id',
+          sessionStartTime: new Date(),
+          metrics,
+          lastPromptTokenCount: 0,
+          promptCount: 5,
+        },
+        getPromptCount: () => 5,
+        startNewPrompt: vi.fn(),
+      });
+
+      const { lastFrame } = render(
+        <StatsDisplay duration="1s" quotas={quotas} />,
+      );
+      const output = lastFrame();
+
+      // Gemini quota-only row should STILL appear even though non-Gemini uses same modelId
       expect(output).toContain('gemini-2.5-flash');
       expect(output).toContain('50.0%');
 
@@ -605,7 +707,8 @@ describe('<StatsDisplay />', () => {
 
       const metrics = createTestMetrics({
         models: {
-          'gemini-2.5-pro': {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
             api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
             tokens: {
               input: 50,

@@ -233,8 +233,36 @@ const hasAccess =
 | CLI 전체 (349/351 files, 4766 tests) | ✅ PASS (2 file pre-existing failures) |
 | typecheck                            | ✅ PASS                                |
 
+## 추가 수정: 인증 로직 중복 제거 (2026-02-20)
+
+### [LOW] Issue #5: AppContainer.handleAuthSelect dead code 제거
+
+**문제**: AuthDialog가 자체 `onSelect` 콜백으로 인증 선택을 처리하는데,
+`AppContainer.handleAuthSelect`에 유사 로직이 dead code로 남아 있음.
+`uiActions.handleAuthSelect`를 호출하는 곳은 **어디에도 없음**. 두 경로가 다시
+어긋날 유지보수 드리프트 리스크 존재.
+
+**수정**: Dead code 경로 완전 제거, AuthDialog.onSelect를 단일 진실 공급원으로
+확립.
+
+| 파일                    | 변경 내용                                                                                                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppContainer.tsx`      | `handleAuthSelect` useCallback 제거 (~50줄), uiActions 객체/deps에서 제거, 미사용 import 3개 제거 (`ChangeAuthRequestedError`, `writeToStdout`, `clearCachedCredentialFile`) |
+| `UIActionsContext.tsx`  | `handleAuthSelect` 인터페이스 멤버 제거, 미사용 `AuthType` import 제거                                                                                                       |
+| `test-utils/render.tsx` | mock에서 `handleAuthSelect: vi.fn()` 제거                                                                                                                                    |
+
+**검증**:
+
+| 테스트                              | 결과    |
+| ----------------------------------- | ------- |
+| `AuthDialog.test.tsx` (29 tests)    | ✅ PASS |
+| `DialogManager.test.tsx` (22 tests) | ✅ PASS |
+| `AppContainer.test.tsx` (71 tests)  | ✅ PASS |
+| typecheck                           | ✅ PASS |
+
 ## 관련 이슈
 
 - OAuth 재시작 후 `/model` 프로바이더 불일치
 - `gemini-3.1-pro-preview` OAuth quota 체크 누락
 - Non-Gemini 환경변수 잔존으로 인한 프로바이더 라우팅 오류
+- AppContainer/AuthDialog 인증 로직 중복에 의한 드리프트 리스크

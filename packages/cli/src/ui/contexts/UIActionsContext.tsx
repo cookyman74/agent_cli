@@ -9,7 +9,6 @@ import { type Key } from '../hooks/useKeypress.js';
 import { type IdeIntegrationNudgeResult } from '../IdeIntegrationNudge.js';
 import { type FolderTrustChoice } from '../components/FolderTrustDialog.js';
 import {
-  type AuthType,
   type EditorType,
   type AgentDefinition,
 } from '@didim365/agent-cli-core';
@@ -23,10 +22,6 @@ export interface UIActions {
   handleThemeSelect: (themeName: string, scope: LoadableSettingScope) => void;
   closeThemeDialog: () => void;
   handleThemeHighlight: (themeName: string | undefined) => void;
-  handleAuthSelect: (
-    authType: AuthType | undefined,
-    scope: LoadableSettingScope,
-  ) => void;
   setAuthState: (state: AuthState) => void;
   onAuthError: (error: string | null) => void;
   handleEditorSelect: (

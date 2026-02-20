@@ -43,7 +43,6 @@ import {
   getErrorMessage,
   getAllGeminiMdFilenames,
   AuthType,
-  clearCachedCredentialFile,
   type ResumedSessionData,
   recordExitFail,
   ShellExecutionService,
@@ -54,7 +53,6 @@ import {
   CoreEvent,
   refreshServerHierarchicalMemory,
   type MemoryChangedPayload,
-  writeToStdout,
   disableMouseEvents,
   enterAlternateScreen,
   enableMouseEvents,
@@ -65,7 +63,6 @@ import {
   SessionEndReason,
   generateSummary,
   type AgentsDiscoveredPayload,
-  ChangeAuthRequestedError,
 } from '@didim365/agent-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import process from 'node:process';
@@ -92,7 +89,7 @@ import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useVim } from './hooks/vim.js';
-import { type LoadableSettingScope, SettingScope } from '../config/settings.js';
+import { SettingScope } from '../config/settings.js';
 import { type InitializationResult } from '../core/initializer.js';
 import { useFocus } from './hooks/useFocus.js';
 import { useKeypress, type Key } from './hooks/useKeypress.js';
@@ -600,65 +597,6 @@ export const AppContainer = (props: AppContainerProps) => {
       handleDeleteSessionSync(session);
     },
     [handleDeleteSessionSync],
-  );
-
-  // Create handleAuthSelect wrapper for backward compatibility
-  const handleAuthSelect = useCallback(
-    async (authType: AuthType | undefined, scope: LoadableSettingScope) => {
-      if (authType) {
-        if (authType === AuthType.LOGIN_WITH_GOOGLE) {
-          setAuthContext({ requiresRestart: true });
-        } else {
-          setAuthContext({});
-        }
-        await clearCachedCredentialFile();
-        settings.setValue(scope, 'security.auth.selectedType', authType);
-        // Persist provider so /model resolves correctly after restart (e.g. OAuth)
-        settings.setValue(scope, 'security.auth.selectedProvider', 'gemini');
-        setSelectedProvider('gemini');
-
-        // Clear non-Gemini env vars to prevent providerSelector mis-routing
-        delete process.env['LLM_PROVIDER'];
-        delete process.env['ANTHROPIC_API_KEY'];
-        delete process.env['OPENAI_API_KEY'];
-        delete process.env['LLM_API_KEY'];
-
-        try {
-          await config.refreshAuth(authType);
-          setAuthState(AuthState.Authenticated);
-        } catch (e) {
-          if (e instanceof ChangeAuthRequestedError) {
-            return;
-          }
-          onAuthError(
-            `Failed to authenticate: ${e instanceof Error ? e.message : String(e)}`,
-          );
-          return;
-        }
-
-        if (
-          authType === AuthType.LOGIN_WITH_GOOGLE &&
-          config.isBrowserLaunchSuppressed()
-        ) {
-          await runExitCleanup();
-          writeToStdout(`
-----------------------------------------------------------------
-Logging in with Google... Restarting Gemini CLI to continue.
-----------------------------------------------------------------
-          `);
-          process.exit(RELAUNCH_EXIT_CODE);
-        }
-      }
-      setAuthState(AuthState.Authenticated);
-    },
-    [
-      settings,
-      config,
-      setAuthState,
-      setSelectedProvider,
-      onAuthError,
-      setAuthContext,
-    ],
   );
 
   const handleApiKeySubmit = useCallback(
@@ -2109,7 +2047,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleThemeSelect,
       closeThemeDialog,
       handleThemeHighlight,
-      handleAuthSelect,
       setAuthState,
       onAuthError,
       handleEditorSelect,
@@ -2178,7 +2115,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleThemeSelect,
       closeThemeDialog,
       handleThemeHighlight,
-      handleAuthSelect,
       setAuthState,
       onAuthError,
       handleEditorSelect,

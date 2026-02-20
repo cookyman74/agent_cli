@@ -82,6 +82,7 @@ const mockConfig = {
   isInteractive: () => false,
   getExperiments: () => {},
   getEnableHooks: () => false,
+  getWorkingDir: () => '/test/working/dir',
 } as unknown as Config;
 mockConfig.getMessageBus = vi.fn().mockReturnValue(createMockMessageBus());
 mockConfig.getHookSystem = vi.fn().mockReturnValue(new HookSystem(mockConfig));
@@ -308,7 +309,7 @@ describe('useReactToolScheduler', () => {
     expect(mockTool.execute).toHaveBeenCalledWith(request.args);
     expect(completedToolCalls).toHaveLength(1);
     expect(completedToolCalls[0].status).toBe('success');
-    expect(completedToolCalls[0].request).toBe(request);
+    expect(completedToolCalls[0].request).toEqual(request);
 
     if (
       completedToolCalls[0].status === 'success' ||
@@ -487,7 +488,7 @@ describe('useReactToolScheduler', () => {
 
       expect(completedToolCalls).toHaveLength(1);
       expect(completedToolCalls[0].status).toBe('error');
-      expect(completedToolCalls[0].request).toBe(request);
+      expect(completedToolCalls[0].request).toEqual(request);
 
       if (expectedErrorContains) {
         expectedErrorContains.forEach((errorText) => {
@@ -553,7 +554,7 @@ describe('useReactToolScheduler', () => {
 
     const completedCalls = onComplete.mock.calls[0][0] as ToolCall[];
     expect(completedCalls[0].status).toBe('success');
-    expect(completedCalls[0].request).toBe(request);
+    expect(completedCalls[0].request).toEqual(request);
     if (
       completedCalls[0].status === 'success' ||
       completedCalls[0].status === 'error'
@@ -603,7 +604,7 @@ describe('useReactToolScheduler', () => {
 
     const completedCalls = onComplete.mock.calls[0][0] as ToolCall[];
     expect(completedCalls[0].status).toBe('cancelled');
-    expect(completedCalls[0].request).toBe(request);
+    expect(completedCalls[0].request).toEqual(request);
     if (
       completedCalls[0].status === 'success' ||
       completedCalls[0].status === 'error' ||
@@ -679,7 +680,7 @@ describe('useReactToolScheduler', () => {
 
     const completedCalls = onComplete.mock.calls[0][0] as ToolCall[];
     expect(completedCalls[0].status).toBe('success');
-    expect(completedCalls[0].request).toBe(request);
+    expect(completedCalls[0].request).toEqual(request);
     if (
       completedCalls[0].status === 'success' ||
       completedCalls[0].status === 'error'

@@ -73,6 +73,7 @@ describe('AuthDialog', () => {
     authError: string | null;
     onAuthError: (error: string | null) => void;
     setAuthContext: (context: { requiresRestart?: boolean }) => void;
+    setSelectedProvider?: (provider: string) => void;
     onBack?: () => void;
   };
   beforeEach(() => {
@@ -100,6 +101,7 @@ describe('AuthDialog', () => {
       authError: null,
       onAuthError: vi.fn(),
       setAuthContext: vi.fn(),
+      setSelectedProvider: vi.fn(),
     };
   });
 
@@ -307,6 +309,52 @@ describe('AuthDialog', () => {
       expect(props.setAuthState).toHaveBeenCalledWith(
         AuthState.Unauthenticated,
       );
+    });
+
+    it('saves selectedProvider=gemini to settings on LOGIN_WITH_GOOGLE', async () => {
+      mockedValidateAuthMethod.mockReturnValue(null);
+      renderWithProviders(<AuthDialog {...props} />);
+      const { onSelect: handleAuthSelect } =
+        mockedRadioButtonSelect.mock.calls[0][0];
+      await handleAuthSelect(AuthType.LOGIN_WITH_GOOGLE);
+
+      expect(props.settings.setValue).toHaveBeenCalledWith(
+        expect.anything(),
+        'security.auth.selectedProvider',
+        'gemini',
+      );
+      expect(props.setSelectedProvider).toHaveBeenCalledWith('gemini');
+    });
+
+    it('saves selectedProvider=gemini to settings on USE_GEMINI', async () => {
+      mockedValidateAuthMethod.mockReturnValue(null);
+      renderWithProviders(<AuthDialog {...props} />);
+      const { onSelect: handleAuthSelect } =
+        mockedRadioButtonSelect.mock.calls[0][0];
+      await handleAuthSelect(AuthType.USE_GEMINI);
+
+      expect(props.settings.setValue).toHaveBeenCalledWith(
+        expect.anything(),
+        'security.auth.selectedProvider',
+        'gemini',
+      );
+    });
+
+    it('clears non-Gemini env vars on auth select to prevent provider mis-routing', async () => {
+      // Simulate leftover env vars from previous Claude session
+      vi.stubEnv('LLM_PROVIDER', 'claude');
+      vi.stubEnv('ENABLE_MULTI_PROVIDER', 'true');
+      vi.stubEnv('ANTHROPIC_API_KEY', 'sk-ant-test');
+
+      mockedValidateAuthMethod.mockReturnValue(null);
+      renderWithProviders(<AuthDialog {...props} />);
+      const { onSelect: handleAuthSelect } =
+        mockedRadioButtonSelect.mock.calls[0][0];
+      await handleAuthSelect(AuthType.LOGIN_WITH_GOOGLE);
+
+      expect(process.env['LLM_PROVIDER']).toBeUndefined();
+      expect(process.env['ENABLE_MULTI_PROVIDER']).toBeUndefined();
+      expect(process.env['ANTHROPIC_API_KEY']).toBeUndefined();
     });
 
     it('exits process for Login with Google when browser is suppressed', async () => {

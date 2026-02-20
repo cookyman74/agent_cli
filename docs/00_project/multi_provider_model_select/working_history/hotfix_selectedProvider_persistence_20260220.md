@@ -127,7 +127,114 @@ const hasAccess =
 | typecheck                            | ✅ PASS                                                                     |
 | lint                                 | ✅ PASS                                                                     |
 
+## 리뷰 후 추가 수정 (2026-02-20)
+
+### [HIGH] Issue #1: AuthDialog.tsx — 실제 OAuth 경로 selectedProvider 미저장
+
+**문제**: 초기 hotfix는 `AppContainer.handleAuthSelect()`에만 적용. 실제 OAuth
+UI는 `DialogManager → AuthDialog.onSelect()`를 통해 처리되므로 해당 경로에서도
+selectedProvider 저장이 필요.
+
+**수정**: `packages/cli/src/ui/auth/AuthDialog.tsx`
+
+```typescript
+// AuthDialog.onSelect() 내부 — selectedType 저장 직후 추가:
+settings.setValue(scope, 'security.auth.selectedProvider', 'gemini');
+if (setSelectedProvider) {
+  setSelectedProvider('gemini');
+}
+```
+
+- `setSelectedProvider` optional prop 추가
+- `DialogManager.tsx`에서 `uiActions.setSelectedProvider` 전달
+- `UIActionsContext.tsx`에 `setSelectedProvider` 인터페이스 추가
+- `AppContainer.tsx`의 `uiActions` 객체 + deps에 `setSelectedProvider` 포함
+
+### [HIGH] Issue #2: Non-Gemini 환경변수 클린업
+
+**문제**: Claude/OpenAI에서 Gemini OAuth로 전환 시 `LLM_PROVIDER`,
+`ENABLE_MULTI_PROVIDER`, `ANTHROPIC_API_KEY` 등 환경변수가 잔존하면
+`providerSelector.ts`에서 Gemini가 아닌 이전 프로바이더로 라우팅됨.
+
+**수정**: `packages/cli/src/ui/auth/AuthDialog.tsx` — `onSelect()` 내부
+
+```typescript
+// Clear non-Gemini env vars to prevent providerSelector mis-routing
+delete process.env['LLM_PROVIDER'];
+delete process.env['ENABLE_MULTI_PROVIDER'];
+delete process.env['ANTHROPIC_API_KEY'];
+delete process.env['OPENAI_API_KEY'];
+delete process.env['LLM_API_KEY'];
+delete process.env['LLM_MODEL'];
+delete process.env['LLM_BASE_URL'];
+delete process.env['LLM_API_KEY_HEADER'];
+delete process.env['LLM_CUSTOM_HEADERS'];
+```
+
+### [LOW] Issue #3: AuthDialog 회귀 테스트 추가
+
+**수정**: `packages/cli/src/ui/auth/AuthDialog.test.tsx` — 3개 테스트 추가
+
+1. `saves selectedProvider=gemini to settings on LOGIN_WITH_GOOGLE`
+   - settings.setValue → `security.auth.selectedProvider`, `gemini` 검증
+   - setSelectedProvider('gemini') 호출 검증
+2. `saves selectedProvider=gemini to settings on USE_GEMINI`
+   - API Key 경로에서도 selectedProvider 저장 검증
+3. `clears non-Gemini env vars on auth select to prevent provider mis-routing`
+   - LLM_PROVIDER, ENABLE_MULTI_PROVIDER, ANTHROPIC_API_KEY 클린업 검증
+
+### [LOW] Issue #4: Quota check flash-preview 추가 + 테스트 보강
+
+**수정 1**: `packages/core/src/config/config.ts` — `refreshUserQuota()`
+
+```typescript
+// Before (초기 hotfix)
+const hasAccess =
+  quota.buckets?.some(
+    (b) =>
+      b.modelId === PREVIEW_GEMINI_31_MODEL ||
+      b.modelId === PREVIEW_GEMINI_MODEL,
+  ) ?? false;
+
+// After
+const hasAccess =
+  quota.buckets?.some(
+    (b) =>
+      b.modelId === PREVIEW_GEMINI_31_MODEL ||
+      b.modelId === PREVIEW_GEMINI_MODEL ||
+      b.modelId === PREVIEW_GEMINI_FLASH_MODEL,
+  ) ?? false;
+```
+
+**수정 2**: `packages/core/src/config/config.test.ts` — 2개 테스트 추가
+
+1. `should update hasAccessToPreviewModel to true if quota includes gemini-3.1-pro-preview`
+2. `should update hasAccessToPreviewModel to true if quota includes gemini-3-flash-preview`
+
+## 리뷰 수정 후 변경 파일
+
+| 파일                                                | 변경 내용                            | 규모  |
+| --------------------------------------------------- | ------------------------------------ | ----- |
+| `packages/cli/src/ui/auth/AuthDialog.tsx`           | selectedProvider 저장 + env 클린업   | +23줄 |
+| `packages/cli/src/ui/auth/AuthDialog.test.tsx`      | 3개 회귀 테스트 추가                 | +48줄 |
+| `packages/cli/src/ui/components/DialogManager.tsx`  | setSelectedProvider prop 전달        | +1줄  |
+| `packages/cli/src/ui/contexts/UIActionsContext.tsx` | setSelectedProvider 인터페이스 추가  | +1줄  |
+| `packages/cli/src/ui/AppContainer.tsx`              | uiActions에 setSelectedProvider 포함 | +2줄  |
+| `packages/core/src/config/config.ts`                | flash-preview quota 체크 추가        | +1줄  |
+| `packages/core/src/config/config.test.ts`           | 3.1-pro/flash quota 테스트 2개       | +18줄 |
+
+## 리뷰 수정 후 검증 결과
+
+| 테스트                               | 결과                                   |
+| ------------------------------------ | -------------------------------------- |
+| `AuthDialog.test.tsx` (29 tests)     | ✅ PASS                                |
+| `config.test.ts` (140 tests)         | ✅ PASS                                |
+| Core 전체 (284 files, 5666 tests)    | ✅ PASS                                |
+| CLI 전체 (349/351 files, 4766 tests) | ✅ PASS (2 file pre-existing failures) |
+| typecheck                            | ✅ PASS                                |
+
 ## 관련 이슈
 
 - OAuth 재시작 후 `/model` 프로바이더 불일치
 - `gemini-3.1-pro-preview` OAuth quota 체크 누락
+- Non-Gemini 환경변수 잔존으로 인한 프로바이더 라우팅 오류

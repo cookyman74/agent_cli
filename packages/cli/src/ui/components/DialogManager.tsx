@@ -304,6 +304,7 @@ export const DialogManager = ({
           authError={uiState.authError}
           onAuthError={uiActions.onAuthError}
           setAuthContext={uiActions.setAuthContext}
+          setSelectedProvider={uiActions.setSelectedProvider}
           onBack={() => uiActions.setAuthState(AuthState.SelectingProvider)}
         />
       </Box>

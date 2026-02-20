@@ -82,6 +82,7 @@ export interface UIActions {
   handleVertexConfigCancel: () => void;
   setBannerVisible: (visible: boolean) => void;
   setEmbeddedShellFocused: (value: boolean) => void;
+  setSelectedProvider: (provider: string) => void;
   setAuthContext: (context: { requiresRestart?: boolean }) => void;
   handleRestart: () => void;
   handleNewAgentsSelect: (choice: NewAgentsChoice) => Promise<void>;

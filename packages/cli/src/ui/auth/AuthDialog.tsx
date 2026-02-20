@@ -33,6 +33,8 @@ interface AuthDialogProps {
   authError: string | null;
   onAuthError: (error: string | null) => void;
   setAuthContext: (context: { requiresRestart?: boolean }) => void;
+  /** Update the in-memory selectedProvider (lifted from useAuth). */
+  setSelectedProvider?: (provider: string) => void;
   /** Callback to navigate back to provider selection (Step 1). */
   onBack?: () => void;
 }
@@ -44,6 +46,7 @@ export function AuthDialog({
   authError,
   onAuthError,
   setAuthContext,
+  setSelectedProvider,
   onBack,
 }: AuthDialogProps): React.JSX.Element {
   const [exiting, setExiting] = useState(false);
@@ -125,6 +128,24 @@ export function AuthDialog({
         await clearCachedCredentialFile();
 
         settings.setValue(scope, 'security.auth.selectedType', authType);
+        // Persist provider='gemini' so /model resolves correctly after restart
+        settings.setValue(scope, 'security.auth.selectedProvider', 'gemini');
+        if (setSelectedProvider) {
+          setSelectedProvider('gemini');
+        }
+
+        // Clear non-Gemini env vars to prevent providerSelector mis-routing
+        // (e.g. LLM_PROVIDER left over from a previous Claude/OpenAI session)
+        delete process.env['LLM_PROVIDER'];
+        delete process.env['ENABLE_MULTI_PROVIDER'];
+        delete process.env['ANTHROPIC_API_KEY'];
+        delete process.env['OPENAI_API_KEY'];
+        delete process.env['LLM_API_KEY'];
+        delete process.env['LLM_MODEL'];
+        delete process.env['LLM_BASE_URL'];
+        delete process.env['LLM_API_KEY_HEADER'];
+        delete process.env['LLM_CUSTOM_HEADERS'];
+
         if (
           authType === AuthType.LOGIN_WITH_GOOGLE &&
           config.isBrowserLaunchSuppressed()
@@ -149,7 +170,14 @@ export function AuthDialog({
       }
       setAuthState(AuthState.Unauthenticated);
     },
-    [settings, config, setAuthState, exiting, setAuthContext],
+    [
+      settings,
+      config,
+      setAuthState,
+      setSelectedProvider,
+      exiting,
+      setAuthContext,
+    ],
   );
 
   const handleAuthSelect = (authMethod: AuthType) => {

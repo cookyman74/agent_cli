@@ -40,6 +40,8 @@ import { DEFAULT_MODEL_CONFIGS } from './defaultModelConfigs.js';
 import {
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
+  PREVIEW_GEMINI_31_MODEL,
+  PREVIEW_GEMINI_FLASH_MODEL,
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
 } from './models.js';
@@ -1971,6 +1973,24 @@ describe('Config Quota & Preview Model Access', () => {
     it('should update hasAccessToPreviewModel to true if quota includes preview model', async () => {
       mockCodeAssistServer.retrieveUserQuota.mockResolvedValue({
         buckets: [{ modelId: PREVIEW_GEMINI_MODEL }],
+      });
+
+      await config.refreshUserQuota();
+      expect(config.getHasAccessToPreviewModel()).toBe(true);
+    });
+
+    it('should update hasAccessToPreviewModel to true if quota includes gemini-3.1-pro-preview', async () => {
+      mockCodeAssistServer.retrieveUserQuota.mockResolvedValue({
+        buckets: [{ modelId: PREVIEW_GEMINI_31_MODEL }],
+      });
+
+      await config.refreshUserQuota();
+      expect(config.getHasAccessToPreviewModel()).toBe(true);
+    });
+
+    it('should update hasAccessToPreviewModel to true if quota includes gemini-3-flash-preview', async () => {
+      mockCodeAssistServer.retrieveUserQuota.mockResolvedValue({
+        buckets: [{ modelId: PREVIEW_GEMINI_FLASH_MODEL }],
       });
 
       await config.refreshUserQuota();

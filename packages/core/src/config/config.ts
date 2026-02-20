@@ -52,6 +52,7 @@ import {
   DEFAULT_GEMINI_MODEL_AUTO,
   isPreviewModel,
   PREVIEW_GEMINI_31_MODEL,
+  PREVIEW_GEMINI_FLASH_MODEL,
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
 } from './models.js';
@@ -1225,7 +1226,8 @@ export class Config {
         quota.buckets?.some(
           (b) =>
             b.modelId === PREVIEW_GEMINI_31_MODEL ||
-            b.modelId === PREVIEW_GEMINI_MODEL,
+            b.modelId === PREVIEW_GEMINI_MODEL ||
+            b.modelId === PREVIEW_GEMINI_FLASH_MODEL,
         ) ?? false;
       this.setHasAccessToPreviewModel(hasAccess);
       return quota;

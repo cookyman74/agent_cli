@@ -2147,6 +2147,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleVertexConfigCancel,
       setBannerVisible,
       setEmbeddedShellFocused,
+      setSelectedProvider,
       setAuthContext,
       handleRestart: async () => {
         await runExitCleanup();
@@ -2215,6 +2216,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleVertexConfigCancel,
       setBannerVisible,
       setEmbeddedShellFocused,
+      setSelectedProvider,
       setAuthContext,
       newAgents,
       config,

@@ -659,6 +659,7 @@ export class ApiResponseEvent implements BaseTelemetryEvent {
       input_token_count: this.usage.input_token_count,
       output_token_count: this.usage.output_token_count,
       cached_content_token_count: this.usage.cached_content_token_count,
+      cache_creation_token_count: this.usage.cache_creation_token_count,
       thoughts_token_count: this.usage.thoughts_token_count,
       tool_token_count: this.usage.tool_token_count,
       total_token_count: this.usage.total_token_count,

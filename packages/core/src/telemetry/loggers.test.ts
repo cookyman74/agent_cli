@@ -509,6 +509,31 @@ describe('loggers', () => {
         },
       );
 
+      // RED-1: Verify cache_creation token metrics are recorded
+      expect(mockMetrics.recordTokenUsageMetrics).toHaveBeenCalledWith(
+        mockConfig,
+        0,
+        {
+          model: 'test-model',
+          type: 'cache_creation',
+          genAiAttributes: {
+            'gen_ai.operation.name': 'generate_content',
+            'gen_ai.provider.name': 'gcp.vertex_ai',
+            'gen_ai.request.model': 'test-model',
+            'gen_ai.response.model': 'test-model',
+          },
+        },
+      );
+
+      // RED-3: Verify toLogRecord includes cache_creation_token_count
+      expect(mockLogger.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attributes: expect.objectContaining({
+            cache_creation_token_count: 0,
+          }),
+        }),
+      );
+
       expect(mockUiEvent.addEvent).toHaveBeenCalledWith({
         ...event,
         'event.name': EVENT_API_RESPONSE,
@@ -2225,6 +2250,33 @@ describe('loggers', () => {
           provider: 'claude',
         }),
       );
+    });
+
+    // RED-2: Verify cache_creation token metrics for provider path
+    it('should record cache_creation token metrics', () => {
+      const mockRecordTokenUsage = vi
+        .spyOn(metrics, 'recordTokenUsageMetrics')
+        .mockImplementation(vi.fn());
+
+      const event = new ProviderApiResponseEvent({
+        model: 'claude-sonnet-4-20250514',
+        durationMs: 500,
+        promptId: 'prompt-provider-cc',
+        usage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+          cacheCreationTokens: 25,
+        },
+        provider: 'claude',
+      });
+
+      logProviderApiResponse(mockConfig, event);
+
+      expect(mockRecordTokenUsage).toHaveBeenCalledWith(mockConfig, 25, {
+        model: 'claude-sonnet-4-20250514',
+        type: 'cache_creation',
+      });
     });
 
     it('should NOT call ClearcutLogger.logApiResponseEvent', () => {

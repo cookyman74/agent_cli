@@ -279,6 +279,10 @@ export function logApiResponse(config: Config, event: ApiResponseEvent): void {
       { count: event.usage.input_token_count, type: 'input' as const },
       { count: event.usage.output_token_count, type: 'output' as const },
       { count: event.usage.cached_content_token_count, type: 'cache' as const },
+      {
+        count: event.usage.cache_creation_token_count,
+        type: 'cache_creation' as const,
+      },
       { count: event.usage.thoughts_token_count, type: 'thought' as const },
       { count: event.usage.tool_token_count, type: 'tool' as const },
     ];
@@ -326,6 +330,10 @@ export function logProviderApiResponse(
       {
         count: event.usage.cached_content_token_count,
         type: 'cache' as const,
+      },
+      {
+        count: event.usage.cache_creation_token_count,
+        type: 'cache_creation' as const,
       },
       { count: event.usage.thoughts_token_count, type: 'thought' as const },
       { count: event.usage.tool_token_count, type: 'tool' as const },

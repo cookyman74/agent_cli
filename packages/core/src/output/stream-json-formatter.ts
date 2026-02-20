@@ -44,6 +44,7 @@ export class StreamJsonFormatter {
     let inputTokens = 0;
     let outputTokens = 0;
     let cached = 0;
+    let cacheCreation = 0;
     let input = 0;
 
     // Aggregate token counts across all models
@@ -52,6 +53,7 @@ export class StreamJsonFormatter {
       inputTokens += modelMetrics.tokens.prompt;
       outputTokens += modelMetrics.tokens.candidates;
       cached += modelMetrics.tokens.cached;
+      cacheCreation += modelMetrics.tokens.cacheCreation;
       input += modelMetrics.tokens.input;
     }
 
@@ -60,6 +62,7 @@ export class StreamJsonFormatter {
       input_tokens: inputTokens,
       output_tokens: outputTokens,
       cached,
+      cache_creation: cacheCreation,
       input,
       duration_ms: durationMs,
       tool_calls: metrics.tools.totalCalls,

@@ -151,6 +151,7 @@ describe('StreamJsonFormatter', () => {
           input_tokens: 50,
           output_tokens: 50,
           cached: 0,
+          cache_creation: 0,
           input: 50,
           duration_ms: 1200,
           tool_calls: 2,
@@ -177,6 +178,7 @@ describe('StreamJsonFormatter', () => {
           input_tokens: 50,
           output_tokens: 50,
           cached: 0,
+          cache_creation: 0,
           input: 50,
           duration_ms: 1200,
           tool_calls: 0,
@@ -301,6 +303,7 @@ describe('StreamJsonFormatter', () => {
         input_tokens: 50,
         output_tokens: 30,
         cached: 0,
+        cache_creation: 0,
         input: 50,
         duration_ms: 1200,
         tool_calls: 2,
@@ -344,6 +347,7 @@ describe('StreamJsonFormatter', () => {
         input_tokens: 150, // 50 + 100
         output_tokens: 100, // 30 + 70
         cached: 0,
+        cache_creation: 0,
         input: 150,
         duration_ms: 3000,
         tool_calls: 5,
@@ -373,6 +377,7 @@ describe('StreamJsonFormatter', () => {
         input_tokens: 50,
         output_tokens: 30,
         cached: 30,
+        cache_creation: 0,
         input: 20,
         duration_ms: 1200,
         tool_calls: 0,
@@ -389,10 +394,33 @@ describe('StreamJsonFormatter', () => {
         input_tokens: 0,
         output_tokens: 0,
         cached: 0,
+        cache_creation: 0,
         input: 0,
         duration_ms: 100,
         tool_calls: 0,
       });
+    });
+
+    // RED-4: Verify cache_creation is included in StreamStats
+    it('should include cache_creation token count in stats', () => {
+      const metrics = createMockMetrics();
+      metrics.models['claude-sonnet'] = {
+        api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 500 },
+        tokens: {
+          input: 80,
+          prompt: 100,
+          candidates: 50,
+          total: 150,
+          cached: 20,
+          cacheCreation: 25,
+          thoughts: 0,
+          tool: 0,
+        },
+      };
+
+      const result = formatter.convertToStreamStats(metrics, 500);
+
+      expect(result.cache_creation).toBe(25);
     });
 
     it('should use session-level tool calls count', () => {
@@ -518,6 +546,7 @@ describe('StreamJsonFormatter', () => {
             input_tokens: 0,
             output_tokens: 0,
             cached: 0,
+            cache_creation: 0,
             input: 0,
             duration_ms: 0,
             tool_calls: 0,
@@ -541,6 +570,7 @@ describe('StreamJsonFormatter', () => {
           input_tokens: 50,
           output_tokens: 50,
           cached: 0,
+          cache_creation: 0,
           input: 50,
           duration_ms: 1200,
           tool_calls: 2,

@@ -88,7 +88,7 @@
 | **[#2] Phase 3 데이터 경로 비어있음**                      | 🔴 High     | **전체 경로 한번에 구현**: adapter → LlmMessageEndEvent → ProviderQuotaService → statsCommand → HistoryItemStats → StatsDisplay                                                                                                        | ⬜   |
 | UiEvent union 확장 시 기존 Gemini 경로 regression          | 🟠 Medium   | duck typing + 기존 테스트 전체 실행                                                                                                                                                                                                    | ✅   |
 | adapter 헤더 수집 (Phase 3) SDK 구현 의존성                | 🟡 Medium   | **코드 검증 결과 확정 사항**: `messages.create(..., {stream:true})`/`chat.completions.create(..., {stream:true})` 반환은 AsyncIterable이므로 헤더 접근 불가. `.withResponse()` 체인으로 전환 후 진행                                   | ⬜   |
-| `areModelMetricsEqual()` 필드 누락 시 UI 무한 리렌더       | 🟡 Medium   | Phase 1에서 provider, Phase 2에서 cacheCreation 동시 추가                                                                                                                                                                              | ⬜   |
+| `areModelMetricsEqual()` 필드 누락 시 UI 무한 리렌더       | 🟡 Medium   | Phase 1에서 provider, Phase 2에서 cacheCreation 동시 추가                                                                                                                                                                              | ✅   |
 | **[#1-v1.3] event.durationMs vs event.duration_ms 필드명** | 🔴 Critical | `ProviderApiResponseEvent`/`ProviderApiErrorEvent` 인스턴스 프로퍼티는 `duration_ms` (snake_case). 생성자 파라미터는 `durationMs` (camelCase). 코드 작성 시 인스턴스 프로퍼티 `event.duration_ms` 사용 필수                            | ✅   |
 | **[#2-v1.3] MessageEnd→ProviderQuotaService 브릿지 누락**  | 🟠 High     | adapter가 rateLimits를 yield해도 소비자 없으면 ProviderQuotaService 미갱신. TASK-003A로 LoggingContentGenerator에 브릿지 구현                                                                                                          | ⬜   |
 | **[#3-v1.3] statsCommand providerName 미존재**             | 🟠 High     | `statsCommand.ts`에 `providerName` 변수 없음 — Gemini 쿼타는 항상 fetch, Non-Gemini는 ProviderQuotaService로 분리                                                                                                                      | ⬜   |
@@ -100,7 +100,7 @@
 | **[#1-v1.4] ProviderQuota 테스트 스키마 충돌**             | 🟠 High     | RED-2/3 테스트가 중첩 `limits/remaining` 스키마 → flat 스키마(`requestsLimit` 등)로 통일. TASK-003 구현과 일관                                                                                                                         | ✅   |
 | **[#2-v1.4] LlmGenerateResponse 타입 약화**                | 🟠 High     | TASK-000 예시가 `id?: string, stopReason?: string`로 기존 필수/enum 타입을 약화 → `id: string, stopReason: LlmStopReason` 유지. `rateLimits?`만 추가                                                                                   | ✅   |
 | **[#3-v1.4] Phase 0/1 provider 필드 소유 경계**            | 🟠 Medium   | `ModelMetrics.provider`는 Phase 0 TASK-006에서 추가. Phase 1 TASK-001은 검증만 수행                                                                                                                                                    | ✅   |
-| **[#5-v1.4] GenAIUsageDetails 필수 필드 하류 갱신**        | 🟠 Medium   | Phase 2 TASK-001에서 `ApiResponseEvent` 생성자 + 테스트 데이터 동시 갱신 명시                                                                                                                                                          | ✅   |
+| **[#5-v1.4] GenAIUsageDetails 필수 필드 하류 갱신**        | 🟠 Medium   | Phase 2 TASK-001에서 `ApiResponseEvent` 생성자 + 테스트 데이터 동시 갱신 → ✅ 20+ 파일 갱신 완료                                                                                                                                       | ✅   |
 
 ---
 
@@ -136,7 +136,7 @@
 | --------- | ----------- | ---------- | ---------- | ----------------------------------------------------------------------------------- |
 | Phase 0   | 1.5~2일     | 2026-02-18 | 2026-02-20 | ✅ 완료 (리뷰 반영 포함)                                                            |
 | Phase 1   | 1.5~2일     | 2026-02-20 | 2026-02-20 | P0 완료 후 즉시 착수                                                                |
-| Phase 2   | 1~1.5일     | -          | -          | P1 완료 후 착수 (독립적이나 P1 provider 필드 의존)                                  |
+| Phase 2   | 1~1.5일     | 2026-02-20 | 2026-02-20 | ✅ 완료 (cacheCreation 파이프라인 전 구간)                                          |
 | Phase 3   | 2일         | -          | -          | `.withResponse()` 헤더 추출 + CommandContext/providerQuotaService 주입 선행 후 착수 |
 | Phase 4   | 1~2일       | -          | -          | 선택 사항, 기능별 독립 구현 (**Phase 1만으로 착수 가능**)                           |
 | **Total** | **7~9.5일** | -          | -          | P0+P1 (3~4일) 완료 시 기본 기능 동작                                                |
@@ -149,7 +149,7 @@
 | ------- | ----------- | ------ | -------- | ----------- | ------ | ---- | ---- |
 | Phase 0 | ✅          | ✅     | ✅       | ✅          | ✅     | ✅   | ✅   |
 | Phase 1 | ✅          | ✅     | ✅       | ✅          | ✅     | ✅   | ✅   |
-| Phase 2 | ⬜          | ⬜     | ⬜       | ⬜          | ⬜     | ⬜   | ⬜   |
+| Phase 2 | ✅          | ✅     | ✅       | ✅          | ✅     | ✅   | ✅   |
 | Phase 3 | ⬜          | ⬜     | ⬜       | ⬜          | ⬜     | ⬜   | ⬜   |
 | Phase 4 | ⬜          | ⬜     | ⬜       | ⬜          | ⬜     | ⬜   | ⬜   |
 

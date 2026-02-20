@@ -45,25 +45,25 @@ LlmTokenUsage.cacheCreationTokens
 
 | 리스크                                                             | 영향      | 대응 방안                                                                                              | 상태 |
 | ------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------ | ---- |
-| 기존 GenAIUsageDetails 필드 순서/호환                              | 🟡 Low    | optional 필드로 추가, 기존 값 영향 없음                                                                | ⬜   |
-| `areModelMetricsEqual` cacheCreation 누락 → 리렌더                 | 🟡 Medium | Phase 2에서 반드시 동시 추가                                                                           | ⬜   |
-| cacheCreation 값이 0인 프로바이더에서 불필요한 UI 행               | 🟢 Low    | 조건부 행 표시 (`hasCacheCreation` 체크)                                                               | ⬜   |
-| **[v1.4 #5] GenAIUsageDetails 필수 필드 추가 시 하류 컴파일 에러** | 🟠 Medium | `ApiResponseEvent` 생성자 + `telemetryBridge.test.ts` 테스트 데이터도 동시 갱신 필수 (TASK-001에 포함) | ⬜   |
+| 기존 GenAIUsageDetails 필드 순서/호환                              | 🟡 Low    | optional 필드로 추가, 기존 값 영향 없음                                                                | ✅   |
+| `areModelMetricsEqual` cacheCreation 누락 → 리렌더                 | 🟡 Medium | Phase 2에서 반드시 동시 추가                                                                           | ✅   |
+| cacheCreation 값이 0인 프로바이더에서 불필요한 UI 행               | 🟢 Low    | 조건부 행 표시 (`hasCacheCreation` 체크)                                                               | ✅   |
+| **[v1.4 #5] GenAIUsageDetails 필수 필드 추가 시 하류 컴파일 에러** | 🟠 Medium | `ApiResponseEvent` 생성자 + `telemetryBridge.test.ts` 테스트 데이터도 동시 갱신 필수 (TASK-001에 포함) | ✅   |
 
 ---
 
 ## 2.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 1 작업 결과서 검토
-  - 파일: `../working_history/Phase1_ProviderRecognition_{작업일자}.md`
+- [x] **[REVIEW]** Phase 1 작업 결과서 검토
+  - 파일: `../working_history/Phase1_ProviderRecognition_20260220.md`
   - 확인: 체크리스트 완료, 미해결 이슈
 
-- [ ] **[CONTEXT]** Phase 2 작업 목적 확인
+- [x] **[CONTEXT]** Phase 2 작업 목적 확인
   - Claude 프로바이더의 `cacheCreationTokens`가 전체 파이프라인을 통해 UI에
     표시되도록 함
   - Gemini/OpenAI 등 미지원 프로바이더는 0으로 유지 → UI에서 자동 숨김
 
-- [ ] **[ANALYSIS]** 현재 코드 분석
+- [x] **[ANALYSIS]** 현재 코드 분석
   - `packages/core/src/providers/types.ts`
     - `LlmTokenUsage` (line 179): `cacheCreationTokens?: number` (line 185) — ✅
       존재
@@ -82,7 +82,7 @@ LlmTokenUsage.cacheCreationTokens
   - `packages/cli/src/ui/components/ModelStatsDisplay.tsx`
     - cacheCreation 행 — ❌ 없음
 
-- [ ] **[SCOPE-CHECK]** 2일 이내 완료 가능 범위 확인
+- [x] **[SCOPE-CHECK]** 2일 이내 완료 가능 범위 확인
   - 예상 총 소요: 1~1.5일
   - 이번 Phase 완료 조건(DoD):
     1. `GenAIUsageDetails.cache_creation_token_count` 필드 추가
@@ -98,7 +98,7 @@ LlmTokenUsage.cacheCreationTokens
 
 ### RED-1: GenAIUsageDetails cacheCreation 필드
 
-- [ ] **[RED]** GenAIUsageDetails에 cache_creation_token_count 포함 테스트
+- [x] **[RED]** GenAIUsageDetails에 cache_creation_token_count 포함 테스트
 
   **파일**: `packages/core/src/telemetry/types.test.ts` (또는 관련 테스트)
 
@@ -117,11 +117,11 @@ LlmTokenUsage.cacheCreationTokens
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-2: telemetryBridge cacheCreation 매핑
 
-- [ ] **[RED]** llmTokenUsageToGenAIUsage가 cacheCreation을 매핑하는 테스트
+- [x] **[RED]** llmTokenUsageToGenAIUsage가 cacheCreation을 매핑하는 테스트
 
   **파일**: `packages/core/src/providers/telemetryBridge.test.ts`
 
@@ -150,11 +150,11 @@ LlmTokenUsage.cacheCreationTokens
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-3: 역방향 매핑
 
-- [ ] **[RED]** genAIUsageToLlmTokenUsage가 cache_creation을 역매핑하는 테스트
+- [x] **[RED]** genAIUsageToLlmTokenUsage가 cache_creation을 역매핑하는 테스트
 
   ```typescript
   it('should map cache_creation_token_count back to cacheCreationTokens', () => {
@@ -164,11 +164,11 @@ LlmTokenUsage.cacheCreationTokens
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-4: ModelMetrics cacheCreation 집계
 
-- [ ] **[RED]** processApiResponse가 cacheCreation을 집계하는 테스트
+- [x] **[RED]** processApiResponse가 cacheCreation을 집계하는 테스트
 
   **파일**: `packages/core/src/telemetry/uiTelemetry.test.ts`
 
@@ -188,7 +188,7 @@ LlmTokenUsage.cacheCreationTokens
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-5: areModelMetricsEqual cacheCreation 비교
 
@@ -197,7 +197,7 @@ LlmTokenUsage.cacheCreationTokens
 > 행위 기반 테스트 사용. **접근법**: SessionContext가 metrics 변경을 감지하여
 > 리렌더하는지 검증.
 
-- [ ] **[RED]** cacheCreation 변경이 SessionContext 리렌더를 트리거하는 테스트
+- [x] **[RED]** cacheCreation 변경이 SessionContext 리렌더를 트리거하는 테스트
 
   **파일**: `packages/cli/src/ui/contexts/SessionContext.test.tsx`
 
@@ -219,11 +219,11 @@ LlmTokenUsage.cacheCreationTokens
   > **대안**: `areModelMetricsEqual`을 export하여 직접 테스트하는 것도 가능
   > (리팩터링 시 결정)
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-6: ModelStatsDisplay cacheCreation 조건부 행
 
-- [ ] **[RED]** cacheCreation > 0일 때 행 렌더, 0일 때 미렌더 테스트
+- [x] **[RED]** cacheCreation > 0일 때 행 렌더, 0일 때 미렌더 테스트
 
   **파일**: `packages/cli/src/ui/components/ModelStatsDisplay.test.tsx`
 
@@ -239,7 +239,7 @@ LlmTokenUsage.cacheCreationTokens
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ---
 
@@ -252,7 +252,7 @@ LlmTokenUsage.cacheCreationTokens
 > 반드시 동시 갱신해야 컴파일 에러 방지. `telemetryBridge.test.ts`의
 > `GenAIUsageDetails` 직접 생성 테스트 데이터도 갱신 필요.
 
-- [ ] **[TASK-001]** cache_creation_token_count 필드 추가 + 하류 생성 사이트
+- [x] **[TASK-001]** cache_creation_token_count 필드 추가 + 하류 생성 사이트
       갱신
   - 파일: `packages/core/src/telemetry/types.ts`
   - 변경 (1) — GenAIUsageDetails 인터페이스:
@@ -287,14 +287,14 @@ LlmTokenUsage.cacheCreationTokens
 
 ### TASK-002: TelemetryUsageMetadata 확장
 
-- [ ] **[TASK-002]** cacheCreationTokenCount 필드 추가
+- [x] **[TASK-002]** cacheCreationTokenCount 필드 추가
   - 파일: `packages/core/src/telemetry/types.ts`
   - 변경: `cacheCreationTokenCount?: number;` 추가
   - 예상 소요: 5분
 
 ### TASK-003: telemetryBridge 매핑 추가
 
-- [ ] **[TASK-003]** 정방향 + 역방향 cacheCreation 매핑
+- [x] **[TASK-003]** 정방향 + 역방향 cacheCreation 매핑
   - 파일: `packages/core/src/providers/telemetryBridge.ts`
   - 변경:
     - `llmTokenUsageToGenAIUsage`:
@@ -305,7 +305,7 @@ LlmTokenUsage.cacheCreationTokens
 
 ### TASK-004: ModelMetrics.tokens.cacheCreation 추가
 
-- [ ] **[TASK-004]** ModelMetrics 타입 + 초기값 + 집계 로직
+- [x] **[TASK-004]** ModelMetrics 타입 + 초기값 + 집계 로직
   - 파일: `packages/core/src/telemetry/uiTelemetry.ts`
   - 변경:
     - `tokens.cacheCreation: number` 추가
@@ -316,14 +316,14 @@ LlmTokenUsage.cacheCreationTokens
 
 ### TASK-005: areModelMetricsEqual cacheCreation 추가
 
-- [ ] **[TASK-005]** equality 함수에 cacheCreation 비교 추가
+- [x] **[TASK-005]** equality 함수에 cacheCreation 비교 추가
   - 파일: `packages/cli/src/ui/contexts/SessionContext.tsx`
   - 변경: `a.tokens.cacheCreation !== b.tokens.cacheCreation` 추가
   - 예상 소요: 5분
 
 ### TASK-006: ModelStatsDisplay cacheCreation 행 추가
 
-- [ ] **[TASK-006]** 조건부 행 렌더링
+- [x] **[TASK-006]** 조건부 행 렌더링
   - 파일: `packages/cli/src/ui/components/ModelStatsDisplay.tsx`
   - 변경:
     ```typescript
@@ -336,7 +336,7 @@ LlmTokenUsage.cacheCreationTokens
     ```
   - 예상 소요: 30분
 
-- [ ] **[GREEN-VERIFY]** 테스트 통과 확인
+- [x] **[GREEN-VERIFY]** 테스트 통과 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/telemetry/ --run
   npm test -w @didim365/agent-cli-core -- src/providers/telemetryBridge.test.ts --run
@@ -349,46 +349,46 @@ LlmTokenUsage.cacheCreationTokens
 
 ### 2.4.1 구조 개선 (Make it right)
 
-- [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
+- [x] **[REFACTOR-STRUCTURE]** 코드 구조 개선
   - `llmTokenUsageToGenAIUsage` / `genAIUsageToLlmTokenUsage` 매핑 필드 순서
     일관성 확인
   - `processApiResponse`의 토큰 집계 로직이 필드 수 증가로 가독성 떨어지면
     helper 추출
   - `hasCacheCreation` 계산을 useMemo 등으로 최적화 필요성 검토
 
-- [ ] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
 
 ---
 
 ## 2.5 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 전체 테스트 실행
+- [x] **[TEST]** 전체 테스트 실행
 
   ```bash
   npm run test
   ```
 
-- [ ] **[TYPECHECK]** 타입체크
+- [x] **[TYPECHECK]** 타입체크
 
   ```bash
   npm run typecheck
   ```
 
-- [ ] **[LINT]** 린터 검사
+- [x] **[LINT]** 린터 검사
 
   ```bash
   npm run lint
   ```
 
-- [ ] **[VERIFY]** 기능 검증
+- [x] **[VERIFY]** 기능 검증
   - 확인 항목 1: Claude 사용 시 cacheCreation 행 표시
   - 확인 항목 2: Gemini/OpenAI만 사용 시 cacheCreation 행 미표시
   - 확인 항목 3: telemetryBridge 정방향/역방향 매핑 일관성
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `../working_history/Phase2_CacheCreation_{작업일자}.md`
 
-- [ ] **[COMMIT]** 변경사항 커밋
+- [x] **[COMMIT]** 변경사항 커밋
   ```bash
   git add packages/core/src/telemetry/types.ts \
          packages/core/src/providers/telemetryBridge.ts \
@@ -417,4 +417,5 @@ LlmTokenUsage.cacheCreationTokens
 
 ---
 
-**작성일**: 2026-02-18 **작성자**: AI Assistant **상태**: ⬜ 작성 중
+**작성일**: 2026-02-18 **최종 수정일**: 2026-02-20 **작성자**: AI Assistant
+**상태**: ✅ 완료

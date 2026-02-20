@@ -208,6 +208,7 @@ const mockUIActions: UIActions = {
   handleVertexConfigCancel: vi.fn(),
   setBannerVisible: vi.fn(),
   setEmbeddedShellFocused: vi.fn(),
+  setSelectedProvider: vi.fn(),
   setAuthContext: vi.fn(),
   handleRestart: vi.fn(),
   handleNewAgentsSelect: vi.fn(),

@@ -23,7 +23,8 @@ import {
 import { computeSessionStats } from '../utils/computeStats.js';
 import {
   type RetrieveUserQuotaResponse,
-  VALID_GEMINI_MODELS,
+  PROVIDER_MODEL_REGISTRY,
+  parseCompositeKey,
 } from '@didim365/agent-cli-core';
 
 // A more flexible and powerful StatRow component
@@ -73,17 +74,23 @@ const Section: React.FC<SectionProps> = ({ title, children }) => (
   </Box>
 );
 
+// Registered Gemini model IDs for quota-only row allowlist
+const GEMINI_MODEL_ALLOWLIST = new Set(
+  PROVIDER_MODEL_REGISTRY['gemini']?.models.map((m) => m.id) ?? [],
+);
+
 // Logic for building the unified list of table rows
 const buildModelRows = (
   models: Record<string, ModelMetrics>,
   quotas?: RetrieveUserQuotaResponse,
 ) => {
-  const getBaseModelName = (name: string) => name.replace('-001', '');
-  const usedModelNames = new Set(Object.keys(models).map(getBaseModelName));
+  const getModelName = (compositeKey: string) =>
+    parseCompositeKey(compositeKey).model.replace('-001', '');
+  const usedModelNames = new Set(Object.keys(models).map(getModelName));
 
   // 1. Models with active usage
   const activeRows = Object.entries(models).map(([name, metrics]) => {
-    const modelName = getBaseModelName(name);
+    const modelName = getModelName(name);
     const cachedTokens = metrics.tokens.cached;
     const inputTokens = metrics.tokens.input;
     return {
@@ -98,13 +105,13 @@ const buildModelRows = (
     };
   });
 
-  // 2. Models with quota only
+  // 2. Models with quota only (registered Gemini models only)
   const quotaRows =
     quotas?.buckets
       ?.filter(
         (b) =>
           b.modelId &&
-          VALID_GEMINI_MODELS.has(b.modelId) &&
+          GEMINI_MODEL_ALLOWLIST.has(b.modelId) &&
           !usedModelNames.has(b.modelId),
       )
       .map((bucket) => ({

@@ -15,6 +15,7 @@ import {
 } from '../utils/computeStats.js';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { Table, type Column } from './Table.js';
+import { parseCompositeKey } from '@didim365/agent-cli-core';
 
 interface StatRowData {
   metric: string;
@@ -187,7 +188,7 @@ export const ModelStatsDisplay: React.FC = () => {
     },
     ...modelNames.map((name) => ({
       key: name,
-      header: name,
+      header: parseCompositeKey(name).model,
       flexGrow: 1,
       renderCell: (row: StatRowData) => {
         // Don't render anything for section headers in model columns

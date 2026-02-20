@@ -73,20 +73,20 @@
 
 | 리스크                                                     | 영향        | 대응 방안                                                                                                                                                                                                                              | 상태 |
 | ---------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| Non-Gemini 텔레메트리 단절 (Phase 0 미완 시 전체 무의미)   | 🔴 High     | Phase 0을 최우선 진행, 단독 검증 후 다음 Phase 착수                                                                                                                                                                                    | ⬜   |
+| Non-Gemini 텔레메트리 단절 (Phase 0 미완 시 전체 무의미)   | 🔴 High     | Phase 0을 최우선 진행, 단독 검증 후 다음 Phase 착수                                                                                                                                                                                    | ✅   |
 | **[#1-v1.2] Plain model key 충돌**                         | 🔴 Critical | ~~v1.1: 복합 키 폐기~~ → **v1.2: `{provider}::{model}` 복합 키 재도입**. `openai-compatible`의 `freeformInput: true`로 동일 모델명 충돌 확인. `::` 구분자는 JSON-safe. 영속화된 레거시 키(`::` 미포함)는 `gemini` 기본값으로 안전 파싱 | ⬜   |
-| **[#2-v1.2] processApiError provider 미설정**              | 🟠 Medium   | `processApiError()`에도 `processApiResponse()`와 동일한 provider 추출 + 복합 키 로직 적용                                                                                                                                              | ⬜   |
-| **[#3] ProviderApiResponseEvent에 toLogRecord 없음**       | 🔴 High     | **3경로 통합 폐기** → UI 전용 경로 + lightweight OTEL counter만 사용                                                                                                                                                                   | ⬜   |
+| **[#2-v1.2] processApiError provider 미설정**              | 🟠 Medium   | `processApiError()`에도 `processApiResponse()`와 동일한 provider 추출 + 복합 키 로직 적용                                                                                                                                              | ✅   |
+| **[#3] ProviderApiResponseEvent에 toLogRecord 없음**       | 🔴 High     | **3경로 통합 폐기** → UI 전용 경로 + lightweight OTEL counter만 사용                                                                                                                                                                   | ✅   |
 | **[#3-v1.2] providerQuotaService 미존재**                  | 🔴 High     | `CommandContext`에 없음. **ProviderQuotaService 신규 설계**: 인터페이스, lifecycle(세션 singleton), CommandContext 연결 필요                                                                                                           | ⬜   |
 | **[#4-v1.2] 스트리밍 rate-limit 전달 경로 없음**           | 🔴 High     | `LlmMessageEndEvent`에 `rateLimits?` 필드 추가 (방안 A). **Claude/OpenAI adapter는 `.withResponse()`로 `rawResponse.headers`를 확보**한 뒤 MessageEnd에 포함                                                                           | ⬜   |
-| **[#5] 런타임 provider 추론 폐기**                         | 🟠 Medium   | **런타임 폴백 폐기**: 모델명으로부터 provider를 추론하지 않음 → Phase 0에서 event에 명시적 provider 포함. 영속화된 레거시 키(`::` 미포함) 파싱은 `gemini` 기본값으로 안전 처리 (별개 개념). Phase 0+1 atomic 배포                      | ⬜   |
+| **[#5] 런타임 provider 추론 폐기**                         | 🟠 Medium   | **런타임 폴백 폐기**: 모델명으로부터 provider를 추론하지 않음 → Phase 0에서 event에 명시적 provider 포함. 영속화된 레거시 키(`::` 미포함) 파싱은 `gemini` 기본값으로 안전 처리 (별개 개념). Phase 0+1 atomic 배포                      | ✅   |
 | **[#5-v1.2] VALID_GEMINI_MODELS 버킷 노이즈**              | 🟠 Medium   | `PROVIDER_MODEL_REGISTRY.gemini.models`를 대체 allowlist로 사용. 등록된 모델만 quota-only 행 표시                                                                                                                                      | ⬜   |
 | **[#6] VALID_GEMINI_MODELS 제거 시 quota-only 행 소실**    | 🟠 Medium   | `PROVIDER_MODEL_REGISTRY` allowlist + 쿼타 버킷 매칭으로 보존                                                                                                                                                                          | ⬜   |
 | **[#7-v1.2] 비공개 함수 직접 테스트**                      | 🟡 Low      | `createInitialModelMetrics`/`areModelMetricsEqual` 비공개 → 행위 기반 테스트(`addEvent` + `getMetrics`)                                                                                                                                | ⬜   |
 | **[#8-v1.2] openai-compatible 범위**                       | 🟠 Medium   | `OpenAiAdapter` 상속으로 rate-limit 처리 자동 상속. 커스텀 서버 헤더 미반환 시 optional 처리                                                                                                                                           | ⬜   |
-| **[#9-v1.2] 관측 가능성 감소**                             | 🟡 Low      | Non-Gemini Clearcut/OTEL logRecord 미생성은 의도적 제약. Phase 0에 Known Limitation 섹션 명시                                                                                                                                          | ⬜   |
+| **[#9-v1.2] 관측 가능성 감소**                             | 🟡 Low      | Non-Gemini Clearcut/OTEL logRecord 미생성은 의도적 제약. Phase 0에 Known Limitation 섹션 명시                                                                                                                                          | ✅   |
 | **[#2] Phase 3 데이터 경로 비어있음**                      | 🔴 High     | **전체 경로 한번에 구현**: adapter → LlmMessageEndEvent → ProviderQuotaService → statsCommand → HistoryItemStats → StatsDisplay                                                                                                        | ⬜   |
-| UiEvent union 확장 시 기존 Gemini 경로 regression          | 🟠 Medium   | duck typing + 기존 테스트 전체 실행                                                                                                                                                                                                    | ⬜   |
+| UiEvent union 확장 시 기존 Gemini 경로 regression          | 🟠 Medium   | duck typing + 기존 테스트 전체 실행                                                                                                                                                                                                    | ✅   |
 | adapter 헤더 수집 (Phase 3) SDK 구현 의존성                | 🟡 Medium   | **코드 검증 결과 확정 사항**: `messages.create(..., {stream:true})`/`chat.completions.create(..., {stream:true})` 반환은 AsyncIterable이므로 헤더 접근 불가. `.withResponse()` 체인으로 전환 후 진행                                   | ⬜   |
 | `areModelMetricsEqual()` 필드 누락 시 UI 무한 리렌더       | 🟡 Medium   | Phase 1에서 provider, Phase 2에서 cacheCreation 동시 추가                                                                                                                                                                              | ⬜   |
 | **[#1-v1.3] event.durationMs vs event.duration_ms 필드명** | 🔴 Critical | `ProviderApiResponseEvent`/`ProviderApiErrorEvent` 인스턴스 프로퍼티는 `duration_ms` (snake_case). 생성자 파라미터는 `durationMs` (camelCase). 코드 작성 시 인스턴스 프로퍼티 `event.duration_ms` 사용 필수                            | ✅   |
@@ -94,7 +94,7 @@
 | **[#3-v1.3] statsCommand providerName 미존재**             | 🟠 High     | `statsCommand.ts`에 `providerName` 변수 없음 — Gemini 쿼타는 항상 fetch, Non-Gemini는 ProviderQuotaService로 분리                                                                                                                      | ⬜   |
 | **[#4-v1.3] getSessionMetrics() → getMetrics() API명**     | 🟠 High     | 실제 API는 `getMetrics()` — 문서 전체에서 `getSessionMetrics()` 사용 부분 수정                                                                                                                                                         | ✅   |
 | **[#7-v1.3] CommandContext 인스턴스 주입 누락**            | 🟠 Medium   | slashCommandProcessor.ts의 commandContext useMemo에 providerQuotaService 실제 인스턴스 주입 필요                                                                                                                                       | ⬜   |
-| **[#1-v1.5] Non-Gemini llm 텔레메트리 누락**               | 🔴 High     | 현재 `loggingContentGenerator.llmGenerateContent/llmLoggingStreamWrapper`는 duration 디버그 로그만 기록. Phase 0에서 `createProviderApiResponseEvent`/`createProviderApiErrorEvent` + UI 이벤트 경로를 명시적으로 추가                 | ⬜   |
+| **[#1-v1.5] Non-Gemini llm 텔레메트리 누락**               | 🔴 High     | 현재 `loggingContentGenerator.llmGenerateContent/llmLoggingStreamWrapper`는 duration 디버그 로그만 기록. Phase 0에서 `createProviderApiResponseEvent`/`createProviderApiErrorEvent` + UI 이벤트 경로를 명시적으로 추가                 | ✅   |
 | **[#2-v1.5] CommandContext 서비스 스키마 선행 변경 필요**  | 🟠 High     | `commands/types.ts`의 `CommandContext.services`가 `{config,settings,git,logger}`만 보유. Phase 3 착수 전 `providerQuotaService` 타입/인스턴스 주입을 먼저 반영                                                                         | ⬜   |
 | **[#3-v1.5] 모델 키 충돌 및 비교 기준 불일치**             | 🟠 Medium   | 현재 `uiTelemetryService`/`SessionContext`는 model 이름 단일 키 및 provider 미비교. Phase 1에서 `{provider}::{model}` 키 + `ModelMetrics.provider` + `areModelMetricsEqual` provider 비교를 묶어서 atomic 반영                         | ⬜   |
 | **[#1-v1.4] ProviderQuota 테스트 스키마 충돌**             | 🟠 High     | RED-2/3 테스트가 중첩 `limits/remaining` 스키마 → flat 스키마(`requestsLimit` 등)로 통일. TASK-003 구현과 일관                                                                                                                         | ✅   |
@@ -132,14 +132,14 @@
 
 ## 📅 예상 일정
 
-| Phase     | 예상 소요   | 시작일 | 완료일 | 비고                                                                                |
-| --------- | ----------- | ------ | ------ | ----------------------------------------------------------------------------------- |
-| Phase 0   | 1.5~2일     | TBD    | -      | **선행 필수** — 이것 없이 P1~P4 무의미                                              |
-| Phase 1   | 1.5~2일     | -      | -      | P0 완료 후 즉시 착수                                                                |
-| Phase 2   | 1~1.5일     | -      | -      | P1 완료 후 착수 (독립적이나 P1 provider 필드 의존)                                  |
-| Phase 3   | 2일         | -      | -      | `.withResponse()` 헤더 추출 + CommandContext/providerQuotaService 주입 선행 후 착수 |
-| Phase 4   | 1~2일       | -      | -      | 선택 사항, 기능별 독립 구현 (**Phase 1만으로 착수 가능**)                           |
-| **Total** | **7~9.5일** | -      | -      | P0+P1 (3~4일) 완료 시 기본 기능 동작                                                |
+| Phase     | 예상 소요   | 시작일     | 완료일     | 비고                                                                                |
+| --------- | ----------- | ---------- | ---------- | ----------------------------------------------------------------------------------- |
+| Phase 0   | 1.5~2일     | 2026-02-18 | 2026-02-20 | ✅ 완료 (리뷰 반영 포함)                                                            |
+| Phase 1   | 1.5~2일     | 2026-02-20 | 2026-02-20 | P0 완료 후 즉시 착수                                                                |
+| Phase 2   | 1~1.5일     | -          | -          | P1 완료 후 착수 (독립적이나 P1 provider 필드 의존)                                  |
+| Phase 3   | 2일         | -          | -          | `.withResponse()` 헤더 추출 + CommandContext/providerQuotaService 주입 선행 후 착수 |
+| Phase 4   | 1~2일       | -          | -          | 선택 사항, 기능별 독립 구현 (**Phase 1만으로 착수 가능**)                           |
+| **Total** | **7~9.5일** | -          | -          | P0+P1 (3~4일) 완료 시 기본 기능 동작                                                |
 
 ---
 
@@ -147,8 +147,8 @@
 
 | Phase   | 기간(<=2일) | 🔴 Red | 🟢 Green | 🔵 Refactor | 결과서 | 커밋 | 상태 |
 | ------- | ----------- | ------ | -------- | ----------- | ------ | ---- | ---- |
-| Phase 0 | ⬜          | ⬜     | ⬜       | ⬜          | ⬜     | ⬜   | ⬜   |
-| Phase 1 | ⬜          | ⬜     | ⬜       | ⬜          | ⬜     | ⬜   | ⬜   |
+| Phase 0 | ✅          | ✅     | ✅       | ✅          | ✅     | ✅   | ✅   |
+| Phase 1 | ✅          | ✅     | ✅       | ✅          | ✅     | ✅   | ✅   |
 | Phase 2 | ⬜          | ⬜     | ⬜       | ⬜          | ⬜     | ⬜   | ⬜   |
 | Phase 3 | ⬜          | ⬜     | ⬜       | ⬜          | ⬜     | ⬜   | ⬜   |
 | Phase 4 | ⬜          | ⬜     | ⬜       | ⬜          | ⬜     | ⬜   | ⬜   |

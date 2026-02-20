@@ -5,7 +5,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { UiTelemetryService } from './uiTelemetry.js';
+import {
+  UiTelemetryService,
+  buildCompositeKey,
+  parseCompositeKey,
+  groupModelsByProvider,
+  type ModelMetrics,
+} from './uiTelemetry.js';
 import { ToolCallDecision } from './tool-call-decision.js';
 import type { ApiErrorEvent, ApiResponseEvent } from './types.js';
 import { ToolCallEvent } from './types.js';
@@ -22,6 +28,10 @@ import type {
 import { ToolErrorType } from '../tools/tool-error.js';
 import { ToolConfirmationOutcome } from '../tools/tools.js';
 import { MockTool } from '../test-utils/mock-tool.js';
+import {
+  ProviderApiResponseEvent,
+  ProviderApiErrorEvent,
+} from '../providers/telemetryBridge.js';
 
 const createFakeCompletedToolCall = (
   name: string,
@@ -166,7 +176,8 @@ describe('UiTelemetryService', () => {
       service.addEvent(event);
 
       const metrics = service.getMetrics();
-      expect(metrics.models['gemini-2.5-pro']).toEqual({
+      expect(metrics.models['gemini::gemini-2.5-pro']).toEqual({
+        provider: 'gemini',
         api: {
           totalRequests: 1,
           totalErrors: 0,
@@ -221,7 +232,8 @@ describe('UiTelemetryService', () => {
       service.addEvent(event2);
 
       const metrics = service.getMetrics();
-      expect(metrics.models['gemini-2.5-pro']).toEqual({
+      expect(metrics.models['gemini::gemini-2.5-pro']).toEqual({
+        provider: 'gemini',
         api: {
           totalRequests: 2,
           totalErrors: 0,
@@ -276,10 +288,14 @@ describe('UiTelemetryService', () => {
       service.addEvent(event2);
 
       const metrics = service.getMetrics();
-      expect(metrics.models['gemini-2.5-pro']).toBeDefined();
-      expect(metrics.models['gemini-2.5-flash']).toBeDefined();
-      expect(metrics.models['gemini-2.5-pro'].api.totalRequests).toBe(1);
-      expect(metrics.models['gemini-2.5-flash'].api.totalRequests).toBe(1);
+      expect(metrics.models['gemini::gemini-2.5-pro']).toBeDefined();
+      expect(metrics.models['gemini::gemini-2.5-flash']).toBeDefined();
+      expect(metrics.models['gemini::gemini-2.5-pro'].api.totalRequests).toBe(
+        1,
+      );
+      expect(metrics.models['gemini::gemini-2.5-flash'].api.totalRequests).toBe(
+        1,
+      );
       expect(service.getLastPromptTokenCount()).toBe(0);
     });
   });
@@ -296,7 +312,8 @@ describe('UiTelemetryService', () => {
       service.addEvent(event);
 
       const metrics = service.getMetrics();
-      expect(metrics.models['gemini-2.5-pro']).toEqual({
+      expect(metrics.models['gemini::gemini-2.5-pro']).toEqual({
+        provider: 'gemini',
         api: {
           totalRequests: 1,
           totalErrors: 1,
@@ -341,7 +358,8 @@ describe('UiTelemetryService', () => {
       service.addEvent(errorEvent);
 
       const metrics = service.getMetrics();
-      expect(metrics.models['gemini-2.5-pro']).toEqual({
+      expect(metrics.models['gemini::gemini-2.5-pro']).toEqual({
+        provider: 'gemini',
         api: {
           totalRequests: 2,
           totalErrors: 1,
@@ -701,5 +719,314 @@ describe('UiTelemetryService', () => {
       expect(metrics.files.totalLinesAdded).toBe(0);
       expect(metrics.files.totalLinesRemoved).toBe(0);
     });
+  });
+
+  // =========================================================================
+  // RED-7: ProviderApiResponseEvent provider extraction + ModelMetrics.provider
+  // =========================================================================
+
+  describe('processApiResponse with ProviderApiResponseEvent', () => {
+    it('should extract provider from ProviderApiResponseEvent', () => {
+      const event = {
+        ...new ProviderApiResponseEvent({
+          model: 'claude-sonnet-4-20250514',
+          durationMs: 500,
+          promptId: 'prompt-provider-1',
+          usage: {
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+          provider: 'claude',
+        }),
+        'event.name': EVENT_API_RESPONSE,
+      } as unknown as Parameters<typeof service.addEvent>[0];
+
+      service.addEvent(event);
+
+      const metrics = service.getMetrics();
+      const modelKey = 'claude::claude-sonnet-4-20250514';
+      expect(metrics.models[modelKey]).toBeDefined();
+      expect(metrics.models[modelKey].api.totalRequests).toBe(1);
+      // ModelMetrics.provider should be set to 'claude'
+      expect(metrics.models[modelKey].provider).toBe('claude');
+    });
+
+    it('should default to gemini for legacy ApiResponseEvent without provider', () => {
+      const event = {
+        'event.name': EVENT_API_RESPONSE,
+        model: 'gemini-2.5-pro',
+        duration_ms: 500,
+        usage: {
+          input_token_count: 10,
+          output_token_count: 20,
+          total_token_count: 30,
+          cached_content_token_count: 5,
+          thoughts_token_count: 2,
+          tool_token_count: 3,
+        },
+      } as ApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE };
+
+      service.addEvent(event);
+
+      const metrics = service.getMetrics();
+      expect(metrics.models['gemini::gemini-2.5-pro']).toBeDefined();
+      // Legacy events should default provider to 'gemini'
+      expect(metrics.models['gemini::gemini-2.5-pro'].provider).toBe('gemini');
+    });
+  });
+
+  // REVIEW-6: processApiError provider 추출 테스트
+  describe('processApiError with ProviderApiErrorEvent', () => {
+    it('should extract provider from ProviderApiErrorEvent', () => {
+      const event = {
+        ...new ProviderApiErrorEvent({
+          model: 'claude-sonnet-4-20250514',
+          error: 'Rate limit exceeded',
+          durationMs: 100,
+          promptId: 'prompt-provider-err-1',
+          provider: 'claude',
+        }),
+        'event.name': EVENT_API_ERROR,
+      } as unknown as Parameters<typeof service.addEvent>[0];
+
+      service.addEvent(event);
+
+      const metrics = service.getMetrics();
+      const modelKey = 'claude::claude-sonnet-4-20250514';
+      expect(metrics.models[modelKey]).toBeDefined();
+      expect(metrics.models[modelKey].api.totalRequests).toBe(1);
+      expect(metrics.models[modelKey].api.totalErrors).toBe(1);
+      expect(metrics.models[modelKey].provider).toBe('claude');
+    });
+
+    it('should default to gemini for legacy ApiErrorEvent without provider', () => {
+      const event = {
+        'event.name': EVENT_API_ERROR,
+        model: 'gemini-2.5-pro',
+        duration_ms: 100,
+      } as ApiErrorEvent & { 'event.name': typeof EVENT_API_ERROR };
+
+      service.addEvent(event);
+
+      const metrics = service.getMetrics();
+      expect(metrics.models['gemini::gemini-2.5-pro']).toBeDefined();
+      expect(metrics.models['gemini::gemini-2.5-pro'].api.totalErrors).toBe(1);
+      expect(metrics.models['gemini::gemini-2.5-pro'].provider).toBe('gemini');
+    });
+  });
+});
+
+// =========================================================================
+// Phase 1 RED-2: buildCompositeKey / parseCompositeKey / groupModelsByProvider
+// =========================================================================
+
+describe('buildCompositeKey / parseCompositeKey', () => {
+  it('should build key in provider::model format', () => {
+    expect(buildCompositeKey('claude', 'claude-sonnet-4')).toBe(
+      'claude::claude-sonnet-4',
+    );
+  });
+
+  it('should build key for gemini provider', () => {
+    expect(buildCompositeKey('gemini', 'gemini-2.5-pro')).toBe(
+      'gemini::gemini-2.5-pro',
+    );
+  });
+
+  it('should parse composite key into provider and model', () => {
+    const { provider, model } = parseCompositeKey('openai::gpt-5.2');
+    expect(provider).toBe('openai');
+    expect(model).toBe('gpt-5.2');
+  });
+
+  it('should default to gemini provider for legacy keys without ::', () => {
+    const { provider, model } = parseCompositeKey('gemini-2.5-pro');
+    expect(provider).toBe('gemini');
+    expect(model).toBe('gemini-2.5-pro');
+  });
+
+  it('should handle model names containing :: safely via indexOf', () => {
+    // provider::model::variant → provider='custom', model='model::v2'
+    const { provider, model } = parseCompositeKey('custom::model::v2');
+    expect(provider).toBe('custom');
+    expect(model).toBe('model::v2');
+  });
+});
+
+describe('groupModelsByProvider', () => {
+  const createMetrics = (provider: string): ModelMetrics => ({
+    provider,
+    api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 500 },
+    tokens: {
+      input: 10,
+      prompt: 15,
+      candidates: 20,
+      total: 35,
+      cached: 5,
+      thoughts: 0,
+      tool: 0,
+    },
+  });
+
+  it('should group models by provider extracted from composite key', () => {
+    const models: Record<string, ModelMetrics> = {
+      'gemini::gemini-2.5-pro': createMetrics('gemini'),
+      'claude::claude-sonnet-4': createMetrics('claude'),
+      'gemini::gemini-2.5-flash': createMetrics('gemini'),
+    };
+    const groups = groupModelsByProvider(models);
+    expect(groups['gemini']).toHaveLength(2);
+    expect(groups['claude']).toHaveLength(1);
+  });
+
+  it('should distinguish same model name from different providers', () => {
+    const models: Record<string, ModelMetrics> = {
+      'openai::gpt-5.2': createMetrics('openai'),
+      'openai-compatible::gpt-5.2': createMetrics('openai-compatible'),
+    };
+    const groups = groupModelsByProvider(models);
+    expect(Object.keys(groups)).toHaveLength(2);
+    expect(groups['openai']).toHaveLength(1);
+    expect(groups['openai-compatible']).toHaveLength(1);
+  });
+});
+
+// =========================================================================
+// Phase 1 RED-1/RED-3: processApiResponse/processApiError composite key
+// =========================================================================
+
+describe('processApiResponse composite key + provider (Phase 1)', () => {
+  let service: UiTelemetryService;
+
+  beforeEach(() => {
+    service = new UiTelemetryService();
+  });
+
+  it('should use composite key provider::model from ProviderApiResponseEvent', () => {
+    const event = {
+      ...new ProviderApiResponseEvent({
+        model: 'claude-sonnet-4',
+        durationMs: 500,
+        promptId: 'p1',
+        usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+        provider: 'claude',
+      }),
+      'event.name': EVENT_API_RESPONSE,
+    } as unknown as Parameters<typeof service.addEvent>[0];
+
+    service.addEvent(event);
+
+    const metrics = service.getMetrics();
+    // Key should be composite: 'claude::claude-sonnet-4'
+    expect(metrics.models['claude::claude-sonnet-4']).toBeDefined();
+    expect(metrics.models['claude::claude-sonnet-4'].provider).toBe('claude');
+    // Raw key should NOT exist
+    expect(metrics.models['claude-sonnet-4']).toBeUndefined();
+  });
+
+  it('should use gemini::model key for legacy ApiResponseEvent', () => {
+    const event = {
+      'event.name': EVENT_API_RESPONSE,
+      model: 'gemini-2.5-pro',
+      duration_ms: 500,
+      usage: {
+        input_token_count: 10,
+        output_token_count: 20,
+        total_token_count: 30,
+        cached_content_token_count: 5,
+        thoughts_token_count: 2,
+        tool_token_count: 3,
+      },
+    } as ApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE };
+
+    service.addEvent(event);
+
+    const metrics = service.getMetrics();
+    // Key should be composite: 'gemini::gemini-2.5-pro'
+    expect(metrics.models['gemini::gemini-2.5-pro']).toBeDefined();
+    expect(metrics.models['gemini::gemini-2.5-pro'].provider).toBe('gemini');
+  });
+
+  it('should prevent collision of same model name from different providers', () => {
+    const openaiEvent = {
+      ...new ProviderApiResponseEvent({
+        model: 'gpt-5.2',
+        durationMs: 300,
+        promptId: 'p2',
+        usage: { promptTokens: 50, completionTokens: 25, totalTokens: 75 },
+        provider: 'openai',
+      }),
+      'event.name': EVENT_API_RESPONSE,
+    } as unknown as Parameters<typeof service.addEvent>[0];
+
+    const compatEvent = {
+      ...new ProviderApiResponseEvent({
+        model: 'gpt-5.2',
+        durationMs: 400,
+        promptId: 'p3',
+        usage: { promptTokens: 60, completionTokens: 30, totalTokens: 90 },
+        provider: 'openai-compatible',
+      }),
+      'event.name': EVENT_API_RESPONSE,
+    } as unknown as Parameters<typeof service.addEvent>[0];
+
+    service.addEvent(openaiEvent);
+    service.addEvent(compatEvent);
+
+    const metrics = service.getMetrics();
+    // Both keys should exist independently
+    expect(metrics.models['openai::gpt-5.2']).toBeDefined();
+    expect(metrics.models['openai-compatible::gpt-5.2']).toBeDefined();
+    // Each should have 1 request
+    expect(metrics.models['openai::gpt-5.2'].api.totalRequests).toBe(1);
+    expect(metrics.models['openai-compatible::gpt-5.2'].api.totalRequests).toBe(
+      1,
+    );
+  });
+});
+
+describe('processApiError composite key + provider (Phase 1)', () => {
+  let service: UiTelemetryService;
+
+  beforeEach(() => {
+    service = new UiTelemetryService();
+  });
+
+  it('should set provider from ProviderApiErrorEvent with composite key', () => {
+    const event = {
+      ...new ProviderApiErrorEvent({
+        model: 'claude-sonnet-4',
+        error: 'Rate limit exceeded',
+        durationMs: 100,
+        promptId: 'pe1',
+        provider: 'claude',
+      }),
+      'event.name': EVENT_API_ERROR,
+    } as unknown as Parameters<typeof service.addEvent>[0];
+
+    service.addEvent(event);
+
+    const metrics = service.getMetrics();
+    expect(metrics.models['claude::claude-sonnet-4']).toBeDefined();
+    expect(metrics.models['claude::claude-sonnet-4'].provider).toBe('claude');
+    expect(metrics.models['claude::claude-sonnet-4'].api.totalErrors).toBe(1);
+    // Raw key should NOT exist
+    expect(metrics.models['claude-sonnet-4']).toBeUndefined();
+  });
+
+  it('should use composite key for error metrics with legacy event', () => {
+    const event = {
+      'event.name': EVENT_API_ERROR,
+      model: 'gemini-2.5-pro',
+      duration_ms: 100,
+      error: 'Server error',
+    } as ApiErrorEvent & { 'event.name': typeof EVENT_API_ERROR };
+
+    service.addEvent(event);
+
+    const metrics = service.getMetrics();
+    expect(metrics.models['gemini::gemini-2.5-pro']).toBeDefined();
+    expect(metrics.models['gemini::gemini-2.5-pro'].api.totalErrors).toBe(1);
   });
 });

@@ -236,6 +236,103 @@ describe('SessionStatsContext', () => {
     unmount();
   });
 
+  // Phase 1 RED-4: areModelMetricsEqual should detect provider changes
+  it('should trigger re-render when provider field changes in model metrics', () => {
+    const contextRef: MutableRefObject<
+      ReturnType<typeof useSessionStats> | undefined
+    > = { current: undefined };
+
+    let renderCount = 0;
+    const CountingTestHarness = () => {
+      contextRef.current = useSessionStats();
+      renderCount++;
+      return null;
+    };
+
+    const { unmount } = render(
+      <SessionStatsProvider>
+        <CountingTestHarness />
+      </SessionStatsProvider>,
+    );
+
+    expect(renderCount).toBe(1);
+
+    // Emit metrics WITHOUT provider set
+    const metricsV1: SessionMetrics = {
+      models: {
+        'gemini::gemini-2.5-pro': {
+          api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+          tokens: {
+            input: 10,
+            prompt: 10,
+            candidates: 20,
+            total: 30,
+            cached: 0,
+            thoughts: 0,
+            tool: 0,
+          },
+        },
+      },
+      tools: {
+        totalCalls: 0,
+        totalSuccess: 0,
+        totalFail: 0,
+        totalDurationMs: 0,
+        totalDecisions: { accept: 0, reject: 0, modify: 0, auto_accept: 0 },
+        byName: {},
+      },
+      files: { totalLinesAdded: 0, totalLinesRemoved: 0 },
+    };
+
+    act(() => {
+      uiTelemetryService.emit('update', {
+        metrics: metricsV1,
+        lastPromptTokenCount: 0,
+      });
+    });
+    expect(renderCount).toBe(2);
+
+    // Emit same metrics but WITH provider field set
+    const metricsV2: SessionMetrics = {
+      models: {
+        'gemini::gemini-2.5-pro': {
+          provider: 'gemini',
+          api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+          tokens: {
+            input: 10,
+            prompt: 10,
+            candidates: 20,
+            total: 30,
+            cached: 0,
+            thoughts: 0,
+            tool: 0,
+          },
+        },
+      },
+      tools: {
+        totalCalls: 0,
+        totalSuccess: 0,
+        totalFail: 0,
+        totalDurationMs: 0,
+        totalDecisions: { accept: 0, reject: 0, modify: 0, auto_accept: 0 },
+        byName: {},
+      },
+      files: { totalLinesAdded: 0, totalLinesRemoved: 0 },
+    };
+
+    act(() => {
+      uiTelemetryService.emit('update', {
+        metrics: metricsV2,
+        lastPromptTokenCount: 0,
+      });
+    });
+
+    // Should trigger re-render because provider changed (undefined → 'gemini')
+    expect(renderCount).toBe(3);
+
+    unmount();
+  });
+
   it('should throw an error when useSessionStats is used outside of a provider', () => {
     const onError = vi.fn();
     // Suppress console.error from React for this test

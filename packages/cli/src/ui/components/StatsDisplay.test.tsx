@@ -391,6 +391,212 @@ describe('<StatsDisplay />', () => {
     });
   });
 
+  // Phase 1 RED-5: Provider grouping in multi-provider scenarios
+  describe('Provider Grouping', () => {
+    it('renders provider group headers when multiple providers exist', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 3, totalErrors: 0, totalLatencyMs: 15000 },
+            tokens: {
+              input: 500,
+              prompt: 1000,
+              candidates: 2000,
+              total: 3000,
+              cached: 500,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+          'claude::claude-sonnet-4': {
+            provider: 'claude',
+            api: { totalRequests: 2, totalErrors: 0, totalLatencyMs: 8000 },
+            tokens: {
+              input: 300,
+              prompt: 600,
+              candidates: 1000,
+              total: 1600,
+              cached: 300,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const { lastFrame } = renderWithMockedStats(metrics);
+      const output = lastFrame();
+
+      // Should show parsed model names (without provider:: prefix)
+      expect(output).toContain('gemini-2.5-pro');
+      expect(output).toContain('claude-sonnet-4');
+      // Should NOT show raw composite keys
+      expect(output).not.toContain('gemini::');
+      expect(output).not.toContain('claude::');
+    });
+
+    it('does not render provider prefix when single provider', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+            tokens: {
+              input: 50,
+              prompt: 100,
+              candidates: 100,
+              total: 250,
+              cached: 50,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+          'gemini::gemini-2.5-flash': {
+            provider: 'gemini',
+            api: { totalRequests: 2, totalErrors: 0, totalLatencyMs: 200 },
+            tokens: {
+              input: 100,
+              prompt: 200,
+              candidates: 200,
+              total: 500,
+              cached: 100,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const { lastFrame } = renderWithMockedStats(metrics);
+      const output = lastFrame();
+
+      // Should show model names without provider:: prefix
+      expect(output).toContain('gemini-2.5-pro');
+      expect(output).toContain('gemini-2.5-flash');
+      expect(output).not.toContain('gemini::');
+    });
+  });
+
+  // Phase 1 RED-6: VALID_GEMINI_MODELS replacement with PROVIDER_MODEL_REGISTRY
+  describe('Quota-only row filtering with PROVIDER_MODEL_REGISTRY', () => {
+    it('shows quota-only rows for models in PROVIDER_MODEL_REGISTRY.gemini', () => {
+      const now = new Date('2025-01-01T12:00:00Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      // Only gemini-2.5-pro is active; gemini-2.5-flash has quota only
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+            tokens: {
+              input: 50,
+              prompt: 100,
+              candidates: 100,
+              total: 250,
+              cached: 50,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const resetTime = new Date(now.getTime() + 1000 * 60 * 60).toISOString();
+
+      const quotas: RetrieveUserQuotaResponse = {
+        buckets: [
+          { modelId: 'gemini-2.5-pro', remainingFraction: 0.8, resetTime },
+          { modelId: 'gemini-2.5-flash', remainingFraction: 0.5, resetTime }, // registered in PROVIDER_MODEL_REGISTRY
+        ],
+      };
+
+      useSessionStatsMock.mockReturnValue({
+        stats: {
+          sessionId: 'test-session-id',
+          sessionStartTime: new Date(),
+          metrics,
+          lastPromptTokenCount: 0,
+          promptCount: 5,
+        },
+        getPromptCount: () => 5,
+        startNewPrompt: vi.fn(),
+      });
+
+      const { lastFrame } = render(
+        <StatsDisplay duration="1s" quotas={quotas} />,
+      );
+      const output = lastFrame();
+
+      // gemini-2.5-flash should appear as quota-only row
+      expect(output).toContain('gemini-2.5-flash');
+      expect(output).toContain('50.0%');
+
+      vi.useRealTimers();
+    });
+
+    it('does NOT show quota-only rows for unknown gemini quota buckets', () => {
+      const now = new Date('2025-01-01T12:00:00Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+            tokens: {
+              input: 50,
+              prompt: 100,
+              candidates: 100,
+              total: 250,
+              cached: 50,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const resetTime = new Date(now.getTime() + 1000 * 60 * 60).toISOString();
+
+      const quotas: RetrieveUserQuotaResponse = {
+        buckets: [
+          // Not in PROVIDER_MODEL_REGISTRY → should NOT appear as quota-only
+          {
+            modelId: 'gemini-experimental-xyz',
+            remainingFraction: 0.3,
+            resetTime,
+          },
+        ],
+      };
+
+      useSessionStatsMock.mockReturnValue({
+        stats: {
+          sessionId: 'test-session-id',
+          sessionStartTime: new Date(),
+          metrics,
+          lastPromptTokenCount: 0,
+          promptCount: 5,
+        },
+        getPromptCount: () => 5,
+        startNewPrompt: vi.fn(),
+      });
+
+      const { lastFrame } = render(
+        <StatsDisplay duration="1s" quotas={quotas} />,
+      );
+      const output = lastFrame();
+
+      // Unknown experimental model should NOT appear
+      expect(output).not.toContain('gemini-experimental-xyz');
+
+      vi.useRealTimers();
+    });
+  });
+
   describe('Quota Display', () => {
     it('renders quota information when quotas are provided', () => {
       const now = new Date('2025-01-01T12:00:00Z');

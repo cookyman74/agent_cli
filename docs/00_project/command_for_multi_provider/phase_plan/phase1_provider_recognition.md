@@ -31,24 +31,24 @@
 
 | 리스크                                                  | 영향        | 대응 방안                                                                                                                                                                                                                        | 상태 |
 | ------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| **[#1-v1.2] Plain model key 충돌 위험**                 | 🔴 Critical | **`{provider}::{model}` 복합 키 재도입**: JSON-safe `::` 구분자 사용. `openai-compatible`의 `freeformInput: true`로 동일 모델명 충돌 가능 확인 → 복합 키로 해결. 레거시 데이터(`::`없음)는 `gemini` 기본값으로 안전 파싱         | ⬜   |
-| **[#2-v1.2] processApiError에 provider 미설정**         | 🟠 Medium   | `processApiError`에도 `processApiResponse`와 동일한 provider 추출 로직 적용. 에러 전용 모델도 `provider` 필드 포함 필수                                                                                                          | ⬜   |
-| **[#5] 런타임 provider 추론 폐기**                      | 🟠 Medium   | **런타임 폴백 폐기**: 모델명으로부터 provider를 추론하지 않음 → Phase 0에서 event에 명시적 provider 포함. 단, **영속화된 레거시 키 파싱**(`::` 미포함)은 `gemini` 기본값으로 안전 처리 (다른 개념). Phase 0+1 동시 배포 (atomic) | ⬜   |
-| **[#5-v1.2] VALID_GEMINI_MODELS 버킷 노이즈**           | 🟠 Medium   | `VALID_GEMINI_MODELS` 제거 후 `provider === 'gemini'` 필터만 적용 시 모든 Gemini 쿼타 버킷 표시 위험. **`PROVIDER_MODEL_REGISTRY.gemini.models`를 대체 allowlist로 사용** → 등록된 Gemini 모델만 quota-only 행 표시              | ⬜   |
-| **[#6] VALID_GEMINI_MODELS 제거 시 quota-only 행 소실** | 🟠 Medium   | **provider 기반 필터 + `PROVIDER_MODEL_REGISTRY` 모델 목록 매칭**: 쿼타 버킷 중 `PROVIDER_MODEL_REGISTRY.gemini.models`에 등록된 모델만 quota-only 행으로 표시                                                                   | ⬜   |
-| **[#7-v1.2] 비공개 함수 직접 테스트**                   | 🟡 Low      | `createInitialModelMetrics`/`areModelMetricsEqual`은 비공개 → **행위 기반 테스트**: `UiTelemetryService.addEvent()` + `getMetrics()`로 외부 API 경유 검증. 리팩터링 내성 향상                                                    | ⬜   |
-| `areModelMetricsEqual()` 필드 누락 → 무한 리렌더        | 🟠 Medium   | provider 추가와 동시에 equality 함수 갱신                                                                                                                                                                                        | ⬜   |
-| 단일 프로바이더 시 Provider 컬럼 불필요                 | 🟡 Low      | 사용 프로바이더 수 감지 → 조건부 컬럼 렌더링                                                                                                                                                                                     | ⬜   |
+| **[#1-v1.2] Plain model key 충돌 위험**                 | 🔴 Critical | **`{provider}::{model}` 복합 키 재도입**: JSON-safe `::` 구분자 사용. `openai-compatible`의 `freeformInput: true`로 동일 모델명 충돌 가능 확인 → 복합 키로 해결. 레거시 데이터(`::`없음)는 `gemini` 기본값으로 안전 파싱         | ✅   |
+| **[#2-v1.2] processApiError에 provider 미설정**         | 🟠 Medium   | `processApiError`에도 `processApiResponse`와 동일한 provider 추출 로직 적용. 에러 전용 모델도 `provider` 필드 포함 필수                                                                                                          | ✅   |
+| **[#5] 런타임 provider 추론 폐기**                      | 🟠 Medium   | **런타임 폴백 폐기**: 모델명으로부터 provider를 추론하지 않음 → Phase 0에서 event에 명시적 provider 포함. 단, **영속화된 레거시 키 파싱**(`::` 미포함)은 `gemini` 기본값으로 안전 처리 (다른 개념). Phase 0+1 동시 배포 (atomic) | ✅   |
+| **[#5-v1.2] VALID_GEMINI_MODELS 버킷 노이즈**           | 🟠 Medium   | `VALID_GEMINI_MODELS` 제거 후 `provider === 'gemini'` 필터만 적용 시 모든 Gemini 쿼타 버킷 표시 위험. **`PROVIDER_MODEL_REGISTRY.gemini.models`를 대체 allowlist로 사용** → 등록된 Gemini 모델만 quota-only 행 표시              | ✅   |
+| **[#6] VALID_GEMINI_MODELS 제거 시 quota-only 행 소실** | 🟠 Medium   | **provider 기반 필터 + `PROVIDER_MODEL_REGISTRY` 모델 목록 매칭**: 쿼타 버킷 중 `PROVIDER_MODEL_REGISTRY.gemini.models`에 등록된 모델만 quota-only 행으로 표시                                                                   | ✅   |
+| **[#7-v1.2] 비공개 함수 직접 테스트**                   | 🟡 Low      | `createInitialModelMetrics`/`areModelMetricsEqual`은 비공개 → **행위 기반 테스트**: `UiTelemetryService.addEvent()` + `getMetrics()`로 외부 API 경유 검증. 리팩터링 내성 향상                                                    | ✅   |
+| `areModelMetricsEqual()` 필드 누락 → 무한 리렌더        | 🟠 Medium   | provider 추가와 동시에 equality 함수 갱신                                                                                                                                                                                        | ✅   |
+| 단일 프로바이더 시 Provider 컬럼 불필요                 | 🟡 Low      | 사용 프로바이더 수 감지 → 조건부 컬럼 렌더링                                                                                                                                                                                     | ✅   |
 
 ---
 
 ## 1.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 0 작업 결과서 검토
+- [x] **[REVIEW]** Phase 0 작업 결과서 검토
   - 파일: `../working_history/Phase0_TelemetryCollection_{작업일자}.md`
   - 확인: 체크리스트 완료 여부, 미해결 이슈 확인
 
-- [ ] **[CONTEXT]** Phase 1 작업 목적 확인
+- [x] **[CONTEXT]** Phase 1 작업 목적 확인
   - Phase 0에서 수집이 시작된 Non-Gemini 데이터를 UI에 프로바이더별로 그룹핑하여
     표시
   - **[#1-v1.2] `{provider}::{model}` 복합 키 재도입**: v1.1에서 plain key로
@@ -63,7 +63,7 @@
       (JSON-safe)
   - `ModelMetrics.provider` 필드도 유지 — 그룹핑 연산에 활용
 
-- [ ] **[ANALYSIS]** 현재 코드 분석
+- [x] **[ANALYSIS]** 현재 코드 분석
   - `packages/core/src/telemetry/uiTelemetry.ts`
     - `ModelMetrics` 인터페이스 (line 39-54): provider 필드 없음
     - `SessionMetrics.models` (line 57): `Record<string, ModelMetrics>` — 모델명
@@ -106,7 +106,7 @@
     - `areModelMetricsEqual()` (line 31): **비공개 함수 — 직접 테스트 불가** →
       행위 기반 테스트 필요
 
-- [ ] **[SCOPE-CHECK]** 2일 이내 완료 가능 범위 확인
+- [x] **[SCOPE-CHECK]** 2일 이내 완료 가능 범위 확인
   - 예상 총 소요: 1.5~2일
   - 이번 Phase 완료 조건(DoD):
     1. `ModelMetrics`에 `provider` 필드가 포함됨 (Phase 0에서 추가 — 검증만)
@@ -136,7 +136,7 @@
 > 직접 호출 테스트 불가. **행위 기반 테스트**: `UiTelemetryService.addEvent()` →
 > `getMetrics()` 경유로 provider 필드 존재 검증.
 
-- [ ] **[RED]** 새 모델 첫 이벤트 시 provider 필드가 'unknown' 기본값인 테스트
+- [x] **[RED]** 새 모델 첫 이벤트 시 provider 필드가 'unknown' 기본값인 테스트
 
   **파일**: `packages/core/src/telemetry/uiTelemetry.test.ts`
 
@@ -156,7 +156,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-2: `{provider}::{model}` 복합 키 유틸리티 + 그룹핑
 
@@ -164,7 +164,7 @@
 > 복합 키 재도입. `::` 구분자는 JSON-safe. 레거시 키(`::` 미포함)는 `gemini`
 > 기본값으로 안전 파싱.
 
-- [ ] **[RED]** 복합 키 빌드/파싱 + 그룹핑 테스트
+- [x] **[RED]** 복합 키 빌드/파싱 + 그룹핑 테스트
 
   ```typescript
   describe('buildCompositeKey / parseCompositeKey', () => {
@@ -215,14 +215,14 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-3: processApiResponse/processApiError 복합 키 + provider 필드
 
 > **v1.2 리뷰 반영 (이슈 #1, #2)**: 복합 키 `{provider}::{model}` 사용 +
 > processApiError에도 provider 추출.
 
-- [ ] **[RED]** processApiResponse가 복합 키와 provider를 설정하는 테스트
+- [x] **[RED]** processApiResponse가 복합 키와 provider를 설정하는 테스트
 
   ```typescript
   describe('processApiResponse composite key + provider', () => {
@@ -248,7 +248,7 @@
   });
   ```
 
-- [ ] **[RED]** processApiError도 provider 필드를 설정하는 테스트
+- [x] **[RED]** processApiError도 provider 필드를 설정하는 테스트
 
   > **v1.2 이슈 #2**: 현재 `processApiError()` (uiTelemetry.ts:182-187)는
   > provider 미설정.
@@ -269,7 +269,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-4: areModelMetricsEqual provider 비교
 
@@ -278,7 +278,7 @@
 > (provider 변경 시 리렌더 발생 확인). 또는 `uiTelemetry.ts`에서 같은 복합 키의
 > provider 필드가 유지되는지 검증.
 
-- [ ] **[RED]** provider 변경이 SessionContext 리렌더를 트리거하는 테스트
+- [x] **[RED]** provider 변경이 SessionContext 리렌더를 트리거하는 테스트
 
   **파일**: `packages/cli/src/ui/contexts/SessionContext.test.tsx` (또는 해당
   테스트 파일)
@@ -296,11 +296,11 @@
   > **대안**: `areModelMetricsEqual`을 export하여 직접 테스트하는 것도 가능
   > (리팩터링 시 결정)
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-5: StatsDisplay 프로바이더 그룹핑
 
-- [ ] **[RED]** 다중 프로바이더 시 그룹 헤더 렌더링 테스트
+- [x] **[RED]** 다중 프로바이더 시 그룹 헤더 렌더링 테스트
 
   **파일**: `packages/cli/src/ui/components/StatsDisplay.test.tsx` (또는 해당
   테스트 파일)
@@ -324,7 +324,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### RED-6: VALID_GEMINI_MODELS 의존 제거 + quota-only 행 보존
 
@@ -334,7 +334,7 @@
 > **`PROVIDER_MODEL_REGISTRY.gemini.models`를 대체 allowlist로 사용** → 등록된
 > 모델만 quota-only 행 표시.
 
-- [ ] **[RED]** PROVIDER_MODEL_REGISTRY 기반 필터로 Gemini 쿼타 모델 추출 +
+- [x] **[RED]** PROVIDER_MODEL_REGISTRY 기반 필터로 Gemini 쿼타 모델 추출 +
       quota-only 행 보존 테스트
 
   ```typescript
@@ -379,7 +379,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ---
 
@@ -391,7 +391,7 @@
 > 이미 추가됨. Phase 1에서는 필드 존재를 **전제 조건으로 검증**만 하고, 복합
 > 키 + 그룹핑에 집중.
 
-- [ ] **[TASK-001]** Phase 0에서 추가한 ModelMetrics.provider 필드 존재 확인
+- [x] **[TASK-001]** Phase 0에서 추가한 ModelMetrics.provider 필드 존재 확인
   - 파일: `packages/core/src/telemetry/uiTelemetry.ts`
   - 확인: `provider: string` 필드가 `ModelMetrics` 인터페이스에 존재하고,
     `createInitialModelMetrics()`에서 `'unknown'` 기본값 설정됨
@@ -404,7 +404,7 @@
 > **v1.2 리뷰 반영 (이슈 #1)**: `{provider}::{model}` 복합 키 유틸리티 + 그룹핑
 > 함수
 
-- [ ] **[TASK-002]** 복합 키 유틸리티 + 그룹핑 구현
+- [x] **[TASK-002]** 복합 키 유틸리티 + 그룹핑 구현
   - 파일: `packages/core/src/telemetry/uiTelemetry.ts`
   - 변경:
 
@@ -439,7 +439,7 @@
 > **v1.2 리뷰 반영 (이슈 #1, #2)**: 복합 키 사용 + processApiError에도 provider
 > 추출.
 
-- [ ] **[TASK-003]** processApiResponse/processApiError에서 복합 키 생성 +
+- [x] **[TASK-003]** processApiResponse/processApiError에서 복합 키 생성 +
       provider 설정
   - 파일: `packages/core/src/telemetry/uiTelemetry.ts`
   - 변경 — processApiResponse:
@@ -471,7 +471,7 @@
 
 ### TASK-004: areModelMetricsEqual 확장
 
-- [ ] **[TASK-004]** provider 비교 추가
+- [x] **[TASK-004]** provider 비교 추가
   - 파일: `packages/cli/src/ui/contexts/SessionContext.tsx`
   - 변경: `if (a.provider !== b.provider) return false;`
   - 예상 소요: 10분
@@ -481,7 +481,7 @@
 > **v1.1 리뷰 반영 (이슈 #6)**: quota-only 행 보존 로직 필수. **v1.2 리뷰 반영
 > (이슈 #1, #5)**: 복합 키 파싱 + `PROVIDER_MODEL_REGISTRY` allowlist.
 
-- [ ] **[TASK-005]** 복합 키 파싱 + PROVIDER_MODEL_REGISTRY 기반 필터 + 그룹핑
+- [x] **[TASK-005]** 복합 키 파싱 + PROVIDER_MODEL_REGISTRY 기반 필터 + 그룹핑
       UI + quota-only 행 보존
   - 파일: `packages/cli/src/ui/components/StatsDisplay.tsx`
   - 변경:
@@ -523,12 +523,12 @@
 
 ### TASK-006: ModelStatsDisplay.tsx 프로바이더 그룹핑
 
-- [ ] **[TASK-006]** 프로바이더별 섹션 분리
+- [x] **[TASK-006]** 프로바이더별 섹션 분리
   - 파일: `packages/cli/src/ui/components/ModelStatsDisplay.tsx`
   - 변경: provider별 그룹핑 후 섹션 헤더 렌더링
   - 예상 소요: 1시간
 
-- [ ] **[GREEN-VERIFY]** 테스트 통과 확인
+- [x] **[GREEN-VERIFY]** 테스트 통과 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/telemetry/uiTelemetry.test.ts --run
   npm test -w @didim365/agent-cli -- --run
@@ -540,14 +540,14 @@
 
 ### 1.4.1 구조 개선 (Make it right)
 
-- [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
+- [x] **[REFACTOR-STRUCTURE]** 코드 구조 개선
   - `groupModelsByProvider()` 유틸리티를 별도 파일로 추출 검토
     (uiTelemetry.ts에서 export 시 충분하면 유지)
   - 프로바이더 그룹핑 로직을 공통 유틸리티로 추출 검토
   - quota-only 행 로직과 사용 모델 행 로직 간 중복 제거
   - Ink 컴포넌트 중복 렌더 로직 제거
 
-- [ ] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/telemetry/ --run
   npm test -w @didim365/agent-cli -- --run
@@ -557,25 +557,25 @@
 
 ## 1.5 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 전체 테스트 실행
+- [x] **[TEST]** 전체 테스트 실행
 
   ```bash
   npm run test
   ```
 
-- [ ] **[TYPECHECK]** 타입체크
+- [x] **[TYPECHECK]** 타입체크
 
   ```bash
   npm run typecheck
   ```
 
-- [ ] **[LINT]** 린터 검사
+- [x] **[LINT]** 린터 검사
 
   ```bash
   npm run lint
   ```
 
-- [ ] **[VERIFY]** 기능 검증
+- [x] **[VERIFY]** 기능 검증
   - 확인 항목 1: 기존 Gemini 단일 사용 시 Provider 컬럼 미표시 (기존 UX 유지)
   - 확인 항목 2: 다중 프로바이더 사용 시 그룹핑 정상 표시
   - 확인 항목 3: `VALID_GEMINI_MODELS` 완전 제거 확인 (grep)
@@ -593,10 +593,10 @@
   - 확인 항목 10: JSON output에서 `stats.models` 키가 `provider::model` 형식
     (JSON-safe)
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `../working_history/Phase1_ProviderRecognition_{작업일자}.md`
 
-- [ ] **[COMMIT]** 변경사항 커밋
+- [x] **[COMMIT]** 변경사항 커밋
   ```bash
   git add packages/core/src/telemetry/uiTelemetry.ts \
          packages/cli/src/ui/components/StatsDisplay.tsx \
@@ -647,4 +647,4 @@
 
 ---
 
-**작성일**: 2026-02-18 **작성자**: AI Assistant **상태**: ⬜ 작성 중
+**작성일**: 2026-02-18 **작성자**: AI Assistant **상태**: ✅ 완료 (2026-02-20)

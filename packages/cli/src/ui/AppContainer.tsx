@@ -613,6 +613,9 @@ export const AppContainer = (props: AppContainerProps) => {
         }
         await clearCachedCredentialFile();
         settings.setValue(scope, 'security.auth.selectedType', authType);
+        // Persist provider so /model resolves correctly after restart (e.g. OAuth)
+        settings.setValue(scope, 'security.auth.selectedProvider', 'gemini');
+        setSelectedProvider('gemini');
 
         // Clear non-Gemini env vars to prevent providerSelector mis-routing
         delete process.env['LLM_PROVIDER'];
@@ -648,7 +651,14 @@ Logging in with Google... Restarting Gemini CLI to continue.
       }
       setAuthState(AuthState.Authenticated);
     },
-    [settings, config, setAuthState, onAuthError, setAuthContext],
+    [
+      settings,
+      config,
+      setAuthState,
+      setSelectedProvider,
+      onAuthError,
+      setAuthContext,
+    ],
   );
 
   const handleApiKeySubmit = useCallback(
@@ -676,6 +686,12 @@ Logging in with Google... Restarting Gemini CLI to continue.
           delete process.env['LLM_CUSTOM_HEADERS'];
           await saveApiKey(apiKey);
           await reloadApiKey();
+          // Persist provider so /model resolves correctly on next startup
+          settings.setValue(
+            SettingScope.User,
+            'security.auth.selectedProvider',
+            'gemini',
+          );
           await config.refreshAuth(AuthType.USE_GEMINI);
         } else {
           // Non-Gemini provider path (Claude/OpenAI)

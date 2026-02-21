@@ -67,7 +67,7 @@ describe('ClaudeConverter', () => {
       expect(system).toContain('You are a helpful assistant.');
     });
 
-    it('should convert generation parameters', () => {
+    it('should convert generation parameters (temperature takes precedence over topP)', () => {
       const request: LlmGenerateRequest = {
         model: 'claude-3-5-sonnet-20241022',
         messages: [
@@ -84,9 +84,25 @@ describe('ClaudeConverter', () => {
 
       expect(result['temperature']).toBe(0.7);
       expect(result['max_tokens']).toBe(2048);
-      expect(result['top_p']).toBe(0.9);
+      // Anthropic API: temperature and top_p cannot both be specified
+      expect(result['top_p']).toBeUndefined();
       expect(result['top_k']).toBe(40);
       expect(result['stop_sequences']).toEqual(['END']);
+    });
+
+    it('should use top_p when temperature is not specified', () => {
+      const request: LlmGenerateRequest = {
+        model: 'claude-3-5-sonnet-20241022',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        ],
+        topP: 0.9,
+      };
+
+      const result = converter.toClaudeRequest(request);
+
+      expect(result['temperature']).toBeUndefined();
+      expect(result['top_p']).toBe(0.9);
     });
 
     it('should include tools when present', () => {

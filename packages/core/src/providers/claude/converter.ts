@@ -63,10 +63,11 @@ export class ClaudeConverter {
     params['max_tokens'] = request.maxTokens ?? DEFAULT_MAX_TOKENS;
 
     // Generation parameters
+    // Anthropic API: temperature and top_p cannot both be specified for some models.
+    // When both are provided, prefer temperature and omit top_p.
     if (request.temperature !== undefined) {
       params['temperature'] = request.temperature;
-    }
-    if (request.topP !== undefined) {
+    } else if (request.topP !== undefined) {
       params['top_p'] = request.topP;
     }
     if (request.topK !== undefined) {

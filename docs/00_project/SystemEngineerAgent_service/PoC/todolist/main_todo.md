@@ -39,13 +39,13 @@
 
 ## 🧩 작업 단계 분할 계획 (2일 규칙)
 
-| Phase ID | 목표/범위                                      | 예상 소요(일) | 분할 필요 여부 | 선행 Phase | 산출물(상세 문서)                              |
-| -------- | ---------------------------------------------- | ------------- | -------------- | ---------- | ---------------------------------------------- |
-| P0       | Docker DB 확인 + 스키마 생성 + 프로젝트 초기화 | 0.5           | N              | -          | [Phase0](./phase0_environment_setup.md) ✅     |
-| P1       | AfterAgent Hook — Q&A 저장                     | 1             | N              | P0         | [Phase1](./phase1_after_agent_hook.md) ✅      |
-| P2       | BeforeAgent Hook — RAG 검색 + 컨텍스트 주입    | 1~1.5         | N              | P1         | [Phase2](./phase2_before_agent_hook.md) ✅     |
-| P3       | 통합 검증 + 최적화 + 문서화                    | 0.5~1         | N              | P2         | [Phase3](./phase3_integration_validation.md)   |
-| P4       | pgvector 의미 기반 검색 전환 (선택)            | 2~3           | Y (기능별)     | **P3**     | [Phase4](./phase4_pgvector_semantic_search.md) |
+| Phase ID | 목표/범위                                      | 예상 소요(일) | 분할 필요 여부 | 선행 Phase | 산출물(상세 문서)                               |
+| -------- | ---------------------------------------------- | ------------- | -------------- | ---------- | ----------------------------------------------- |
+| P0       | Docker DB 확인 + 스키마 생성 + 프로젝트 초기화 | 0.5           | N              | -          | [Phase0](./phase0_environment_setup.md) ✅      |
+| P1       | AfterAgent Hook — Q&A 저장                     | 1             | N              | P0         | [Phase1](./phase1_after_agent_hook.md) ✅       |
+| P2       | BeforeAgent Hook — RAG 검색 + 컨텍스트 주입    | 1~1.5         | N              | P1         | [Phase2](./phase2_before_agent_hook.md) ✅      |
+| P3       | 통합 검증 + 최적화 + 문서화                    | 0.5~1         | N              | P2         | [Phase3](./phase3_integration_validation.md) ✅ |
+| P4       | pgvector 의미 기반 검색 전환 (선택)            | 2~3           | Y (기능별)     | **P3**     | [Phase4](./phase4_pgvector_semantic_search.md)  |
 
 ### 분할 기준 가이드
 
@@ -119,7 +119,7 @@
 | Phase 0 | ✅          | ✅   | ✅   | ✅     | ✅   |
 | Phase 1 | ✅          | ✅   | ✅   | ✅     | ✅   |
 | Phase 2 | ✅          | ✅   | ✅   | ✅     | ✅   |
-| Phase 3 | ⬜          | ⬜   | ⬜   | ⬜     | ⬜   |
+| Phase 3 | ✅          | ✅   | ✅   | ✅     | ✅   |
 | Phase 4 | ⬜          | ⬜   | ⬜   | ⬜     | ⬜   |
 
 ---
@@ -246,30 +246,30 @@ examples/
 
 ### PoC 완료 조건 (DoD) — 설계서 §15 기준
 
-- [ ] 모든 일반 대화(슬래시 커맨드 제외)가 PostgreSQL에 자동 저장됨
-- [ ] `tenant_id + project_id`로 사용자/프로젝트 간 데이터 격리됨
-- [ ] 운영 메타데이터(`service_name/environment/incident_type/ticket_id`)가 누락
+- [x] 모든 일반 대화(슬래시 커맨드 제외)가 PostgreSQL에 자동 저장됨
+- [x] `tenant_id + project_id`로 사용자/프로젝트 간 데이터 격리됨
+- [x] 운영 메타데이터(`service_name/environment/incident_type/ticket_id`)가 누락
       없이 저장됨
-- [ ] 과거 유사 대화가 있을 때 LLM 응답에 해당 맥락이 반영됨
-- [ ] `memory_items`가 생성/강화(upsert)되고 `chat_history`와 source linkage가
+- [x] 과거 유사 대화가 있을 때 LLM 응답에 해당 맥락이 반영됨
+- [x] `memory_items`가 생성/강화(upsert)되고 `chat_history`와 source linkage가
       유지됨
-- [ ] BeforeAgent에서 `[장기기억]` 우선, `[근거 대화]` 보조 주입 순서가 유지됨
-- [ ] 현재 세션 대화는 RAG 결과에서 제외됨
-- [ ] DB 장애 및 스크립트 오류 시에도 CLI 정상 동작 (graceful degradation)
-- [ ] 비로컬 DB에서 `RAG_TENANT_ID` 미설정 시 저장/조회 모두 fail-closed 동작
-- [ ] `prompt_response === "[no response text]"` 레코드는 저장되지 않음
-- [ ] `used(memory)`/`selected(history)` 자동 기록 + `accepted/edited/rejected`
+- [x] BeforeAgent에서 `[장기기억]` 우선, `[근거 대화]` 보조 주입 순서가 유지됨
+- [x] 현재 세션 대화는 RAG 결과에서 제외됨
+- [x] DB 장애 및 스크립트 오류 시에도 CLI 정상 동작 (graceful degradation)
+- [x] 비로컬 DB에서 `RAG_TENANT_ID` 미설정 시 저장/조회 모두 fail-closed 동작
+- [x] `prompt_response === "[no response text]"` 레코드는 저장되지 않음
+- [x] `used(memory)`/`selected(history)` 자동 기록 + `accepted/edited/rejected`
       수동 기록 경로가 동작함
-- [ ] 피드백 점수(positive/negative)가 RAG 정렬에 반영됨
-- [ ] Hook timeout 내 처리 완료 (p95 < 3초)
-- [ ] 코어 코드 수정 0줄 — Hook + 설정만으로 구현
-- [ ] 폴더 신뢰 승인 후 `/hooks` 명령으로 활성화 확인
+- [x] 피드백 점수(positive/negative)가 RAG 정렬에 반영됨
+- [x] Hook timeout 내 처리 완료 (p95 < 3초)
+- [x] 코어 코드 수정 0줄 — Hook + 설정만으로 구현
+- [x] 폴더 신뢰 승인 후 `/hooks` 명령으로 활성화 확인
 
 ### 문서화
 
-- [ ] 각 Phase별 작업 결과서 작성 완료
-- [ ] 통합 검증 결과서 작성 (Phase 3)
-- [ ] PoC 결론 및 향후 방향 문서화
+- [x] 각 Phase별 작업 결과서 작성 완료
+- [x] 통합 검증 결과서 작성 (Phase 3)
+- [x] PoC 결론 및 향후 방향 문서화
 
 ---
 
@@ -286,5 +286,5 @@ examples/
 
 ---
 
-**작성일**: 2026-02-21 **작성자**: AI Assistant **상태**: Phase 0~2 ✅ 완료,
-Phase 3 미착수
+**작성일**: 2026-02-21 **작성자**: AI Assistant **상태**: Phase 0~3 ✅ 완료 (PoC
+성공)

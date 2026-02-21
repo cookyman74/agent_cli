@@ -30,27 +30,27 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ## 🚨 핵심 리스크
 
-| 리스크                                   | 영향      | 대응 방안                                                            | 상태 |
-| ---------------------------------------- | --------- | -------------------------------------------------------------------- | ---- |
-| 통합 시 개별 검증되지 않은 상호작용 발생 | 🟠 Medium | 시나리오별 독립 검증 후 end-to-end 수행                              | ⬜   |
-| 한국어 trigram 유사도 기대 이하          | 🟡 Low    | similarity 임계값 조정 (0.05~0.3 범위), Phase 4에서 임베딩 전환 검토 | ⬜   |
-| 테스트 데이터 부족으로 검증 불완전       | 🟡 Low    | Phase 1 사전 데이터 축적 (최소 5건+), 다양한 패턴 포함               | ⬜   |
+| 리스크                                   | 영향      | 대응 방안                                                     | 상태 |
+| ---------------------------------------- | --------- | ------------------------------------------------------------- | ---- |
+| 통합 시 개별 검증되지 않은 상호작용 발생 | 🟠 Medium | 시나리오별 독립 검증 후 end-to-end 수행                       | ✅   |
+| 한국어 trigram 유사도 기대 이하          | 🟡 Low    | similarity 임계값 0.12→0.1 조정, Phase 4에서 임베딩 전환 검토 | ✅   |
+| 테스트 데이터 부족으로 검증 불완전       | 🟡 Low    | Phase 1~3 데이터 축적 (12건 chat_history, 6건 memory_items)   | ✅   |
 
 ---
 
 ## 3.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 2 완료 확인
+- [x] **[REVIEW]** Phase 2 완료 확인
   - BeforeAgent Hook 동작 확인
   - RAG 검색 → additionalContext 주입 성공
   - `PGPASSWORD=password12 psql -U postgres -h localhost -d didim_api -c "SET search_path TO se_agent_management; SELECT COUNT(*) FROM chat_history;"`
     → 최소 5건+
 
-- [ ] **[CONTEXT]** 검증 시나리오 매트릭스 확인
+- [x] **[CONTEXT]** 검증 시나리오 매트릭스 확인
   - PoC 설계서 §12: 시나리오 8개
   - PoC 설계서 §15: 성공 기준(DoD) 16개 항목
 
-- [ ] **[PREP]** 테스트 데이터 사전 준비
+- [x] **[PREP]** 테스트 데이터 사전 준비
   - 다양한 질문 패턴으로 3~5건 대화 수행 (서로 다른 주제)
   - 운영 메타데이터 태그 포함 대화 1건 이상
   - 최소 2개 세션에서 대화 수행 (세션 간 검색 테스트용)
@@ -61,7 +61,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-01: 저장 확인 (설계서 시나리오 1)
 
-- [ ] **[SCENARIO-01]** Q&A 자동 저장 + 운영 메타데이터 확인
+- [x] **[SCENARIO-01]** Q&A 자동 저장 + 운영 메타데이터 확인
 
   ```bash
   didim
@@ -80,7 +80,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-02: RAG 검색 + 컨텍스트 주입 확인 (설계서 시나리오 2)
 
-- [ ] **[SCENARIO-02]** 과거 대화 기반 컨텍스트 반영 확인
+- [x] **[SCENARIO-02]** 과거 대화 기반 컨텍스트 반영 확인
 
   ```bash
   # 새 세션 시작 (이전 저장된 데이터 존재 상태)
@@ -97,7 +97,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-02-1: 장기기억(memory) 재사용 확인 (설계서 시나리오 2-1)
 
-- [ ] **[SCENARIO-02-1]** memory_items 우선 조회 확인
+- [x] **[SCENARIO-02-1]** memory_items 우선 조회 확인
 
   ```bash
   # memory_items 존재 확인
@@ -116,7 +116,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-03: 프로젝트 격리 확인 (설계서 시나리오 3)
 
-- [ ] **[SCENARIO-03]** 다른 프로젝트의 대화 미검색 확인
+- [x] **[SCENARIO-03]** 다른 프로젝트의 대화 미검색 확인
 
   ```bash
   # 프로젝트 A (원래 프로젝트) project_id 확인
@@ -144,7 +144,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-04: 현재 세션 제외 확인 (설계서 시나리오 4)
 
-- [ ] **[SCENARIO-04]** 같은 세션 대화 미검색 확인
+- [x] **[SCENARIO-04]** 같은 세션 대화 미검색 확인
   ```bash
   didim
   > 서비스 A 에러율 원인 분석
@@ -156,7 +156,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-05: DB 장애 시 정상 동작 (설계서 시나리오 5)
 
-- [ ] **[SCENARIO-05]** PostgreSQL 미기동 시 CLI 정상 동작 확인
+- [x] **[SCENARIO-05]** PostgreSQL 미기동 시 CLI 정상 동작 확인
 
   ```bash
   # Docker 컨테이너 중지
@@ -180,7 +180,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-06: 스크립트 자체 오류 시 정상 동작 (설계서 시나리오 6)
 
-- [ ] **[SCENARIO-06]** 모듈 오류 시 CLI 정상 동작 확인
+- [x] **[SCENARIO-06]** 모듈 오류 시 CLI 정상 동작 확인
 
   ```bash
   # pg 모듈 임시 제거
@@ -202,7 +202,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-07: placeholder 응답 저장 방지 (설계서 시나리오 7)
 
-- [ ] **[SCENARIO-07]** 빈/무의미 응답 저장 스킵 확인
+- [x] **[SCENARIO-07]** 빈/무의미 응답 저장 스킵 확인
 
   ```bash
   # 직접 stdin 주입으로 테스트
@@ -216,7 +216,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### SCENARIO-08: 품질 피드백 기반 랭킹 보정 (설계서 시나리오 8)
 
-- [ ] **[SCENARIO-08]** 피드백 점수 반영 확인
+- [x] **[SCENARIO-08]** 피드백 점수 반영 확인
 
   ```bash
   # 수동 피드백 입력
@@ -238,7 +238,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### PERF-01: Hook timeout 예산 확인
 
-- [ ] **[PERF-01]** 전체 Hook 실행 시간 측정
+- [x] **[PERF-01]** 전체 Hook 실행 시간 측정
 
   ```bash
   # BeforeAgent Hook 실행 시간
@@ -255,7 +255,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ### PERF-02: 대량 데이터 검색 성능
 
-- [ ] **[PERF-02]** 데이터 증가 시 검색 속도 확인
+- [x] **[PERF-02]** 데이터 증가 시 검색 속도 확인
 
   ```sql
   SET search_path TO se_agent_management, public;
@@ -276,7 +276,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
 
 ## 3.4 최적화 (필요 시)
 
-- [ ] **[OPT-01]** similarity 임계값 조정
+- [x] **[OPT-01]** similarity 임계값 조정
   - 한국어 환경에서 trigram 유사도 분포 확인
   - 기본값 0.1에서 시작, 필요 시 0.05~0.3 범위 조정
 
@@ -288,7 +288,7 @@ PoC 설계서 §12의 **8개 검증 시나리오**를 실행하여 전체 파이
   ORDER BY sim DESC;
   ```
 
-- [ ] **[OPT-02]** connectionTimeoutMillis / query_timeout 조정
+- [x] **[OPT-02]** connectionTimeoutMillis / query_timeout 조정
   - 기본값: connect 1500ms, query 2500ms
   - timeout 5초 예산 내에서 최적값 확인
 
@@ -300,37 +300,37 @@ PoC 설계서 §15의 성공 기준을 기반으로 검증:
 
 | #   | 성공 기준                                            | 검증 시나리오    | 상태 |
 | --- | ---------------------------------------------------- | ---------------- | ---- |
-| 1   | 모든 일반 대화가 PostgreSQL에 자동 저장됨            | SCENARIO-01      | ⬜   |
-| 2   | `tenant_id + project_id`로 데이터 격리됨             | SCENARIO-03      | ⬜   |
-| 3   | 운영 메타데이터 누락 없이 저장됨                     | SCENARIO-01      | ⬜   |
-| 4   | 과거 유사 대화 시 LLM 응답에 맥락 반영됨             | SCENARIO-02      | ⬜   |
-| 5   | `memory_items`가 생성/강화되고 source linkage 유지   | SCENARIO-02-1    | ⬜   |
-| 6   | `[장기기억]` 우선, `[근거 대화]` 보조 주입 순서 유지 | SCENARIO-02-1    | ⬜   |
-| 7   | 현재 세션 대화는 RAG 결과에서 제외됨                 | SCENARIO-04      | ⬜   |
-| 8   | DB 장애 시 CLI 정상 동작 (graceful degradation)      | SCENARIO-05      | ⬜   |
-| 9   | 비로컬 DB에서 `RAG_TENANT_ID` 미설정 시 fail-closed  | (환경별 검증)    | ⬜   |
-| 10  | `[no response text]` 레코드 미저장                   | SCENARIO-07      | ⬜   |
-| 11  | 자동/수동 피드백 기록 경로 동작                      | SCENARIO-08      | ⬜   |
-| 12  | 피드백 점수가 RAG 정렬에 반영됨                      | SCENARIO-08      | ⬜   |
-| 13  | Hook timeout 내 처리 (p95 < 3초)                     | PERF-01          | ⬜   |
-| 14  | 코어 코드 수정 0줄                                   | (전체 확인)      | ⬜   |
-| 15  | 폴더 신뢰 승인 후 `/hooks` 활성화 확인               | Phase 0에서 완료 | ⬜   |
-| 16  | 스크립트 자체 오류 시 정상 동작                      | SCENARIO-06      | ⬜   |
+| 1   | 모든 일반 대화가 PostgreSQL에 자동 저장됨            | SCENARIO-01      | ✅   |
+| 2   | `tenant_id + project_id`로 데이터 격리됨             | SCENARIO-03      | ✅   |
+| 3   | 운영 메타데이터 누락 없이 저장됨                     | SCENARIO-01      | ✅   |
+| 4   | 과거 유사 대화 시 LLM 응답에 맥락 반영됨             | SCENARIO-02      | ✅   |
+| 5   | `memory_items`가 생성/강화되고 source linkage 유지   | SCENARIO-02-1    | ✅   |
+| 6   | `[장기기억]` 우선, `[근거 대화]` 보조 주입 순서 유지 | SCENARIO-02-1    | ✅   |
+| 7   | 현재 세션 대화는 RAG 결과에서 제외됨                 | SCENARIO-04      | ✅   |
+| 8   | DB 장애 시 CLI 정상 동작 (graceful degradation)      | SCENARIO-05      | ✅   |
+| 9   | 비로컬 DB에서 `RAG_TENANT_ID` 미설정 시 fail-closed  | (환경별 검증)    | ✅   |
+| 10  | `[no response text]` 레코드 미저장                   | SCENARIO-07      | ✅   |
+| 11  | 자동/수동 피드백 기록 경로 동작                      | SCENARIO-08      | ✅   |
+| 12  | 피드백 점수가 RAG 정렬에 반영됨                      | SCENARIO-08      | ✅   |
+| 13  | Hook timeout 내 처리 (p95 < 3초)                     | PERF-01          | ✅   |
+| 14  | 코어 코드 수정 0줄                                   | (전체 확인)      | ✅   |
+| 15  | 폴더 신뢰 승인 후 `/hooks` 활성화 확인               | Phase 0에서 완료 | ✅   |
+| 16  | 스크립트 자체 오류 시 정상 동작                      | SCENARIO-06      | ✅   |
 
 ---
 
 ## 3.6 사후 작업 (Post-Work)
 
-- [ ] **[DOC]** 통합 검증 결과서 작성
-  - 파일: `../working_history/PoC_Phase3_IntegrationValidation_{작업일자}.md`
+- [x] **[DOC]** 통합 검증 결과서 작성
+  - 파일: `../working_history/PoC_Phase3_IntegrationValidation_20260221.md`
   - 내용:
     - 시나리오별 검증 결과 (PASS/FAIL + 증거 스크린샷/로그)
     - 성능 측정 결과 (각 Hook 실행 시간)
     - 최적화 적용 내용 (임계값 조정 등)
     - DoD 체크리스트 최종 상태
 
-- [ ] **[DOC]** PoC 종합 결론 작성
-  - 파일: `../working_history/PoC_Conclusion_{작업일자}.md`
+- [x] **[DOC]** PoC 종합 결론 작성
+  - 파일: `../working_history/PoC_Conclusion_20260221.md`
   - 내용:
     - PoC 목표 달성 여부
     - 검색 품질 관찰 (한국어 trigram 한계점)
@@ -338,10 +338,11 @@ PoC 설계서 §15의 성공 기준을 기반으로 검증:
     - 향후 개선 방향 (Phase 4 필요성 판단)
     - 프로덕션 전환 시 고려사항
 
-- [ ] **[NEXT]** Phase 4 진행 여부 결정
-  - trigram 검색 품질이 충분한가?
-  - 의미 기반 검색(pgvector)이 필요한 시나리오가 확인되었는가?
-  - 비용/복잡도 대비 개선 효과 예상
+- [ ] **[NEXT]** Phase 4 진행 여부 결정 (사용자 판단 대기)
+  - trigram 검색 품질이 충분한가? → PoC 수준에서 충분, 프로덕션은 추가 검토 필요
+  - 의미 기반 검색(pgvector)이 필요한 시나리오가 확인되었는가? → 동의어 매칭
+    한계 확인
+  - 비용/복잡도 대비 개선 효과 예상 → 결론 문서에 정리
 
 ---
 
@@ -358,4 +359,4 @@ PoC 설계서 §15의 성공 기준을 기반으로 검증:
 
 ---
 
-**작성일**: 2026-02-21 **작성자**: AI Assistant **상태**: ⬜ 미착수
+**작성일**: 2026-02-21 **작성자**: AI Assistant **상태**: ✅ 완료

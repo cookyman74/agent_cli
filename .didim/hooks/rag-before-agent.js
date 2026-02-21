@@ -24,7 +24,7 @@ const CONNECT_TIMEOUT_MS = 1500;
 //   피드백은 best-effort: FEEDBACK_TIMEOUT_MS 내 미완료 시 포기 (컨텍스트 반환 우선)
 const QUERY_TIMEOUT_MS = 1500;
 const FEEDBACK_TIMEOUT_MS = 500;
-const SIMILARITY_THRESHOLD = 0.12;
+const SIMILARITY_THRESHOLD = 0.1;
 const FEEDBACK_NOTE = 'auto-selected by BeforeAgent RAG';
 
 // ── 유틸리티 ──────────────────────────────────────────

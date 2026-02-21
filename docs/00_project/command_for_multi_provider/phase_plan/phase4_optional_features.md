@@ -40,8 +40,8 @@
 
 | 리스크                             | 영향      | 대응 방안                                | 상태 |
 | ---------------------------------- | --------- | ---------------------------------------- | ---- |
-| 가격 정보 하드코딩 (F4-2)          | 🟡 Medium | 정적 테이블로 관리, 주기적 업데이트 안내 | ⬜   |
-| 프로바이더별 소계 연산 오류 (F4-3) | 🟢 Low    | TDD로 소계 로직 검증                     | ⬜   |
+| 가격 정보 하드코딩 (F4-2)          | 🟡 Medium | 정적 테이블로 관리, 주기적 업데이트 안내 | ✅   |
+| 프로바이더별 소계 연산 오류 (F4-3) | 🟢 Low    | TDD로 소계 로직 검증                     | ✅   |
 
 ---
 
@@ -49,18 +49,18 @@
 
 ### F4-1.1 사전 작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** 기능 목적 확인
+- [x] **[CONTEXT]** 기능 목적 확인
   - `/stats --provider claude` → Claude 모델만 필터링하여 표시
   - `/stats --provider gemini` → Gemini 모델만 표시
   - 미지정 시 기존과 동일 (전체 표시)
 
-- [ ] **[ANALYSIS]** 현재 코드 분석
+- [x] **[ANALYSIS]** 현재 코드 분석
   - `packages/cli/src/ui/commands/statsCommand.ts`: 현재 인자 파싱 방식
   - CLI 플래그 전달 패턴 (기존 --provider 플래그 존재 여부)
 
 ### F4-1.2 🔴 RED Phase
 
-- [ ] **[RED]** `--provider` 플래그 파싱 테스트
+- [x] **[RED]** `--provider` 플래그 파싱 테스트
 
   **파일**: `packages/cli/src/ui/commands/statsCommand.test.ts`
 
@@ -85,26 +85,26 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### F4-1.3 🟢 GREEN Phase
 
-- [ ] **[TASK-001]** statsCommand에 --provider 플래그 파싱 추가
+- [x] **[TASK-001]** statsCommand에 --provider 플래그 파싱 추가
   - 파일: `packages/cli/src/ui/commands/statsCommand.ts`
   - 변경: 인자에서 `--provider <name>` 추출 → 모델 필터링
   - 예상 소요: 30분
 
-- [ ] **[GREEN-VERIFY]** 테스트 통과 확인
+- [x] **[GREEN-VERIFY]** 테스트 통과 확인
 
 ### F4-1.4 🔵 REFACTOR Phase
 
-- [ ] **[REFACTOR]** 플래그 파싱 로직 분리 검토
+- [x] **[REFACTOR]** 플래그 파싱 로직 분리 검토
 
 ### F4-1.5 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 테스트 실행
-- [ ] **[LINT]** 린터 검사
-- [ ] **[COMMIT]**
+- [x] **[TEST]** 테스트 실행
+- [x] **[LINT]** 린터 검사
+- [x] **[COMMIT]**
   ```bash
   git commit -m "feat(stats): /stats --provider 필터 플래그 추가 (Phase 4-1)"
   ```
@@ -115,11 +115,11 @@
 
 ### F4-2.1 사전 작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** 기능 목적 확인
+- [x] **[CONTEXT]** 기능 목적 확인
   - 세션 중 사용한 토큰에 대한 예상 비용을 프로바이더별로 표시
   - 형식: `Estimated Cost: $0.12 (Gemini $0.05 + Claude $0.07)`
 
-- [ ] **[ANALYSIS]** 가격 데이터 구조 설계
+- [x] **[ANALYSIS]** 가격 데이터 구조 설계
   ```typescript
   interface ProviderPricing {
     provider: string;
@@ -139,7 +139,7 @@
 
 ### F4-2.2 🔴 RED Phase
 
-- [ ] **[RED]** 비용 계산 로직 테스트
+- [x] **[RED]** 비용 계산 로직 테스트
 
   **파일**: `packages/core/src/telemetry/costEstimation.test.ts` (신규)
 
@@ -166,31 +166,31 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### F4-2.3 🟢 GREEN Phase
 
-- [ ] **[TASK-001]** 가격 테이블 정의
-  - 파일: `packages/core/src/telemetry/costEstimation.ts` (신규)
-  - 변경: `PROVIDER_PRICING` 상수 + `estimateSessionCost()` 함수
+- [x] **[TASK-001]** 가격 테이블 정의
+  - 파일: `packages/core/src/config/costEstimation.ts` (신규)
+  - 변경: `MODEL_PRICING` 상수 + `estimateCost()` / `formatCostString()` 함수
   - 예상 소요: 45분
 
-- [ ] **[TASK-002]** StatsDisplay에 비용 표시 추가
+- [x] **[TASK-002]** StatsDisplay에 비용 표시 추가
   - 파일: `packages/cli/src/ui/components/StatsDisplay.tsx`
   - 변경: 비용 > 0일 때 `Estimated Cost` 행 추가
   - 예상 소요: 30분
 
-- [ ] **[GREEN-VERIFY]** 테스트 통과 확인
+- [x] **[GREEN-VERIFY]** 테스트 통과 확인
 
 ### F4-2.4 🔵 REFACTOR Phase
 
-- [ ] **[REFACTOR]** 가격 테이블 외부화 검토 (config 파일?)
+- [x] **[REFACTOR]** 가격 테이블 외부화 검토 (config 파일?)
 
 ### F4-2.5 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 테스트 실행
-- [ ] **[LINT]** 린터 검사
-- [ ] **[COMMIT]**
+- [x] **[TEST]** 테스트 실행
+- [x] **[LINT]** 린터 검사
+- [x] **[COMMIT]**
   ```bash
   git commit -m "feat(stats): 세션 비용 추정 표시 추가 (Phase 4-2)"
   ```
@@ -201,13 +201,13 @@
 
 ### F4-3.1 사전 작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** 기능 목적 확인
+- [x] **[CONTEXT]** 기능 목적 확인
   - 프로바이더 그룹 하단에 소계 행 표시
   - 예: Gemini 그룹 하단에 "Gemini Subtotal" 행
 
 ### F4-3.2 🔴 RED Phase
 
-- [ ] **[RED]** 프로바이더 소계 행 렌더링 테스트
+- [x] **[RED]** 프로바이더 소계 행 렌더링 테스트
 
   **파일**: `packages/cli/src/ui/components/StatsDisplay.test.tsx`
 
@@ -223,26 +223,26 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### F4-3.3 🟢 GREEN Phase
 
-- [ ] **[TASK-001]** 소계 연산 + 행 렌더링
+- [x] **[TASK-001]** 소계 연산 + 행 렌더링
   - 파일: `packages/cli/src/ui/components/StatsDisplay.tsx`
   - 변경: 그룹별 토큰/요청 합산 → 소계 행 렌더링 (2+ 모델일 때만)
   - 예상 소요: 45분
 
-- [ ] **[GREEN-VERIFY]** 테스트 통과 확인
+- [x] **[GREEN-VERIFY]** 테스트 통과 확인
 
 ### F4-3.4 🔵 REFACTOR Phase
 
-- [ ] **[REFACTOR]** 소계 계산 로직을 별도 함수로 추출
+- [x] **[REFACTOR]** 소계 계산 로직을 별도 함수로 추출
 
 ### F4-3.5 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 테스트 실행
-- [ ] **[LINT]** 린터 검사
-- [ ] **[COMMIT]**
+- [x] **[TEST]** 테스트 실행
+- [x] **[LINT]** 린터 검사
+- [x] **[COMMIT]**
   ```bash
   git commit -m "feat(stats): 프로바이더별 소계 행 추가 (Phase 4-3)"
   ```
@@ -253,13 +253,13 @@
 
 ### F4-4.1 사전 작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** 기능 목적 확인
+- [x] **[CONTEXT]** 기능 목적 확인
   - `SessionMetrics`에 프로바이더 레벨 집계 추가
   - `/stats session`에서 프로바이더별 총 요청/토큰 요약 표시
 
 ### F4-4.2 🔴 RED Phase
 
-- [ ] **[RED]** ProviderSummary 집계 테스트
+- [x] **[RED]** ProviderSummary 집계 테스트
 
   **파일**: `packages/core/src/telemetry/uiTelemetry.test.ts`
 
@@ -273,26 +273,26 @@
   });
   ```
 
-- [ ] **[RED-VERIFY]** 테스트 실패 확인
+- [x] **[RED-VERIFY]** 테스트 실패 확인
 
 ### F4-4.3 🟢 GREEN Phase
 
-- [ ] **[TASK-001]** ProviderSummary 인터페이스 + 집계 함수
+- [x] **[TASK-001]** ProviderSummary 인터페이스 + 집계 함수
   - 파일: `packages/core/src/telemetry/uiTelemetry.ts`
   - 변경: `getProviderSummary(): Record<string, ProviderSummary>` 메서드
   - 예상 소요: 30분
 
-- [ ] **[GREEN-VERIFY]** 테스트 통과 확인
+- [x] **[GREEN-VERIFY]** 테스트 통과 확인
 
 ### F4-4.4 🔵 REFACTOR Phase
 
-- [ ] **[REFACTOR]** 캐싱 검토 (매 호출 재계산 vs 이벤트별 점진 집계)
+- [x] **[REFACTOR]** 캐싱 검토 (매 호출 재계산 vs 이벤트별 점진 집계)
 
 ### F4-4.5 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 테스트 실행
-- [ ] **[LINT]** 린터 검사
-- [ ] **[COMMIT]**
+- [x] **[TEST]** 테스트 실행
+- [x] **[LINT]** 린터 검사
+- [x] **[COMMIT]**
   ```bash
   git commit -m "feat(telemetry): ProviderSummary 집계 추가 (Phase 4-4)"
   ```
@@ -301,26 +301,26 @@
 
 ## 사후 작업 — Phase 4 전체
 
-- [ ] **[TEST]** 전체 테스트 실행
+- [x] **[TEST]** 전체 테스트 실행
 
   ```bash
   npm run test
   ```
 
-- [ ] **[TYPECHECK]** 타입체크
+- [x] **[TYPECHECK]** 타입체크
 
   ```bash
   npm run typecheck
   ```
 
-- [ ] **[LINT]** 린터 검사
+- [x] **[LINT]** 린터 검사
 
   ```bash
   npm run lint
   ```
 
-- [ ] **[DOC]** 작업 결과서 작성
-  - 파일: `../working_history/Phase4_OptionalFeatures_{작업일자}.md`
+- [x] **[DOC]** 작업 결과서 작성
+  - 파일: `../working_history/Phase4_OptionalFeatures_20260221.md`
   - 각 기능(F4-1~F4-4)별 구현 결과 요약
 
 ---
@@ -336,4 +336,4 @@
 
 ---
 
-**작성일**: 2026-02-18 **작성자**: AI Assistant **상태**: ⬜ 작성 중
+**작성일**: 2026-02-18 **작성자**: AI Assistant **상태**: ✅ 완료 (2026-02-21)

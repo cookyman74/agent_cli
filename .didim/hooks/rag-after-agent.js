@@ -66,9 +66,10 @@ function isLocalDatabase(dbUrl) {
       host === '127.0.0.1' ||
       host === '::1' ||
       host === '0.0.0.0' ||
-      host === 'host.docker.internal' ||
-      host.endsWith('.local')
+      host === 'host.docker.internal'
     );
+    // 주의: .local TLD(mDNS)는 조직 내부 원격 DB일 수 있으므로 로컬 판별에서 제외.
+    // macOS Bonjour 호스트명 사용 시 RAG_TENANT_ID를 명시적으로 설정할 것.
   } catch {
     return false;
   }
@@ -241,7 +242,7 @@ async function main() {
   const tenantId = TENANT_ID || 'local-default';
 
   // M-4: deriveProjectId / createClient 를 try 블록 안으로 이동
-  //      → realpathSync ENOENT, pg import 실패 등이 "DB error"로 정확히 보고됨
+  //      → realpathSync ENOENT, pg import 실패 등이 catch 블록에서 분류 보고됨
   let client;
   try {
     // 프로젝트 ID 파생 (realpath(cwd) SHA-256)
@@ -297,8 +298,13 @@ async function main() {
       }
     }
   } catch (err) {
+    // Issue #4 수정: 파일시스템 에러(ENOENT/EACCES)와 DB 에러를 구분하여 보고
+    const errMsg = toErrorMessage(err);
+    const errCode = err instanceof Error ? err.code : undefined;
+    const category =
+      errCode === 'ENOENT' || errCode === 'EACCES' ? 'Path error' : 'DB error';
     process.stderr.write(
-      `[rag-after-agent] DB error: ${toErrorMessage(err)}\n`,
+      `[rag-after-agent] ${category}: ${errMsg}\n`,
     );
   } finally {
     if (client) await client.end().catch(() => undefined);

@@ -19,8 +19,11 @@ const TENANT_ID = process.env.RAG_TENANT_ID?.trim() || '';
 const MAX_RESULTS = 3;
 const MAX_CONTEXT_CHARS = 2000; // 문자 수 제한 (토큰 ≈ 문자/3~4 추정)
 const CONNECT_TIMEOUT_MS = 1500;
-// Hook timeout(5s) 예산: connect 1500 + SET×2 ≈200 + query×2 1500×2 = 4700 < 5000
+// Hook timeout(5s) 예산:
+//   connect 1500 + SET×3 ≈300 + search×2 1500×2 + feedback(batch)×2 ≈300 = 4600 < 5000
+//   피드백은 best-effort: FEEDBACK_TIMEOUT_MS 내 미완료 시 포기 (컨텍스트 반환 우선)
 const QUERY_TIMEOUT_MS = 1500;
+const FEEDBACK_TIMEOUT_MS = 500;
 const SIMILARITY_THRESHOLD = 0.12;
 const FEEDBACK_NOTE = 'auto-selected by BeforeAgent RAG';
 
@@ -57,9 +60,10 @@ function isLocalDatabase(dbUrl) {
       host === '127.0.0.1' ||
       host === '::1' ||
       host === '0.0.0.0' ||
-      host === 'host.docker.internal' ||
-      host.endsWith('.local')
+      host === 'host.docker.internal'
     );
+    // 주의: .local TLD(mDNS)는 조직 내부 원격 DB일 수 있으므로 로컬 판별에서 제외.
+    // macOS Bonjour 호스트명 사용 시 RAG_TENANT_ID를 명시적으로 설정할 것.
   } catch {
     return false;
   }
@@ -144,7 +148,9 @@ function buildAdditionalContext(memoryRows, historyRows) {
   return { context, selectedMemoryIds, selectedHistoryIds };
 }
 
-// ── 피드백 기록 (best-effort) ────────────────────────
+// ── 피드백 기록 (best-effort, UNNEST 배치) ──────────
+// Issue #2 수정: 0-6 순차 쿼리 → 0-2 배치 쿼리 (UNNEST)
+// Issue #3 수정: FEEDBACK_TIMEOUT_MS 초과 시 포기 → 컨텍스트 반환 지연 방지
 async function recordFeedback(
   client,
   tenantId,
@@ -153,26 +159,33 @@ async function recordFeedback(
   selectedMemoryIds,
   selectedHistoryIds,
 ) {
-  for (const memoryId of selectedMemoryIds) {
-    await client
-      .query(
+  const queries = [];
+  if (selectedMemoryIds.length > 0) {
+    queries.push(
+      client.query(
         `INSERT INTO se_agent_management.memory_feedback
            (memory_item_id, tenant_id, project_id, feedback_type, note)
-         VALUES ($1, $2, $3, 'used', $4)`,
-        [memoryId, tenantId, projectId, FEEDBACK_NOTE],
-      )
-      .catch(() => undefined);
+         SELECT unnest($1::bigint[]), $2, $3, 'used', $4`,
+        [selectedMemoryIds, tenantId, projectId, FEEDBACK_NOTE],
+      ),
+    );
   }
-  for (const historyId of selectedHistoryIds) {
-    await client
-      .query(
+  if (selectedHistoryIds.length > 0) {
+    queries.push(
+      client.query(
         `INSERT INTO se_agent_management.chat_history_feedback
            (chat_history_id, tenant_id, project_id, session_id, feedback_type, note)
-         VALUES ($1, $2, $3, $4, 'selected', $5)`,
-        [historyId, tenantId, projectId, sessionId, FEEDBACK_NOTE],
-      )
-      .catch(() => undefined);
+         SELECT unnest($1::bigint[]), $2, $3, $4, 'selected', $5`,
+        [selectedHistoryIds, tenantId, projectId, sessionId, FEEDBACK_NOTE],
+      ),
+    );
   }
+  if (queries.length === 0) return;
+  // 타임아웃 경쟁: 피드백이 FEEDBACK_TIMEOUT_MS 내 완료되지 않으면 포기
+  await Promise.race([
+    Promise.allSettled(queries),
+    new Promise((resolve) => setTimeout(resolve, FEEDBACK_TIMEOUT_MS)),
+  ]);
 }
 
 // ── 메인 로직 ────────────────────────────────────────
@@ -320,7 +333,14 @@ async function main() {
     const { context, selectedMemoryIds, selectedHistoryIds } =
       buildAdditionalContext(memoryResult.rows, historyResult.rows);
 
-    // TASK-003: RAG 채택 피드백 기록 (best-effort)
+    // Issue #3 수정: 결과를 먼저 구성 → 피드백 실패/지연이 반환을 차단하지 않음
+    const result = {
+      hookSpecificOutput: {
+        additionalContext: context,
+      },
+    };
+
+    // TASK-003: RAG 채택 피드백 기록 (best-effort, 타임아웃 제한)
     await recordFeedback(
       client,
       tenantId,
@@ -328,17 +348,22 @@ async function main() {
       session_id,
       selectedMemoryIds,
       selectedHistoryIds,
-    );
+    ).catch((fbErr) => {
+      process.stderr.write(
+        `[rag-before-agent] Feedback write failed: ${toErrorMessage(fbErr)}\n`,
+      );
+    });
 
-    return {
-      hookSpecificOutput: {
-        additionalContext: context,
-      },
-    };
+    return result;
   } catch (err) {
-    // TASK-004: DB 실패 시 경고만 출력, 정상 진행 (exit 0 + 빈 JSON)
+    // TASK-004: 실패 시 경고만 출력, 정상 진행 (exit 0 + 빈 JSON)
+    // Issue #4 수정: 파일시스템 에러(ENOENT/EACCES)와 DB 에러를 구분하여 보고
+    const errMsg = toErrorMessage(err);
+    const errCode = err instanceof Error ? err.code : undefined;
+    const category =
+      errCode === 'ENOENT' || errCode === 'EACCES' ? 'Path error' : 'DB error';
     process.stderr.write(
-      `[rag-before-agent] DB error: ${toErrorMessage(err)}\n`,
+      `[rag-before-agent] ${category}: ${errMsg}\n`,
     );
     return {};
   } finally {

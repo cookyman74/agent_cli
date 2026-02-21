@@ -36,7 +36,7 @@
   - `search_path TO se_agent_management, public` 추가 — pg_trgm이
     `se_agent_management` 스키마에 설치되어 `similarity()` 함수 + `%` 연산자
     해석에 필수
-  - schema-qualified SQL 유지 (feedback INSERT에만 적용)
+  - schema-qualified SQL 유지 (모든 테이블 참조에 적용)
 - 핵심 로직:
   1. stdin JSON 수신 → prompt/session_id/cwd 추출
   2. 필터링: cwd 없음, 짧은 입력(<5자), 슬래시 커맨드 → 빈 JSON
@@ -149,6 +149,108 @@ chat_history_feedback: 2건 (selected)
 - [x] 피드백 자동 기록 (used/selected) 동작 확인
 - [x] DB 장애 시 정상 동작 확인 (graceful degradation)
 - [x] Hook timeout 내 처리 확인 (0.126s << 5s)
+
+---
+
+## 7. 코드 리뷰 반영
+
+> 리뷰일: 2026-02-21 — 5개 이슈 제시 → 전수 검증 → 전체 수정
+
+### 리뷰 이슈 및 수정 결과
+
+| #   | 심각도 | 이슈                                                                                                             | 수정 내용                                                                                                                                       | 상태 |
+| --- | ------ | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| R-1 | HIGH   | `isLocalDatabase()`에서 `.local` TLD(mDNS) 허용 → 원격 DB가 로컬로 판별되어 tenant 검증 우회 가능                | `.local` 호스트명 체크 제거. 주석으로 `.local` TLD가 원격 DB일 수 있음을 설명. **양쪽 Hook (before/after) 모두 적용**                           | ✅   |
+| R-2 | HIGH   | Hook timeout 예산 주석에 feedback INSERT 쿼리(0-6건) 미산입. 최악의 경우 피드백만 6×QUERY_TIMEOUT = 9s 소요 가능 | `recordFeedback()` UNNEST 배치 리팩터 (0-6 순차 → 0-2 병렬). `FEEDBACK_TIMEOUT_MS = 500` 도입 + `Promise.race` 타임아웃 경쟁. 예산 주석 갱신    | ✅   |
+| R-3 | MEDIUM | 피드백 기록이 크리티컬 패스에 위치 → 피드백 실패/지연 시 `additionalContext` 반환까지 차단                       | 결과 객체(`result`)를 피드백 호출 전에 구성. 피드백은 `.catch()` 래핑으로 실패해도 결과 반환 보장. `Promise.race(500ms)` 타임아웃으로 지연 방지 | ✅   |
+| R-4 | LOW    | `realpathSync(cwd)` ENOENT 에러가 "DB error"로 보고됨 — 파일시스템 에러를 DB 에러로 오인 유발                    | catch 블록에서 `err.code` 검사: ENOENT/EACCES → "Path error", 그 외 → "DB error". **양쪽 Hook (before/after) 모두 적용**                        | ✅   |
+| R-5 | LOW    | 작업 결과서 "schema-qualified SQL 유지 (feedback INSERT에만 적용)" — 실제로는 모든 SQL이 schema-qualified        | 문서 수정: "모든 테이블 참조에 적용"으로 정정                                                                                                   | ✅   |
+
+### 수정 상세
+
+#### R-1: `.local` TLD 제거 (양쪽 Hook)
+
+```javascript
+// BEFORE: host.endsWith('.local') → true → 로컬 판정 → tenant 검증 스킵
+// AFTER: .local 제거, 주석으로 위험성 명시
+function isLocalDatabase(dbUrl) {
+  const host = new URL(dbUrl).hostname.toLowerCase();
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host === '0.0.0.0' ||
+    host === 'host.docker.internal'
+  );
+  // 주의: .local TLD(mDNS)는 조직 내부 원격 DB일 수 있으므로 로컬 판별에서 제외.
+}
+```
+
+#### R-2 + R-3: 피드백 배치화 + 크리티컬 패스 분리
+
+```javascript
+// BEFORE: for-of 순차 INSERT × (memory + history) = 0-6 쿼리, 크리티컬 패스 블로킹
+// AFTER: UNNEST 배치 INSERT × 2 + Promise.race(500ms) + 결과 구성 선행
+const FEEDBACK_TIMEOUT_MS = 500;
+
+async function recordFeedback(...) {
+  const queries = [];
+  if (selectedMemoryIds.length > 0)
+    queries.push(client.query(`...SELECT unnest($1::bigint[])...`, [selectedMemoryIds, ...]));
+  if (selectedHistoryIds.length > 0)
+    queries.push(client.query(`...SELECT unnest($1::bigint[])...`, [selectedHistoryIds, ...]));
+  if (queries.length === 0) return;
+  await Promise.race([
+    Promise.allSettled(queries),
+    new Promise((resolve) => setTimeout(resolve, FEEDBACK_TIMEOUT_MS)),
+  ]);
+}
+
+// main() 내:
+const result = { hookSpecificOutput: { additionalContext: context } };  // 결과 먼저 구성
+await recordFeedback(...).catch((fbErr) => { stderr... });              // 피드백은 best-effort
+return result;                                                          // 피드백 무관하게 반환
+```
+
+**예산 갱신**:
+`connect 1500 + SET×3 ≈300 + search×2 1500×2 + feedback(batch)×2 ≈300 = 4600 < 5000`
+
+#### R-4: 에러 분류 (양쪽 Hook)
+
+```javascript
+// BEFORE: catch (err) { stderr `DB error: ${err.message}` }
+// AFTER:
+catch (err) {
+  const errCode = err instanceof Error ? err.code : undefined;
+  const category = errCode === 'ENOENT' || errCode === 'EACCES' ? 'Path error' : 'DB error';
+  process.stderr.write(`[rag-before-agent] ${category}: ${errMsg}\n`);
+}
+```
+
+### 리뷰 수정 후 검증 결과
+
+| 검증 항목                            | 결과    | 상세                                                       |
+| ------------------------------------ | ------- | ---------------------------------------------------------- |
+| VERIFY-FILTER (짧은 입력)            | ✅ Pass | "hi" → `{}`                                                |
+| VERIFY-FILTER (슬래시)               | ✅ Pass | `/model` → `{}`                                            |
+| VERIFY-FILTER (빈 cwd)               | ✅ Pass | cwd 누락 → `{}`                                            |
+| VERIFY-FAIL-CLOSED (비로컬 tenant)   | ✅ Pass | 비로컬 DB + tenant 미설정 → 거부                           |
+| VERIFY-RESILIENCE (DB 장애)          | ✅ Pass | 로컬 wrong port → "DB error" + `{}`                        |
+| VERIFY-ISSUE4 (invalid cwd — before) | ✅ Pass | `/nonexistent` → **"Path error: ENOENT"** (not "DB error") |
+| VERIFY-ISSUE4 (invalid cwd — after)  | ✅ Pass | `/nonexistent` → **"Path error: ENOENT"** (not "DB error") |
+| VERIFY-ISSUE4 (valid cwd + DB fail)  | ✅ Pass | `/tmp` + auth 실패 → **"DB error: SASL..."** (정확 분류)   |
+| VERIFY-RAG (history 검색)            | ✅ Pass | history_id=14,11 검색 + [근거 대화] 블록                   |
+| VERIFY-RAG (memory 우선)             | ✅ Pass | memory_id=7 [장기기억] 블록 우선, confidence=0.70          |
+| VERIFY-FEEDBACK (UNNEST 배치)        | ✅ Pass | 동일 created_at 타임스탬프 → 단일 쿼리 배치 확인           |
+| VERIFY-TIMEOUT                       | ✅ Pass | 0.637s (timeout 5s 대비 12.7%)                             |
+
+### 수정 산출물
+
+| 파일                               | 수정 내용                                   |
+| ---------------------------------- | ------------------------------------------- |
+| `.didim/hooks/rag-before-agent.js` | R-1 ~ R-4 전체 적용                         |
+| `.didim/hooks/rag-after-agent.js`  | R-1 (`.local` 제거), R-4 (에러 분류) 적용   |
+| 본 작업 결과서                     | R-5 문서 정정 + §7 코드 리뷰 반영 섹션 추가 |
 
 ---
 

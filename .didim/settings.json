@@ -1,0 +1,20 @@
+{
+  "hooksConfig": {
+    "enabled": true
+  },
+  "hooks": {
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "name": "rag-after-agent",
+            "command": "node \"./.didim/hooks/rag-after-agent.js\"",
+            "description": "Q&A + 운영 메타데이터 저장 + memory upsert",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

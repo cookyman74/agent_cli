@@ -42,7 +42,7 @@
 | Phase ID | 목표/범위                                      | 예상 소요(일) | 분할 필요 여부 | 선행 Phase | 산출물(상세 문서)                              |
 | -------- | ---------------------------------------------- | ------------- | -------------- | ---------- | ---------------------------------------------- |
 | P0       | Docker DB 확인 + 스키마 생성 + 프로젝트 초기화 | 0.5           | N              | -          | [Phase0](./phase0_environment_setup.md) ✅     |
-| P1       | AfterAgent Hook — Q&A 저장                     | 1             | N              | P0         | [Phase1](./phase1_after_agent_hook.md)         |
+| P1       | AfterAgent Hook — Q&A 저장                     | 1             | N              | P0         | [Phase1](./phase1_after_agent_hook.md) ✅      |
 | P2       | BeforeAgent Hook — RAG 검색 + 컨텍스트 주입    | 1~1.5         | N              | P1         | [Phase2](./phase2_before_agent_hook.md)        |
 | P3       | 통합 검증 + 최적화 + 문서화                    | 0.5~1         | N              | P2         | [Phase3](./phase3_integration_validation.md)   |
 | P4       | pgvector 의미 기반 검색 전환 (선택)            | 2~3           | Y (기능별)     | **P3**     | [Phase4](./phase4_pgvector_semantic_search.md) |
@@ -116,8 +116,8 @@
 
 | Phase   | 기간(<=2일) | 구현 | 검증 | 결과서 | 상태 |
 | ------- | ----------- | ---- | ---- | ------ | ---- |
-| Phase 0 | ⬜          | ⬜   | ⬜   | ⬜     | ⬜   |
-| Phase 1 | ⬜          | ⬜   | ⬜   | ⬜     | ⬜   |
+| Phase 0 | ✅          | ✅   | ✅   | ✅     | ✅   |
+| Phase 1 | ✅          | ✅   | ✅   | ✅     | ✅   |
 | Phase 2 | ⬜          | ⬜   | ⬜   | ⬜     | ⬜   |
 | Phase 3 | ⬜          | ⬜   | ⬜   | ⬜     | ⬜   |
 | Phase 4 | ⬜          | ⬜   | ⬜   | ⬜     | ⬜   |

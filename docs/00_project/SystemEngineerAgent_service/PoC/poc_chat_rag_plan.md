@@ -314,7 +314,8 @@ import { createHash } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 
 const DB_URL =
-  process.env.RAG_DATABASE_URL || 'postgresql://localhost:5432/se_rag';
+  process.env.RAG_DATABASE_URL ||
+  'postgresql://postgres:password12@localhost:5432/didim_api';
 const TENANT_ID = process.env.RAG_TENANT_ID?.trim() || '';
 const MAX_RESULTS = 3;
 const MAX_CONTEXT_CHARS = 2000; // 문자 수 제한 (토큰 ≈ 문자/3~4 추정)
@@ -614,7 +615,8 @@ import { createHash } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 
 const DB_URL =
-  process.env.RAG_DATABASE_URL || 'postgresql://localhost:5432/se_rag';
+  process.env.RAG_DATABASE_URL ||
+  'postgresql://postgres:password12@localhost:5432/didim_api';
 const TENANT_ID = process.env.RAG_TENANT_ID?.trim() || '';
 const MAX_STORE_LENGTH = 10000; // 저장 최대 문자 수
 const CONNECT_TIMEOUT_MS = 1500;
@@ -980,6 +982,10 @@ await client.end();
 }
 ```
 
+> **⚠️ 병합 주의**: 기존 `.didim/settings.json`이 있는 경우 **전체 대체하지
+> 말고** `hooksConfig` + `hooks` 섹션만 병합할 것. 기존 설정(예:
+> `customInstructions`, `theme`, `permissions` 등)이 손실되지 않도록 주의한다.
+
 ---
 
 ## 8. 파일 구조
@@ -1000,17 +1006,17 @@ await client.end();
 
 ## 9. 환경 변수
 
-| 변수                          | 기본값                               | 설명                                                                 |
-| ----------------------------- | ------------------------------------ | -------------------------------------------------------------------- |
-| `RAG_DATABASE_URL`            | `postgresql://localhost:5432/se_rag` | PostgreSQL 연결 문자열                                               |
-| `RAG_TENANT_ID`               | 없음                                 | 공유 DB 환경에서 사용자/테넌트 격리 키 (비로컬 DB에서는 사실상 필수) |
-| `RAG_DEFAULT_SERVICE_NAME`    | 없음                                 | 프롬프트 태그가 없을 때 기본 서비스명                                |
-| `RAG_DEFAULT_ENVIRONMENT`     | `unknown`                            | 프롬프트 태그가 없을 때 기본 환경값                                  |
-| `RAG_MEMORY_ENABLED`          | `true`                               | 핵심기억(memory_items) upsert 사용 여부                              |
-| `RAG_MEMORY_DEFAULT_TTL_DAYS` | `90`                                 | 만료가 필요한 메모리 기본 TTL(선호/임시 규칙 등)                     |
-| `RAG_MEMORY_MIN_SUMMARY_LEN`  | `20`                                 | memory candidate 최소 요약 길이                                      |
-| `RAG_PROJECT_ID`              | 없음                                 | `rag-feedback.js` 수동 피드백 기록 시 대상 프로젝트 식별자           |
-| `RAG_SESSION_ID`              | `manual-feedback`                    | `rag-feedback.js` 기록용 세션 라벨                                   |
+| 변수                          | 기본값                                                      | 설명                                                                 |
+| ----------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------- |
+| `RAG_DATABASE_URL`            | `postgresql://postgres:password12@localhost:5432/didim_api` | PostgreSQL 연결 문자열 (스키마: `se_agent_management`)               |
+| `RAG_TENANT_ID`               | 없음                                                        | 공유 DB 환경에서 사용자/테넌트 격리 키 (비로컬 DB에서는 사실상 필수) |
+| `RAG_DEFAULT_SERVICE_NAME`    | 없음                                                        | 프롬프트 태그가 없을 때 기본 서비스명                                |
+| `RAG_DEFAULT_ENVIRONMENT`     | `unknown`                                                   | 프롬프트 태그가 없을 때 기본 환경값                                  |
+| `RAG_MEMORY_ENABLED`          | `true`                                                      | 핵심기억(memory_items) upsert 사용 여부                              |
+| `RAG_MEMORY_DEFAULT_TTL_DAYS` | `90`                                                        | 만료가 필요한 메모리 기본 TTL(선호/임시 규칙 등)                     |
+| `RAG_MEMORY_MIN_SUMMARY_LEN`  | `20`                                                        | memory candidate 최소 요약 길이                                      |
+| `RAG_PROJECT_ID`              | 없음                                                        | `rag-feedback.js` 수동 피드백 기록 시 대상 프로젝트 식별자           |
+| `RAG_SESSION_ID`              | `manual-feedback`                                           | `rag-feedback.js` 기록용 세션 라벨                                   |
 
 ---
 
@@ -1047,8 +1053,9 @@ npm install
 ### 10.3 DB 초기화
 
 ```bash
-createdb se_rag
-psql se_rag < .didim/sql/init.sql
+# didim_api DB가 이미 존재하는 경우 (Docker 컨테이너 사용 시)
+# 스키마 초기화만 실행:
+PGPASSWORD=password12 psql -U postgres -h localhost -d didim_api -f .didim/sql/init.sql
 ```
 
 ### 10.4 운영 메타데이터 입력 규칙

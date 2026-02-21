@@ -9,7 +9,7 @@
           {
             "type": "command",
             "name": "rag-before-agent",
-            "command": "node \"./.didim/hooks/rag-before-agent.js\"",
+            "command": "RAG_TENANT_ID=AX-TEAM RAG_DATABASE_URL=postgresql://postgres:password12@localhost:5432/didim_api node \"./.didim/hooks/rag-before-agent.js\"",
             "description": "장기기억 + 과거 대화 RAG 검색 → 컨텍스트 주입",
             "timeout": 5000
           }
@@ -22,7 +22,7 @@
           {
             "type": "command",
             "name": "rag-after-agent",
-            "command": "node \"./.didim/hooks/rag-after-agent.js\"",
+            "command": "RAG_TENANT_ID=AX-TEAM RAG_DATABASE_URL=postgresql://postgres:password12@localhost:5432/didim_api node \"./.didim/hooks/rag-after-agent.js\"",
             "description": "Q&A + 운영 메타데이터 저장 + memory upsert",
             "timeout": 5000
           }

@@ -719,6 +719,12 @@ export class GeminiClient {
       modelToUse = decision.model;
     }
 
+    // Safety: validate model is appropriate for Gemini provider.
+    // After switching from a non-Gemini provider (e.g., OpenAI), the config
+    // may still hold a non-Gemini model name (e.g., 'gpt-5.2').
+    // resolveProviderModel returns the Gemini default if the model is invalid.
+    modelToUse = resolveProviderModel(modelToUse, 'gemini');
+
     // availability logic
     const modelConfigKey: ModelConfigKey = { model: modelToUse };
     const { model: finalModel } = applyModelSelection(

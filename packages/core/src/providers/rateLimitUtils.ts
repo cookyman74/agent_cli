@@ -97,11 +97,15 @@ export async function extractWithRateLimits(
   createResult: Promise<unknown>,
   headerNames: RateLimitHeaderNames,
 ): Promise<{ data: unknown; rateLimits?: RateLimitInfo }> {
-  const withResponse = (
-    createResult as { withResponse?: () => Promise<unknown> }
-  ).withResponse;
-  if (typeof withResponse === 'function') {
-    const result = (await withResponse()) as {
+  const apiPromise = createResult as {
+    withResponse?: () => Promise<unknown>;
+  };
+  if (typeof apiPromise.withResponse === 'function') {
+    // Call withResponse() on the original object to preserve `this` binding.
+    // Destructuring the method (e.g., `const { withResponse } = promise`)
+    // detaches it from the APIPromise instance, causing `this.parse()` to fail
+    // with "Cannot read properties of undefined (reading 'parse')".
+    const result = (await apiPromise.withResponse()) as {
       data: unknown;
       response?: { headers?: HeadersLike };
     };

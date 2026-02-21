@@ -266,6 +266,41 @@ describe('OpenAiAdapter', () => {
         LlmError,
       );
     });
+
+    it('should emit fallback MessageEnd when stream lacks usage-only chunk (openai-compatible)', async () => {
+      // openai-compatible servers may end without the usage-only final chunk
+      const chunks = [
+        {
+          choices: [
+            { index: 0, delta: { content: 'Hello' }, finish_reason: null },
+          ],
+        },
+        { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] },
+        // No usage-only chunk (empty choices + usage)
+      ];
+
+      async function* mockStream(): AsyncGenerator<unknown> {
+        for (const c of chunks) {
+          yield c;
+        }
+      }
+
+      vi.mocked(client.chat.completions.create).mockResolvedValueOnce(
+        mockStream() as unknown,
+      );
+
+      const request = createBasicRequest();
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+      const events: LlmEvent[] = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      const types = events.map((e) => e.type);
+      expect(types).toContain(LlmEventType.MessageEnd);
+      // MessageEnd should be the last event
+      expect(types[types.length - 1]).toBe(LlmEventType.MessageEnd);
+    });
   });
 
   // ==========================================================================

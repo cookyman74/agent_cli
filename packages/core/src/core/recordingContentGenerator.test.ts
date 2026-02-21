@@ -131,6 +131,29 @@ describe('RecordingContentGenerator', () => {
     );
   });
 
+  it('should passthrough setProviderQuotaService to wrapped generator', () => {
+    const mockService = { update: vi.fn(), getAll: vi.fn() };
+    const wrappedWithService = {
+      ...mockRealGenerator,
+      setProviderQuotaService: vi.fn(),
+    };
+    const rec = new RecordingContentGenerator(wrappedWithService, filePath);
+
+    rec.setProviderQuotaService(mockService as never);
+
+    expect(wrappedWithService.setProviderQuotaService).toHaveBeenCalledWith(
+      mockService,
+    );
+  });
+
+  it('should not throw when wrapped generator lacks setProviderQuotaService', () => {
+    const mockService = { update: vi.fn(), getAll: vi.fn() };
+    // mockRealGenerator doesn't have setProviderQuotaService
+    expect(() =>
+      recorder.setProviderQuotaService(mockService as never),
+    ).not.toThrow();
+  });
+
   it('should record embedContent responses', async () => {
     const mockResponse = {
       embeddings: [{ values: [1, 2, 3] } as ContentEmbedding],

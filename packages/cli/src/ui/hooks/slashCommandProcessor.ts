@@ -8,6 +8,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
   useState,
   createElement,
 } from 'react';
@@ -139,20 +140,25 @@ export const useSlashCommandProcessor = (
   }, [config]);
 
   // Session-scoped ProviderQuotaService singleton for non-Gemini rate-limit data.
-  // Wired into LoggingContentGenerator via late binding (setProviderQuotaService).
-  const providerQuotaService = useMemo(() => {
-    const service = new ProviderQuotaService();
-    // Late-bind to content generator if it supports setProviderQuotaService
-    if (config) {
-      const gen = config.getContentGenerator();
+  // Stable across renders; re-binding to content generator is handled by useEffect below.
+  const providerQuotaService = useMemo(() => new ProviderQuotaService(), []);
+
+  // Re-bind ProviderQuotaService to content generator after auth refresh.
+  // Config object reference stays the same but internal contentGenerator can be
+  // replaced, so we track the last bound generator to detect changes.
+  const lastBoundGeneratorRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (!config) return;
+    const gen = config.getContentGenerator();
+    if (gen !== lastBoundGeneratorRef.current) {
       if (gen && 'setProviderQuotaService' in gen) {
         (
           gen as { setProviderQuotaService: (s: ProviderQuotaService) => void }
-        ).setProviderQuotaService(service);
+        ).setProviderQuotaService(providerQuotaService);
       }
+      lastBoundGeneratorRef.current = gen;
     }
-    return service;
-  }, [config]);
+  });
 
   const [pendingItem, setPendingItem] = useState<HistoryItemWithoutId | null>(
     null,

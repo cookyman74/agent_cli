@@ -67,6 +67,36 @@ describe('rateLimitUtils', () => {
       });
     });
 
+    it('skips NaN values from non-numeric header strings', () => {
+      const headers = new Map([
+        ['anthropic-ratelimit-requests-limit', 'not-a-number'],
+        ['anthropic-ratelimit-requests-remaining', '95'],
+        ['anthropic-ratelimit-tokens-limit', ''],
+        ['anthropic-ratelimit-tokens-remaining', '48000'],
+      ]);
+
+      const result = parseRateLimitHeaders(headers, CLAUDE_RATE_LIMIT_HEADERS);
+
+      expect(result).toEqual({
+        requestsRemaining: 95,
+        tokensRemaining: 48000,
+      });
+    });
+
+    it('skips invalid Date from malformed reset header', () => {
+      const headers = new Map([
+        ['anthropic-ratelimit-requests-limit', '100'],
+        ['anthropic-ratelimit-requests-reset', 'invalid-date-string'],
+      ]);
+
+      const result = parseRateLimitHeaders(headers, CLAUDE_RATE_LIMIT_HEADERS);
+
+      expect(result).toEqual({
+        requestsLimit: 100,
+      });
+      expect(result?.resetTime).toBeUndefined();
+    });
+
     it('handles partial headers (only requests)', () => {
       const headers = new Map([
         ['anthropic-ratelimit-requests-limit', '100'],

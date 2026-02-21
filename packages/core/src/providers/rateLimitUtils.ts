@@ -62,12 +62,29 @@ export function parseRateLimitHeaders(
 
   if (rl == null && rr == null && tl == null && tr == null) return undefined;
 
+  const safeNum = (v: string): number | undefined => {
+    if (v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  };
+
+  const safeDate = (v: string): Date | undefined => {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+
+  const rlNum = rl != null ? safeNum(rl) : undefined;
+  const rrNum = rr != null ? safeNum(rr) : undefined;
+  const tlNum = tl != null ? safeNum(tl) : undefined;
+  const trNum = tr != null ? safeNum(tr) : undefined;
+  const resetDate = reset != null ? safeDate(reset) : undefined;
+
   return {
-    ...(rl != null && { requestsLimit: Number(rl) }),
-    ...(rr != null && { requestsRemaining: Number(rr) }),
-    ...(tl != null && { tokensLimit: Number(tl) }),
-    ...(tr != null && { tokensRemaining: Number(tr) }),
-    ...(reset != null && { resetTime: new Date(reset) }),
+    ...(rlNum != null && { requestsLimit: rlNum }),
+    ...(rrNum != null && { requestsRemaining: rrNum }),
+    ...(tlNum != null && { tokensLimit: tlNum }),
+    ...(trNum != null && { tokensRemaining: trNum }),
+    ...(resetDate != null && { resetTime: resetDate }),
   };
 }
 

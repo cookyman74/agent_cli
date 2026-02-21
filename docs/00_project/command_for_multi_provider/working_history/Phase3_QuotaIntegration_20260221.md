@@ -132,3 +132,148 @@ Lint:  0 issues
   OPENAI_RATE_LIMIT_HEADERS)
 - **Late binding**: `LoggingContentGenerator.setProviderQuotaService()` —
   content generator 생성 후 slashCommandProcessor에서 duck typing으로 주입
+
+---
+
+## 코드 리뷰 이슈 수정 (Post-Review Fix)
+
+- **수정일**: 2026-02-21 (Phase 3 작업 동일일)
+
+### 리뷰 이슈 검증 결과
+
+| #   | 심각도      | 이슈                                                     | 판정           |
+| --- | ----------- | -------------------------------------------------------- | -------------- |
+| 1   | HIGH        | Auth refresh 시 ProviderQuotaService 재바인딩 누락        | **CONFIRMED**  |
+| 2   | HIGH        | RecordingContentGenerator setProviderQuotaService 미전달  | **CONFIRMED**  |
+| 3   | HIGH        | NaN/Invalid Date UI 전파 (rateLimitUtils)                | **CONFIRMED**  |
+| 4   | MEDIUM-HIGH | openai-compatible 서버 MessageEnd 미발행                  | **CONFIRMED**  |
+| 5   | MEDIUM      | statsCommand 비Gemini에서도 refreshUserQuota 호출         | **NOT A BUG**  |
+| 6   | LOW         | 회귀 방어 테스트 부족                                     | **CONFIRMED**  |
+
+### Issue 5 NOT A BUG 근거
+
+`config.refreshUserQuota()`는 내부적으로 `getCodeAssistServer()` 호출 →
+non-Gemini 프로바이더는 undefined 반환 → early return. try/catch 보호.
+DoD #13 설계 의도대로 동작 확인.
+
+### 수정 내역
+
+#### Issue 1: Auth refresh ProviderQuotaService 재바인딩
+
+- **원인**: `useMemo([config])` — config 객체 참조는 유지되지만 내부
+  `contentGenerator`가 교체됨 → useMemo 미재실행
+- **수정**: `useMemo` 바인딩을 `useEffect` + `useRef`로 전환. 렌더마다
+  `config.getContentGenerator()` 참조 비교하여 변경 감지 시 재바인딩
+- **파일**: `packages/cli/src/ui/hooks/slashCommandProcessor.ts`
+
+#### Issue 2: RecordingContentGenerator passthrough
+
+- **원인**: RecordingContentGenerator가 `setProviderQuotaService` 미구현 →
+  duck typing 체크(`'setProviderQuotaService' in gen`) 실패
+- **수정**: `setProviderQuotaService()` 패스스루 메서드 추가 (wrapped generator 위임)
+- **파일**: `packages/core/src/core/recordingContentGenerator.ts`
+
+#### Issue 3: NaN/Invalid Date 방어
+
+- **원인**: `Number('invalid')` → NaN, `new Date('invalid')` → Invalid Date가
+  UI까지 전파 → "NaN/NaN reqs" 표시
+- **수정**: `safeNum()` / `safeDate()` 헬퍼 추가 — `isNaN` 검증 후 undefined 반환.
+  빈 문자열(`Number('') === 0`) 방어 포함
+- **파일**: `packages/core/src/providers/rateLimitUtils.ts`
+
+#### Issue 4: OpenAI 스트림 fallback MessageEnd
+
+- **원인**: openai-compatible 서버가 usage-only 최종 청크를 전송하지 않을 경우
+  `MessageEnd` 이벤트 미발행 → downstream 소비자에 누락
+- **수정**: 스트림 루프 후 `messageEndEmitted` 플래그 체크 → 미발행 시 synthetic
+  `MessageEnd` (+ rateLimits) yield
+- **파일**: `packages/core/src/providers/openai/adapter.ts`
+
+#### Issue 6: 회귀 테스트 추가
+
+| 테스트 파일                                  | 추가 테스트                                              |
+| -------------------------------------------- | ------------------------------------------------------- |
+| `rateLimitUtils.test.ts`                     | NaN 스킵 테스트 + Invalid Date 스킵 테스트 (2개)         |
+| `openai/adapter.test.ts`                     | fallback MessageEnd 발행 테스트 (1개)                    |
+| `recordingContentGenerator.test.ts`          | setProviderQuotaService 패스스루 + 미지원 안전성 (2개)    |
+
+### 수정 후 검증
+
+```
+Core:  287 test files, 5732 passed, 0 failed
+CLI:   351 test files, 4788 passed, 0 failed
+TS:    0 errors (core + cli)
+Lint:  0 issues
+```
+
+### 변경 파일 요약
+
+| 파일                                               | 변경 유형           |
+| -------------------------------------------------- | ------------------- |
+| `packages/core/src/providers/rateLimitUtils.ts`     | NaN/Invalid Date 방어 |
+| `packages/core/src/providers/rateLimitUtils.test.ts`| 회귀 테스트 2개 추가  |
+| `packages/core/src/core/recordingContentGenerator.ts`| passthrough 메서드    |
+| `packages/core/src/core/recordingContentGenerator.test.ts`| 회귀 테스트 2개 추가 |
+| `packages/core/src/providers/openai/adapter.ts`    | fallback MessageEnd   |
+| `packages/core/src/providers/openai/adapter.test.ts`| 회귀 테스트 1개 추가  |
+| `packages/cli/src/ui/hooks/slashCommandProcessor.ts`| useEffect 재바인딩    |
+
+---
+
+## 2차 코드 리뷰 이슈 수정 (Post-Review Fix #2)
+
+- **수정일**: 2026-02-21 (동일일)
+
+### 2차 리뷰 이슈 검증 결과
+
+| #   | 심각도 | 이슈                                                          | 판정              |
+| --- | ------ | ------------------------------------------------------------- | ----------------- |
+| 1   | HIGH   | `extractWithRateLimits` `.withResponse()` rejection 미처리     | **NOT A BUG**     |
+| 2   | MEDIUM | `ProviderQuotaService.update()` partial data 덮어쓰기          | **NOT A BUG**     |
+| 3   | MEDIUM | LoggingContentGenerator → ProviderQuotaService 브릿지 테스트 없음 | **CONFIRMED** |
+| 4   | LOW    | 비스트림 generateContent rate-limit 테스트 부족                 | **ALREADY COVERED** |
+
+### Issue 1 NOT A BUG 근거
+
+- `extractWithRateLimits()` 호출은 양쪽 adapter(Claude/OpenAI)의 try/catch 블록 안에 위치
+- SDK APIPromise의 `.withResponse()`와 직접 `await`은 동일 underlying promise를 공유
+- `.withResponse()` rejection은 API 호출 실패 시에만 발생 → adapter의 `classifyError` 에러 핸들링으로 처리됨
+
+### Issue 2 NOT A BUG 근거
+
+- JSDoc에 `Latest value wins (no merging)` 명시된 설계 의도
+- Rate-limit 헤더는 API 응답마다 전체 스냅샷을 제공
+- 이전 값과 merge하면 오히려 stale 데이터가 잔존하여 의미론적으로 부정확
+
+### Issue 4 ALREADY COVERED 근거
+
+- Claude adapter.test.ts: 비스트림 rate-limit 테스트 1개 존재 (line ~1053)
+- OpenAI adapter.test.ts: 비스트림 rate-limit 테스트 1개 존재 (line ~507)
+
+### 수정 내역
+
+#### Issue 3: LoggingContentGenerator → ProviderQuotaService 브릿지 테스트 추가
+
+- **원인**: `loggingContentGenerator.ts`의 비스트림 경로(line 471-473)와 스트림
+  경로(line 540-547)에서 `providerQuotaService.update()` 호출이 있으나 단위 테스트 없음
+- **수정**: 4개 브릿지 테스트 추가
+  1. 비스트림 응답의 `rateLimits` → `ProviderQuotaService.update()` 호출 검증
+  2. 비스트림 응답에 `rateLimits` 없을 때 `update()` 미호출 검증
+  3. 스트림 `MessageEnd` 이벤트의 `rateLimits` → `update()` 호출 검증
+  4. 스트림 `MessageEnd` 이벤트에 `rateLimits` 없을 때 `update()` 미호출 검증
+- **파일**: `packages/core/src/core/loggingContentGenerator.test.ts`
+
+### 수정 후 검증
+
+```
+Core:  287 test files, 5736 passed, 0 failed
+CLI:   351 test files, 4788 passed, 0 failed
+TS:    0 errors (core + cli)
+Lint:  0 issues
+```
+
+### 변경 파일 요약
+
+| 파일                                                        | 변경 유형                 |
+| ----------------------------------------------------------- | ------------------------ |
+| `packages/core/src/core/loggingContentGenerator.test.ts`     | 브릿지 테스트 4개 추가    |

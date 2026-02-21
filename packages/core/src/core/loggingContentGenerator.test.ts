@@ -687,4 +687,146 @@ describe('LoggingContentGenerator', () => {
       );
     });
   });
+
+  // Phase 3 Review: ProviderQuotaService bridge tests
+  describe('ProviderQuotaService bridge', () => {
+    const mockLlmRequest: LlmGenerateRequest = {
+      model: 'claude-sonnet-4-20250514',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
+    };
+    const userPromptId = 'prompt-quota-1';
+
+    let mockQuotaService: { update: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn>; getAll: ReturnType<typeof vi.fn> };
+
+    beforeEach(() => {
+      (wrapped as unknown as Record<string, unknown>)['providerName'] =
+        'claude';
+      mockQuotaService = {
+        update: vi.fn(),
+        get: vi.fn(),
+        getAll: vi.fn(),
+      };
+      loggingContentGenerator.setProviderQuotaService(
+        mockQuotaService as never,
+      );
+    });
+
+    it('should bridge rateLimits from non-stream response to ProviderQuotaService', async () => {
+      const rateLimits = {
+        requestsLimit: 100,
+        requestsRemaining: 95,
+        tokensLimit: 50000,
+        tokensRemaining: 48000,
+      };
+      const mockResponse: LlmGenerateResponse = {
+        id: 'resp-rl-1',
+        content: [{ type: 'text', text: 'Hi' }],
+        model: 'claude-sonnet-4-20250514',
+        stopReason: 'end_turn',
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        rateLimits,
+      };
+      wrapped.llmGenerateContent = vi.fn().mockResolvedValue(mockResponse);
+
+      await loggingContentGenerator.llmGenerateContent(
+        mockLlmRequest,
+        userPromptId,
+      );
+
+      expect(mockQuotaService.update).toHaveBeenCalledWith(
+        'claude',
+        rateLimits,
+      );
+    });
+
+    it('should NOT call ProviderQuotaService when non-stream response has no rateLimits', async () => {
+      const mockResponse: LlmGenerateResponse = {
+        id: 'resp-rl-2',
+        content: [{ type: 'text', text: 'Hi' }],
+        model: 'claude-sonnet-4-20250514',
+        stopReason: 'end_turn',
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      };
+      wrapped.llmGenerateContent = vi.fn().mockResolvedValue(mockResponse);
+
+      await loggingContentGenerator.llmGenerateContent(
+        mockLlmRequest,
+        userPromptId,
+      );
+
+      expect(mockQuotaService.update).not.toHaveBeenCalled();
+    });
+
+    it('should bridge rateLimits from stream MessageEnd event to ProviderQuotaService', async () => {
+      const rateLimits = {
+        requestsLimit: 200,
+        requestsRemaining: 190,
+        tokensLimit: 100000,
+        tokensRemaining: 95000,
+      };
+      const streamEvents: LlmEvent[] = [
+        { type: LlmEventType.MessageStart },
+        { type: LlmEventType.Text, text: 'Hello' },
+        { type: LlmEventType.Finished, stopReason: 'end_turn' },
+        {
+          type: LlmEventType.MessageEnd,
+          usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+          rateLimits,
+        } as LlmEvent,
+      ];
+
+      async function* mockStream(): LlmEventStream {
+        for (const event of streamEvents) {
+          yield event;
+        }
+      }
+      wrapped.llmGenerateContentStream = vi.fn().mockReturnValue(mockStream());
+
+      const stream = loggingContentGenerator.llmGenerateContentStream(
+        mockLlmRequest,
+        userPromptId,
+      );
+      // Consume the stream
+      const collected: LlmEvent[] = [];
+      for await (const event of stream) {
+        collected.push(event);
+      }
+
+      expect(mockQuotaService.update).toHaveBeenCalledWith(
+        'claude',
+        rateLimits,
+      );
+      // Verify all events were passed through
+      expect(collected).toHaveLength(4);
+    });
+
+    it('should NOT call ProviderQuotaService when stream MessageEnd has no rateLimits', async () => {
+      const streamEvents: LlmEvent[] = [
+        { type: LlmEventType.MessageStart },
+        { type: LlmEventType.Text, text: 'Hello' },
+        { type: LlmEventType.Finished, stopReason: 'end_turn' },
+        {
+          type: LlmEventType.MessageEnd,
+          usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+        } as LlmEvent,
+      ];
+
+      async function* mockStream(): LlmEventStream {
+        for (const event of streamEvents) {
+          yield event;
+        }
+      }
+      wrapped.llmGenerateContentStream = vi.fn().mockReturnValue(mockStream());
+
+      const stream = loggingContentGenerator.llmGenerateContentStream(
+        mockLlmRequest,
+        userPromptId,
+      );
+      for await (const _event of stream) {
+        // consume
+      }
+
+      expect(mockQuotaService.update).not.toHaveBeenCalled();
+    });
+  });
 });

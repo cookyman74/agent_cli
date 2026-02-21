@@ -164,6 +164,7 @@ export class OpenAiAdapter extends BaseAdapter {
 
         const state = converter.createStreamState();
         let chunkIndex = 0;
+        let messageEndEmitted = false;
         for await (const chunk of stream) {
           const events = converter.convertStreamEvent(chunk, state);
           for (const event of events) {
@@ -172,13 +173,23 @@ export class OpenAiAdapter extends BaseAdapter {
                 `[OpenAI stream] chunk#${chunkIndex} TextDelta: "${event.text.substring(0, 80)}"`,
               );
             }
-            if (event.type === LlmEventType.MessageEnd && rateLimits) {
-              yield { ...event, rateLimits };
+            if (event.type === LlmEventType.MessageEnd) {
+              messageEndEmitted = true;
+              yield rateLimits ? { ...event, rateLimits } : event;
             } else {
               yield event;
             }
           }
           chunkIndex++;
+        }
+
+        // Fallback: openai-compatible servers may not send usage-only final chunk.
+        // Emit a synthetic MessageEnd so downstream consumers always get it.
+        if (!messageEndEmitted) {
+          yield {
+            type: LlmEventType.MessageEnd as const,
+            ...(rateLimits && { rateLimits }),
+          };
         }
       } catch (error) {
         const classified = classify(error);

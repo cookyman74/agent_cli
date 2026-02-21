@@ -121,6 +121,14 @@ const createInitialMetrics = (): SessionMetrics => ({
   },
 });
 
+export interface ProviderSummary {
+  provider: string;
+  totalRequests: number;
+  totalErrors: number;
+  totalTokens: number;
+  totalLatencyMs: number;
+}
+
 export class UiTelemetryService extends EventEmitter {
   #metrics: SessionMetrics = createInitialMetrics();
   #lastPromptTokenCount = 0;
@@ -161,6 +169,27 @@ export class UiTelemetryService extends EventEmitter {
       metrics: this.#metrics,
       lastPromptTokenCount: this.#lastPromptTokenCount,
     });
+  }
+
+  getProviderSummary(): Record<string, ProviderSummary> {
+    const summary: Record<string, ProviderSummary> = {};
+    for (const [key, metrics] of Object.entries(this.#metrics.models)) {
+      const { provider } = parseCompositeKey(key);
+      if (!summary[provider]) {
+        summary[provider] = {
+          provider,
+          totalRequests: 0,
+          totalErrors: 0,
+          totalTokens: 0,
+          totalLatencyMs: 0,
+        };
+      }
+      summary[provider].totalRequests += metrics.api.totalRequests;
+      summary[provider].totalErrors += metrics.api.totalErrors;
+      summary[provider].totalTokens += metrics.tokens.total;
+      summary[provider].totalLatencyMs += metrics.api.totalLatencyMs;
+    }
+    return summary;
   }
 
   private getOrCreateModelMetrics(modelName: string): ModelMetrics {

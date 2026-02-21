@@ -131,4 +131,49 @@ describe('statsCommand', () => {
       }),
     );
   });
+
+  // ==========================================================================
+  // Phase 4 F4-1: --provider filter flag
+  // ==========================================================================
+
+  it('should parse --provider flag and set providerFilter on statsItem', async () => {
+    if (!statsCommand.action) throw new Error('Command has no action');
+
+    await statsCommand.action(mockContext, '--provider claude');
+
+    const expectedDuration = formatDuration(
+      endTime.getTime() - startTime.getTime(),
+    );
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: MessageType.STATS,
+        duration: expectedDuration,
+        providerFilter: 'claude',
+      }),
+    );
+  });
+
+  it('should not set providerFilter when --provider flag is absent', async () => {
+    if (!statsCommand.action) throw new Error('Command has no action');
+
+    await statsCommand.action(mockContext, '');
+
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        providerFilter: expect.anything(),
+      }),
+    );
+  });
+
+  it('should normalize --provider value to lowercase', async () => {
+    if (!statsCommand.action) throw new Error('Command has no action');
+
+    await statsCommand.action(mockContext, '--provider OPENAI');
+
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerFilter: 'openai',
+      }),
+    );
+  });
 });

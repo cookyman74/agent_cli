@@ -15,6 +15,13 @@ export {
   type ProviderModelInfo,
   type ProviderModelGroup,
 } from './config/providerModels.js';
+export {
+  MODEL_PRICING,
+  estimateCost,
+  formatCostString,
+  type ModelPricing,
+  type CostEstimate,
+} from './config/costEstimation.js';
 export * from './output/types.js';
 export * from './output/json-formatter.js';
 export * from './output/stream-json-formatter.js';

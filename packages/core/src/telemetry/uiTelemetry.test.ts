@@ -1119,3 +1119,145 @@ describe('processApiError composite key + provider (Phase 1)', () => {
     expect(metrics.models['gemini::gemini-2.5-pro'].api.totalErrors).toBe(1);
   });
 });
+
+// =========================================================================
+// Phase 4 F4-4: getProviderSummary aggregation
+// =========================================================================
+
+describe('getProviderSummary (Phase 4 F4-4)', () => {
+  let service: UiTelemetryService;
+
+  beforeEach(() => {
+    service = new UiTelemetryService();
+  });
+
+  it('should return empty object when no models exist', () => {
+    const summary = service.getProviderSummary();
+    expect(summary).toEqual({});
+  });
+
+  it('should aggregate multiple models from single provider', () => {
+    const event1 = {
+      'event.name': EVENT_API_RESPONSE,
+      model: 'gemini-2.5-pro',
+      duration_ms: 500,
+      usage: {
+        input_token_count: 100,
+        output_token_count: 50,
+        total_token_count: 150,
+        cached_content_token_count: 10,
+        thoughts_token_count: 0,
+        tool_token_count: 0,
+      },
+    } as ApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE };
+
+    const event2 = {
+      'event.name': EVENT_API_RESPONSE,
+      model: 'gemini-2.5-flash',
+      duration_ms: 300,
+      usage: {
+        input_token_count: 50,
+        output_token_count: 25,
+        total_token_count: 75,
+        cached_content_token_count: 5,
+        thoughts_token_count: 0,
+        tool_token_count: 0,
+      },
+    } as ApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE };
+
+    service.addEvent(event1);
+    service.addEvent(event2);
+
+    const summary = service.getProviderSummary();
+    expect(summary['gemini']).toEqual({
+      provider: 'gemini',
+      totalRequests: 2,
+      totalErrors: 0,
+      totalTokens: 225, // 150 + 75
+      totalLatencyMs: 800, // 500 + 300
+    });
+    expect(Object.keys(summary)).toHaveLength(1);
+  });
+
+  it('should aggregate independently per provider', () => {
+    // Gemini event
+    const geminiEvent = {
+      'event.name': EVENT_API_RESPONSE,
+      model: 'gemini-2.5-pro',
+      duration_ms: 500,
+      usage: {
+        input_token_count: 100,
+        output_token_count: 50,
+        total_token_count: 150,
+        cached_content_token_count: 10,
+        thoughts_token_count: 0,
+        tool_token_count: 0,
+      },
+    } as ApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE };
+
+    // Claude event
+    const claudeEvent = {
+      ...new ProviderApiResponseEvent({
+        model: 'claude-sonnet-4',
+        durationMs: 400,
+        promptId: 'p1',
+        usage: { promptTokens: 80, completionTokens: 40, totalTokens: 120 },
+        provider: 'claude',
+      }),
+      'event.name': EVENT_API_RESPONSE,
+    } as unknown as Parameters<typeof service.addEvent>[0];
+
+    // OpenAI event
+    const openaiEvent = {
+      ...new ProviderApiResponseEvent({
+        model: 'gpt-5.2',
+        durationMs: 600,
+        promptId: 'p2',
+        usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
+        provider: 'openai',
+      }),
+      'event.name': EVENT_API_RESPONSE,
+    } as unknown as Parameters<typeof service.addEvent>[0];
+
+    // Gemini error event
+    const geminiErrorEvent = {
+      'event.name': EVENT_API_ERROR,
+      model: 'gemini-2.5-pro',
+      duration_ms: 100,
+      error: 'Server error',
+    } as ApiErrorEvent & { 'event.name': typeof EVENT_API_ERROR };
+
+    service.addEvent(geminiEvent);
+    service.addEvent(claudeEvent);
+    service.addEvent(openaiEvent);
+    service.addEvent(geminiErrorEvent);
+
+    const summary = service.getProviderSummary();
+
+    expect(Object.keys(summary)).toHaveLength(3);
+
+    expect(summary['gemini']).toEqual({
+      provider: 'gemini',
+      totalRequests: 2, // 1 success + 1 error
+      totalErrors: 1,
+      totalTokens: 150,
+      totalLatencyMs: 600, // 500 + 100
+    });
+
+    expect(summary['claude']).toEqual({
+      provider: 'claude',
+      totalRequests: 1,
+      totalErrors: 0,
+      totalTokens: 120,
+      totalLatencyMs: 400,
+    });
+
+    expect(summary['openai']).toEqual({
+      provider: 'openai',
+      totalRequests: 1,
+      totalErrors: 0,
+      totalTokens: 300,
+      totalLatencyMs: 600,
+    });
+  });
+});

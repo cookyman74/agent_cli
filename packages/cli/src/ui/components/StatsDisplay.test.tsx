@@ -896,4 +896,272 @@ describe('<StatsDisplay />', () => {
       expect(output).not.toContain('Provider Rate Limits');
     });
   });
+
+  // ==========================================================================
+  // Phase 4 F4-1: providerFilter prop
+  // ==========================================================================
+
+  describe('providerFilter', () => {
+    it('should only show models matching providerFilter', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 3, totalErrors: 0, totalLatencyMs: 15000 },
+            tokens: {
+              input: 500,
+              prompt: 1000,
+              candidates: 2000,
+              total: 3000,
+              cached: 500,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+          'claude::claude-sonnet-4': {
+            provider: 'claude',
+            api: { totalRequests: 2, totalErrors: 0, totalLatencyMs: 8000 },
+            tokens: {
+              input: 300,
+              prompt: 600,
+              candidates: 1000,
+              total: 1600,
+              cached: 300,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      useSessionStatsMock.mockReturnValue({
+        stats: {
+          sessionId: 'test-session-id',
+          sessionStartTime: new Date(),
+          metrics,
+          lastPromptTokenCount: 0,
+          promptCount: 5,
+        },
+        getPromptCount: () => 5,
+        startNewPrompt: vi.fn(),
+      });
+
+      const { lastFrame } = render(
+        <StatsDisplay duration="1s" providerFilter="claude" />,
+      );
+      const output = lastFrame();
+
+      // Only claude model should be visible
+      expect(output).toContain('claude-sonnet-4');
+      // Gemini model should NOT be visible
+      expect(output).not.toContain('gemini-2.5-pro');
+    });
+
+    it('should show empty table when providerFilter matches no models', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+            tokens: {
+              input: 50,
+              prompt: 100,
+              candidates: 100,
+              total: 250,
+              cached: 50,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      useSessionStatsMock.mockReturnValue({
+        stats: {
+          sessionId: 'test-session-id',
+          sessionStartTime: new Date(),
+          metrics,
+          lastPromptTokenCount: 0,
+          promptCount: 5,
+        },
+        getPromptCount: () => 5,
+        startNewPrompt: vi.fn(),
+      });
+
+      const { lastFrame } = render(
+        <StatsDisplay duration="1s" providerFilter="openai" />,
+      );
+      const output = lastFrame();
+
+      // No model rows should appear
+      expect(output).not.toContain('gemini-2.5-pro');
+      // Model Usage table header should not appear either
+      expect(output).not.toContain('Model Usage');
+    });
+  });
+
+  // ==========================================================================
+  // Phase 4 F4-3: Provider subtotal rows
+  // ==========================================================================
+
+  describe('Provider Subtotal Rows', () => {
+    it('should show subtotal rows for providers with 2+ models in multi-provider', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 3, totalErrors: 0, totalLatencyMs: 15000 },
+            tokens: {
+              input: 500,
+              prompt: 1000,
+              candidates: 2000,
+              total: 3000,
+              cached: 500,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+          'gemini::gemini-2.5-flash': {
+            provider: 'gemini',
+            api: { totalRequests: 5, totalErrors: 0, totalLatencyMs: 4500 },
+            tokens: {
+              input: 1000,
+              prompt: 2000,
+              candidates: 3000,
+              total: 5000,
+              cached: 1000,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+          'claude::claude-sonnet-4': {
+            provider: 'claude',
+            api: { totalRequests: 2, totalErrors: 0, totalLatencyMs: 8000 },
+            tokens: {
+              input: 300,
+              prompt: 600,
+              candidates: 1000,
+              total: 1600,
+              cached: 300,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const { lastFrame } = renderWithMockedStats(metrics);
+      const output = lastFrame();
+
+      // Gemini has 2 models → should show subtotal
+      expect(output).toContain('gemini Subtotal');
+      // Claude has 1 model → should NOT show subtotal
+      expect(output).not.toContain('claude Subtotal');
+    });
+
+    it('should NOT show subtotal rows for single-provider scenario', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 3, totalErrors: 0, totalLatencyMs: 15000 },
+            tokens: {
+              input: 500,
+              prompt: 1000,
+              candidates: 2000,
+              total: 3000,
+              cached: 500,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+          'gemini::gemini-2.5-flash': {
+            provider: 'gemini',
+            api: { totalRequests: 5, totalErrors: 0, totalLatencyMs: 4500 },
+            tokens: {
+              input: 1000,
+              prompt: 2000,
+              candidates: 3000,
+              total: 5000,
+              cached: 1000,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const { lastFrame } = renderWithMockedStats(metrics);
+      const output = lastFrame();
+
+      // Single provider → no subtotals
+      expect(output).not.toContain('Subtotal');
+    });
+  });
+
+  // ==========================================================================
+  // Phase 4 F4-2: Cost estimation display
+  // ==========================================================================
+
+  describe('Cost Estimation Display', () => {
+    it('should show Estimated Cost when models have known pricing', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'gemini::gemini-2.5-pro': {
+            provider: 'gemini',
+            api: { totalRequests: 3, totalErrors: 0, totalLatencyMs: 15000 },
+            tokens: {
+              input: 1_000_000,
+              prompt: 1_000_000,
+              candidates: 500_000,
+              total: 1_500_000,
+              cached: 200_000,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const { lastFrame } = renderWithMockedStats(metrics);
+      const output = lastFrame();
+
+      expect(output).toContain('Estimated Cost');
+    });
+
+    it('should NOT show Estimated Cost when no models have known pricing', () => {
+      const metrics = createTestMetrics({
+        models: {
+          'custom::unknown-model': {
+            provider: 'custom',
+            api: { totalRequests: 1, totalErrors: 0, totalLatencyMs: 100 },
+            tokens: {
+              input: 1000,
+              prompt: 1000,
+              candidates: 500,
+              total: 1500,
+              cached: 0,
+              cacheCreation: 0,
+              thoughts: 0,
+              tool: 0,
+            },
+          },
+        },
+      });
+
+      const { lastFrame } = renderWithMockedStats(metrics);
+      const output = lastFrame();
+
+      expect(output).not.toContain('Estimated Cost');
+    });
+  });
 });

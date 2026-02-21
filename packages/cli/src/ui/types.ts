@@ -165,6 +165,7 @@ export type HistoryItemHelp = HistoryItemBase & {
 export type HistoryItemStats = HistoryItemBase & {
   type: 'stats';
   duration: string;
+  providerFilter?: string;
   quotas?: RetrieveUserQuotaResponse;
   providerQuotas?: Record<string, ProviderQuota>;
 };

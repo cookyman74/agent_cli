@@ -121,6 +121,7 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
       {itemForDisplay.type === 'stats' && (
         <StatsDisplay
           duration={itemForDisplay.duration}
+          providerFilter={itemForDisplay.providerFilter}
           quotas={itemForDisplay.quotas}
           providerQuotas={itemForDisplay.providerQuotas}
         />

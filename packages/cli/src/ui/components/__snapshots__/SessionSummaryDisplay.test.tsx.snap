@@ -24,5 +24,7 @@ exports[`<SessionSummaryDisplay /> > renders the summary display with a title 1`
 │                                                                                                  │
 │  Savings Highlight: 500 (50.0%) of input tokens were served from the cache, reducing costs.      │
 │                                                                                                  │
+│  Estimated Cost: $0.02                                                                           │
+│                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;

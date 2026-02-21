@@ -26,6 +26,9 @@ import {
   type ProviderQuota,
   PROVIDER_MODEL_REGISTRY,
   parseCompositeKey,
+  groupModelsByProvider,
+  estimateCost,
+  formatCostString,
 } from '@didim365/agent-cli-core';
 
 // A more flexible and powerful StatRow component
@@ -106,22 +109,56 @@ const buildModelRows = (
       .map(getModelId),
   );
 
-  // 1. Models with active usage
-  const activeRows = Object.entries(models).map(([name, metrics]) => {
+  const makeActiveRow = (name: string, metrics: ModelMetrics) => {
     const modelId = getModelId(name);
-    const cachedTokens = metrics.tokens.cached;
-    const inputTokens = metrics.tokens.input;
     return {
       key: name,
       modelName: getDisplayName(name),
-      requests: metrics.api.totalRequests,
-      cachedTokens: cachedTokens.toLocaleString(),
-      inputTokens: inputTokens.toLocaleString(),
+      requests: metrics.api.totalRequests as number | string,
+      cachedTokens: metrics.tokens.cached.toLocaleString(),
+      inputTokens: metrics.tokens.input.toLocaleString(),
       outputTokens: metrics.tokens.candidates.toLocaleString(),
       bucket: quotas?.buckets?.find((b) => b.modelId === modelId),
       isActive: true,
+      isSubtotal: false,
     };
-  });
+  };
+
+  // 1. Group models by provider and build rows with optional subtotals
+  const providerGroups = groupModelsByProvider(models);
+  const activeRows: Array<ReturnType<typeof makeActiveRow>> = [];
+
+  for (const [provider, entries] of Object.entries(providerGroups)) {
+    const providerRows = entries.map(([name, metrics]) =>
+      makeActiveRow(name, metrics),
+    );
+    activeRows.push(...providerRows);
+
+    // Add subtotal row when multi-provider and provider has 2+ models
+    if (hasMultipleProviders && entries.length >= 2) {
+      const subtotalReqs = entries.reduce(
+        (s, [, m]) => s + m.api.totalRequests,
+        0,
+      );
+      activeRows.push({
+        key: `subtotal::${provider}`,
+        modelName: `${provider} Subtotal`,
+        requests: subtotalReqs,
+        cachedTokens: entries
+          .reduce((s, [, m]) => s + m.tokens.cached, 0)
+          .toLocaleString(),
+        inputTokens: entries
+          .reduce((s, [, m]) => s + m.tokens.input, 0)
+          .toLocaleString(),
+        outputTokens: entries
+          .reduce((s, [, m]) => s + m.tokens.candidates, 0)
+          .toLocaleString(),
+        bucket: undefined,
+        isActive: true,
+        isSubtotal: true,
+      });
+    }
+  }
 
   // 2. Models with quota only (registered Gemini models only)
   const quotaRows =
@@ -135,12 +172,13 @@ const buildModelRows = (
       .map((bucket) => ({
         key: bucket.modelId!,
         modelName: bucket.modelId!,
-        requests: '-',
+        requests: '-' as number | string,
         cachedTokens: '-',
         inputTokens: '-',
         outputTokens: '-',
         bucket,
         isActive: false,
+        isSubtotal: false,
       })) || [];
 
   return [...activeRows, ...quotaRows];
@@ -283,7 +321,12 @@ const ModelUsageTable: React.FC<{
       {rows.map((row) => (
         <Box key={row.key}>
           <Box width={nameWidth}>
-            <Text color={theme.text.primary} wrap="truncate-end">
+            <Text
+              bold={row.isSubtotal}
+              dimColor={row.isSubtotal}
+              color={theme.text.primary}
+              wrap="truncate-end"
+            >
               {row.modelName}
             </Text>
           </Box>
@@ -422,6 +465,7 @@ const ProviderQuotaSection: React.FC<{
 interface StatsDisplayProps {
   duration: string;
   title?: string;
+  providerFilter?: string;
   quotas?: RetrieveUserQuotaResponse;
   providerQuotas?: Record<string, ProviderQuota>;
 }
@@ -429,13 +473,23 @@ interface StatsDisplayProps {
 export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   duration,
   title,
+  providerFilter,
   quotas,
   providerQuotas,
 }) => {
   const { stats } = useSessionStats();
   const { metrics } = stats;
-  const { models, tools, files } = metrics;
-  const computed = computeSessionStats(metrics);
+  const { models: allModels, tools, files } = metrics;
+
+  // F4-1: filter models by provider when --provider flag is used
+  const models = providerFilter
+    ? Object.fromEntries(
+        Object.entries(allModels).filter(
+          ([key]) => parseCompositeKey(key).provider === providerFilter,
+        ),
+      )
+    : allModels;
+  const computed = computeSessionStats({ models, tools, files });
 
   const successThresholds = {
     green: TOOL_SUCCESS_RATE_HIGH,
@@ -545,6 +599,21 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         cacheEfficiency={computed.cacheEfficiency}
         totalCachedTokens={computed.totalCachedTokens}
       />
+      {(() => {
+        const costEstimate = estimateCost(models, parseCompositeKey);
+        return (
+          costEstimate.totalCost > 0 && (
+            <Box marginTop={1}>
+              <Text color={theme.text.primary}>
+                Estimated Cost:{' '}
+                <Text color={theme.text.accent}>
+                  {formatCostString(costEstimate)}
+                </Text>
+              </Text>
+            </Box>
+          )
+        );
+      })()}
       {providerQuotas && Object.keys(providerQuotas).length > 0 && (
         <ProviderQuotaSection providerQuotas={providerQuotas} />
       )}

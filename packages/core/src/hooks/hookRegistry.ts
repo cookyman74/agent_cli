@@ -137,16 +137,25 @@ please review the project settings (.didim/settings.json) and remove them.`;
       this.checkProjectHooksTrust();
     }
 
+    const isTrusted = this.config.isTrustedFolder();
+
     // Get hooks from the main config (this comes from the merged settings)
     const configHooks = this.config.getHooks();
     if (configHooks) {
-      if (this.config.isTrustedFolder()) {
+      if (isTrusted) {
         this.processHooksConfiguration(configHooks, ConfigSource.Project);
       } else {
         debugLogger.warn(
           'Project hooks disabled because the folder is not trusted.',
         );
       }
+    }
+
+    // Also process workspace-level project hooks (may contain definitions
+    // that the merged settings lost due to schema default [] override)
+    const projectHooks = this.config.getProjectHooks();
+    if (projectHooks && isTrusted) {
+      this.processHooksConfiguration(projectHooks, ConfigSource.Project);
     }
 
     // Get hooks from extensions

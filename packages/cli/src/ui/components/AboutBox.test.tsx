@@ -20,6 +20,7 @@ describe('AboutBox', () => {
     sandboxEnv: 'default',
     modelVersion: 'gemini-pro',
     selectedAuthType: 'oauth',
+    selectedProvider: '',
     gcpProject: '',
     ideClient: '',
   };
@@ -27,7 +28,7 @@ describe('AboutBox', () => {
   it('renders with required props', () => {
     const { lastFrame } = render(<AboutBox {...defaultProps} />);
     const output = lastFrame();
-    expect(output).toContain('About Gemini CLI');
+    expect(output).toContain('About Didim Agent-cli');
     expect(output).toContain('1.0.0');
     expect(output).toContain('mock-commit-hash');
     expect(output).toContain('gemini-pro');
@@ -37,6 +38,7 @@ describe('AboutBox', () => {
   });
 
   it.each([
+    ['selectedProvider', 'anthropic', 'Provider'],
     ['gcpProject', 'my-project', 'GCP Project'],
     ['ideClient', 'vscode', 'IDE Client'],
     ['tier', 'Enterprise', 'Tier'],

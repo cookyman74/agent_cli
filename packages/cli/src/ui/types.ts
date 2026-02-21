@@ -151,6 +151,7 @@ export type HistoryItemAbout = HistoryItemBase & {
   sandboxEnv: string;
   modelVersion: string;
   selectedAuthType: string;
+  selectedProvider: string;
   gcpProject: string;
   ideClient: string;
   userEmail?: string;
@@ -378,6 +379,7 @@ export type Message =
       sandboxEnv: string;
       modelVersion: string;
       selectedAuthType: string;
+      selectedProvider?: string;
       gcpProject: string;
       ideClient: string;
       userEmail?: string;

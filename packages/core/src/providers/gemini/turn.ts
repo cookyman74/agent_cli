@@ -278,9 +278,7 @@ export class Turn {
     fnCall: FunctionCall,
     traceId?: string,
   ): LlmEvent | null {
-    const callId =
-      fnCall.id ??
-      `${fnCall.name}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const callId = fnCall.id ?? crypto.randomUUID();
     const name = fnCall.name || 'undefined_tool_name';
     const args = fnCall.args || {};
 

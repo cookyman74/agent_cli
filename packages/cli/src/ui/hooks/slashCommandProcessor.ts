@@ -185,6 +185,7 @@ export const useSlashCommandProcessor = (
           sandboxEnv: message.sandboxEnv,
           modelVersion: message.modelVersion,
           selectedAuthType: message.selectedAuthType,
+          selectedProvider: message.selectedProvider ?? '',
           gcpProject: message.gcpProject,
           ideClient: message.ideClient,
         };

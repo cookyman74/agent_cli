@@ -176,8 +176,11 @@ describe('Turn', () => {
           promptId: 'prompt-id-1',
         }),
       );
+      // Fallback ID is now crypto.randomUUID() (max 36 chars, within OpenAI's 40-char limit)
       expect(event2.callId).toEqual(
-        expect.stringMatching(/^tool2-\d{13}-\w{10,}$/),
+        expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        ),
       );
       expect(turn.pendingToolCalls[1]).toEqual(
         expect.objectContaining({

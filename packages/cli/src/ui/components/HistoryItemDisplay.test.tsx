@@ -118,13 +118,14 @@ describe('<HistoryItemDisplay />', () => {
       sandboxEnv: 'test-env',
       modelVersion: 'test-model',
       selectedAuthType: 'test-auth',
+      selectedProvider: '',
       gcpProject: 'test-project',
       ideClient: 'test-ide',
     };
     const { lastFrame } = renderWithProviders(
       <HistoryItemDisplay {...baseItem} item={item} />,
     );
-    expect(lastFrame()).toContain('About Gemini CLI');
+    expect(lastFrame()).toContain('About Didim Agent-cli');
   });
 
   it('renders ModelStatsDisplay for "model_stats" type', () => {

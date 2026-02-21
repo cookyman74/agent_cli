@@ -2953,8 +2953,8 @@ ${JSON.stringify(
           'Hook Response',
         );
 
-        // Map should be empty
-        expect(client['hookStateMap'].size).toBe(0);
+        // hookState persists until next prompt_id arrives (not deleted in finally)
+        expect(client['hookStateMap'].size).toBe(1);
       });
 
       it('should fire BeforeAgent once and AfterAgent once even with recursion', async () => {
@@ -2994,7 +2994,8 @@ ${JSON.stringify(
           'Response 1\nResponse 2',
         );
 
-        expect(client['hookStateMap'].size).toBe(0);
+        // hookState persists until next prompt_id arrives (not deleted in finally)
+        expect(client['hookStateMap'].size).toBe(1);
       });
 
       it('should use original request in AfterAgent hook even when continuation happened', async () => {

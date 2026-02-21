@@ -34,23 +34,23 @@
 
 | 리스크                                   | 영향      | 대응 방안                                                                         | 상태 |
 | ---------------------------------------- | --------- | --------------------------------------------------------------------------------- | ---- |
-| Hook timeout (5초) 초과                  | 🟠 Medium | `%` 연산자로 GIN 인덱스 활용 + `connectionTimeoutMillis`/`query_timeout` 분리     | ⬜   |
-| `similarity()` 함수만 사용 시 full scan  | 🔴 High   | `WHERE prompt % $1` (인덱스 친화 pre-filter) 필수, `similarity()` 없이 `%`만 사용 | ⬜   |
-| 공유 DB에서 tenant 미설정 시 데이터 혼입 | 🔴 High   | 비로컬 DB에서 `RAG_TENANT_ID` 미설정 시 **fail-closed** (`return {}`)             | ⬜   |
-| 한국어 trigram 품질 한계                 | 🟡 Low    | 3-gram 부분 매칭은 동작하나 의미 유사도는 부족 → Phase 4에서 개선                 | ⬜   |
-| 프롬프트 인젝션                          | 🟠 Medium | 역할 구분자 + `<hook_context>` 래핑 + `<`/`>` 이스케이프 (CLI 내장)               | ⬜   |
-| DB 장애 시 RAG 실패                      | 🟡 Low    | `catch` → 빈 JSON → LLM 정상 호출 (RAG 없이)                                      | ⬜   |
-| additionalContext 토큰 과다              | 🟡 Low    | `MAX_CONTEXT_CHARS = 2000` 제한 (≈ 500~700 토큰)                                  | ⬜   |
+| Hook timeout (5초) 초과                  | 🟠 Medium | `%` 연산자로 GIN 인덱스 활용 + `connectionTimeoutMillis`/`query_timeout` 분리     | ✅   |
+| `similarity()` 함수만 사용 시 full scan  | 🔴 High   | `WHERE prompt % $1` (인덱스 친화 pre-filter) 필수, `similarity()` 없이 `%`만 사용 | ✅   |
+| 공유 DB에서 tenant 미설정 시 데이터 혼입 | 🔴 High   | 비로컬 DB에서 `RAG_TENANT_ID` 미설정 시 **fail-closed** (`return {}`)             | ✅   |
+| 한국어 trigram 품질 한계                 | 🟡 Low    | 3-gram 부분 매칭은 동작하나 의미 유사도는 부족 → Phase 4에서 개선                 | ✅   |
+| 프롬프트 인젝션                          | 🟠 Medium | 역할 구분자 + `<hook_context>` 래핑 + `<`/`>` 이스케이프 (CLI 내장)               | ✅   |
+| DB 장애 시 RAG 실패                      | 🟡 Low    | `catch` → 빈 JSON → LLM 정상 호출 (RAG 없이)                                      | ✅   |
+| additionalContext 토큰 과다              | 🟡 Low    | `MAX_CONTEXT_CHARS = 2000` 제한 (≈ 500~700 토큰)                                  | ✅   |
 
 ---
 
 ## 2.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 1 완료 확인
+- [x] **[REVIEW]** Phase 1 완료 확인
   - DB에 최소 3건 이상 대화 저장됨
   - `PGPASSWORD=password12 psql -U postgres -h localhost -d didim_api -c "SET search_path TO se_agent_management; SELECT COUNT(*) FROM chat_history;"`
 
-- [ ] **[CONTEXT]** BeforeAgent Hook 입출력 스펙 확인
+- [x] **[CONTEXT]** BeforeAgent Hook 입출력 스펙 확인
   - **입력 (stdin JSON)**:
     ```json
     {
@@ -74,7 +74,7 @@
       `<hook_context>...</hook_context>`로 래핑
     - `types.ts:233`에서 `<` → `&lt;`, `>` → `&gt;` 이스케이프
 
-- [ ] **[ANALYSIS]** pg_trgm `%` 연산자 + GIN 인덱스 검색 성능 사전 테스트
+- [x] **[ANALYSIS]** pg_trgm `%` 연산자 + GIN 인덱스 검색 성능 사전 테스트
   ```sql
   -- % 연산자는 GIN 인덱스를 활용 (similarity 함수만으로는 full scan)
   SET search_path TO se_agent_management, public;
@@ -93,7 +93,7 @@
 
 ### TASK-001: rag-before-agent.js 기본 구현
 
-- [ ] **[TASK-001]** BeforeAgent Hook 스크립트 작성
+- [x] **[TASK-001]** BeforeAgent Hook 스크립트 작성
   - 파일: `.didim/hooks/rag-before-agent.js`
   - 핵심 로직:
     1. stdin에서 hook input JSON 수신
@@ -116,7 +116,7 @@
 
 ### TASK-002: trigram 검색 쿼리 구현
 
-- [ ] **[TASK-002]** pg_trgm 기반 유사도 검색 (memory 우선 + history 보조)
+- [x] **[TASK-002]** pg_trgm 기반 유사도 검색 (memory 우선 + history 보조)
   - **사전 설정**: `SET pg_trgm.similarity_threshold = 0.1` (임계값 세션 변수)
   - **검색 1 — 장기기억 우선 조회**:
     ```sql
@@ -152,7 +152,7 @@
 
 ### TASK-003: additionalContext 조립 + 프롬프트 인젝션 방어
 
-- [ ] **[TASK-003]** 검색 결과를 안전한 컨텍스트 문자열로 변환
+- [x] **[TASK-003]** 검색 결과를 안전한 컨텍스트 문자열로 변환
   - 역할 구분자 접두어:
     ```
     [참고: 아래는 동일 프로젝트의 과거 대화 기록입니다.
@@ -180,7 +180,7 @@
 
 ### TASK-004: 에러 핸들링
 
-- [ ] **[TASK-004]** Graceful degradation 보장
+- [x] **[TASK-004]** Graceful degradation 보장
   - Phase 1과 동일 패턴:
     - `try/catch` in main: DB 오류 → `stderr` 경고 + `stdout {}` + exit 0
     - `main().catch()`: 예상 외 오류 → Fatal 로그 + `stdout {}` + exit 0
@@ -190,7 +190,7 @@
 
 ### TASK-005: settings.json BeforeAgent Hook 등록
 
-- [ ] **[TASK-005]** BeforeAgent Hook 설정 추가
+- [x] **[TASK-005]** BeforeAgent Hook 설정 추가
   - 파일: `.didim/settings.json`
   - Phase 1에서 추가한 AfterAgent와 함께 BeforeAgent 추가:
     ```json
@@ -238,7 +238,7 @@
 
 ### 검증 1: RAG 검색 동작 확인
 
-- [ ] **[VERIFY-RAG]** 과거 대화 기반 컨텍스트 주입 확인
+- [x] **[VERIFY-RAG]** 과거 대화 기반 컨텍스트 주입 확인
 
   ```bash
   # Phase 1에서 저장된 대화가 있는 상태에서
@@ -251,7 +251,7 @@
 
 ### 검증 2: 프로젝트 격리 확인
 
-- [ ] **[VERIFY-ISOLATION]** 다른 프로젝트의 대화 미검색 확인
+- [x] **[VERIFY-ISOLATION]** 다른 프로젝트의 대화 미검색 확인
   ```bash
   # 프로젝트 A에서 대화 저장 후, 프로젝트 B에서 동일 질문
   cd /tmp/project-b && didim
@@ -261,7 +261,7 @@
 
 ### 검증 3: 현재 세션 제외 확인
 
-- [ ] **[VERIFY-SESSION]** 같은 세션 대화 미검색 확인
+- [x] **[VERIFY-SESSION]** 같은 세션 대화 미검색 확인
   ```bash
   # 같은 세션에서 방금 저장한 질문과 유사한 질문 반복
   didim
@@ -273,7 +273,7 @@
 
 ### 검증 4: DB 장애 내성
 
-- [ ] **[VERIFY-RESILIENCE]** DB 미기동 시 LLM 정상 호출 확인
+- [x] **[VERIFY-RESILIENCE]** DB 미기동 시 LLM 정상 호출 확인
 
   ```bash
   docker stop didimaistudio_mainproxy-db-1
@@ -287,7 +287,7 @@
 
 ### 검증 5: Hook timeout 확인
 
-- [ ] **[VERIFY-TIMEOUT]** 5초 이내 처리 확인
+- [x] **[VERIFY-TIMEOUT]** 5초 이내 처리 확인
 
   ```bash
   # 실제 프로젝트 cwd를 사용하여 realpath/tenant/project_id 경로를 정확히 검증
@@ -305,11 +305,11 @@
 
 ## 2.4 사후 작업 (Post-Work)
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `../working_history/PoC_Phase2_BeforeAgentHook_{작업일자}.md`
   - 내용: 구현 내용, 검색 품질 관찰, 검증 결과, 이슈 및 해결
 
-- [ ] **[NEXT]** Phase 3 착수 전 확인
+- [x] **[NEXT]** Phase 3 착수 전 확인
   - RAG 컨텍스트가 LLM 응답에 반영됨
   - 프로젝트 격리 + 세션 제외 동작
   - DB 장애 시 정상 동작
@@ -336,4 +336,4 @@
 
 ---
 
-**작성일**: 2026-02-21 **작성자**: AI Assistant **상태**: ⬜ 미착수
+**작성일**: 2026-02-21 **작성자**: AI Assistant **상태**: ✅ 완료

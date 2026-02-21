@@ -3,6 +3,19 @@
     "enabled": true
   },
   "hooks": {
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "name": "rag-before-agent",
+            "command": "node \"./.didim/hooks/rag-before-agent.js\"",
+            "description": "장기기억 + 과거 대화 RAG 검색 → 컨텍스트 주입",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
     "AfterAgent": [
       {
         "hooks": [

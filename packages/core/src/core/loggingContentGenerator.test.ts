@@ -696,7 +696,11 @@ describe('LoggingContentGenerator', () => {
     };
     const userPromptId = 'prompt-quota-1';
 
-    let mockQuotaService: { update: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn>; getAll: ReturnType<typeof vi.fn> };
+    let mockQuotaService: {
+      update: ReturnType<typeof vi.fn>;
+      get: ReturnType<typeof vi.fn>;
+      getAll: ReturnType<typeof vi.fn>;
+    };
 
     beforeEach(() => {
       (wrapped as unknown as Record<string, unknown>)['providerName'] =
@@ -765,9 +769,8 @@ describe('LoggingContentGenerator', () => {
         tokensRemaining: 95000,
       };
       const streamEvents: LlmEvent[] = [
-        { type: LlmEventType.MessageStart },
-        { type: LlmEventType.Text, text: 'Hello' },
-        { type: LlmEventType.Finished, stopReason: 'end_turn' },
+        { type: LlmEventType.TextDelta, text: 'Hello' } as LlmEvent,
+        { type: LlmEventType.Finished, finishReason: 'end_turn' } as LlmEvent,
         {
           type: LlmEventType.MessageEnd,
           usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
@@ -797,14 +800,13 @@ describe('LoggingContentGenerator', () => {
         rateLimits,
       );
       // Verify all events were passed through
-      expect(collected).toHaveLength(4);
+      expect(collected).toHaveLength(3);
     });
 
     it('should NOT call ProviderQuotaService when stream MessageEnd has no rateLimits', async () => {
       const streamEvents: LlmEvent[] = [
-        { type: LlmEventType.MessageStart },
-        { type: LlmEventType.Text, text: 'Hello' },
-        { type: LlmEventType.Finished, stopReason: 'end_turn' },
+        { type: LlmEventType.TextDelta, text: 'Hello' } as LlmEvent,
+        { type: LlmEventType.Finished, finishReason: 'end_turn' } as LlmEvent,
         {
           type: LlmEventType.MessageEnd,
           usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },

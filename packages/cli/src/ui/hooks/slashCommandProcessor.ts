@@ -143,9 +143,10 @@ export const useSlashCommandProcessor = (
   // Stable across renders; re-binding to content generator is handled by useEffect below.
   const providerQuotaService = useMemo(() => new ProviderQuotaService(), []);
 
-  // Re-bind ProviderQuotaService to content generator after auth refresh.
-  // Config object reference stays the same but internal contentGenerator can be
-  // replaced, so we track the last bound generator to detect changes.
+  // Bind ProviderQuotaService to content generator.
+  // Config stays the same reference but internal contentGenerator can be
+  // replaced after auth, so we track the last bound generator to detect changes.
+  // Runs when config or reloadTrigger changes (auth refresh triggers reloadTrigger).
   const lastBoundGeneratorRef = useRef<unknown>(null);
   useEffect(() => {
     if (!config) return;
@@ -158,7 +159,7 @@ export const useSlashCommandProcessor = (
       }
       lastBoundGeneratorRef.current = gen;
     }
-  });
+  }, [config, providerQuotaService, reloadTrigger]);
 
   const [pendingItem, setPendingItem] = useState<HistoryItemWithoutId | null>(
     null,

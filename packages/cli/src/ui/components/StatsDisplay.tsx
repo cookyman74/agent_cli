@@ -5,6 +5,7 @@
  */
 
 import type React from 'react';
+import { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { ThemedGradient } from './ThemedGradient.js';
 import { theme } from '../semantic-colors.js';
@@ -482,14 +483,27 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   const { models: allModels, tools, files } = metrics;
 
   // F4-1: filter models by provider when --provider flag is used
-  const models = providerFilter
-    ? Object.fromEntries(
-        Object.entries(allModels).filter(
-          ([key]) => parseCompositeKey(key).provider === providerFilter,
-        ),
-      )
-    : allModels;
-  const computed = computeSessionStats({ models, tools, files });
+  const models = useMemo(
+    () =>
+      providerFilter
+        ? Object.fromEntries(
+            Object.entries(allModels).filter(
+              ([key]) => parseCompositeKey(key).provider === providerFilter,
+            ),
+          )
+        : allModels,
+    [providerFilter, allModels],
+  );
+
+  const computed = useMemo(
+    () => computeSessionStats({ models, tools, files }),
+    [models, tools, files],
+  );
+
+  const costEstimate = useMemo(
+    () => estimateCost(models, parseCompositeKey),
+    [models],
+  );
 
   const successThresholds = {
     green: TOOL_SUCCESS_RATE_HIGH,
@@ -599,21 +613,16 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         cacheEfficiency={computed.cacheEfficiency}
         totalCachedTokens={computed.totalCachedTokens}
       />
-      {(() => {
-        const costEstimate = estimateCost(models, parseCompositeKey);
-        return (
-          costEstimate.totalCost > 0 && (
-            <Box marginTop={1}>
-              <Text color={theme.text.primary}>
-                Estimated Cost:{' '}
-                <Text color={theme.text.accent}>
-                  {formatCostString(costEstimate)}
-                </Text>
-              </Text>
-            </Box>
-          )
-        );
-      })()}
+      {costEstimate.totalCost > 0 && (
+        <Box marginTop={1}>
+          <Text color={theme.text.primary}>
+            Estimated Cost:{' '}
+            <Text color={theme.text.accent}>
+              {formatCostString(costEstimate)}
+            </Text>
+          </Text>
+        </Box>
+      )}
       {providerQuotas && Object.keys(providerQuotas).length > 0 && (
         <ProviderQuotaSection providerQuotas={providerQuotas} />
       )}

@@ -202,9 +202,24 @@ To build the entire project (all packages):
 npm run build
 ```
 
+To build a specific package only:
+
+```bash
+npm run build -w @didim365/agent-cli-core   # core package
+npm run build -w @didim365/agent-cli         # cli package
+```
+
 This command typically compiles TypeScript to JavaScript, bundles assets, and
 prepares the packages for execution. Refer to `scripts/build.js` and
 `package.json` scripts for more details on what happens during the build.
+
+> **WARNING: Do not run `tsc` or `tsc --build` directly from the project root.**
+> The root `tsconfig.json` exists solely for shared compiler option inheritance
+> and has no `outDir` configured. Running TypeScript compilation at the root
+> level will generate ~4,500 build artifacts (`.js`, `.d.ts`, `.js.map`) directly
+> alongside your source files, polluting the entire source tree. Always use `npm
+> run build` or run `tsc --build` from within a specific package directory
+> (e.g., `packages/core/`).
 
 ### Enabling sandboxing
 

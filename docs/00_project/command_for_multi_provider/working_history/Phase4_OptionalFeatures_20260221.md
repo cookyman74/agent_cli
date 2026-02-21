@@ -160,6 +160,44 @@ Lint:  0 issues
 11. ✅ 타입체크 + 린터 통과
 12. ✅ 기존 기능 미변경 (additive-only)
 
+## 부록: 루트 빌드에 의한 소스 디렉토리 오염 이슈
+
+### 발생 경위
+
+Phase 4 F4-2 구현 중 `costEstimation.ts` 컴파일 확인을 위해 **프로젝트 루트에서**
+다음 명령을 실행:
+
+```bash
+npx tsc --build --listEmittedFiles 2>&1 | grep "costEstimation"
+```
+
+### 결과
+
+루트 `tsconfig.json`에 `outDir`가 미설정되어 있어 프로젝트 전체 `.ts` 파일의
+빌드 아티팩트(`.js`, `.d.ts`, `.js.map`)가 소스 파일 옆에 생성됨 (4,539개).
+
+### 원인
+
+| 항목 | 루트 tsconfig | 패키지 tsconfig |
+|------|:---:|:---:|
+| `outDir` | **없음** (소스 옆 출력) | `"dist"` |
+| `include` | **없음** (전체 컴파일) | `["src/**/*.ts"]` |
+| 용도 | 옵션 상속 전용 | **빌드 대상** |
+
+루트 `tsconfig.json`은 빌드용이 아닌 **공유 컴파일러 옵션 상속용**이나,
+`composite: true` 설정으로 인해 `tsc --build`의 빌드 대상으로 인식됨.
+
+### 조치
+
+1. 아티팩트 전체 삭제 (4,538개 파일)
+2. `.gitignore`에 소스 디렉토리 빌드 아티팩트 패턴 추가 (재발 방지)
+3. `CLAUDE.md`, `CONTRIBUTING.md`에 루트 빌드 금지 경고 추가
+
+### 교훈
+
+- `tsc --build`는 반드시 **패키지 디렉토리 내부에서** 또는 `npm run build -w <패키지>`로 실행
+- 루트에서 직접 `tsc`/`tsc --build` 실행 금지
+
 ## 다음 단계
 
 - 가격표 주기적 업데이트 필요 (API 가격 변동 시)

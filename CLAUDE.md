@@ -11,12 +11,23 @@ terminal UI (Ink).
 
 ## Build & Development Commands
 
+**IMPORTANT: Never run `tsc` or `tsc --build` directly from the project root.**
+The root `tsconfig.json` has no `outDir` setting (it exists only for shared
+compiler option inheritance). Running `tsc` at the root will emit `.js`, `.d.ts`,
+and `.js.map` files alongside every `.ts` source file (~4,500 artifacts),
+polluting the source directories. Always use the npm scripts below or run
+`tsc --build` from within a specific package directory.
+
 ```bash
 # Install dependencies
 npm install
 
-# Build all packages
+# Build all packages (correct way)
 npm run build
+
+# Build a specific package only
+npm run build -w @didim365/agent-cli-core
+npm run build -w @didim365/agent-cli
 
 # Build with sandbox container and VS Code extension
 npm run build:all

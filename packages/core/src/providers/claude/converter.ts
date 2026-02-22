@@ -109,9 +109,26 @@ export class ClaudeConverter {
         continue;
       }
 
-      // Merge consecutive messages with the same role (Anthropic API requirement)
+      // Merge consecutive messages with the same role (Anthropic API requirement).
+      // However, tool_result blocks must stay in a separate message from plain
+      // user text so that they remain immediately after the assistant message
+      // that contains the matching tool_use.  Merging tool_result into an
+      // existing user-text message (or vice-versa) can break this adjacency
+      // requirement and cause Anthropic API 400 errors when switching providers.
       const last = claudeMessages[claudeMessages.length - 1];
-      if (last && last['role'] === role) {
+      const hasToolResult = content.some((c) => c['type'] === 'tool_result');
+      const lastHasToolResult =
+        last &&
+        (last['content'] as Array<Record<string, unknown>>).some(
+          (c) => c['type'] === 'tool_result',
+        );
+
+      if (
+        last &&
+        last['role'] === role &&
+        hasToolResult === lastHasToolResult
+      ) {
+        // Safe to merge: both have tool_result, or neither does
         const existing = last['content'] as Array<Record<string, unknown>>;
         existing.push(...content);
       } else {

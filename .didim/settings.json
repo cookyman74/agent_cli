@@ -2,20 +2,18 @@
   "hooksConfig": {
     "enabled": true
   },
-  "hooks": {
-    "BeforeAgent": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "name": "rag-before-agent",
-            "command": "RAG_TENANT_ID=AX-TEAM RAG_DATABASE_URL=postgresql://postgres:password12@localhost:5432/didim_api node \"./.didim/hooks/rag-before-agent.js\"",
-            "description": "장기기억 + 과거 대화 RAG 검색 → 컨텍스트 주입",
-            "timeout": 5000
-          }
-        ]
+  "mcpServers": {
+    "rag": {
+      "command": "node",
+      "args": [".didim/mcp/rag-server.js"],
+      "timeout": 10000,
+      "env": {
+        "RAG_DATABASE_URL": "postgresql://postgres:password12@localhost:5432/didim_api",
+        "RAG_TENANT_ID": "AX-TEAM"
       }
-    ],
+    }
+  },
+  "hooks": {
     "AfterAgent": [
       {
         "hooks": [

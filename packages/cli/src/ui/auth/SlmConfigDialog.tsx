@@ -36,6 +36,58 @@ function isValidUrl(url: string): boolean {
   return /^https?:\/\/.+/.test(url.trim());
 }
 
+/**
+ * Parse custom headers input — accepts JSON or key:value format.
+ * Returns a JSON string, or null if the input cannot be parsed.
+ *
+ * Supported formats:
+ *   - JSON: '{"X-Custom": "value"}'
+ *   - key:value (one per line or comma-separated):
+ *       'X-Custom: value'
+ *       'X-Custom: value, X-Other: value2'
+ *       'X-Custom: value\nX-Other: value2'
+ */
+export function parseCustomHeaders(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+
+  // Try JSON first
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      return trimmed;
+    }
+  } catch {
+    // Not valid JSON — try key:value format below
+  }
+
+  // Try key: value format (newline or comma separated)
+  // Split by newline first, then by comma for single-line input
+  const entries = trimmed.includes('\n')
+    ? trimmed.split('\n')
+    : trimmed.split(',');
+
+  const result: Record<string, string> = {};
+  for (const entry of entries) {
+    const cleaned = entry.trim();
+    if (!cleaned) continue;
+    // Match "key: value" or "key:value" — key is everything before first colon
+    const colonIndex = cleaned.indexOf(':');
+    if (colonIndex <= 0) return null; // No colon or colon at start
+    const key = cleaned.slice(0, colonIndex).trim();
+    const value = cleaned.slice(colonIndex + 1).trim();
+    if (!key) return null;
+    result[key] = value;
+  }
+
+  if (Object.keys(result).length === 0) return null;
+  return JSON.stringify(result);
+}
+
 export function SlmConfigDialog({
   onComplete,
   onCancel,
@@ -148,26 +200,23 @@ export function SlmConfigDialog({
   const handleAdvancedSubmit = useCallback(
     (value: string) => {
       setApiKeyHeaderName(value);
-      const headers = headersBuffer.text;
-      setCustomHeaders(headers);
+      const rawHeaders = headersBuffer.text;
 
-      // Validate custom headers JSON if provided
-      if (headers.trim()) {
-        try {
-          JSON.parse(headers);
-        } catch {
-          setValidationError(
-            'Custom headers must be valid JSON (e.g., {"X-Custom": "value"})',
-          );
-          return;
-        }
+      // Parse custom headers — accepts JSON or key:value format
+      const parsedHeaders = parseCustomHeaders(rawHeaders);
+      if (parsedHeaders === null) {
+        setValidationError(
+          'Custom headers format invalid. Use JSON ({"key": "value"}) or key: value format.',
+        );
+        return;
       }
+      setCustomHeaders(parsedHeaders);
 
       setValidationError(null);
       const config: SlmConfig = {
         baseUrl,
         ...(value.trim() && { apiKeyHeaderName: value.trim() }),
-        ...(headers.trim() && { customHeaders: headers.trim() }),
+        ...(parsedHeaders && { customHeaders: parsedHeaders }),
         ...(apiKey.trim() && { apiKey: apiKey.trim() }),
         ...(model.trim() && { model: model.trim() }),
       };
@@ -365,7 +414,7 @@ export function SlmConfigDialog({
               Custom Headers (optional)
             </Text>
             <Text color={theme.text.secondary}>
-              Additional HTTP headers as JSON (e.g., {`{"X-Custom": "value"}`}).
+              Additional HTTP headers as JSON or key: value format.
             </Text>
             <Box marginTop={1} flexDirection="row">
               <Box
@@ -382,7 +431,7 @@ export function SlmConfigDialog({
                   buffer={headersBuffer}
                   onSubmit={() => handleSubmit(buffer.text)}
                   onCancel={handleCancel}
-                  placeholder='(optional) {"key": "value"}'
+                  placeholder="(optional) X-Custom: value"
                   focus={focusedField === 'secondary'}
                 />
               </Box>

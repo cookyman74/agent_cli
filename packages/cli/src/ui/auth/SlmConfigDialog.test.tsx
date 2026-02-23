@@ -6,7 +6,7 @@
 
 import { render } from '../../test-utils/render.js';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { SlmConfigDialog } from './SlmConfigDialog.js';
+import { SlmConfigDialog, parseCustomHeaders } from './SlmConfigDialog.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import {
   useTextBuffer,
@@ -262,7 +262,7 @@ describe('SlmConfigDialog', () => {
   });
 
   describe('Step C: validation', () => {
-    it('shows validation error for invalid JSON in custom headers', () => {
+    it('shows validation error for completely unparseable custom headers', () => {
       // Step 1: valid URL
       mockBuffer.text = 'http://localhost:11434/v1';
       const { lastFrame } = render(
@@ -281,12 +281,10 @@ describe('SlmConfigDialog', () => {
       });
       expect(lastFrame()!).toContain('Step 3 of 3');
 
-      // Set invalid JSON in the headers buffer
-      // headersBuffer is the secondary field in step 3
-      // The headers buffer is passed to handleAdvancedSubmit
+      // Set completely unparseable value (no colon, not JSON)
       const headersBuffer = mockedUseTextBuffer.mock.results.at(-1)
         ?.value as TextBuffer;
-      headersBuffer.text = '{invalid json}';
+      headersBuffer.text = 'just-a-random-string';
 
       // Submit step 3
       act(() => {
@@ -294,7 +292,7 @@ describe('SlmConfigDialog', () => {
       });
 
       const frame = lastFrame()!;
-      expect(frame).toContain('Custom headers must be valid JSON');
+      expect(frame).toContain('Custom headers format invalid');
       expect(onComplete).not.toHaveBeenCalled();
     });
   });
@@ -349,5 +347,60 @@ describe('SlmConfigDialog', () => {
       );
       expect(lastFrame()).toMatchSnapshot();
     });
+  });
+});
+
+describe('parseCustomHeaders', () => {
+  it('returns empty string for empty input', () => {
+    expect(parseCustomHeaders('')).toBe('');
+    expect(parseCustomHeaders('  ')).toBe('');
+  });
+
+  it('accepts valid JSON object', () => {
+    expect(parseCustomHeaders('{"X-Custom": "value"}')).toBe(
+      '{"X-Custom": "value"}',
+    );
+  });
+
+  it('rejects JSON array', () => {
+    expect(parseCustomHeaders('[1, 2, 3]')).toBeNull();
+  });
+
+  it('parses single key: value pair', () => {
+    expect(parseCustomHeaders('X-Custom: my-value')).toBe(
+      '{"X-Custom":"my-value"}',
+    );
+  });
+
+  it('parses comma-separated key: value pairs', () => {
+    const result = parseCustomHeaders('X-Custom: val1, X-Other: val2');
+    const parsed = JSON.parse(result!);
+    expect(parsed).toEqual({ 'X-Custom': 'val1', 'X-Other': 'val2' });
+  });
+
+  it('parses newline-separated key: value pairs', () => {
+    const result = parseCustomHeaders('X-Custom: val1\nX-Other: val2');
+    const parsed = JSON.parse(result!);
+    expect(parsed).toEqual({ 'X-Custom': 'val1', 'X-Other': 'val2' });
+  });
+
+  it('handles value with colons (URL etc)', () => {
+    const result = parseCustomHeaders('X-Endpoint: https://example.com:8080');
+    const parsed = JSON.parse(result!);
+    expect(parsed).toEqual({ 'X-Endpoint': 'https://example.com:8080' });
+  });
+
+  it('returns null for unparseable input', () => {
+    expect(parseCustomHeaders('just-a-string')).toBeNull();
+  });
+
+  it('returns null for colon at start of string', () => {
+    expect(parseCustomHeaders(':value')).toBeNull();
+  });
+
+  it('trims whitespace from keys and values', () => {
+    const result = parseCustomHeaders('  X-Custom  :  my value  ');
+    const parsed = JSON.parse(result!);
+    expect(parsed).toEqual({ 'X-Custom': 'my value' });
   });
 });

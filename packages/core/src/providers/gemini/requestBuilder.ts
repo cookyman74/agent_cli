@@ -22,6 +22,7 @@ import type {
   PartListUnion,
   Tool,
 } from '@google/genai';
+import { randomUUID } from 'node:crypto';
 
 import type {
   LlmGenerateRequest,
@@ -142,6 +143,144 @@ export function convertGeminiToolsToLlm(tools: Tool[]): LlmToolDefinition[] {
 }
 
 // ============================================================================
+// History ID reconciliation for provider switching
+// ============================================================================
+
+/**
+ * Reconcile functionCall/functionResponse IDs in Gemini history.
+ *
+ * When the Gemini native path handles tool calls, Turn.handlePendingFunctionCall
+ * generates a callId via crypto.randomUUID() and stores it in the
+ * functionResponse.id. However, the Gemini SDK does NOT write this back to
+ * the functionCall.id in history (it remains undefined).
+ *
+ * On provider switch (Gemini → OpenAI), convertPartToLlmContent generates a
+ * NEW random UUID for the undefined functionCall.id, causing a mismatch with
+ * the functionResponse.id. OpenAI API then rejects the request with:
+ *   "tool_call_id not found in tool_calls of previous message"
+ *
+ * This function pre-processes the history by matching functionCall/functionResponse
+ * pairs. Matching strategy:
+ *   1. Positional match (call[n] ↔ response[n]) with name validation
+ *   2. Name-based fallback when positional names don't match
+ *
+ * @returns A new Content[] with reconciled IDs (does NOT mutate the original).
+ *          Returns the same reference if no reconciliation is needed.
+ */
+export function reconcileFunctionCallIds(history: Content[]): Content[] {
+  // Quick check: skip clone if no reconciliation needed
+  let needsReconciliation = false;
+  for (const content of history) {
+    if (content.role !== 'model' || !content.parts) continue;
+    if (content.parts.some((p) => p.functionCall && !p.functionCall.id)) {
+      needsReconciliation = true;
+      break;
+    }
+  }
+  if (!needsReconciliation) return history;
+
+  const cloned: Content[] = structuredClone(history);
+
+  for (let i = 0; i < cloned.length; i++) {
+    const content = cloned[i];
+    if (content.role !== 'model' || !content.parts) continue;
+
+    // Get ALL functionCall parts (preserving original position indices)
+    const allCalls = content.parts.filter((p) => p.functionCall);
+    if (allCalls.length === 0) continue;
+    if (allCalls.every((p) => p.functionCall!.id)) continue;
+
+    // Scan forward for the nearest user Content with functionResponse parts.
+    // Stops at the next model Content to avoid crossing turn boundaries.
+    let responseContent: Content | undefined;
+    for (let k = i + 1; k < cloned.length; k++) {
+      if (cloned[k].role === 'model') break;
+      if (
+        cloned[k].role === 'user' &&
+        cloned[k].parts?.some((p) => p.functionResponse)
+      ) {
+        responseContent = cloned[k];
+        break;
+      }
+    }
+    if (!responseContent?.parts) continue;
+
+    const allResponses = responseContent.parts.filter(
+      (p) => p.functionResponse,
+    );
+
+    // 2-pass matching with "used" tracking to prevent duplicate ID assignment.
+    //
+    // Pass 1: Mark responses already claimed by calls that have IDs.
+    //   This prevents a subsequent ID-less call from stealing an already-
+    //   matched response (the root cause of the same-name mixed-ID bug).
+    //
+    // Pass 2: For each ID-less call, find the best unused response
+    //   (positional match → name-based fallback).
+    const usedResponseIndices = new Set<number>();
+
+    // Pass 1: claim responses for calls that already have IDs
+    for (let j = 0; j < allCalls.length; j++) {
+      const fc = allCalls[j].functionCall!;
+      if (!fc.id) continue;
+      const idx = allResponses.findIndex(
+        (p) => p.functionResponse?.id === fc.id,
+      );
+      if (idx >= 0) {
+        usedResponseIndices.add(idx);
+      }
+    }
+
+    // Pass 2: reconcile calls without IDs
+    for (let j = 0; j < allCalls.length; j++) {
+      const fc = allCalls[j].functionCall!;
+      if (fc.id) continue;
+
+      let fr = undefined as
+        | { id?: string; name?: string; response?: object }
+        | undefined;
+      let frIdx = -1;
+
+      // 1. Try positional match (if not already used)
+      if (!usedResponseIndices.has(j) && allResponses[j]?.functionResponse) {
+        const candidate = allResponses[j].functionResponse!;
+        if (!fc.name || !candidate.name || fc.name === candidate.name) {
+          fr = candidate;
+          frIdx = j;
+        }
+      }
+
+      // 2. Name-based fallback: find first UNUSED response with matching name
+      if (!fr && fc.name) {
+        for (let r = 0; r < allResponses.length; r++) {
+          if (usedResponseIndices.has(r)) continue;
+          const candidate = allResponses[r].functionResponse;
+          if (candidate?.name === fc.name) {
+            fr = candidate;
+            frIdx = r;
+            break;
+          }
+        }
+      }
+
+      if (!fr || frIdx < 0) continue;
+
+      usedResponseIndices.add(frIdx);
+
+      if (fr.id) {
+        fc.id = fr.id;
+      } else {
+        const newId = randomUUID();
+        fc.id = newId;
+        fr.id = newId;
+      }
+    }
+  }
+
+  return cloned;
+}
+
+// ============================================================================
 // Request assembly
 // ============================================================================
 
@@ -176,8 +315,13 @@ export interface BuildLlmRequestOptions {
 export function buildLlmRequestFromGeminiState(
   opts: BuildLlmRequestOptions,
 ): LlmGenerateRequest {
+  // Reconcile functionCall/functionResponse IDs before conversion.
+  // Required for provider switching: Gemini history may have undefined
+  // functionCall.id while functionResponse.id is set.
+  const reconciledHistory = reconcileFunctionCallIds(opts.history);
+
   // Convert history Content[] → LlmMessage[]
-  const historyMessages = convertContentsToLlmMessages(opts.history);
+  const historyMessages = convertContentsToLlmMessages(reconciledHistory);
 
   // Convert current request PartListUnion → LlmContent[]
   const currentContents = convertPartListUnionToLlmContents(

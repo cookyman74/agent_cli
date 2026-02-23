@@ -28,12 +28,120 @@ interface SlmConfigDialogProps {
   defaultConfig?: Partial<SlmConfig>;
 }
 
-type Step = 'endpoint' | 'credentials' | 'advanced';
+type Step = 'endpoint' | 'serverType' | 'credentials' | 'advanced';
 
-const STEPS: Step[] = ['endpoint', 'credentials', 'advanced'];
+const STEPS: Step[] = ['endpoint', 'serverType', 'credentials', 'advanced'];
+
+/** Supported server types with their model name hints */
+export type ServerType = 'gpustack' | 'vllm' | 'ollama' | 'lmstudio' | 'other';
+
+interface ServerTypeInfo {
+  label: string;
+  description: string;
+  modelHint: string;
+  modelExample: string;
+}
+
+export const SERVER_TYPES: Record<ServerType, ServerTypeInfo> = {
+  gpustack: {
+    label: 'GPUStack',
+    description: 'GPU cluster management with vLLM backend',
+    modelHint: 'Use the deployment name from GPUStack dashboard',
+    modelExample: 'gpt-oss-20b, llama3.1-70b',
+  },
+  vllm: {
+    label: 'vLLM',
+    description: 'High-throughput LLM serving engine',
+    modelHint: 'Use HuggingFace model ID or --served-model-name',
+    modelExample: 'meta-llama/Llama-3-70B-Instruct',
+  },
+  ollama: {
+    label: 'Ollama',
+    description: 'Local model runner for macOS/Linux/Windows',
+    modelHint: 'Use model tag from "ollama list"',
+    modelExample: 'llama3, mistral, qwen2:7b, codellama:13b',
+  },
+  lmstudio: {
+    label: 'LM Studio',
+    description: 'Desktop app for running local LLMs',
+    modelHint: 'Use model name shown in LM Studio',
+    modelExample: 'TheBloke/Llama-2-7B-GGUF',
+  },
+  other: {
+    label: 'Other',
+    description: 'Custom OpenAI-compatible server',
+    modelHint: 'Check your server documentation for model name format',
+    modelExample: 'model-name',
+  },
+};
 
 function isValidUrl(url: string): boolean {
   return /^https?:\/\/.+/.test(url.trim());
+}
+
+/**
+ * Parse custom headers input — accepts JSON or key:value format.
+ * Returns a JSON string, or null if the input cannot be parsed.
+ *
+ * Supported formats:
+ *   - JSON: '{"X-Custom": "value"}'
+ *   - key:value (one per line or comma-separated):
+ *       'X-Custom: value'
+ *       'X-Custom: value, X-Other: value2'
+ *       'X-Custom: value\nX-Other: value2'
+ */
+export function parseCustomHeaders(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+
+  // Try JSON first
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      // Validate all keys are non-empty strings and values are strings
+      // HTTP headers require non-empty header names
+      for (const [key, value] of Object.entries(parsed)) {
+        if (
+          typeof key !== 'string' ||
+          key.trim() === '' ||
+          typeof value !== 'string'
+        ) {
+          return null; // Invalid: empty/non-string key or non-string value
+        }
+      }
+      return trimmed;
+    }
+  } catch {
+    // Not valid JSON — try key:value format below
+  }
+
+  // Try key: value format (newline or comma separated)
+  // Split by newline first for multi-line input
+  // For single-line: use regex to split on commas that are followed by a header key (key:)
+  // This preserves commas within header values (e.g., Accept: text/html,application/json)
+  const entries = trimmed.includes('\n')
+    ? trimmed.split('\n')
+    : trimmed.split(/,(?=\s*[^,:]+:)/);
+
+  const result: Record<string, string> = {};
+  for (const entry of entries) {
+    const cleaned = entry.trim();
+    if (!cleaned) continue;
+    // Match "key: value" or "key:value" — key is everything before first colon
+    const colonIndex = cleaned.indexOf(':');
+    if (colonIndex <= 0) return null; // No colon or colon at start
+    const key = cleaned.slice(0, colonIndex).trim();
+    const value = cleaned.slice(colonIndex + 1).trim();
+    if (!key) return null;
+    result[key] = value;
+  }
+
+  if (Object.keys(result).length === 0) return null;
+  return JSON.stringify(result);
 }
 
 export function SlmConfigDialog({
@@ -55,6 +163,7 @@ export function SlmConfigDialog({
 
   // Accumulated config across steps
   const [baseUrl, setBaseUrl] = useState(defaultConfig?.baseUrl ?? '');
+  const [serverType, setServerType] = useState<ServerType>('other');
   const [apiKey, setApiKey] = useState(defaultConfig?.apiKey ?? '');
   const [model, setModel] = useState(defaultConfig?.model ?? '');
   const [apiKeyHeaderName, setApiKeyHeaderName] = useState(
@@ -64,6 +173,9 @@ export function SlmConfigDialog({
     defaultConfig?.customHeaders ?? '',
   );
 
+  // Get current server type info for hints
+  const serverInfo = SERVER_TYPES[serverType];
+
   const stepIndex = STEPS.indexOf(currentStep);
   const stepLabel = `Step ${stepIndex + 1} of ${STEPS.length}`;
 
@@ -72,6 +184,8 @@ export function SlmConfigDialog({
     switch (currentStep) {
       case 'endpoint':
         return baseUrl;
+      case 'serverType':
+        return ''; // No text input for server type selection
       case 'credentials':
         return apiKey;
       case 'advanced':
@@ -116,58 +230,73 @@ export function SlmConfigDialog({
     singleLine: true,
   });
 
-  const handleEndpointSubmit = useCallback(
-    (value: string) => {
-      if (!isValidUrl(value)) {
-        setValidationError(
-          'URL must start with http:// or https:// (e.g., http://localhost:11434/v1)',
-        );
-        return;
-      }
+  const handleEndpointSubmit = useCallback((value: string) => {
+    if (!isValidUrl(value)) {
+      setValidationError(
+        'URL must start with http:// or https:// (e.g., http://localhost:11434/v1)',
+      );
+      return;
+    }
+    setValidationError(null);
+    setBaseUrl(value);
+    setCurrentStep('serverType');
+  }, []);
+
+  const handleServerTypeSelect = useCallback(
+    (type: ServerType) => {
+      setServerType(type);
       setValidationError(null);
-      setBaseUrl(value);
       setCurrentStep('credentials');
       setFocusedField('primary');
-      buffer.setText('');
+      // Reset buffer for credentials step
+      buffer.setText(apiKey || '');
     },
-    [buffer],
+    [buffer, apiKey],
   );
 
   const handleCredentialsSubmit = useCallback(
     (value: string) => {
+      // Model name is required for OpenAI-compatible servers
+      const modelValue = modelBuffer.text.trim();
+      if (!modelValue) {
+        setValidationError(
+          'Model name is required. Examples: gpt-oss-20b, llama3, mistral, qwen2.5-coder',
+        );
+        setFocusedField('secondary');
+        return;
+      }
       setApiKey(value);
-      setModel(modelBuffer.text);
+      setModel(modelValue);
       setValidationError(null);
       setCurrentStep('advanced');
       setFocusedField('primary');
-      buffer.setText('');
+      // Reset buffer to apiKeyHeaderName's initial value (or empty) for the advanced step
+      // This prevents the API key value from leaking into apiKeyHeaderName
+      buffer.setText(apiKeyHeaderName || '');
     },
-    [buffer, modelBuffer.text],
+    [buffer, modelBuffer.text, apiKeyHeaderName],
   );
 
   const handleAdvancedSubmit = useCallback(
     (value: string) => {
       setApiKeyHeaderName(value);
-      const headers = headersBuffer.text;
-      setCustomHeaders(headers);
+      const rawHeaders = headersBuffer.text;
 
-      // Validate custom headers JSON if provided
-      if (headers.trim()) {
-        try {
-          JSON.parse(headers);
-        } catch {
-          setValidationError(
-            'Custom headers must be valid JSON (e.g., {"X-Custom": "value"})',
-          );
-          return;
-        }
+      // Parse custom headers — accepts JSON or key:value format
+      const parsedHeaders = parseCustomHeaders(rawHeaders);
+      if (parsedHeaders === null) {
+        setValidationError(
+          'Custom headers format invalid. Use JSON ({"key": "value"}) or key: value format.',
+        );
+        return;
       }
+      setCustomHeaders(parsedHeaders);
 
       setValidationError(null);
       const config: SlmConfig = {
         baseUrl,
         ...(value.trim() && { apiKeyHeaderName: value.trim() }),
-        ...(headers.trim() && { customHeaders: headers.trim() }),
+        ...(parsedHeaders && { customHeaders: parsedHeaders }),
         ...(apiKey.trim() && { apiKey: apiKey.trim() }),
         ...(model.trim() && { model: model.trim() }),
       };
@@ -181,6 +310,9 @@ export function SlmConfigDialog({
       switch (currentStep) {
         case 'endpoint':
           handleEndpointSubmit(value);
+          break;
+        case 'serverType':
+          // Server type is selected via number keys, not Enter
           break;
         case 'credentials':
           handleCredentialsSubmit(value);
@@ -204,14 +336,49 @@ export function SlmConfigDialog({
     if (currentStep === 'endpoint') {
       onCancel();
     } else {
-      // Go back to previous step
+      // Go back to previous step with buffer synchronization
       const prevIndex = stepIndex - 1;
       if (prevIndex >= 0) {
-        setCurrentStep(STEPS[prevIndex]);
+        const prevStep = STEPS[prevIndex];
+        setCurrentStep(prevStep);
         setValidationError(null);
+        setFocusedField('primary');
+
+        // Synchronize buffers with stored state values to prevent pollution
+        switch (prevStep) {
+          case 'endpoint':
+            buffer.setText(baseUrl);
+            break;
+          case 'serverType':
+            // No text buffer for serverType step
+            break;
+          case 'credentials':
+            buffer.setText(apiKey);
+            modelBuffer.setText(model);
+            break;
+          case 'advanced':
+            buffer.setText(apiKeyHeaderName);
+            headersBuffer.setText(customHeaders);
+            break;
+          default:
+            // No action needed for other steps
+            break;
+        }
       }
     }
-  }, [currentStep, stepIndex, onCancel]);
+  }, [
+    currentStep,
+    stepIndex,
+    onCancel,
+    buffer,
+    modelBuffer,
+    headersBuffer,
+    baseUrl,
+    apiKey,
+    model,
+    apiKeyHeaderName,
+    customHeaders,
+  ]);
 
   useKeypress(
     (key) => {
@@ -226,6 +393,20 @@ export function SlmConfigDialog({
         setFocusedField((prev) =>
           prev === 'primary' ? 'secondary' : 'primary',
         );
+      }
+      // Number keys 1-5 for server type selection
+      if (currentStep === 'serverType') {
+        const serverTypeKeys: Record<string, ServerType> = {
+          '1': 'gpustack',
+          '2': 'vllm',
+          '3': 'ollama',
+          '4': 'lmstudio',
+          '5': 'other',
+        };
+        const selectedType = serverTypeKeys[key.sequence];
+        if (selectedType) {
+          handleServerTypeSelect(selectedType);
+        }
       }
     },
     { isActive: true },
@@ -272,6 +453,28 @@ export function SlmConfigDialog({
         </Box>
       )}
 
+      {currentStep === 'serverType' && (
+        <Box marginTop={1} flexDirection="column">
+          <Text bold color={theme.text.primary}>
+            Server Type
+          </Text>
+          <Text color={theme.text.secondary}>
+            Select your OpenAI-compatible server type for model name hints.
+          </Text>
+          <Box marginTop={1} flexDirection="column">
+            {(
+              Object.entries(SERVER_TYPES) as Array<[ServerType, ServerTypeInfo]>
+            ).map(([type, info], index) => (
+              <Box key={type} flexDirection="row" gap={1}>
+                <Text color={theme.text.accent}>[{index + 1}]</Text>
+                <Text color={theme.text.primary}>{info.label}</Text>
+                <Text color={theme.text.secondary}>- {info.description}</Text>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+
       {currentStep === 'credentials' && (
         <Box marginTop={1} flexDirection="column">
           <Text bold color={theme.text.primary}>
@@ -303,10 +506,11 @@ export function SlmConfigDialog({
           </Box>
           <Box marginTop={1} flexDirection="column">
             <Text bold color={theme.text.primary}>
-              Model Name (optional)
+              Model Name (required) - {serverInfo.label}
             </Text>
-            <Text color={theme.text.secondary}>
-              Specify the model name. Leave empty for provider default.
+            <Text color={theme.text.secondary}>{serverInfo.modelHint}</Text>
+            <Text color={theme.text.secondary} dimColor>
+              Examples: {serverInfo.modelExample}
             </Text>
             <Box marginTop={1} flexDirection="row">
               <Box
@@ -323,7 +527,7 @@ export function SlmConfigDialog({
                   buffer={modelBuffer}
                   onSubmit={() => handleSubmit(buffer.text)}
                   onCancel={handleCancel}
-                  placeholder="(optional) e.g., llama3, mistral"
+                  placeholder={`e.g., ${serverInfo.modelExample.split(',')[0]}`}
                   focus={focusedField === 'secondary'}
                 />
               </Box>
@@ -365,7 +569,7 @@ export function SlmConfigDialog({
               Custom Headers (optional)
             </Text>
             <Text color={theme.text.secondary}>
-              Additional HTTP headers as JSON (e.g., {`{"X-Custom": "value"}`}).
+              Additional HTTP headers as JSON or key: value format.
             </Text>
             <Box marginTop={1} flexDirection="row">
               <Box
@@ -382,7 +586,7 @@ export function SlmConfigDialog({
                   buffer={headersBuffer}
                   onSubmit={() => handleSubmit(buffer.text)}
                   onCancel={handleCancel}
-                  placeholder='(optional) {"key": "value"}'
+                  placeholder="(optional) X-Custom: value"
                   focus={focusedField === 'secondary'}
                 />
               </Box>
@@ -399,9 +603,9 @@ export function SlmConfigDialog({
 
       <Box marginTop={1}>
         <Text color={theme.text.secondary}>
-          (Press Enter to {currentStep === 'advanced' ? 'complete' : 'continue'}
-          , Esc to {currentStep === 'endpoint' ? 'cancel' : 'go back'}
-          {currentStep !== 'endpoint' ? ', Tab to switch fields' : ''})
+          {currentStep === 'serverType'
+            ? '(Press 1-5 to select, Esc to go back)'
+            : `(Press Enter to ${currentStep === 'advanced' ? 'complete' : 'continue'}, Esc to ${currentStep === 'endpoint' ? 'cancel' : 'go back'}${currentStep === 'credentials' || currentStep === 'advanced' ? ', Tab to switch fields' : ''})`}
         </Text>
       </Box>
     </Box>

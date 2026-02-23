@@ -209,15 +209,45 @@ export GOOGLE_GENAI_USE_VERTEXAI=true
 didim
 ```
 
-### Option 6: OpenAI-compatible (vLLM, Ollama, LM Studio)
+### Option 6: OpenAI-compatible (vLLM, Ollama, LM Studio, GPUStack)
 
 **✨ Best for:** Local/self-hosted models and privacy-sensitive environments.
+
+**Using `/auth login` (Recommended):**
+
+```bash
+didim
+# Run /auth login, select "sLM (OpenAI-compatible endpoint)"
+# Follow the 4-step wizard: URL → Server Type → Credentials → Advanced
+```
+
+**Using environment variables:**
 
 ```bash
 export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=openai-compatible
 export LLM_BASE_URL="http://localhost:8000/v1"
+export LLM_MODEL="your-model-name"
 didim
+```
+
+**Limiting tools for context-constrained sLM:**
+
+Add to `~/.didim/settings.json`:
+
+```json
+{
+  "tools": {
+    "core": [
+      "read_file",
+      "search_file_content",
+      "glob",
+      "replace",
+      "write_file",
+      "run_shell_command"
+    ]
+  }
+}
 ```
 
 For detailed setup for each provider, see the
@@ -357,7 +387,14 @@ export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=openai-compatible
 export LLM_BASE_URL="http://localhost:8000/v1"
 export LLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
-didim -m Qwen/Qwen2.5-7B-Instruct
+didim
+```
+
+Or use the interactive wizard:
+
+```bash
+didim
+# /auth login → sLM → Enter URL → Select vLLM → Enter model name
 ```
 
 ### Troubleshooting & Support

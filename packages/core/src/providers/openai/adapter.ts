@@ -87,7 +87,7 @@ export class OpenAiAdapter extends BaseAdapter {
   readonly providerName: string = 'openai';
   readonly capabilities = OPENAI_CAPABILITIES;
 
-  private readonly converter: OpenAiConverter;
+  protected readonly converter: OpenAiConverter;
 
   constructor(
     config: AdapterConfig,
@@ -176,7 +176,7 @@ export class OpenAiAdapter extends BaseAdapter {
    * Classify an OpenAI SDK error into a typed LlmError.
    * Uses HTTP status code when available, falls back to message heuristics.
    */
-  private classifyError(error: unknown): LlmError {
+  protected classifyError(error: unknown): LlmError {
     // Preserve already-classified LlmError instances
     if (error instanceof LlmError) {
       return error;
@@ -233,7 +233,11 @@ export class OpenAiAdapter extends BaseAdapter {
   ): Record<string, unknown> {
     return {
       temperature: config.temperature,
-      max_completion_tokens: config.maxTokens,
+      // Guard: skip invalid (negative or zero) maxTokens to prevent API errors
+      max_completion_tokens:
+        config.maxTokens !== undefined && config.maxTokens > 0
+          ? config.maxTokens
+          : undefined,
       top_p: config.topP,
       stop: config.stopSequences,
     };

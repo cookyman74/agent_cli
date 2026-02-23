@@ -177,6 +177,32 @@ describe('OpenAiCompatibleAdapter', () => {
         errorAdapter.generateContent(request, 'test-prompt'),
       ).rejects.toThrow();
     });
+
+    it('should include max_tokens only when explicitly specified', async () => {
+      // Case 1: maxTokens specified — should include max_tokens
+      const requestWithTokens = createBasicRequest({ maxTokens: 2048 });
+      await adapter.generateContent(requestWithTokens, 'test-prompt');
+
+      expect(client.chat.completions.create).toHaveBeenCalledWith(
+        expect.objectContaining({ max_tokens: 2048 }),
+        expect.anything(),
+      );
+
+      // Reset mock
+      vi.clearAllMocks();
+
+      // Case 2: maxTokens not specified — should NOT include max_tokens
+      const requestWithoutTokens = createBasicRequest();
+      delete (requestWithoutTokens as unknown as Record<string, unknown>)[
+        'maxTokens'
+      ];
+      await adapter.generateContent(requestWithoutTokens, 'test-prompt');
+
+      const callArgs = (
+        client.chat.completions.create as ReturnType<typeof vi.fn>
+      ).mock.calls[0][0];
+      expect(callArgs).not.toHaveProperty('max_tokens');
+    });
   });
 
   // ==========================================================================

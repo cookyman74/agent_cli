@@ -63,9 +63,48 @@ didim --model gpt-4o
 export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=openai-compatible
 export LLM_BASE_URL="http://localhost:8000/v1"
+export LLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
 export LLM_API_KEY="optional-key"
-didim --model default
+didim --model Qwen/Qwen2.5-7B-Instruct
 ```
+
+## sLM Interactive Configuration
+
+The `/auth login` command provides a 4-step wizard for configuring
+OpenAI-compatible endpoints:
+
+### Step 1: API Endpoint URL
+
+Enter your server's base URL:
+
+- **vLLM**: `http://localhost:8000/v1`
+- **Ollama**: `http://localhost:11434/v1`
+- **LM Studio**: `http://localhost:1234/v1`
+- **GPUStack**: `http://your-gpustack-server/v1`
+
+### Step 2: Server Type Selection
+
+Select your server type to receive provider-specific guidance:
+
+| Server Type | Model Name Guidance                                    |
+| ----------- | ------------------------------------------------------ |
+| GPUStack    | Use the deployment name from GPUStack dashboard        |
+| vLLM        | Use the model name passed to `--model` when starting   |
+| Ollama      | Use model name from `ollama list` (e.g., `llama3:70b`) |
+| LM Studio   | Check the loaded model name in LM Studio UI            |
+| Other       | Refer to your server's documentation                   |
+
+### Step 3: Credentials
+
+- **API Key** (optional): Required for authenticated endpoints
+- **Model Name** (required): The exact model identifier your server expects
+
+### Step 4: Advanced Settings
+
+- **API Key Header Name** (optional): Custom header for API key (default:
+  `Authorization`)
+- **Custom Headers** (optional): Additional headers in `Key: Value` format or
+  JSON
 
 ## vLLM Quick Start
 
@@ -143,6 +182,57 @@ for sLM (small Language Model) tool call formatting.
 See the [MCP Server Integration guide](./tools/mcp-server.md) for setup
 instructions.
 
+## sLM Tool Configuration
+
+Small language models (sLM) often have limited context windows. To reduce system
+prompt size and improve reliability, you can limit enabled tools using the
+`tools.core` setting in `~/.didim/settings.json`:
+
+### Minimal Tool Set (6 tools)
+
+```json
+{
+  "tools": {
+    "core": [
+      "read_file",
+      "search_file_content",
+      "glob",
+      "replace",
+      "write_file",
+      "run_shell_command"
+    ]
+  }
+}
+```
+
+### Available Built-in Tools
+
+| Tool Name             | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `read_file`           | Read file contents                          |
+| `search_file_content` | Search for patterns in files (grep/ripgrep) |
+| `glob`                | Find files matching glob patterns           |
+| `replace`             | Edit/replace content in files               |
+| `write_file`          | Create or overwrite files                   |
+| `run_shell_command`   | Execute shell commands                      |
+| `list_directory`      | List directory contents                     |
+| `web_fetch`           | Fetch content from URLs                     |
+| `google_web_search`   | Search the web via Google                   |
+| `save_memory`         | Save context to memory (AGENTS.md)          |
+| `activate_skill`      | Activate agent skills                       |
+| `write_todos`         | Manage todo lists                           |
+
+> **Tip:** For context overflow errors (e.g., `max_tokens` negative), the
+> recommended solution is to increase `--max-model-len` on your serving side
+> rather than reducing tools. For example:
+>
+> ```bash
+> # vLLM with increased context
+> vllm serve your-model --max-model-len 16384
+>
+> # GPUStack: Configure in deployment settings
+> ```
+
 ## vLLM Troubleshooting
 
 - If startup fails with missing env error, set `LLM_BASE_URL`.
@@ -150,3 +240,5 @@ instructions.
   (typically `/v1`).
 - If model errors occur, set `LLM_MODEL` or pass `-m` with a model name served
   by your vLLM instance.
+- If you see `403 Model Not Found`, ensure your `LLM_MODEL` matches the exact
+  model name on your server.

@@ -168,32 +168,105 @@ Alternatively, you can use the interactive auth flow:
 
 ## Use OpenAI-compatible endpoint (sLM) <a id="openai-compatible"></a>
 
-For local or self-hosted models (vLLM, Ollama, LM Studio, etc.) that expose an
-OpenAI-compatible API:
+For local or self-hosted models (vLLM, Ollama, LM Studio, GPUStack, etc.) that
+expose an OpenAI-compatible API.
 
-1. Set the required environment variables:
+### Option A: Using `/auth login` (Recommended)
 
-   ```bash
-   export ENABLE_MULTI_PROVIDER=true
-   export LLM_PROVIDER=openai-compatible
-   export LLM_BASE_URL="http://localhost:8000/v1"
-   ```
+The interactive `/auth login` command provides a guided 4-step configuration
+wizard:
 
-   If your endpoint requires authentication:
+1. Start the CLI and run `/auth login`.
+2. Select **sLM (OpenAI-compatible endpoint)** from the provider list.
+3. Follow the 4-step wizard:
+   - **Step 1: API Endpoint URL** — Enter your server's base URL (e.g.,
+     `http://localhost:8000/v1`, `http://localhost:11434/v1`)
+   - **Step 2: Server Type** — Select your server type for provider-specific
+     guidance:
+     - **GPUStack** — Use deployment name from GPUStack dashboard
+     - **vLLM** — Use the model name passed to `--model` when starting vLLM
+     - **Ollama** — Use the model name from `ollama list`
+     - **LM Studio** — Check loaded model name in LM Studio UI
+     - **Other** — Generic OpenAI-compatible server
+   - **Step 3: Credentials** — Enter API key (optional) and model name
+     (**required**)
+   - **Step 4: Advanced Settings** — Configure custom API key header name and
+     custom headers (optional)
 
-   ```bash
-   export LLM_API_KEY="your-key"
-   ```
+4. The configuration is saved to your user settings for future sessions.
 
-2. Start the CLI:
+### Option B: Using environment variables
 
-   ```bash
-   didim
-   ```
+Set the required environment variables:
 
-3. Use `/model` to enter your model name in the freeform text input field.
+```bash
+export ENABLE_MULTI_PROVIDER=true
+export LLM_PROVIDER=openai-compatible
+export LLM_BASE_URL="http://localhost:8000/v1"
+export LLM_MODEL="your-model-name"  # Required
+```
 
-For detailed vLLM setup and troubleshooting, see the
+If your endpoint requires authentication:
+
+```bash
+export LLM_API_KEY="your-key"
+```
+
+If your gateway requires a non-standard API key header:
+
+```bash
+export LLM_API_KEY_HEADER="X-API-Key"
+```
+
+Start the CLI:
+
+```bash
+didim
+```
+
+### Limiting tools for context-constrained sLM
+
+Small language models often have limited context windows. To reduce the system
+prompt size, you can limit which built-in tools are enabled using the
+`tools.core` setting in `settings.json`:
+
+```json
+{
+  "tools": {
+    "core": [
+      "read_file",
+      "search_file_content",
+      "glob",
+      "replace",
+      "write_file",
+      "run_shell_command"
+    ]
+  }
+}
+```
+
+Available tool names:
+
+| Tool Name             | Description                         |
+| --------------------- | ----------------------------------- |
+| `read_file`           | Read file contents                  |
+| `search_file_content` | Search for patterns in files (grep) |
+| `glob`                | Find files matching patterns        |
+| `replace`             | Edit/replace content in files       |
+| `write_file`          | Write new files                     |
+| `run_shell_command`   | Execute shell commands              |
+| `list_directory`      | List directory contents             |
+| `web_fetch`           | Fetch content from URLs             |
+| `google_web_search`   | Search the web via Google           |
+| `save_memory`         | Save context to memory              |
+| `activate_skill`      | Activate agent skills               |
+| `write_todos`         | Manage todo lists                   |
+
+> **Note:** For context overflow issues, the recommended root solution is to
+> increase `--max-model-len` on your serving side (vLLM, GPUStack, etc.) rather
+> than limiting tools.
+
+For detailed setup and troubleshooting, see the
 [Provider Guide](../providers.md).
 
 ## Use Vertex AI <a id="vertex-ai"></a>

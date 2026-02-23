@@ -23,6 +23,7 @@ import { ProviderRegistry } from '../registry.js';
 import { OpenAiCompatibleAdapter } from './adapter.js';
 import type { OpenAiClient } from '../openai/adapter.js';
 import type { AdapterConfig } from '../types.js';
+import { parseCustomHeaders as parseKeyValueHeaders } from '../../utils/customHeaderUtils.js';
 
 /**
  * Register the OpenAI-compatible adapter factory in the provider registry.
@@ -42,14 +43,35 @@ export function bootstrapOpenAiCompatibleProvider(
   reg.register('openai-compatible', (config: AdapterConfig) => {
     const defaultHeaders: Record<string, string> = {};
 
-    // Parse custom headers from env (JSON string)
+    // Parse custom headers from env (JSON string or key:value format)
+    // Supports both JSON format and legacy "Key: value, Key2: value2" format
     const customHeadersStr = process.env['LLM_CUSTOM_HEADERS'];
     if (customHeadersStr) {
       try {
-        const parsed = JSON.parse(customHeadersStr) as Record<string, string>;
-        Object.assign(defaultHeaders, parsed);
+        const parsed = JSON.parse(customHeadersStr);
+        // Validate: must be a plain object with non-empty string keys and string values
+        if (
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          !Array.isArray(parsed)
+        ) {
+          for (const [key, value] of Object.entries(parsed)) {
+            // Skip invalid entries: empty keys, non-string keys/values
+            if (
+              typeof key === 'string' &&
+              key.trim() !== '' &&
+              typeof value === 'string'
+            ) {
+              defaultHeaders[key] = value;
+            }
+          }
+        }
       } catch {
-        // Ignore malformed JSON — proceed without custom headers
+        // JSON parsing failed — try key:value format for backward compatibility
+        const parsed = parseKeyValueHeaders(customHeadersStr);
+        if (Object.keys(parsed).length > 0) {
+          Object.assign(defaultHeaders, parsed);
+        }
       }
     }
 

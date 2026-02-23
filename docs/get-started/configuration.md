@@ -664,9 +664,28 @@ their corresponding top-level category object in your `settings.json` file.
 - **`tools.core`** (array):
   - **Description:** Restrict the set of built-in tools with an allowlist. Match
     semantics mirror tools.allowed; see the built-in tools documentation for
-    available names.
-  - **Default:** `undefined`
+    available names. Useful for sLM (small Language Model) setups with limited
+    context windows.
+  - **Available tool names:** `read_file`, `search_file_content`, `glob`,
+    `replace`, `write_file`, `run_shell_command`, `list_directory`, `web_fetch`,
+    `google_web_search`, `save_memory`, `activate_skill`, `write_todos`
+  - **Default:** `undefined` (all tools enabled)
   - **Requires restart:** Yes
+  - **Example for sLM:**
+    ```json
+    {
+      "tools": {
+        "core": [
+          "read_file",
+          "search_file_content",
+          "glob",
+          "replace",
+          "write_file",
+          "run_shell_command"
+        ]
+      }
+    }
+    ```
 
 - **`tools.allowed`** (array):
   - **Description:** Tool names that bypass the confirmation dialog. Useful for
@@ -1108,6 +1127,30 @@ of v0.3.0:
   }
 }
 ```
+
+### Example `settings.json` for sLM (OpenAI-compatible)
+
+For small language models with limited context windows, you can limit the
+enabled tools to reduce system prompt size:
+
+```json
+{
+  "tools": {
+    "core": [
+      "read_file",
+      "search_file_content",
+      "glob",
+      "replace",
+      "write_file",
+      "run_shell_command"
+    ]
+  }
+}
+```
+
+This configuration enables only 6 essential tools, reducing the system prompt
+size significantly. Use `/auth login` and select **sLM (OpenAI-compatible
+endpoint)** to configure your server connection interactively.
 
 ## Shell history
 

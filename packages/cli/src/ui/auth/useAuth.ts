@@ -165,10 +165,11 @@ export const useAuthCommand = (
           const llmProvider = process.env['LLM_PROVIDER'];
           if (llmProvider) {
             // Validate that the corresponding API key env var is set
+            // Note: openai-compatible (sLM) does NOT require API key — many local servers are unauthenticated
             const requiredKeyMap: Record<string, string> = {
               claude: 'ANTHROPIC_API_KEY',
               openai: 'OPENAI_API_KEY',
-              'openai-compatible': 'LLM_API_KEY',
+              // 'openai-compatible' intentionally omitted — API key is optional for sLM
             };
             const requiredEnvVar = requiredKeyMap[llmProvider];
             if (requiredEnvVar && !process.env[requiredEnvVar]) {
@@ -177,6 +178,28 @@ export const useAuthCommand = (
                   `Set the ${requiredEnvVar} environment variable or remove LLM_PROVIDER.`,
               );
               return;
+            }
+
+            // For openai-compatible, validate LLM_BASE_URL and LLM_MODEL are set
+            if (
+              llmProvider === 'openai-compatible' ||
+              llmProvider === 'openai_compatible'
+            ) {
+              if (!process.env['LLM_BASE_URL']) {
+                onAuthError(
+                  `LLM_PROVIDER="${llmProvider}" requires LLM_BASE_URL. ` +
+                    `Set the LLM_BASE_URL environment variable (e.g., http://localhost:8000/v1).`,
+                );
+                return;
+              }
+              if (!process.env['LLM_MODEL']) {
+                onAuthError(
+                  `LLM_PROVIDER="${llmProvider}" requires LLM_MODEL. ` +
+                    `Set the LLM_MODEL environment variable to your model name ` +
+                    `(e.g., llama3, gpt-oss-20b, Qwen/Qwen2.5-7B-Instruct).`,
+                );
+                return;
+              }
             }
 
             // LLM_PROVIDER is set — route directly to that provider
@@ -244,8 +267,9 @@ export const useAuthCommand = (
                   customHeaders?: string;
                 }
               | undefined;
-            if (!slmConfig?.baseUrl) {
-              // No baseUrl configured — need sLM configuration dialog
+            if (!slmConfig?.baseUrl || !slmConfig?.model) {
+              // No baseUrl or model configured — need sLM configuration dialog
+              // Model is required for OpenAI-compatible servers (403 Model Not Found otherwise)
               setAuthState(AuthState.ConfiguringSlm);
               return;
             }

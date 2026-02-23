@@ -410,6 +410,10 @@ describe('Core System Prompt (prompts.ts)', () => {
   });
 });
 
+// Note: sLM (small Language Model) lightweight prompt tests removed.
+// Full system prompt is now used for all providers including OpenAI-compatible.
+// Users can configure tools via 'coreTools' setting in settings.json for limited context scenarios.
+
 describe('resolvePathFromEnv helper function', () => {
   beforeEach(() => {
     vi.resetAllMocks();

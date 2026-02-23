@@ -1983,9 +1983,14 @@ export class Config {
       }
     };
 
-    registerCoreTool(LSTool, this);
+    // Register core tools
+    // Note: For sLM (OpenAI-compatible) mode with limited context, users can
+    // configure 'tools.core' in settings.json to limit which tools are enabled.
+    // Example: { "tools": { "core": ["read_file", "search_file_content", "glob", "replace", "write_file", "run_shell_command"] } }
+    // See packages/core/src/tools/tool-names.ts for all available tool names.
     registerCoreTool(ReadFileTool, this);
 
+    // Grep/RipGrep - for code search
     if (this.getUseRipgrep()) {
       let useRipgrep = false;
       let errorString: undefined | string = undefined;
@@ -2005,11 +2010,14 @@ export class Config {
     }
 
     registerCoreTool(GlobTool, this);
-    registerCoreTool(ActivateSkillTool, this);
     registerCoreTool(EditTool, this);
     registerCoreTool(WriteFileTool, this);
-    registerCoreTool(WebFetchTool, this);
     registerCoreTool(ShellTool, this);
+
+    // Additional tools
+    registerCoreTool(LSTool, this);
+    registerCoreTool(ActivateSkillTool, this);
+    registerCoreTool(WebFetchTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
     if (this.getUseWriteTodos()) {
@@ -2019,6 +2027,7 @@ export class Config {
     // Register Subagents as Tools
     this.registerSubAgentTools(registry);
 
+    // Discover MCP/external tools
     await registry.discoverAllTools();
     registry.sortTools();
     return registry;

@@ -3,7 +3,7 @@
 exports[`SlmConfigDialog > snapshot > matches snapshot for initial render 1`] = `
 "╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
 │                                                                                                  │
-│ sLM Configuration                                                                    Step 1 of 3 │
+│ sLM Configuration                                                                    Step 1 of 4 │
 │                                                                                                  │
 │ API Endpoint URL                                                                                 │
 │ Enter the base URL for your OpenAI-compatible API endpoint.                                      │

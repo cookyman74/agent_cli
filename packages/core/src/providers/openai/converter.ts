@@ -73,7 +73,8 @@ export class OpenAiConverter {
     };
 
     // Generation parameters
-    if (request.maxTokens !== undefined) {
+    // For OpenAI-compatible servers that require max_tokens, provide a default
+    if (request.maxTokens !== undefined && request.maxTokens > 0) {
       params['max_completion_tokens'] = request.maxTokens;
     }
     if (request.temperature !== undefined) {

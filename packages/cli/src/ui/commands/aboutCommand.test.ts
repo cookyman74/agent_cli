@@ -40,12 +40,16 @@ describe('aboutCommand', () => {
           getModel: vi.fn(),
           getIdeMode: vi.fn().mockReturnValue(true),
           getUserTierName: vi.fn().mockReturnValue(undefined),
+          getContentGenerator: vi
+            .fn()
+            .mockReturnValue({ providerName: 'test-provider' }),
         },
         settings: {
           merged: {
             security: {
               auth: {
                 selectedType: 'test-auth',
+                selectedProvider: 'test-provider',
               },
             },
           },
@@ -95,6 +99,7 @@ describe('aboutCommand', () => {
       sandboxEnv: 'no sandbox',
       modelVersion: 'test-model',
       selectedAuthType: 'test-auth',
+      selectedProvider: 'test-provider',
       gcpProject: 'test-gcp-project',
       ideClient: 'test-ide',
       userEmail: 'test-email@example.com',
@@ -155,6 +160,89 @@ describe('aboutCommand', () => {
         selectedAuthType: 'test-auth',
         gcpProject: 'test-gcp-project',
         ideClient: '',
+      }),
+    );
+  });
+
+  it('should resolve provider from LLM_PROVIDER env when settings is empty', async () => {
+    // Override mock: getContentGenerator returns undefined to trigger fallback
+    mockContext = createMockCommandContext({
+      services: {
+        config: {
+          getModel: vi.fn().mockReturnValue('test-model'),
+          getIdeMode: vi.fn().mockReturnValue(false),
+          getUserTierName: vi.fn().mockReturnValue(undefined),
+          getContentGenerator: vi.fn().mockReturnValue(undefined),
+        },
+        settings: {
+          merged: {
+            security: {
+              auth: {
+                selectedType: 'test-auth',
+                selectedProvider: '',
+              },
+            },
+          },
+        },
+      },
+      ui: {
+        addItem: vi.fn(),
+      },
+    } as unknown as CommandContext);
+
+    process.env['LLM_PROVIDER'] = 'openai';
+    process.env['SANDBOX'] = '';
+
+    if (!aboutCommand.action) {
+      throw new Error('The about command must have an action.');
+    }
+
+    await aboutCommand.action(mockContext, '');
+
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedProvider: 'openai',
+      }),
+    );
+  });
+
+  it('should normalize anthropic provider key to claude', async () => {
+    // Override mock: getContentGenerator returns undefined to trigger fallback
+    mockContext = createMockCommandContext({
+      services: {
+        config: {
+          getModel: vi.fn().mockReturnValue('test-model'),
+          getIdeMode: vi.fn().mockReturnValue(false),
+          getUserTierName: vi.fn().mockReturnValue(undefined),
+          getContentGenerator: vi.fn().mockReturnValue(undefined),
+        },
+        settings: {
+          merged: {
+            security: {
+              auth: {
+                selectedType: 'test-auth',
+                selectedProvider: 'anthropic',
+              },
+            },
+          },
+        },
+      },
+      ui: {
+        addItem: vi.fn(),
+      },
+    } as unknown as CommandContext);
+
+    process.env['SANDBOX'] = '';
+
+    if (!aboutCommand.action) {
+      throw new Error('The about command must have an action.');
+    }
+
+    await aboutCommand.action(mockContext, '');
+
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedProvider: 'claude',
       }),
     );
   });

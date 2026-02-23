@@ -8,6 +8,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
   useState,
   createElement,
 } from 'react';
@@ -34,6 +35,7 @@ import {
   addMCPStatusChangeListener,
   removeMCPStatusChangeListener,
   MCPDiscoveryState,
+  ProviderQuotaService,
 } from '@didim365/agent-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import type {
@@ -137,6 +139,28 @@ export const useSlashCommandProcessor = (
     return l;
   }, [config]);
 
+  // Session-scoped ProviderQuotaService singleton for non-Gemini rate-limit data.
+  // Stable across renders; re-binding to content generator is handled by useEffect below.
+  const providerQuotaService = useMemo(() => new ProviderQuotaService(), []);
+
+  // Bind ProviderQuotaService to content generator.
+  // Config stays the same reference but internal contentGenerator can be
+  // replaced after auth, so we track the last bound generator to detect changes.
+  // Runs when config or reloadTrigger changes (auth refresh triggers reloadTrigger).
+  const lastBoundGeneratorRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (!config) return;
+    const gen = config.getContentGenerator();
+    if (gen !== lastBoundGeneratorRef.current) {
+      if (gen && 'setProviderQuotaService' in gen) {
+        (
+          gen as { setProviderQuotaService: (s: ProviderQuotaService) => void }
+        ).setProviderQuotaService(providerQuotaService);
+      }
+      lastBoundGeneratorRef.current = gen;
+    }
+  }, [config, providerQuotaService, reloadTrigger]);
+
   const [pendingItem, setPendingItem] = useState<HistoryItemWithoutId | null>(
     null,
   );
@@ -161,6 +185,7 @@ export const useSlashCommandProcessor = (
           sandboxEnv: message.sandboxEnv,
           modelVersion: message.modelVersion,
           selectedAuthType: message.selectedAuthType,
+          selectedProvider: message.selectedProvider ?? '',
           gcpProject: message.gcpProject,
           ideClient: message.ideClient,
         };
@@ -209,6 +234,7 @@ export const useSlashCommandProcessor = (
         settings,
         git: gitService,
         logger,
+        providerQuotaService,
       },
       ui: {
         addItem,
@@ -248,6 +274,7 @@ export const useSlashCommandProcessor = (
       settings,
       gitService,
       logger,
+      providerQuotaService,
       loadHistory,
       addItem,
       clearItems,

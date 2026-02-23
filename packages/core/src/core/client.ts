@@ -685,7 +685,11 @@ export class GeminiClient {
         yield { type: LlmEventType.ModelInfo, modelName: providerModel };
       }
 
-      turn = yield* this.processLlmTurn(
+      // Delegate to processLlmTurn while tracking error state.
+      // yield* delegates all events to the caller; we intercept to detect errors
+      // so we can skip cumulativeResponse update (mirroring Gemini path at line 776).
+      let isProviderError = false;
+      const llmStream = this.processLlmTurn(
         generator,
         providerModel,
         request,
@@ -693,6 +697,41 @@ export class GeminiClient {
         prompt_id,
         controller,
       );
+      // Manual iteration to intercept events while delegating yield.
+      // try/finally ensures generator cleanup (equivalent to yield*'s
+      // implicit .return() call when the consumer disconnects early).
+      try {
+        let iterResult = await llmStream.next();
+        while (!iterResult.done) {
+          const event = iterResult.value;
+          if (event.type === LlmEventType.Error) {
+            isProviderError = true;
+          }
+          iterResult = await llmStream.next(yield event);
+        }
+        turn = iterResult.value;
+      } finally {
+        // Signal the inner generator to clean up if iteration ended early
+        // (e.g., consumer called .return() or .throw() on the outer generator).
+        // No-op if the generator already completed normally (iterResult.done).
+        await llmStream.return(undefined as unknown as Turn);
+      }
+
+      // Update cumulative response in hook state (mirrors Gemini path at line 780)
+      // Skip on error to avoid recording partial/failed responses (mirrors line 776)
+      if (!isProviderError) {
+        const hooksEnabledForProvider = this.config.getEnableHooks();
+        if (hooksEnabledForProvider) {
+          const responseText = turn.getResponseText() || '';
+          const hookState = this.hookStateMap.get(prompt_id);
+          if (hookState && responseText) {
+            hookState.cumulativeResponse = hookState.cumulativeResponse
+              ? `${hookState.cumulativeResponse}\n${responseText}`
+              : responseText;
+          }
+        }
+      }
+
       return turn;
     }
 
@@ -718,6 +757,12 @@ export class GeminiClient {
       const decision = await router.route(routingContext);
       modelToUse = decision.model;
     }
+
+    // Safety: validate model is appropriate for Gemini provider.
+    // After switching from a non-Gemini provider (e.g., OpenAI), the config
+    // may still hold a non-Gemini model name (e.g., 'gpt-5.2').
+    // resolveProviderModel returns the Gemini default if the model is invalid.
+    modelToUse = resolveProviderModel(modelToUse, 'gemini');
 
     // availability logic
     const modelConfigKey: ModelConfigKey = { model: modelToUse };
@@ -913,7 +958,15 @@ export class GeminiClient {
         }
 
         accumulator.addEvent(event);
-        yield event;
+
+        // Ensure ToolCallRequest events carry the promptId so the UI layer
+        // can use the correct prompt_id for tool-call continuations.
+        // Non-Gemini adapters (Claude, OpenAI) don't set promptId on events.
+        if (event.type === LlmEventType.ToolCallRequest && !event.promptId) {
+          yield { ...event, promptId };
+        } else {
+          yield event;
+        }
 
         if (event.type === LlmEventType.Error) {
           isError = true;
@@ -1100,16 +1153,12 @@ export class GeminiClient {
     } finally {
       const hookState = this.hookStateMap.get(prompt_id);
       if (hookState) {
-        hookState.activeCalls--;
-        const isPendingTools =
-          turn?.pendingToolCalls && turn.pendingToolCalls.length > 0;
-        const isAborted = signal?.aborted;
+        hookState.activeCalls = Math.max(0, hookState.activeCalls - 1);
 
-        if (hookState.activeCalls <= 0) {
-          if (!isPendingTools || isAborted) {
-            this.hookStateMap.delete(prompt_id);
-          }
-        }
+        // Don't delete hookState here — it must survive across tool-call
+        // continuations so that originalRequest (the user's text) is preserved
+        // for the AfterAgent hook.  Cleanup happens when a new prompt_id
+        // arrives (see this.hookStateMap.delete(this.lastPromptId) above).
       }
     }
 

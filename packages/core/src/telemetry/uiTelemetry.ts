@@ -17,11 +17,17 @@ import type {
   ApiResponseEvent,
   ToolCallEvent,
 } from './types.js';
+import type {
+  ProviderApiResponseEvent,
+  ProviderApiErrorEvent,
+} from '../providers/telemetryBridge.js';
 
 export type UiEvent =
   | (ApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE })
   | (ApiErrorEvent & { 'event.name': typeof EVENT_API_ERROR })
-  | (ToolCallEvent & { 'event.name': typeof EVENT_TOOL_CALL });
+  | (ToolCallEvent & { 'event.name': typeof EVENT_TOOL_CALL })
+  | (ProviderApiResponseEvent & { 'event.name': typeof EVENT_API_RESPONSE })
+  | (ProviderApiErrorEvent & { 'event.name': typeof EVENT_API_ERROR });
 
 export interface ToolCallStats {
   count: number;
@@ -37,6 +43,7 @@ export interface ToolCallStats {
 }
 
 export interface ModelMetrics {
+  provider?: string;
   api: {
     totalRequests: number;
     totalErrors: number;
@@ -48,6 +55,7 @@ export interface ModelMetrics {
     candidates: number;
     total: number;
     cached: number;
+    cacheCreation: number;
     thoughts: number;
     tool: number;
   };
@@ -86,6 +94,7 @@ const createInitialModelMetrics = (): ModelMetrics => ({
     candidates: 0,
     total: 0,
     cached: 0,
+    cacheCreation: 0,
     thoughts: 0,
     tool: 0,
   },
@@ -111,6 +120,14 @@ const createInitialMetrics = (): SessionMetrics => ({
     totalLinesRemoved: 0,
   },
 });
+
+export interface ProviderSummary {
+  provider: string;
+  totalRequests: number;
+  totalErrors: number;
+  totalTokens: number;
+  totalLatencyMs: number;
+}
 
 export class UiTelemetryService extends EventEmitter {
   #metrics: SessionMetrics = createInitialMetrics();
@@ -154,6 +171,27 @@ export class UiTelemetryService extends EventEmitter {
     });
   }
 
+  getProviderSummary(): Record<string, ProviderSummary> {
+    const summary: Record<string, ProviderSummary> = {};
+    for (const [key, metrics] of Object.entries(this.#metrics.models)) {
+      const { provider } = parseCompositeKey(key);
+      if (!summary[provider]) {
+        summary[provider] = {
+          provider,
+          totalRequests: 0,
+          totalErrors: 0,
+          totalTokens: 0,
+          totalLatencyMs: 0,
+        };
+      }
+      summary[provider].totalRequests += metrics.api.totalRequests;
+      summary[provider].totalErrors += metrics.api.totalErrors;
+      summary[provider].totalTokens += metrics.tokens.total;
+      summary[provider].totalLatencyMs += metrics.api.totalLatencyMs;
+    }
+    return summary;
+  }
+
   private getOrCreateModelMetrics(modelName: string): ModelMetrics {
     if (!this.#metrics.models[modelName]) {
       this.#metrics.models[modelName] = createInitialModelMetrics();
@@ -161,8 +199,26 @@ export class UiTelemetryService extends EventEmitter {
     return this.#metrics.models[modelName];
   }
 
+  /**
+   * Extract provider from event. ProviderApi*Event has explicit 'provider' field;
+   * legacy Api*Event defaults to 'gemini'.
+   */
+  private extractProviderAndMetrics(event: { model: string }): {
+    provider: string;
+    modelMetrics: ModelMetrics;
+  } {
+    const provider =
+      ((event as unknown as Record<string, unknown>)['provider'] as
+        | string
+        | undefined) ?? 'gemini';
+    const compositeKey = buildCompositeKey(provider, event.model);
+    const modelMetrics = this.getOrCreateModelMetrics(compositeKey);
+    modelMetrics.provider = provider;
+    return { provider, modelMetrics };
+  }
+
   private processApiResponse(event: ApiResponseEvent) {
-    const modelMetrics = this.getOrCreateModelMetrics(event.model);
+    const { modelMetrics } = this.extractProviderAndMetrics(event);
 
     modelMetrics.api.totalRequests++;
     modelMetrics.api.totalLatencyMs += event.duration_ms;
@@ -171,6 +227,8 @@ export class UiTelemetryService extends EventEmitter {
     modelMetrics.tokens.candidates += event.usage.output_token_count;
     modelMetrics.tokens.total += event.usage.total_token_count;
     modelMetrics.tokens.cached += event.usage.cached_content_token_count;
+    modelMetrics.tokens.cacheCreation +=
+      event.usage.cache_creation_token_count ?? 0;
     modelMetrics.tokens.thoughts += event.usage.thoughts_token_count;
     modelMetrics.tokens.tool += event.usage.tool_token_count;
     modelMetrics.tokens.input = Math.max(
@@ -180,7 +238,8 @@ export class UiTelemetryService extends EventEmitter {
   }
 
   private processApiError(event: ApiErrorEvent) {
-    const modelMetrics = this.getOrCreateModelMetrics(event.model);
+    const { modelMetrics } = this.extractProviderAndMetrics(event);
+
     modelMetrics.api.totalRequests++;
     modelMetrics.api.totalErrors++;
     modelMetrics.api.totalLatencyMs += event.duration_ms;
@@ -239,3 +298,38 @@ export class UiTelemetryService extends EventEmitter {
 }
 
 export const uiTelemetryService = new UiTelemetryService();
+
+/** provider::model 형식의 복합 키 생성 */
+export function buildCompositeKey(provider: string, model: string): string {
+  return `${provider}::${model}`;
+}
+
+/** 복합 키를 provider와 model로 파싱. 레거시 키(:: 미포함)는 gemini 기본값 */
+export function parseCompositeKey(key: string): {
+  provider: string;
+  model: string;
+} {
+  const separatorIndex = key.indexOf('::');
+  if (separatorIndex === -1) {
+    return { provider: 'gemini', model: key };
+  }
+  return {
+    provider: key.slice(0, separatorIndex),
+    model: key.slice(separatorIndex + 2),
+  };
+}
+
+/** 복합 키 파싱 기반 모델 그룹핑 */
+export function groupModelsByProvider(
+  models: Record<string, ModelMetrics>,
+): Record<string, Array<[string, ModelMetrics]>> {
+  const groups: Record<string, Array<[string, ModelMetrics]>> = {};
+  for (const [key, metrics] of Object.entries(models)) {
+    const { provider } = parseCompositeKey(key);
+    if (!groups[provider]) {
+      groups[provider] = [];
+    }
+    groups[provider].push([key, metrics]);
+  }
+  return groups;
+}

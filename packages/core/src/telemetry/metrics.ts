@@ -99,7 +99,13 @@ const COUNTER_DEFINITIONS = {
     assign: (c: Counter) => (tokenUsageCounter = c),
     attributes: {} as {
       model: string;
-      type: 'input' | 'output' | 'thought' | 'cache' | 'tool';
+      type:
+        | 'input'
+        | 'output'
+        | 'thought'
+        | 'cache'
+        | 'cache_creation'
+        | 'tool';
     },
   },
   [SESSION_COUNT]: {
@@ -1142,7 +1148,7 @@ export function recordTokenUsageMetrics(
   tokenCount: number,
   attributes: {
     model: string;
-    type: 'input' | 'output' | 'thought' | 'cache' | 'tool';
+    type: 'input' | 'output' | 'thought' | 'cache' | 'cache_creation' | 'tool';
     genAiAttributes?: {
       'gen_ai.operation.name': string;
       'gen_ai.provider.name': string;

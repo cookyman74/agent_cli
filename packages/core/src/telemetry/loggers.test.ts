@@ -45,6 +45,8 @@ import {
   logWebFetchFallbackAttempt,
   logExtensionUpdateEvent,
   logHookCall,
+  logProviderApiResponse,
+  logProviderApiError,
 } from './loggers.js';
 import { ToolCallDecision } from './tool-call-decision.js';
 import {
@@ -110,6 +112,10 @@ import { ClearcutLogger } from './clearcut-logger/clearcut-logger.js';
 import { UserAccountManager } from '../utils/userAccountManager.js';
 import { InstallationManager } from '../utils/installationManager.js';
 import { AgentTerminateMode } from '../agents/types.js';
+import {
+  ProviderApiResponseEvent,
+  ProviderApiErrorEvent,
+} from '../providers/telemetryBridge.js';
 
 vi.mock('systeminformation', () => ({
   default: {
@@ -501,6 +507,31 @@ describe('loggers', () => {
             'gen_ai.response.model': 'test-model',
           },
         },
+      );
+
+      // RED-1: Verify cache_creation token metrics are recorded
+      expect(mockMetrics.recordTokenUsageMetrics).toHaveBeenCalledWith(
+        mockConfig,
+        0,
+        {
+          model: 'test-model',
+          type: 'cache_creation',
+          genAiAttributes: {
+            'gen_ai.operation.name': 'generate_content',
+            'gen_ai.provider.name': 'gcp.vertex_ai',
+            'gen_ai.request.model': 'test-model',
+            'gen_ai.response.model': 'test-model',
+          },
+        },
+      );
+
+      // RED-3: Verify toLogRecord includes cache_creation_token_count
+      expect(mockLogger.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attributes: expect.objectContaining({
+            cache_creation_token_count: 0,
+          }),
+        }),
       );
 
       expect(mockUiEvent.addEvent).toHaveBeenCalledWith({
@@ -2187,6 +2218,111 @@ describe('loggers', () => {
 
       expect(bufferSpy).toHaveBeenCalled();
       expect(mockLogger.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================================
+  // RED-6: logProviderApiResponse / logProviderApiError
+  // =========================================================================
+
+  describe('logProviderApiResponse', () => {
+    const mockConfig = makeFakeConfig();
+
+    it('should dispatch event to uiTelemetryService', () => {
+      const event = new ProviderApiResponseEvent({
+        model: 'claude-sonnet-4-20250514',
+        durationMs: 500,
+        promptId: 'prompt-provider-1',
+        usage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+        },
+        provider: 'claude',
+      });
+
+      logProviderApiResponse(mockConfig, event);
+
+      expect(mockUiEvent.addEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'event.name': EVENT_API_RESPONSE,
+          model: 'claude-sonnet-4-20250514',
+          provider: 'claude',
+        }),
+      );
+    });
+
+    // RED-2: Verify cache_creation token metrics for provider path
+    it('should record cache_creation token metrics', () => {
+      const mockRecordTokenUsage = vi
+        .spyOn(metrics, 'recordTokenUsageMetrics')
+        .mockImplementation(vi.fn());
+
+      const event = new ProviderApiResponseEvent({
+        model: 'claude-sonnet-4-20250514',
+        durationMs: 500,
+        promptId: 'prompt-provider-cc',
+        usage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+          cacheCreationTokens: 25,
+        },
+        provider: 'claude',
+      });
+
+      logProviderApiResponse(mockConfig, event);
+
+      expect(mockRecordTokenUsage).toHaveBeenCalledWith(mockConfig, 25, {
+        model: 'claude-sonnet-4-20250514',
+        type: 'cache_creation',
+      });
+    });
+
+    it('should NOT call ClearcutLogger.logApiResponseEvent', () => {
+      vi.spyOn(ClearcutLogger.prototype, 'logApiResponseEvent');
+
+      const event = new ProviderApiResponseEvent({
+        model: 'gpt-5.2',
+        durationMs: 300,
+        promptId: 'prompt-provider-2',
+        usage: {
+          promptTokens: 80,
+          completionTokens: 40,
+          totalTokens: 120,
+        },
+        provider: 'openai',
+      });
+
+      logProviderApiResponse(mockConfig, event);
+
+      expect(
+        ClearcutLogger.prototype.logApiResponseEvent,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('logProviderApiError', () => {
+    const mockConfig = makeFakeConfig();
+
+    it('should dispatch error event to uiTelemetryService', () => {
+      const event = new ProviderApiErrorEvent({
+        model: 'claude-sonnet-4-20250514',
+        error: 'Rate limit exceeded',
+        durationMs: 100,
+        promptId: 'prompt-provider-err-1',
+        provider: 'claude',
+      });
+
+      logProviderApiError(mockConfig, event);
+
+      expect(mockUiEvent.addEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'event.name': EVENT_API_ERROR,
+          model: 'claude-sonnet-4-20250514',
+          provider: 'claude',
+        }),
+      );
     });
   });
 });

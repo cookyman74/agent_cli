@@ -34,6 +34,10 @@ import {
   TimeoutError,
 } from '../errors.js';
 import { createErrorEvent, LlmEventType } from '../events.js';
+import {
+  extractWithRateLimits,
+  OPENAI_RATE_LIMIT_HEADERS,
+} from '../rateLimitUtils.js';
 import { OpenAiConverter } from './converter.js';
 import { debugLogger } from '../../utils/debugLogger.js';
 
@@ -109,10 +113,18 @@ export class OpenAiAdapter extends BaseAdapter {
 
     try {
       const params = this.converter.toOpenAiRequest(request);
-      const response = await this.client.chat.completions.create(params, {
+      const createResult = this.client.chat.completions.create(params, {
         signal: options?.signal,
       });
-      return this.converter.fromOpenAiResponse(response, request.model);
+      const { data, rateLimits } = await extractWithRateLimits(
+        createResult,
+        OPENAI_RATE_LIMIT_HEADERS,
+      );
+      const result = this.converter.fromOpenAiResponse(data, request.model);
+      if (rateLimits) {
+        result.rateLimits = rateLimits;
+      }
+      return result;
     } catch (error) {
       throw this.classifyError(error);
     }
@@ -136,17 +148,23 @@ export class OpenAiAdapter extends BaseAdapter {
 
     async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
       try {
-        const stream = (await client.chat.completions.create(
+        const createResult = client.chat.completions.create(
           {
             ...params,
             stream: true,
             stream_options: { include_usage: true },
           },
           { signal },
-        )) as AsyncIterable<unknown>;
+        );
+        const { data, rateLimits } = await extractWithRateLimits(
+          createResult,
+          OPENAI_RATE_LIMIT_HEADERS,
+        );
+        const stream = data as AsyncIterable<unknown>;
 
         const state = converter.createStreamState();
         let chunkIndex = 0;
+        let messageEndEmitted = false;
         for await (const chunk of stream) {
           const events = converter.convertStreamEvent(chunk, state);
           for (const event of events) {
@@ -155,9 +173,23 @@ export class OpenAiAdapter extends BaseAdapter {
                 `[OpenAI stream] chunk#${chunkIndex} TextDelta: "${event.text.substring(0, 80)}"`,
               );
             }
-            yield event;
+            if (event.type === LlmEventType.MessageEnd) {
+              messageEndEmitted = true;
+              yield rateLimits ? { ...event, rateLimits } : event;
+            } else {
+              yield event;
+            }
           }
           chunkIndex++;
+        }
+
+        // Fallback: openai-compatible servers may not send usage-only final chunk.
+        // Emit a synthetic MessageEnd so downstream consumers always get it.
+        if (!messageEndEmitted) {
+          yield {
+            type: LlmEventType.MessageEnd as const,
+            ...(rateLimits && { rateLimits }),
+          };
         }
       } catch (error) {
         const classified = classify(error);

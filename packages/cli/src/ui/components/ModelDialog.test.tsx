@@ -364,13 +364,13 @@ describe('<ModelDialog />', () => {
 
   describe('OpenAI provider', () => {
     beforeEach(() => {
-      mockGetModel.mockReturnValue('gpt-4.1');
+      mockGetModel.mockReturnValue('gpt-5.2');
     });
 
     it('renders OpenAI presets when selectedProvider="openai"', () => {
       const { lastFrame } = renderWithProvider('openai');
       expect(lastFrame()).toContain('Select Model');
-      expect(lastFrame()).toContain('Recommended (gpt-4.1)');
+      expect(lastFrame()).toContain('Recommended (gpt-5.2)');
       expect(lastFrame()).toContain('Manual');
       expect(lastFrame()).not.toContain('Gemini');
     });
@@ -382,7 +382,7 @@ describe('<ModelDialog />', () => {
       stdin.write('\r');
       await waitForUpdate();
 
-      expect(lastFrame()).toContain('gpt-4.1');
+      expect(lastFrame()).toContain('gpt-5.2');
       expect(lastFrame()).toContain('gpt-4.1-mini');
       expect(lastFrame()).toContain('o3');
       expect(lastFrame()).toContain('o4-mini');

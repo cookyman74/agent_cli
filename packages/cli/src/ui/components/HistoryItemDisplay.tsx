@@ -109,6 +109,7 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
           sandboxEnv={itemForDisplay.sandboxEnv}
           modelVersion={itemForDisplay.modelVersion}
           selectedAuthType={itemForDisplay.selectedAuthType}
+          selectedProvider={itemForDisplay.selectedProvider}
           gcpProject={itemForDisplay.gcpProject}
           ideClient={itemForDisplay.ideClient}
           userEmail={itemForDisplay.userEmail}
@@ -121,7 +122,9 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
       {itemForDisplay.type === 'stats' && (
         <StatsDisplay
           duration={itemForDisplay.duration}
+          providerFilter={itemForDisplay.providerFilter}
           quotas={itemForDisplay.quotas}
+          providerQuotas={itemForDisplay.providerQuotas}
         />
       )}
       {itemForDisplay.type === 'model_stats' && <ModelStatsDisplay />}

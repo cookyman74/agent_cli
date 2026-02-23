@@ -13,7 +13,15 @@ import {
   CommandKind,
 } from './types.js';
 
-async function defaultSessionView(context: CommandContext) {
+function parseProviderFlag(args: string): string | undefined {
+  const match = args.match(/--provider\s+(\S+)/);
+  return match?.[1]?.toLowerCase();
+}
+
+async function defaultSessionView(
+  context: CommandContext,
+  providerFilter?: string,
+) {
   const now = new Date();
   const { sessionStartTime } = context.session.stats;
   if (!sessionStartTime) {
@@ -28,6 +36,7 @@ async function defaultSessionView(context: CommandContext) {
   const statsItem: HistoryItemStats = {
     type: MessageType.STATS,
     duration: formatDuration(wallDuration),
+    ...(providerFilter && { providerFilter }),
   };
 
   if (context.services.config) {
@@ -37,17 +46,28 @@ async function defaultSessionView(context: CommandContext) {
     }
   }
 
+  // Non-Gemini provider quotas from response headers
+  const providerQuotaService = context.services.providerQuotaService;
+  if (providerQuotaService) {
+    const all = providerQuotaService.getAll();
+    if (Object.keys(all).length > 0) {
+      statsItem.providerQuotas = all;
+    }
+  }
+
   context.ui.addItem(statsItem);
 }
 
 export const statsCommand: SlashCommand = {
   name: 'stats',
   altNames: ['usage'],
-  description: 'Check session stats. Usage: /stats [session|model|tools]',
+  description:
+    'Check session stats. Usage: /stats [session|model|tools] [--provider <name>]',
   kind: CommandKind.BUILT_IN,
   autoExecute: false,
-  action: async (context: CommandContext) => {
-    await defaultSessionView(context);
+  action: async (context: CommandContext, args: string) => {
+    const providerFilter = parseProviderFlag(args);
+    await defaultSessionView(context, providerFilter);
   },
   subCommands: [
     {
@@ -55,8 +75,9 @@ export const statsCommand: SlashCommand = {
       description: 'Show session-specific usage statistics',
       kind: CommandKind.BUILT_IN,
       autoExecute: true,
-      action: async (context: CommandContext) => {
-        await defaultSessionView(context);
+      action: async (context: CommandContext, args: string) => {
+        const providerFilter = parseProviderFlag(args);
+        await defaultSessionView(context, providerFilter);
       },
     },
     {

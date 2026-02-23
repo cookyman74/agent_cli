@@ -14,6 +14,8 @@ vi.mock('../telemetry/loggers.js', () => ({
   logApiRequest: vi.fn(),
   logApiResponse: vi.fn(),
   logApiError: vi.fn(),
+  logProviderApiResponse: vi.fn(),
+  logProviderApiError: vi.fn(),
 }));
 
 vi.mock('../telemetry/trace.js', () => ({

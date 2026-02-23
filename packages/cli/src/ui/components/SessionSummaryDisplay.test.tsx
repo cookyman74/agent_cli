@@ -50,6 +50,7 @@ describe('<SessionSummaryDisplay />', () => {
             candidates: 2000,
             total: 3500,
             cached: 500,
+            cacheCreation: 0,
             thoughts: 300,
             tool: 200,
           },

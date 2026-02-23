@@ -89,6 +89,7 @@ describe('TelemetryBridge', () => {
         output_token_count: 50,
         total_token_count: 150,
         cached_content_token_count: 20,
+        cache_creation_token_count: 0,
         thoughts_token_count: 30,
         tool_token_count: 10,
       };
@@ -109,6 +110,7 @@ describe('TelemetryBridge', () => {
         output_token_count: 50,
         total_token_count: 150,
         cached_content_token_count: 0,
+        cache_creation_token_count: 0,
         thoughts_token_count: 0,
         tool_token_count: 0,
       };
@@ -227,6 +229,48 @@ describe('TelemetryBridge', () => {
 
       expect(event.provider).toBe('claude');
       expect(event.status_code).toBeUndefined();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Phase 2 RED-1/2/3: cacheCreation token mapping
+  // --------------------------------------------------------------------------
+  describe('llmTokenUsageToGenAIUsage cacheCreation', () => {
+    it('should map cacheCreationTokens to cache_creation_token_count', () => {
+      const usage: LlmTokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+        cacheCreationTokens: 30,
+      };
+      const result = llmTokenUsageToGenAIUsage(usage);
+      expect(result.cache_creation_token_count).toBe(30);
+    });
+
+    it('should default cache_creation_token_count to 0 when undefined', () => {
+      const usage: LlmTokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+      const result = llmTokenUsageToGenAIUsage(usage);
+      expect(result.cache_creation_token_count).toBe(0);
+    });
+  });
+
+  describe('genAIUsageToLlmTokenUsage cacheCreation', () => {
+    it('should map cache_creation_token_count back to cacheCreationTokens', () => {
+      const genAIUsage: GenAIUsageDetails = {
+        input_token_count: 100,
+        output_token_count: 50,
+        total_token_count: 150,
+        cached_content_token_count: 20,
+        cache_creation_token_count: 30,
+        thoughts_token_count: 0,
+        tool_token_count: 0,
+      };
+      const result = genAIUsageToLlmTokenUsage(genAIUsage);
+      expect(result.cacheCreationTokens).toBe(30);
     });
   });
 

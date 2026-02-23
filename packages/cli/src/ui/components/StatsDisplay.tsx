@@ -5,6 +5,7 @@
  */
 
 import type React from 'react';
+import { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { ThemedGradient } from './ThemedGradient.js';
 import { theme } from '../semantic-colors.js';
@@ -23,7 +24,12 @@ import {
 import { computeSessionStats } from '../utils/computeStats.js';
 import {
   type RetrieveUserQuotaResponse,
-  VALID_GEMINI_MODELS,
+  type ProviderQuota,
+  PROVIDER_MODEL_REGISTRY,
+  parseCompositeKey,
+  groupModelsByProvider,
+  estimateCost,
+  formatCostString,
 } from '@didim365/agent-cli-core';
 
 // A more flexible and powerful StatRow component
@@ -73,49 +79,107 @@ const Section: React.FC<SectionProps> = ({ title, children }) => (
   </Box>
 );
 
+// Registered Gemini model IDs for quota-only row allowlist
+const GEMINI_MODEL_ALLOWLIST = new Set(
+  PROVIDER_MODEL_REGISTRY['gemini']?.models.map((m) => m.id) ?? [],
+);
+
 // Logic for building the unified list of table rows
 const buildModelRows = (
   models: Record<string, ModelMetrics>,
   quotas?: RetrieveUserQuotaResponse,
 ) => {
-  const getBaseModelName = (name: string) => name.replace('-001', '');
-  const usedModelNames = new Set(Object.keys(models).map(getBaseModelName));
+  const providers = new Set(
+    Object.keys(models).map((key) => parseCompositeKey(key).provider),
+  );
+  const hasMultipleProviders = providers.size > 1;
 
-  // 1. Models with active usage
-  const activeRows = Object.entries(models).map(([name, metrics]) => {
-    const modelName = getBaseModelName(name);
-    const cachedTokens = metrics.tokens.cached;
-    const inputTokens = metrics.tokens.input;
+  const getModelId = (compositeKey: string) =>
+    parseCompositeKey(compositeKey).model.replace('-001', '');
+
+  const getDisplayName = (compositeKey: string) => {
+    const { provider, model } = parseCompositeKey(compositeKey);
+    const baseName = model.replace('-001', '');
+    return hasMultipleProviders ? `${baseName} (${provider})` : baseName;
+  };
+
+  // For quota-only: only consider Gemini provider models as "used"
+  const usedGeminiModelIds = new Set(
+    Object.keys(models)
+      .filter((key) => parseCompositeKey(key).provider === 'gemini')
+      .map(getModelId),
+  );
+
+  const makeActiveRow = (name: string, metrics: ModelMetrics) => {
+    const modelId = getModelId(name);
     return {
       key: name,
-      modelName,
-      requests: metrics.api.totalRequests,
-      cachedTokens: cachedTokens.toLocaleString(),
-      inputTokens: inputTokens.toLocaleString(),
+      modelName: getDisplayName(name),
+      requests: metrics.api.totalRequests as number | string,
+      cachedTokens: metrics.tokens.cached.toLocaleString(),
+      inputTokens: metrics.tokens.input.toLocaleString(),
       outputTokens: metrics.tokens.candidates.toLocaleString(),
-      bucket: quotas?.buckets?.find((b) => b.modelId === modelName),
+      bucket: quotas?.buckets?.find((b) => b.modelId === modelId),
       isActive: true,
+      isSubtotal: false,
     };
-  });
+  };
 
-  // 2. Models with quota only
+  // 1. Group models by provider and build rows with optional subtotals
+  const providerGroups = groupModelsByProvider(models);
+  const activeRows: Array<ReturnType<typeof makeActiveRow>> = [];
+
+  for (const [provider, entries] of Object.entries(providerGroups)) {
+    const providerRows = entries.map(([name, metrics]) =>
+      makeActiveRow(name, metrics),
+    );
+    activeRows.push(...providerRows);
+
+    // Add subtotal row when multi-provider and provider has 2+ models
+    if (hasMultipleProviders && entries.length >= 2) {
+      const subtotalReqs = entries.reduce(
+        (s, [, m]) => s + m.api.totalRequests,
+        0,
+      );
+      activeRows.push({
+        key: `subtotal::${provider}`,
+        modelName: `${provider} Subtotal`,
+        requests: subtotalReqs,
+        cachedTokens: entries
+          .reduce((s, [, m]) => s + m.tokens.cached, 0)
+          .toLocaleString(),
+        inputTokens: entries
+          .reduce((s, [, m]) => s + m.tokens.input, 0)
+          .toLocaleString(),
+        outputTokens: entries
+          .reduce((s, [, m]) => s + m.tokens.candidates, 0)
+          .toLocaleString(),
+        bucket: undefined,
+        isActive: true,
+        isSubtotal: true,
+      });
+    }
+  }
+
+  // 2. Models with quota only (registered Gemini models only)
   const quotaRows =
     quotas?.buckets
       ?.filter(
         (b) =>
           b.modelId &&
-          VALID_GEMINI_MODELS.has(b.modelId) &&
-          !usedModelNames.has(b.modelId),
+          GEMINI_MODEL_ALLOWLIST.has(b.modelId) &&
+          !usedGeminiModelIds.has(b.modelId),
       )
       .map((bucket) => ({
         key: bucket.modelId!,
         modelName: bucket.modelId!,
-        requests: '-',
+        requests: '-' as number | string,
         cachedTokens: '-',
         inputTokens: '-',
         outputTokens: '-',
         bucket,
         isActive: false,
+        isSubtotal: false,
       })) || [];
 
   return [...activeRows, ...quotaRows];
@@ -258,7 +322,12 @@ const ModelUsageTable: React.FC<{
       {rows.map((row) => (
         <Box key={row.key}>
           <Box width={nameWidth}>
-            <Text color={theme.text.primary} wrap="truncate-end">
+            <Text
+              bold={row.isSubtotal}
+              dimColor={row.isSubtotal}
+              color={theme.text.primary}
+              wrap="truncate-end"
+            >
               {row.modelName}
             </Text>
           </Box>
@@ -360,21 +429,81 @@ const ModelUsageTable: React.FC<{
   );
 };
 
+/** Render provider-specific rate-limit quotas (Claude, OpenAI, etc.). */
+const ProviderQuotaSection: React.FC<{
+  providerQuotas: Record<string, ProviderQuota>;
+}> = ({ providerQuotas }) => {
+  const entries = Object.values(providerQuotas);
+  if (entries.length === 0) return null;
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text bold color={theme.text.primary}>
+        Provider Rate Limits
+      </Text>
+      {entries.map((q) => (
+        <Box key={q.provider}>
+          <Box width={20}>
+            <Text color={theme.text.primary}>{q.provider}</Text>
+          </Box>
+          <Text color={theme.text.secondary}>
+            {q.requestsRemaining != null && q.requestsLimit != null
+              ? `${q.requestsRemaining}/${q.requestsLimit} reqs`
+              : ''}
+            {q.tokensRemaining != null && q.tokensLimit != null
+              ? `  ${q.tokensRemaining.toLocaleString()}/${q.tokensLimit.toLocaleString()} tokens`
+              : ''}
+            {q.resetTime
+              ? `  ${formatResetTime(q.resetTime instanceof Date ? q.resetTime.toISOString() : String(q.resetTime))}`
+              : ''}
+          </Text>
+        </Box>
+      ))}
+    </Box>
+  );
+};
+
 interface StatsDisplayProps {
   duration: string;
   title?: string;
+  providerFilter?: string;
   quotas?: RetrieveUserQuotaResponse;
+  providerQuotas?: Record<string, ProviderQuota>;
 }
 
 export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   duration,
   title,
+  providerFilter,
   quotas,
+  providerQuotas,
 }) => {
   const { stats } = useSessionStats();
   const { metrics } = stats;
-  const { models, tools, files } = metrics;
-  const computed = computeSessionStats(metrics);
+  const { models: allModels, tools, files } = metrics;
+
+  // F4-1: filter models by provider when --provider flag is used
+  const models = useMemo(
+    () =>
+      providerFilter
+        ? Object.fromEntries(
+            Object.entries(allModels).filter(
+              ([key]) => parseCompositeKey(key).provider === providerFilter,
+            ),
+          )
+        : allModels,
+    [providerFilter, allModels],
+  );
+
+  const computed = useMemo(
+    () => computeSessionStats({ models, tools, files }),
+    [models, tools, files],
+  );
+
+  const costEstimate = useMemo(
+    () => estimateCost(models, parseCompositeKey),
+    [models],
+  );
 
   const successThresholds = {
     green: TOOL_SUCCESS_RATE_HIGH,
@@ -484,6 +613,19 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         cacheEfficiency={computed.cacheEfficiency}
         totalCachedTokens={computed.totalCachedTokens}
       />
+      {costEstimate.totalCost > 0 && (
+        <Box marginTop={1}>
+          <Text color={theme.text.primary}>
+            Estimated Cost:{' '}
+            <Text color={theme.text.accent}>
+              {formatCostString(costEstimate)}
+            </Text>
+          </Text>
+        </Box>
+      )}
+      {providerQuotas && Object.keys(providerQuotas).length > 0 && (
+        <ProviderQuotaSection providerQuotas={providerQuotas} />
+      )}
     </Box>
   );
 };

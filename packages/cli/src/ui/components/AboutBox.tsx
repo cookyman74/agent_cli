@@ -15,6 +15,7 @@ interface AboutBoxProps {
   sandboxEnv: string;
   modelVersion: string;
   selectedAuthType: string;
+  selectedProvider: string;
   gcpProject: string;
   ideClient: string;
   userEmail?: string;
@@ -27,6 +28,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
   sandboxEnv,
   modelVersion,
   selectedAuthType,
+  selectedProvider,
   gcpProject,
   ideClient,
   userEmail,
@@ -42,7 +44,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
   >
     <Box marginBottom={1}>
       <Text bold color={theme.text.accent}>
-        About Gemini CLI
+        About Didim Agent-cli
       </Text>
     </Box>
     <Box flexDirection="row">
@@ -113,6 +115,18 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
         </Text>
       </Box>
     </Box>
+    {selectedProvider && (
+      <Box flexDirection="row">
+        <Box width="35%">
+          <Text bold color={theme.text.link}>
+            Provider
+          </Text>
+        </Box>
+        <Box>
+          <Text color={theme.text.primary}>{selectedProvider}</Text>
+        </Box>
+      </Box>
+    )}
     {tier && (
       <Box flexDirection="row">
         <Box width="35%">

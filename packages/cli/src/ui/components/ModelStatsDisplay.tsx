@@ -15,6 +15,7 @@ import {
 } from '../utils/computeStats.js';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { Table, type Column } from './Table.js';
+import { parseCompositeKey } from '@didim365/agent-cli-core';
 
 interface StatRowData {
   metric: string;
@@ -48,12 +49,19 @@ export const ModelStatsDisplay: React.FC = () => {
 
   const modelNames = activeModels.map(([name]) => name);
 
+  const hasMultipleProviders =
+    new Set(activeModels.map(([key]) => parseCompositeKey(key).provider)).size >
+    1;
+
   const hasThoughts = activeModels.some(
     ([, metrics]) => metrics.tokens.thoughts > 0,
   );
   const hasTool = activeModels.some(([, metrics]) => metrics.tokens.tool > 0);
   const hasCached = activeModels.some(
     ([, metrics]) => metrics.tokens.cached > 0,
+  );
+  const hasCacheCreation = activeModels.some(
+    ([, metrics]) => metrics.tokens.cacheCreation > 0,
   );
 
   // Helper to create a row with values for each model
@@ -131,6 +139,20 @@ export const ModelStatsDisplay: React.FC = () => {
     );
   }
 
+  if (hasCacheCreation) {
+    rows.push(
+      createRow(
+        'Cache Creation',
+        (m) => (
+          <Text color={theme.text.primary}>
+            {m.tokens.cacheCreation.toLocaleString()}
+          </Text>
+        ),
+        { isSubtle: true },
+      ),
+    );
+  }
+
   if (hasThoughts) {
     rows.push(
       createRow(
@@ -185,21 +207,24 @@ export const ModelStatsDisplay: React.FC = () => {
         </Text>
       ),
     },
-    ...modelNames.map((name) => ({
-      key: name,
-      header: name,
-      flexGrow: 1,
-      renderCell: (row: StatRowData) => {
-        // Don't render anything for section headers in model columns
-        if (row.isSection) return null;
-        const val = row[name];
-        if (val === undefined || val === null) return null;
-        if (typeof val === 'string' || typeof val === 'number') {
-          return <Text color={theme.text.primary}>{val}</Text>;
-        }
-        return val as React.ReactNode;
-      },
-    })),
+    ...modelNames.map((name) => {
+      const { provider, model } = parseCompositeKey(name);
+      return {
+        key: name,
+        header: hasMultipleProviders ? `${model} (${provider})` : model,
+        flexGrow: 1,
+        renderCell: (row: StatRowData) => {
+          // Don't render anything for section headers in model columns
+          if (row.isSection) return null;
+          const val = row[name];
+          if (val === undefined || val === null) return null;
+          if (typeof val === 'string' || typeof val === 'number') {
+            return <Text color={theme.text.primary}>{val}</Text>;
+          }
+          return val as React.ReactNode;
+        },
+      };
+    }),
   ];
 
   return (

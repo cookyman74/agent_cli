@@ -20,6 +20,7 @@ export interface TelemetryUsageMetadata {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
   cachedContentTokenCount?: number;
+  cacheCreationTokenCount?: number;
   thoughtsTokenCount?: number;
   toolUsePromptTokenCount?: number;
   totalTokenCount?: number;
@@ -570,6 +571,7 @@ export interface GenAIUsageDetails {
   input_token_count: number;
   output_token_count: number;
   cached_content_token_count: number;
+  cache_creation_token_count: number;
   thoughts_token_count: number;
   tool_token_count: number;
   total_token_count: number;
@@ -639,6 +641,7 @@ export class ApiResponseEvent implements BaseTelemetryEvent {
       input_token_count: usage_data?.promptTokenCount ?? 0,
       output_token_count: usage_data?.candidatesTokenCount ?? 0,
       cached_content_token_count: usage_data?.cachedContentTokenCount ?? 0,
+      cache_creation_token_count: usage_data?.cacheCreationTokenCount ?? 0,
       thoughts_token_count: usage_data?.thoughtsTokenCount ?? 0,
       tool_token_count: usage_data?.toolUsePromptTokenCount ?? 0,
       total_token_count: usage_data?.totalTokenCount ?? 0,
@@ -656,6 +659,7 @@ export class ApiResponseEvent implements BaseTelemetryEvent {
       input_token_count: this.usage.input_token_count,
       output_token_count: this.usage.output_token_count,
       cached_content_token_count: this.usage.cached_content_token_count,
+      cache_creation_token_count: this.usage.cache_creation_token_count,
       thoughts_token_count: this.usage.thoughts_token_count,
       tool_token_count: this.usage.tool_token_count,
       total_token_count: this.usage.total_token_count,
@@ -2031,4 +2035,22 @@ export class HookCallEvent implements BaseTelemetryEvent {
     const status = `${this.success ? 'succeeded' : 'failed'}`;
     return `Hook call ${hookId} ${status} in ${this.duration_ms}ms`;
   }
+}
+
+// ============================================================================
+// Provider Quota Types
+// ============================================================================
+
+/**
+ * Provider-specific rate-limit quota information.
+ * Populated from response headers (e.g., Anthropic / OpenAI rate-limit headers).
+ */
+export interface ProviderQuota {
+  provider: string;
+  requestsLimit?: number;
+  requestsRemaining?: number;
+  tokensLimit?: number;
+  tokensRemaining?: number;
+  resetTime?: Date;
+  updatedAt: Date;
 }

@@ -83,6 +83,7 @@ export interface StreamStats {
   output_tokens: number;
   // Breakdown of input_tokens
   cached: number;
+  cache_creation: number;
   input: number;
   duration_ms: number;
   tool_calls: number;

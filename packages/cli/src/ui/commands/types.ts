@@ -16,6 +16,7 @@ import type {
   Logger,
   CommandActionReturn,
   AgentDefinition,
+  ProviderQuotaService,
 } from '@didim365/agent-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 import type { UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
@@ -43,6 +44,7 @@ export interface CommandContext {
     settings: LoadedSettings;
     git: GitService | undefined;
     logger: Logger;
+    providerQuotaService?: ProviderQuotaService;
   };
   // UI state and history management
   ui: {

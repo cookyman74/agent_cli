@@ -31,6 +31,7 @@ export function llmTokenUsageToGenAIUsage(
     output_token_count: usage.completionTokens,
     total_token_count: usage.totalTokens,
     cached_content_token_count: usage.cachedTokens ?? 0,
+    cache_creation_token_count: usage.cacheCreationTokens ?? 0,
     thoughts_token_count: usage.thoughtTokens ?? 0,
     tool_token_count: usage.toolTokens ?? 0,
   };
@@ -47,6 +48,7 @@ export function genAIUsageToLlmTokenUsage(
     completionTokens: genAI.output_token_count,
     totalTokens: genAI.total_token_count,
     cachedTokens: genAI.cached_content_token_count,
+    cacheCreationTokens: genAI.cache_creation_token_count,
     thoughtTokens: genAI.thoughts_token_count,
     toolTokens: genAI.tool_token_count,
   };

@@ -16,6 +16,7 @@ import { appendFileSync } from 'node:fs';
 import type { ContentGenerator } from './contentGenerator.js';
 import type { FakeResponse } from './fakeContentGenerator.js';
 import type { UserTierId } from '../code_assist/types.js';
+import type { ProviderQuotaService } from '../telemetry/providerQuotaService.js';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
 import type {
   LlmGenerateRequest,
@@ -47,6 +48,17 @@ export class RecordingContentGenerator implements ContentGenerator {
 
   get providerName(): string | undefined {
     return this.realGenerator.providerName;
+  }
+
+  /** Passthrough for ProviderQuotaService late binding (delegates to wrapped generator). */
+  setProviderQuotaService(service: ProviderQuotaService): void {
+    if ('setProviderQuotaService' in this.realGenerator) {
+      (
+        this.realGenerator as {
+          setProviderQuotaService: (s: ProviderQuotaService) => void;
+        }
+      ).setProviderQuotaService(service);
+    }
   }
 
   async generateContent(

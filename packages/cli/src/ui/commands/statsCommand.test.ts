@@ -89,4 +89,91 @@ describe('statsCommand', () => {
       type: MessageType.TOOL_STATS,
     });
   });
+
+  // ==========================================================================
+  // Phase 3 RED-5: providerQuotas from ProviderQuotaService
+  // ==========================================================================
+
+  it('should set providerQuotas from providerQuotaService.getAll()', async () => {
+    if (!statsCommand.action) throw new Error('Command has no action');
+
+    const mockProviderQuotas = {
+      claude: {
+        provider: 'claude',
+        requestsLimit: 100,
+        requestsRemaining: 50,
+        updatedAt: new Date(),
+      },
+      openai: {
+        provider: 'openai',
+        requestsLimit: 200,
+        requestsRemaining: 180,
+        updatedAt: new Date(),
+      },
+    };
+
+    // Inject mock providerQuotaService into CommandContext.services
+    (mockContext.services as unknown as Record<string, unknown>)[
+      'providerQuotaService'
+    ] = {
+      getAll: vi.fn().mockReturnValue(mockProviderQuotas),
+      get: vi.fn(),
+      update: vi.fn(),
+    };
+
+    await statsCommand.action(mockContext, '');
+
+    // RED: statsCommand does not use providerQuotaService yet
+    // → providerQuotas will NOT be set on the statsItem
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerQuotas: mockProviderQuotas,
+      }),
+    );
+  });
+
+  // ==========================================================================
+  // Phase 4 F4-1: --provider filter flag
+  // ==========================================================================
+
+  it('should parse --provider flag and set providerFilter on statsItem', async () => {
+    if (!statsCommand.action) throw new Error('Command has no action');
+
+    await statsCommand.action(mockContext, '--provider claude');
+
+    const expectedDuration = formatDuration(
+      endTime.getTime() - startTime.getTime(),
+    );
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: MessageType.STATS,
+        duration: expectedDuration,
+        providerFilter: 'claude',
+      }),
+    );
+  });
+
+  it('should not set providerFilter when --provider flag is absent', async () => {
+    if (!statsCommand.action) throw new Error('Command has no action');
+
+    await statsCommand.action(mockContext, '');
+
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        providerFilter: expect.anything(),
+      }),
+    );
+  });
+
+  it('should normalize --provider value to lowercase', async () => {
+    if (!statsCommand.action) throw new Error('Command has no action');
+
+    await statsCommand.action(mockContext, '--provider OPENAI');
+
+    expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerFilter: 'openai',
+      }),
+    );
+  });
 });

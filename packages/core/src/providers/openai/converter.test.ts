@@ -241,6 +241,116 @@ describe('OpenAiConverter', () => {
       expect(result[0]['content']).toBe('{"temp":25,"unit":"C"}');
     });
 
+    it('should sanitize tool_call_id exceeding 40 chars via hash (OpenAI limit)', () => {
+      const longId = 'list_directory-1740123456789-a1b2c3d4e5f6ff'; // 45 chars
+      const messages: LlmMessage[] = [
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool_result',
+              toolCallId: longId,
+              content: 'ok',
+            },
+          ],
+        },
+      ];
+      const result = converter.toOpenAiMessages(messages);
+      const toolCallId = result[0]['tool_call_id'] as string;
+      expect(toolCallId.length).toBeLessThanOrEqual(40);
+      // Hash-based: tc_ + last 5 chars + 32 hex chars
+      expect(toolCallId).toMatch(/^tc_.{5}[0-9a-f]{32}$/);
+      expect(toolCallId).not.toBe(longId.substring(0, 40));
+    });
+
+    it('should sanitize tool_calls[].id exceeding 40 chars in assistant messages', () => {
+      const longId = 'read_file-1740123456789-abcdef1234567890XX'; // 42 chars
+      const messages: LlmMessage[] = [
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_call',
+              id: longId,
+              name: 'read_file',
+              arguments: {},
+            },
+          ],
+        },
+      ];
+      const result = converter.toOpenAiMessages(messages);
+      const toolCalls = result[0]['tool_calls'] as Array<
+        Record<string, unknown>
+      >;
+      const id = toolCalls[0]['id'] as string;
+      expect(id.length).toBeLessThanOrEqual(40);
+      expect(id).toMatch(/^tc_.{5}[0-9a-f]{32}$/);
+    });
+
+    it('should not sanitize tool_call_id within 40 chars', () => {
+      const shortId = 'call_abc123';
+      const messages: LlmMessage[] = [
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool_result',
+              toolCallId: shortId,
+              content: 'ok',
+            },
+          ],
+        },
+      ];
+      const result = converter.toOpenAiMessages(messages);
+      expect(result[0]['tool_call_id']).toBe(shortId);
+    });
+
+    it('should produce different sanitized IDs for different overlong inputs (no collision)', () => {
+      // Two IDs that share the same first 40 chars but differ afterwards
+      const longId1 = 'shared_prefix_padding_1234567890_abcdefgh_suffix_AAA';
+      const longId2 = 'shared_prefix_padding_1234567890_abcdefgh_suffix_BBB';
+      expect(longId1.substring(0, 40)).toBe(longId2.substring(0, 40));
+      const messages: LlmMessage[] = [
+        {
+          role: 'tool',
+          content: [
+            { type: 'tool_result', toolCallId: longId1, content: 'r1' },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            { type: 'tool_result', toolCallId: longId2, content: 'r2' },
+          ],
+        },
+      ];
+      const result = converter.toOpenAiMessages(messages);
+      const id1 = result[0]['tool_call_id'] as string;
+      const id2 = result[1]['tool_call_id'] as string;
+      expect(id1).not.toBe(id2);
+      expect(id1.length).toBeLessThanOrEqual(40);
+      expect(id2.length).toBeLessThanOrEqual(40);
+    });
+
+    it('should produce deterministic sanitized IDs (same input → same output)', () => {
+      const longId = 'deterministic_test_padding_1234567890_extra_chars';
+      const messages1: LlmMessage[] = [
+        {
+          role: 'tool',
+          content: [{ type: 'tool_result', toolCallId: longId, content: 'r' }],
+        },
+      ];
+      const messages2: LlmMessage[] = [
+        {
+          role: 'tool',
+          content: [{ type: 'tool_result', toolCallId: longId, content: 'r' }],
+        },
+      ];
+      const r1 = converter.toOpenAiMessages(messages1);
+      const r2 = converter.toOpenAiMessages(messages2);
+      expect(r1[0]['tool_call_id']).toBe(r2[0]['tool_call_id']);
+    });
+
     it('should convert image content with base64 to data URI', () => {
       const messages: LlmMessage[] = [
         {

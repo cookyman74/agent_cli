@@ -67,7 +67,7 @@ describe('ClaudeConverter', () => {
       expect(system).toContain('You are a helpful assistant.');
     });
 
-    it('should convert generation parameters', () => {
+    it('should convert generation parameters (temperature takes precedence over topP)', () => {
       const request: LlmGenerateRequest = {
         model: 'claude-3-5-sonnet-20241022',
         messages: [
@@ -84,9 +84,25 @@ describe('ClaudeConverter', () => {
 
       expect(result['temperature']).toBe(0.7);
       expect(result['max_tokens']).toBe(2048);
-      expect(result['top_p']).toBe(0.9);
+      // Anthropic API: temperature and top_p cannot both be specified
+      expect(result['top_p']).toBeUndefined();
       expect(result['top_k']).toBe(40);
       expect(result['stop_sequences']).toEqual(['END']);
+    });
+
+    it('should use top_p when temperature is not specified', () => {
+      const request: LlmGenerateRequest = {
+        model: 'claude-3-5-sonnet-20241022',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+        ],
+        topP: 0.9,
+      };
+
+      const result = converter.toClaudeRequest(request);
+
+      expect(result['temperature']).toBeUndefined();
+      expect(result['top_p']).toBe(0.9);
     });
 
     it('should include tools when present', () => {
@@ -1040,7 +1056,7 @@ describe('ClaudeConverter', () => {
       expect(content).toHaveLength(2);
     });
 
-    it('should merge user followed by tool (both user role) into one', () => {
+    it('should NOT merge user text with following tool_result (different content types)', () => {
       const messages: LlmMessage[] = [
         { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
         {
@@ -1057,8 +1073,69 @@ describe('ClaudeConverter', () => {
 
       const result = converter.toClaudeMessages(messages);
 
-      expect(result.messages).toHaveLength(1);
+      // tool_result must stay separate from plain user text
+      // to preserve adjacency with assistant tool_use message
+      expect(result.messages).toHaveLength(2);
       expect(result.messages[0]['role']).toBe('user');
+      expect(result.messages[1]['role']).toBe('user');
+      const content0 = result.messages[0]['content'] as Array<
+        Record<string, unknown>
+      >;
+      const content1 = result.messages[1]['content'] as Array<
+        Record<string, unknown>
+      >;
+      expect(content0[0]['type']).toBe('text');
+      expect(content1[0]['type']).toBe('tool_result');
+    });
+
+    it('should keep tool_result separate from following user text (provider switch scenario)', () => {
+      // Simulates: Gemini turn with tool use → Claude turn with new user question
+      const messages: LlmMessage[] = [
+        { role: 'user', content: [{ type: 'text', text: 'Question 1' }] },
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_call',
+              id: 'call-1',
+              name: 'read_file',
+              arguments: { path: '/tmp/test.txt' },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool_result',
+              toolCallId: 'call-1',
+              content: 'file contents here',
+            },
+          ],
+        },
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Here is the file content.' }],
+        },
+        { role: 'user', content: [{ type: 'text', text: 'Question 2' }] },
+      ];
+
+      const result = converter.toClaudeMessages(messages);
+
+      expect(result.messages).toHaveLength(5);
+      expect(result.messages[0]['role']).toBe('user');
+      expect(result.messages[1]['role']).toBe('assistant');
+      expect(result.messages[2]['role']).toBe('user'); // tool_result
+      expect(result.messages[3]['role']).toBe('assistant');
+      expect(result.messages[4]['role']).toBe('user'); // next question
+
+      // Verify tool_result is NOT merged with user text
+      const toolResultMsg = result.messages[2]['content'] as Array<
+        Record<string, unknown>
+      >;
+      expect(toolResultMsg).toHaveLength(1);
+      expect(toolResultMsg[0]['type']).toBe('tool_result');
+      expect(toolResultMsg[0]['tool_use_id']).toBe('call-1');
     });
 
     it('should not merge messages with different roles', () => {

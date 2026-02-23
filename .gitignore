@@ -43,6 +43,24 @@ Thumbs.db
 # Ignore built ts files
 dist
 
+# TypeScript build artifacts in source directories
+# (produced when tsc runs without outDir, e.g. from project root)
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts
+packages/*/*.js
+packages/*/*.js.map
+packages/*/*.d.ts
+!packages/cli/src/commands/extensions/examples/**/*.js
+integration-tests/**/*.js
+integration-tests/**/*.js.map
+integration-tests/**/*.d.ts
+evals/**/*.js
+evals/**/*.js.map
+evals/**/*.d.ts
+scripts/**/*.d.ts
+scripts/**/*.js.map
+
 # Docker folder to help skip auth refreshes
 .docker
 

@@ -14,6 +14,7 @@
  * @see packages/core/src/providers/claude/converter.ts (Claude counterpart)
  */
 
+import crypto from 'node:crypto';
 import type {
   LlmGenerateRequest,
   LlmGenerateResponse,
@@ -26,6 +27,60 @@ import type {
 } from '../types.js';
 import type { LlmEvent, LlmFinishReason } from '../events.js';
 import { LlmEventType } from '../events.js';
+
+/**
+ * OpenAI API enforces a maximum of 40 characters for tool_call_id fields.
+ * IDs from other providers (e.g., Gemini fallback format) may exceed this.
+ */
+const OPENAI_TOOL_CALL_ID_MAX_LENGTH = 40;
+
+/**
+ * Cache for sanitized IDs — ensures the same overlong input always maps
+ * to the same shortened output within a single converter lifetime,
+ * preserving assistant→tool round-trip consistency.
+ *
+ * Hard-capped at 10 000 entries to prevent unbounded memory growth in
+ * long-running sessions. When the cap is reached, the entire cache is
+ * cleared (simple eviction; a single turn rarely produces >10 000
+ * unique overlong IDs, so round-trip consistency is preserved in practice).
+ */
+const SANITIZED_ID_CACHE_MAX_SIZE = 10_000;
+const sanitizedIdCache = new Map<string, string>();
+
+/**
+ * Ensure a tool call ID fits within OpenAI's 40-character limit.
+ *
+ * For IDs within the limit, returns the original string unchanged.
+ * For overlong IDs, generates a deterministic replacement via SHA-256
+ * hash (hex-encoded, first 32 chars) prefixed with "tc_" + last 5 chars
+ * of the original for debuggability (total: 3 + 5 + 32 = 40 chars).
+ *
+ * The cache guarantees that repeated calls with the same input return
+ * the identical output, and SHA-256 makes accidental collisions between
+ * different inputs practically impossible.
+ *
+ * Must be applied consistently to both assistant tool_calls[].id and
+ * tool role tool_call_id to maintain round-trip matching.
+ */
+function sanitizeToolCallId(id: string): string {
+  if (id.length <= OPENAI_TOOL_CALL_ID_MAX_LENGTH) {
+    return id;
+  }
+  const cached = sanitizedIdCache.get(id);
+  if (cached) {
+    return cached;
+  }
+  // Deterministic hash: SHA-256 hex (64 chars) → take first 32
+  const hash = crypto.createHash('sha256').update(id).digest('hex');
+  const tail = id.slice(-5);
+  const sanitized = `tc_${tail}${hash.substring(0, 32)}`;
+  // Evict all entries when cache reaches hard cap to prevent unbounded growth
+  if (sanitizedIdCache.size >= SANITIZED_ID_CACHE_MAX_SIZE) {
+    sanitizedIdCache.clear();
+  }
+  sanitizedIdCache.set(id, sanitized);
+  return sanitized;
+}
 
 /**
  * Stream processing state — maintained externally by the caller
@@ -514,7 +569,7 @@ export class OpenAiConverter {
 
     return {
       role: 'tool',
-      tool_call_id: toolResult.toolCallId,
+      tool_call_id: sanitizeToolCallId(toolResult.toolCallId),
       content,
     };
   }
@@ -587,7 +642,7 @@ export class OpenAiConverter {
       .map((c) => {
         if (c.type !== 'tool_call') return {};
         return {
-          id: c.id,
+          id: sanitizeToolCallId(c.id),
           type: 'function',
           function: {
             name: c.name,

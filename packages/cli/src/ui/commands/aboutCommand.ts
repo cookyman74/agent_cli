@@ -14,6 +14,7 @@ import {
   debugLogger,
   getVersion,
 } from '@didim365/agent-cli-core';
+import { resolveActiveProvider } from '../utils/resolveActiveProvider.js';
 
 export const aboutCommand: SlashCommand = {
   name: 'about',
@@ -34,6 +35,15 @@ export const aboutCommand: SlashCommand = {
     const cliVersion = await getVersion();
     const selectedAuthType =
       context.services.settings.merged.security.auth.selectedType || '';
+    // Get the actual runtime provider from core's content generator (single source of truth).
+    // Falls back to resolveActiveProvider() if config is unavailable (e.g., pre-auth).
+    const runtimeProvider =
+      context.services.config?.getContentGenerator()?.providerName;
+    const selectedProvider =
+      runtimeProvider ||
+      resolveActiveProvider(
+        context.services.settings.merged.security.auth.selectedProvider || '',
+      );
     const gcpProject = process.env['GOOGLE_CLOUD_PROJECT'] || '';
     const ideClient = await getIdeClientName(context);
 
@@ -53,6 +63,7 @@ export const aboutCommand: SlashCommand = {
       sandboxEnv,
       modelVersion,
       selectedAuthType,
+      selectedProvider,
       gcpProject,
       ideClient,
       userEmail,

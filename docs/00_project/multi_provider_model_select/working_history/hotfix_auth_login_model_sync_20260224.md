@@ -795,3 +795,36 @@ Core 패키지 내 private helper로 구현 (CLI의 `normalizeProviderKey`와 �
 | CLI 전체 테스트              | ✅ 351 files, 4818 PASS, 2 skipped                  |
 | TypeScript typecheck         | ✅ PASS                                             |
 | Build                        | ✅ PASS                                             |
+
+---
+
+## 12. Gemini 경로 모델 동기화 누락 수정 (5차)
+
+### 12.1 문제
+
+`/auth login` → Gemini 선택 시 `handleApiKeySubmit`의 Gemini 경로(line 615)에서
+`refreshAuth` 후 `saveModelForProvider()` 미호출. non-Gemini
+경로(Claude/OpenAI/sLM) 에는 모두 존재하지만 Gemini만 누락.
+
+**결과**:
+
+- `model.byProvider['gemini']` 미저장 → 재시작 시 이전 provider 모델이
+  `model.name`에서 로드
+- 이전 provider(예: Claude)의 모델(`claude-opus-4-6`)이 Gemini에서 그대로 표시
+
+### 12.2 수정
+
+`AppContainer.tsx:634` — `refreshAuth` 직후에 `saveModelForProvider` 추가.
+non-Gemini 경로(line 675-678)와 대칭.
+
+| 파일                       | 위치                      | 변경                                                           |
+| -------------------------- | ------------------------- | -------------------------------------------------------------- |
+| `AppContainer.tsx:635-640` | Gemini `refreshAuth` 직후 | `saveModelForProvider(settings, 'gemini', resolvedModel)` 추가 |
+
+### 12.3 검증 결과
+
+| 검증 항목            | 결과                    |
+| -------------------- | ----------------------- |
+| CLI 전체 테스트      | ✅ 4818 PASS, 2 skipped |
+| TypeScript typecheck | ✅ PASS                 |
+| Build                | ✅ PASS                 |

@@ -290,18 +290,18 @@ npm run lint
 
 ## 5. 완료 조건
 
-| 검증 항목                                                                | 상태 |
-| ------------------------------------------------------------------------ | ---- |
-| `resolveProviderModel` non-Gemini 분기 `LLM_MODEL` 참조 — TDD 4개 테스트 | ⬜   |
-| `handleSlmConfigComplete` 모델 영구 저장 — `setModel(model, false)` 추가 | ⬜   |
-| `handleApiKeySubmit` (Claude/OpenAI) 모델 영구 저장 추가                 | ⬜   |
-| sLM(Ollama) `/auth login` 후 즉시 사용 가능 — 수동 검증                  | ⬜   |
-| Claude/OpenAI `/auth login` 후 즉시 사용 가능 — 수동 검증                | ⬜   |
-| Cross-provider 전환 시 모델 정확 해석 (Claude→sLM 등)                    | ⬜   |
-| 기존 providerSelector 테스트 회귀 없음                                   | ⬜   |
-| Core + CLI 전체 테스트 PASS                                              | ⬜   |
-| 빌드 + 타입체크 + 린트 PASS                                              | ⬜   |
-| 커밋 완료 + 작업 결과서 작성                                             | ⬜   |
+| 검증 항목                                                                   | 상태 |
+| --------------------------------------------------------------------------- | ---- |
+| `resolveProviderModel` non-Gemini 분기 `LLM_MODEL` 참조 — TDD 4개 테스트    | ✅   |
+| `handleSlmConfigComplete` 모델 영구 저장 — `saveModelForProvider` 직접 호출 | ✅   |
+| `handleApiKeySubmit` (Claude/OpenAI) 모델 영구 저장 추가                    | ✅   |
+| sLM(Ollama) `/auth login` 후 즉시 사용 가능 — 수동 검증                     | ⬜   |
+| Claude/OpenAI `/auth login` 후 즉시 사용 가능 — 수동 검증                   | ⬜   |
+| Cross-provider 전환 시 모델 정확 해석 (Claude→sLM 등)                       | ✅   |
+| 기존 providerSelector 테스트 회귀 없음                                      | ✅   |
+| Core + CLI 전체 테스트 PASS                                                 | ✅   |
+| 빌드 + 타입체크 + 린트 PASS                                                 | ✅   |
+| 커밋 완료 + 작업 결과서 작성                                                | ✅   |
 
 ---
 

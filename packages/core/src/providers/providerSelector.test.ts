@@ -373,11 +373,12 @@ describe('ProviderSelector', () => {
       expect(result).toBe('didim-default');
     });
 
-    // --- Hotfix: freeformInput provider LLM_MODEL priority ---
-    // /auth login 후 cross-provider 전환 시 이전 모델이 freeformInput 프로바이더에
-    // 누수되는 문제 방지. LLM_MODEL 환경변수가 설정되어 있으면 최우선 적용.
+    // --- Hotfix: freeformInput provider cross-provider stale model detection ---
+    // /auth login 후 cross-provider 전환 시 이전 프로바이더의 known 모델이
+    // freeformInput 프로바이더에 누수되는 문제 방지.
+    // 단, --model CLI 플래그로 명시 지정한 모델은 LLM_MODEL보다 우선.
 
-    it('should prefer LLM_MODEL over stale cross-provider model on freeformInput provider', () => {
+    it('should prefer LLM_MODEL over stale Claude model on freeformInput provider', () => {
       vi.stubEnv('LLM_MODEL', 'qwen3:8b');
       const result = resolveProviderModel(
         'claude-sonnet-4-6',
@@ -410,6 +411,40 @@ describe('ProviderSelector', () => {
         ProviderType.Claude,
       );
       expect(result).toBe('claude-sonnet-4-20250514');
+    });
+
+    // --- Issue 1 fix: --model CLI flag should take priority over LLM_MODEL ---
+
+    it('should respect user-specified custom model over LLM_MODEL on freeformInput provider', () => {
+      // 시나리오: --model=my-custom-llama + LLM_MODEL=qwen3:8b
+      // 'my-custom-llama'는 어떤 프로바이더의 known 모델도 아님 → user-specified
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'my-custom-llama',
+        ProviderType.OpenAICompatible,
+      );
+      expect(result).toBe('my-custom-llama');
+    });
+
+    it('should return LLM_MODEL when model matches it on freeformInput (no conflict)', () => {
+      // 시나리오: model === LLM_MODEL → 동일 모델, 충돌 없음
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'qwen3:8b',
+        ProviderType.OpenAICompatible,
+      );
+      expect(result).toBe('qwen3:8b');
+    });
+
+    it('should prefer LLM_MODEL over stale Gemini model on freeformInput provider', () => {
+      // Gemini 분기에서 이미 처리되지만, 레지스트리에 없는 gemini 모델 가드
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'gemini-2.5-pro',
+        ProviderType.OpenAICompatible,
+      );
+      // gemini-2.5-pro는 isGeminiSpecificModel → Gemini 분기에서 처리
+      expect(result).toBe('qwen3:8b');
     });
   });
 

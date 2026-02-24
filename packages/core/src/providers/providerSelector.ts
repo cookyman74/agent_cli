@@ -282,12 +282,17 @@ export function resolveProviderModel(
   }
 
   // Non-Gemini model handling
-  // For freeformInput providers (sLM/Ollama): LLM_MODEL env takes priority.
-  // Without this, a stale model from a previous provider (e.g., claude-sonnet-4-6)
-  // passes through as "valid" because freeformInput accepts any model string.
+  // For freeformInput providers (sLM/Ollama): detect stale cross-provider models.
+  // freeformInput accepts any model string, so isModelValidForProvider always returns
+  // true — a stale model from another provider (e.g., 'claude-sonnet-4-6') passes
+  // through undetected. We check if the model is a registered/known model of another
+  // provider and, if so, prefer LLM_MODEL. Unknown models (e.g., user-specified via
+  // --model) are respected as-is to preserve CLI flag priority (argv.model > LLM_MODEL).
   const llmModelEnv = process.env['LLM_MODEL'];
-  if (group?.freeformInput && llmModelEnv) {
-    return llmModelEnv;
+  if (group?.freeformInput && llmModelEnv && llmModelEnv !== model) {
+    if (isRegisteredModelOfOtherProvider(model, provider)) {
+      return llmModelEnv;
+    }
   }
 
   if (!isModelValidForProvider(model, provider)) {
@@ -295,6 +300,57 @@ export function resolveProviderModel(
   }
 
   return model;
+}
+
+/**
+ * Check if a model clearly belongs to another provider.
+ *
+ * Uses two detection methods:
+ * 1. Registry match: exact preset value or model ID in another provider's registry
+ * 2. Prefix heuristic: known provider prefixes (claude-*, gpt-*, o[0-9]*, gemini-*)
+ *
+ * This avoids false positives from allowCustomModels/freeformInput, which would
+ * incorrectly flag user-specified models (e.g., 'my-custom-llama') as belonging
+ * to another provider.
+ */
+function isRegisteredModelOfOtherProvider(
+  model: string,
+  currentProvider: ProviderType | string,
+): boolean {
+  const normalized = model.toLowerCase();
+
+  // Prefix heuristics for well-known provider model naming conventions
+  const providerPrefixes: Record<string, Array<(m: string) => boolean>> = {
+    claude: [(m) => m.startsWith('claude-')],
+    openai: [(m) => m.startsWith('gpt-'), (m) => /^o[0-9]/.test(m)],
+    gemini: [
+      (m) => m.startsWith('gemini-'),
+      (m) => m.startsWith('auto-gemini'),
+    ],
+  };
+
+  for (const [providerKey, checks] of Object.entries(providerPrefixes)) {
+    if (providerKey === currentProvider) continue;
+    if (checks.some((check) => check(normalized))) return true;
+  }
+
+  // Registry match: exact preset/model ID in another provider
+  for (const [key, g] of Object.entries(PROVIDER_MODEL_REGISTRY)) {
+    if (
+      key === currentProvider ||
+      g.freeformInput ||
+      g.modelSelectionDisabled
+    ) {
+      continue;
+    }
+    const presetValues = g.presets.map((p) => p.value);
+    const modelIds = g.models.map((m) => m.id);
+    if (presetValues.includes(model) || modelIds.includes(model)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**

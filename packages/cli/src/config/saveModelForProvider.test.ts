@@ -108,6 +108,50 @@ describe('saveModelForProvider', () => {
     expect(byProviderCall?.value).toEqual({ claude: 'claude-opus-4-6' });
   });
 
+  // --- Issue 2 fix: provider alias normalization ---
+
+  it('normalizes provider alias "anthropic" to "claude" in byProvider key', () => {
+    const { mockLoaded, setValueCalls } = createMockLoadedSettings();
+
+    saveModelForProvider(
+      mockLoaded as never,
+      'anthropic', // alias
+      'claude-opus-4-6',
+    );
+
+    const byProviderCall = setValueCalls.find(
+      (c) => c.key === 'model.byProvider',
+    );
+    // 'anthropic'이 아닌 정규화된 'claude'로 저장되어야 함
+    expect(byProviderCall?.value).toEqual({ claude: 'claude-opus-4-6' });
+  });
+
+  it('normalizes provider alias "openai_compatible" to "openai-compatible"', () => {
+    const { mockLoaded, setValueCalls } = createMockLoadedSettings();
+
+    saveModelForProvider(
+      mockLoaded as never,
+      'openai_compatible', // underscore alias
+      'qwen3:8b',
+    );
+
+    const byProviderCall = setValueCalls.find(
+      (c) => c.key === 'model.byProvider',
+    );
+    expect(byProviderCall?.value).toEqual({ 'openai-compatible': 'qwen3:8b' });
+  });
+
+  it('handles already-canonical provider key without change', () => {
+    const { mockLoaded, setValueCalls } = createMockLoadedSettings();
+
+    saveModelForProvider(mockLoaded as never, 'claude', 'claude-opus-4-6');
+
+    const byProviderCall = setValueCalls.find(
+      (c) => c.key === 'model.byProvider',
+    );
+    expect(byProviderCall?.value).toEqual({ claude: 'claude-opus-4-6' });
+  });
+
   it('handles error gracefully without throwing', () => {
     const mockLoaded = {
       forScope: vi.fn(() => ({ settings: {} })),

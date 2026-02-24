@@ -25,6 +25,7 @@ import stripJsonComments from 'strip-json-comments';
 import { DefaultLight } from '../ui/themes/default-light.js';
 import { DefaultDark } from '../ui/themes/default.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
+import { normalizeProviderKey } from '../ui/utils/resolveActiveProvider.js';
 import {
   type Settings,
   type MergedSettings,
@@ -891,6 +892,10 @@ export function saveModelForProvider(
   model: string,
 ): void {
   try {
+    // Normalize provider key to prevent alias pollution
+    // (e.g., 'anthropic' → 'claude', 'openai_compatible' → 'openai-compatible')
+    const normalizedProvider = normalizeProviderKey(provider);
+
     // Global model (backward-compatible)
     loadedSettings.setValue(SettingScope.User, 'model.name', model);
 
@@ -902,7 +907,7 @@ export function saveModelForProvider(
     const userByProvider = userSettings.model?.byProvider ?? {};
     loadedSettings.setValue(SettingScope.User, 'model.byProvider', {
       ...userByProvider,
-      [provider]: model,
+      [normalizedProvider]: model,
     });
   } catch (error) {
     coreEvents.emitFeedback(

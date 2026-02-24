@@ -84,7 +84,8 @@ if (serverName && !serverName.includes('__') && toolCall.name && !toolCall.name.
 
 ## 커밋 해시
 
-- (커밋 후 기록)
+- `f31f49ef2` —
+  `fix(policy): Phase 3 — 와일드카드 정책 prefix 추출 검증 + serverName __ 가드`
 
 ## 완료 조건 달성 여부
 

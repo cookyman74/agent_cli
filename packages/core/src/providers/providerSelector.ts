@@ -281,7 +281,15 @@ export function resolveProviderModel(
     return getDefaultModelFromRegistry(provider);
   }
 
-  // Non-Gemini model: validate against target provider
+  // Non-Gemini model handling
+  // For freeformInput providers (sLM/Ollama): LLM_MODEL env takes priority.
+  // Without this, a stale model from a previous provider (e.g., claude-sonnet-4-6)
+  // passes through as "valid" because freeformInput accepts any model string.
+  const llmModelEnv = process.env['LLM_MODEL'];
+  if (group?.freeformInput && llmModelEnv) {
+    return llmModelEnv;
+  }
+
   if (!isModelValidForProvider(model, provider)) {
     return getDefaultModelFromRegistry(provider);
   }

@@ -372,6 +372,45 @@ describe('ProviderSelector', () => {
       const result = resolveProviderModel('gemini-2.5-pro', ProviderType.Didim);
       expect(result).toBe('didim-default');
     });
+
+    // --- Hotfix: freeformInput provider LLM_MODEL priority ---
+    // /auth login 후 cross-provider 전환 시 이전 모델이 freeformInput 프로바이더에
+    // 누수되는 문제 방지. LLM_MODEL 환경변수가 설정되어 있으면 최우선 적용.
+
+    it('should prefer LLM_MODEL over stale cross-provider model on freeformInput provider', () => {
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'claude-sonnet-4-6',
+        ProviderType.OpenAICompatible,
+      );
+      expect(result).toBe('qwen3:8b');
+    });
+
+    it('should prefer LLM_MODEL over stale OpenAI model on freeformInput provider', () => {
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'gpt-4o',
+        ProviderType.OpenAICompatible,
+      );
+      expect(result).toBe('qwen3:8b');
+    });
+
+    it('should use current model on freeformInput when LLM_MODEL is not set', () => {
+      const result = resolveProviderModel(
+        'qwen3:8b',
+        ProviderType.OpenAICompatible,
+      );
+      expect(result).toBe('qwen3:8b');
+    });
+
+    it('should not affect non-freeformInput providers with LLM_MODEL in non-Gemini branch', () => {
+      vi.stubEnv('LLM_MODEL', 'claude-3-opus-20240229');
+      const result = resolveProviderModel(
+        'claude-sonnet-4-20250514',
+        ProviderType.Claude,
+      );
+      expect(result).toBe('claude-sonnet-4-20250514');
+    });
   });
 
   describe('validateProviderEnv()', () => {

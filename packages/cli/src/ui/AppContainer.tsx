@@ -89,7 +89,7 @@ import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useVim } from './hooks/vim.js';
-import { SettingScope } from '../config/settings.js';
+import { SettingScope, saveModelForProvider } from '../config/settings.js';
 import { type InitializationResult } from '../core/initializer.js';
 import { useFocus } from './hooks/useFocus.js';
 import { useKeypress, type Key } from './hooks/useKeypress.js';
@@ -668,6 +668,13 @@ export const AppContainer = (props: AppContainerProps) => {
             AuthType.USE_GEMINI,
           );
           await config.refreshAuth(AuthType.USE_GEMINI);
+
+          // Persist resolved model: refreshAuth resolves provider default
+          // (e.g., claude-opus-4-6) but only saves as isTemporary=true.
+          const resolvedModel = config.getModel();
+          if (resolvedModel && resolvedModel !== 'default') {
+            saveModelForProvider(settings, provider, resolvedModel);
+          }
         }
 
         setAuthState(AuthState.Authenticated);
@@ -749,6 +756,13 @@ export const AppContainer = (props: AppContainerProps) => {
         }
 
         await config.refreshAuth(AuthType.USE_GEMINI);
+
+        // Persist model: refreshAuth 내부의 setModel(isTemporary=true)은
+        // model.byProvider에 저장하지 않음. 명시적으로 영구 저장.
+        if (slmConfig.model) {
+          saveModelForProvider(settings, 'openai-compatible', slmConfig.model);
+        }
+
         setAuthState(AuthState.Authenticated);
       } catch (e) {
         onAuthError(

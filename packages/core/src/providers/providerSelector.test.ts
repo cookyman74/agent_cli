@@ -13,6 +13,7 @@ import {
   resolveProviderModel,
 } from './providerSelector.js';
 import { ProviderType, AuthType } from './providerTypes.js';
+import { getDefaultModelFromRegistry } from '../config/providerModels.js';
 
 describe('ProviderSelector', () => {
   beforeEach(() => {
@@ -478,6 +479,56 @@ describe('ProviderSelector', () => {
         ProviderType.OpenAICompatible,
       );
       expect(result).toBe('qwen3:8b');
+    });
+
+    // --- Issue 6 fix: gpt-oss-* 모델이 non-freeformInput provider에서 fallback 안 되는 회귀 ---
+
+    it('should fallback gpt-oss-20b to Claude default when LLM_MODEL differs', () => {
+      // gpt-oss-20b는 sLM(GPUStack) 모델 — Claude provider에 미등록 + own-prefix 아님
+      // LLM_MODEL이 설정되어 있고 model과 다르면 → Strategy 2 발동 → Claude 기본 모델
+      // (LLM_MODEL 없으면 allowCustomModels 존중 — --model 직접 지정 시나리오 보호)
+      vi.stubEnv('LLM_MODEL', 'claude-opus-4-6');
+      const result = resolveProviderModel('gpt-oss-20b', ProviderType.Claude);
+      expect(result).toBe('claude-opus-4-6');
+    });
+
+    it('should fallback gpt-oss-20b to Claude default when LLM_MODEL is invalid', () => {
+      // LLM_MODEL이 target에 유효하지 않으면 provider default
+      vi.stubEnv('LLM_MODEL', 'gemini-2.5-flash');
+      const result = resolveProviderModel('gpt-oss-20b', ProviderType.Claude);
+      // gemini-2.5-flash는 isGeminiSpecificModel이므로 Gemini 분기로 먼저 처리됨
+      // gpt-oss-20b는 Gemini이 아니므로 non-Gemini 분기. LLM_MODEL은 별도 경로.
+      // → 실제로는 LLM_MODEL='gemini-2.5-flash'와 model='gpt-oss-20b'가 다르고,
+      //   gpt-oss-20b가 Claude 미등록+non-own-prefix → Strategy 2 발동
+      //   → isModelValidForProvider('gemini-2.5-flash', 'claude') → false
+      //   → Claude default
+      expect(result).toBe(getDefaultModelFromRegistry('claude'));
+    });
+
+    it('should fallback gpt-oss-20b to OpenAI default when LLM_MODEL is set', () => {
+      vi.stubEnv('LLM_MODEL', 'gpt-5.2');
+      const result = resolveProviderModel('gpt-oss-20b', ProviderType.OpenAI);
+      expect(result).toBe('gpt-5.2');
+    });
+
+    // --- Issue 7 fix: alias provider string 정규화 ---
+
+    it('should normalize alias provider key "openai_compatible" in resolveProviderModel', () => {
+      // contentGenerator.ts에서 LLM_PROVIDER='openai_compatible'이 그대로 전달되는 경우
+      // registry key 미스매치 방지
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'claude-opus-4-6',
+        'openai_compatible',
+      );
+      // 정규화 후 openai-compatible로 처리 → freeformInput → LLM_MODEL 반환
+      expect(result).toBe('qwen3:8b');
+    });
+
+    it('should normalize alias provider key "anthropic" in resolveProviderModel', () => {
+      const result = resolveProviderModel('gpt-4o', 'anthropic');
+      // 정규화 후 claude로 처리 → gpt-4o는 Claude에 유효하지 않음 → Claude 기본 모델
+      expect(result).toBe(getDefaultModelFromRegistry('claude'));
     });
   });
 

@@ -14,6 +14,7 @@ import {
   PROVIDER_MODEL_REGISTRY,
   getDefaultModelFromRegistry,
   isModelValidForProvider,
+  isRegisteredModelForProvider,
 } from '../config/providerModels.js';
 
 /**
@@ -261,54 +262,138 @@ export function resolveProviderModel(
   model: string,
   provider: ProviderType | string,
 ): string {
+  // Normalize provider alias to canonical registry key (e.g., 'openai_compatible' → 'openai-compatible')
+  const normalizedProvider = normalizeProviderRegistryKey(provider);
+
   // modelSelectionDisabled providers always use their fixed default
-  const group = PROVIDER_MODEL_REGISTRY[provider];
+  const group = PROVIDER_MODEL_REGISTRY[normalizedProvider];
   if (group?.modelSelectionDisabled) {
-    return getDefaultModelFromRegistry(provider);
+    return getDefaultModelFromRegistry(normalizedProvider);
   }
 
   // Gemini-specific model handling
   if (isGeminiSpecificModel(model)) {
-    if (provider === ProviderType.Gemini) return model;
+    if (normalizedProvider === ProviderType.Gemini) return model;
 
     // LLM_MODEL env var: validate before use to prevent cross-provider leak
     const llmModel = process.env['LLM_MODEL'];
-    if (llmModel && isModelValidForProvider(llmModel, provider)) {
+    if (llmModel && isModelValidForProvider(llmModel, normalizedProvider)) {
       return llmModel;
     }
 
     // Gemini-specific model + non-Gemini provider → provider default
-    return getDefaultModelFromRegistry(provider);
+    return getDefaultModelFromRegistry(normalizedProvider);
   }
 
   // Non-Gemini model handling
-  // For freeformInput providers (sLM/Ollama): detect stale cross-provider models.
-  // freeformInput accepts any model string, so isModelValidForProvider always returns
-  // true — a stale model from another provider (e.g., 'claude-sonnet-4-6') passes
-  // through undetected. We check if the model is a registered/known model of another
-  // provider and, if so, prefer LLM_MODEL or provider default.
-  // Unknown models (e.g., user-specified via --model) are respected as-is to preserve
-  // CLI flag priority (argv.model > LLM_MODEL).
-  if (
-    group?.freeformInput &&
-    isRegisteredModelOfOtherProvider(model, provider)
-  ) {
-    const llmModelEnv = process.env['LLM_MODEL'];
-    // Prefer LLM_MODEL if set and not itself a stale cross-provider model
+  const llmModelEnv = process.env['LLM_MODEL'];
+
+  // Cross-provider stale model detection.
+  // Two detection strategies work in tandem:
+  //
+  // 1. Prefix/registry heuristic (isRegisteredModelOfOtherProvider):
+  //    Catches well-known models like 'claude-sonnet-4-6' or 'gpt-4o'.
+  //
+  // 2. Non-registered model check (isRegisteredModelForProvider):
+  //    For freeformInput providers, any model is "valid", so (1) is the only guard.
+  //    For non-freeformInput providers (Claude/OpenAI), models unknown to ALL providers
+  //    (e.g., 'gpt-oss-20b' from sLM) pass allowCustomModels validation.
+  //    If LLM_MODEL differs from model AND model is not in target's registry,
+  //    this is a provider-switch scenario → prefer LLM_MODEL or default.
+  if (llmModelEnv && llmModelEnv !== model) {
+    // Strategy 1: model is a known model of another provider (prefix or registry)
+    if (isRegisteredModelOfOtherProvider(model, normalizedProvider)) {
+      if (isModelValidForProvider(llmModelEnv, normalizedProvider)) {
+        return llmModelEnv;
+      }
+      return getDefaultModelFromRegistry(normalizedProvider);
+    }
+
+    // Strategy 2: model is not registered for target provider (non-freeformInput only)
+    // On freeformInput, unknown models may be user-specified (--model) → respect them.
+    // Exclude models with target provider's own prefix (e.g., 'claude-sonnet-4-20250514'
+    // on Claude) — these are legitimate custom versions of the provider's own models
+    // accepted via allowCustomModels, not cross-provider leaks.
+    const group = PROVIDER_MODEL_REGISTRY[normalizedProvider];
     if (
-      llmModelEnv &&
-      !isRegisteredModelOfOtherProvider(llmModelEnv, provider)
+      group &&
+      !group.freeformInput &&
+      !isRegisteredModelForProvider(model, normalizedProvider) &&
+      !isOwnProviderPrefix(model, normalizedProvider)
     ) {
-      return llmModelEnv;
+      if (isModelValidForProvider(llmModelEnv, normalizedProvider)) {
+        return llmModelEnv;
+      }
+      return getDefaultModelFromRegistry(normalizedProvider);
     }
     return getDefaultModelFromRegistry(provider);
   }
 
-  if (!isModelValidForProvider(model, provider)) {
-    return getDefaultModelFromRegistry(provider);
+  // No LLM_MODEL: detect stale models using prefix/registry heuristic only.
+  // Without LLM_MODEL signal, we cannot distinguish user-specified custom models
+  // (e.g., --model my-custom-model) from stale cross-provider models. Delegate
+  // to isModelValidForProvider which respects allowCustomModels.
+  if (
+    !llmModelEnv &&
+    isRegisteredModelOfOtherProvider(model, normalizedProvider)
+  ) {
+    return getDefaultModelFromRegistry(normalizedProvider);
+  }
+
+  if (!isModelValidForProvider(model, normalizedProvider)) {
+    return getDefaultModelFromRegistry(normalizedProvider);
   }
 
   return model;
+}
+
+/**
+ * Normalize provider alias to canonical registry key.
+ *
+ * Maps common aliases (e.g., 'openai_compatible', 'anthropic') to registry keys
+ * used in PROVIDER_MODEL_REGISTRY. This prevents registry lookup misses when
+ * alias strings are passed from env vars or settings.
+ */
+function normalizeProviderRegistryKey(provider: ProviderType | string): string {
+  const normalized = (typeof provider === 'string' ? provider : provider)
+    .toLowerCase()
+    .trim();
+  switch (normalized) {
+    case 'openai_compatible':
+    case 'slm':
+      return 'openai-compatible';
+    case 'anthropic':
+      return 'claude';
+    case 'vertex-ai':
+    case 'vertex_ai':
+      return 'gemini';
+    case 'didim-studio':
+    case 'didim_studio':
+      return 'didim';
+    default:
+      return normalized;
+  }
+}
+
+/**
+ * Check if a model has the target provider's own naming prefix.
+ *
+ * E.g., 'claude-sonnet-4-20250514' has Claude's own prefix on Claude provider.
+ * These models are legitimate custom/unreleased versions, not cross-provider leaks.
+ */
+function isOwnProviderPrefix(model: string, provider: string): boolean {
+  const normalized = model.toLowerCase();
+  const prefixMap: Record<string, Array<(m: string) => boolean>> = {
+    claude: [(m) => m.startsWith('claude-')],
+    openai: [(m) => /^gpt-[0-9]/.test(m), (m) => /^o[0-9]/.test(m)],
+    gemini: [
+      (m) => m.startsWith('gemini-'),
+      (m) => m.startsWith('auto-gemini'),
+    ],
+  };
+  const checks = prefixMap[provider];
+  if (!checks) return false;
+  return checks.some((check) => check(normalized));
 }
 
 /**

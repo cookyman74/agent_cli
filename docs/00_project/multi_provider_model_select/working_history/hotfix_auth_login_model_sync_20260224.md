@@ -730,3 +730,68 @@ OpenAI-compatible adapter는 `OpenAiAdapter`를 상속하므로 자동 적용.
 | D   | Low    | `envVarMap`이 4곳+ 중복 정의                                               | `cleanProviderEnvVars`로 일부 해소, 완전 통합은 별도 리팩터링 |
 | E   | Low    | AbortError가 모든 adapter에서 retryable NetworkError로 분류                | 현재 abort 경로에서 retry가 발생하지 않아 실질적 영향 없음    |
 | F   | Low    | `isRegisteredModelOfOtherProvider` registry match가 case-sensitive         | 모든 현재 모델이 prefix heuristic에서 먼저 매칭되어 영향 없음 |
+
+---
+
+## 13. 추가 리뷰 수정 (4차)
+
+### 13.1 Issue 6: gpt-oss-\* 모델 cross-provider 누수 (회귀)
+
+**문제**: `gpt-*` → `gpt-[0-9]*` 패턴 축소(3차 리뷰)로 인해 `gpt-oss-20b` 같은
+sLM 모델이 prefix heuristic에 걸리지 않음. `allowCustomModels=true`인
+Claude/OpenAI 에서 `isModelValidForProvider` → `true` → stale 모델이 그대로
+통과.
+
+**수정 전략 (2단계)**:
+
+1. **Strategy 2 추가**: `resolveProviderModel` non-Gemini 분기에서,
+   `LLM_MODEL`이 설정되어 있고 현재 모델과 다를 때 — 모델이 target provider의
+   **등록 모델이 아니고** **own-prefix도 아니면** → cross-provider 전환 상황으로
+   판단.
+   - `isRegisteredModelForProvider()` 신규 함수: 순수 등록 여부만 확인
+     (allowCustomModels 무시)
+   - `isOwnProviderPrefix()` 신규 함수: 모델이 target provider의 naming
+     prefix인지 확인
+
+2. **LLM_MODEL 미설정 시**: `allowCustomModels` 존중 (`--model` 직접 지정 보호).
+   `/auth login` 경로는 항상 `LLM_MODEL`을 설정하므로, cross-provider 전환은
+   Strategy 2로 커버됨.
+
+| 파일                  | 변경                                             |
+| --------------------- | ------------------------------------------------ |
+| `providerModels.ts`   | `isRegisteredModelForProvider()` 신규 export     |
+| `providerSelector.ts` | Strategy 2 로직 + `isOwnProviderPrefix()` helper |
+
+**TDD 테스트 (3개 추가)**:
+
+- `should fallback gpt-oss-20b to Claude default when LLM_MODEL differs`
+- `should fallback gpt-oss-20b to Claude default when LLM_MODEL is invalid`
+- `should fallback gpt-oss-20b to OpenAI default when LLM_MODEL is set`
+
+### 13.2 Issue 7: alias provider key 정규화 (resolveProviderModel)
+
+**문제**: `contentGenerator.ts`에서 `LLM_PROVIDER` 값(`openai_compatible` 등)을
+정규화 없이 `resolveProviderModel`에 전달. `PROVIDER_MODEL_REGISTRY` key는
+`'openai-compatible'`(하이픈)이므로 registry lookup 실패 → 검증 우회.
+
+**수정**: `resolveProviderModel` 진입부에 `normalizeProviderRegistryKey()` 추가.
+Core 패키지 내 private helper로 구현 (CLI의 `normalizeProviderKey`와 동일 매핑).
+
+| 파일                  | 변경                                                             |
+| --------------------- | ---------------------------------------------------------------- |
+| `providerSelector.ts` | `normalizeProviderRegistryKey()` 신규 helper + 함수 내 전역 적용 |
+
+**TDD 테스트 (2개 추가)**:
+
+- `should normalize alias "openai_compatible" in resolveProviderModel`
+- `should normalize alias "anthropic" in resolveProviderModel`
+
+### 13.3 검증 결과
+
+| 검증 항목                    | 결과                                                |
+| ---------------------------- | --------------------------------------------------- |
+| providerSelector 단위 테스트 | ✅ 65 PASS (기존 60 + 신규 5)                       |
+| Core 전체 테스트             | ✅ 5784 PASS, 24 skipped (4개 기존 infra 실패 무관) |
+| CLI 전체 테스트              | ✅ 351 files, 4818 PASS, 2 skipped                  |
+| TypeScript typecheck         | ✅ PASS                                             |
+| Build                        | ✅ PASS                                             |

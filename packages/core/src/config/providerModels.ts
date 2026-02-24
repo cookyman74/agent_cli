@@ -226,6 +226,29 @@ export function isModelValidForProvider(
 }
 
 /**
+ * Check if a model is a registered model (preset or model ID) of a specific provider.
+ *
+ * Unlike `isModelValidForProvider`, this does NOT consider `allowCustomModels` or `freeformInput`.
+ * Returns true only if the model is an exact match in the provider's preset values or model IDs.
+ *
+ * @param model - Model ID to check
+ * @param providerKey - Target provider key
+ * @returns true if the model is explicitly registered for the provider
+ */
+export function isRegisteredModelForProvider(
+  model: string,
+  providerKey: string,
+): boolean {
+  const group = PROVIDER_MODEL_REGISTRY[providerKey];
+  if (!group) return false;
+  if (group.freeformInput || group.modelSelectionDisabled) return false;
+
+  const presetValues = group.presets.map((p) => p.value);
+  const modelIds = group.models.map((m) => m.id);
+  return presetValues.includes(model) || modelIds.includes(model);
+}
+
+/**
  * Determine if a model clearly belongs to another provider based on prefix heuristics.
  *
  * Prefix rules:

@@ -305,6 +305,8 @@ npm run lint
 | **[3차 리뷰]** prefix heuristic false positive (`gpt-oss-20b`) 수정         | ✅   |
 | **[3차 리뷰]** 인증 경로 provider alias 정규화 추가                         | ✅   |
 | **[3차 리뷰]** providerModels.ts prefix 동기화                              | ✅   |
+| **[4차 리뷰]** gpt-oss-\* cross-provider 누수 — Strategy 2 + LLM_MODEL 감지 | ✅   |
+| **[4차 리뷰]** alias provider key 정규화 (resolveProviderModel 진입부)      | ✅   |
 
 ---
 

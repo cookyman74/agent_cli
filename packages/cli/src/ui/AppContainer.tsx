@@ -90,7 +90,11 @@ import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useVim } from './hooks/vim.js';
-import { SettingScope, saveModelForProvider } from '../config/settings.js';
+import {
+  SettingScope,
+  saveModelForProvider,
+  type LoadedSettings,
+} from '../config/settings.js';
 import {
   normalizeProviderKey,
   cleanProviderEnvVars,
@@ -139,6 +143,27 @@ import {
 import { LoginWithGoogleRestartDialog } from './auth/LoginWithGoogleRestartDialog.js';
 import { NewAgentsChoice } from './components/NewAgentsNotification.js';
 import { isSlashCommand } from './utils/commandUtils.js';
+
+/**
+ * Resolve the correct model when switching providers via /auth login.
+ *
+ * Uses the user's previously saved model for the target provider (byProvider)
+ * if available, otherwise falls back to the provider's default model.
+ * This prevents stale models from a previous provider leaking through
+ * (e.g., 'claude-opus-4-6' persisting when switching to Gemini).
+ */
+function resolveModelForAuthSwitch(
+  settings: LoadedSettings,
+  provider: string,
+): string {
+  const normalizedProvider = normalizeProviderKey(provider);
+  const userSettings = settings.forScope(SettingScope.User).settings as {
+    model?: { byProvider?: Record<string, string> };
+  };
+  const savedModel = userSettings.model?.byProvider?.[normalizedProvider];
+  if (savedModel) return savedModel;
+  return getDefaultModelFromRegistry(normalizedProvider);
+}
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
   return pendingHistoryItems.some((item) => {
@@ -629,14 +654,13 @@ export const AppContainer = (props: AppContainerProps) => {
           );
           await config.refreshAuth(AuthType.USE_GEMINI);
 
-          // Reset model to Gemini default when switching from another provider
-          // (e.g., claude-opus-4-6 → gemini-2.5-pro)
-          const geminiDefault = getDefaultModelFromRegistry('gemini');
-          const currentModel = config.getModel();
-          if (currentModel !== geminiDefault) {
-            config.setModel(geminiDefault);
-            saveModelForProvider(settings, 'gemini', geminiDefault);
-          }
+          // Persist Gemini model: the legacy Gemini path in createContentGenerator
+          // doesn't call resolveProviderModel, so config.getModel() may still hold
+          // a stale model from a previous provider (e.g., 'claude-opus-4-6').
+          // Use byProvider['gemini'] (user's saved Gemini choice) or provider default.
+          const geminiModel = resolveModelForAuthSwitch(settings, 'gemini');
+          config.setModel(geminiModel, true);
+          saveModelForProvider(settings, 'gemini', geminiModel);
         } else {
           // Non-Gemini provider path (Claude/OpenAI)
           // Clean all provider env vars first to prevent cross-provider leakage
@@ -677,12 +701,14 @@ export const AppContainer = (props: AppContainerProps) => {
           );
           await config.refreshAuth(AuthType.USE_GEMINI);
 
-          // Persist resolved model: refreshAuth resolves provider default
-          // (e.g., claude-opus-4-6) but only saves as isTemporary=true.
-          const resolvedModel = config.getModel();
-          if (resolvedModel && resolvedModel !== 'default') {
-            saveModelForProvider(settings, provider, resolvedModel);
-          }
+          // Persist model: resolveProviderModel (inside createContentGenerator)
+          // handles most cross-provider cases, but may pass through stale sLM
+          // models (e.g., gpt-oss-20b) due to allowCustomModels when LLM_MODEL
+          // is not set. Use byProvider[provider] or provider default as source
+          // of truth to prevent leakage.
+          const providerModel = resolveModelForAuthSwitch(settings, provider);
+          config.setModel(providerModel, true);
+          saveModelForProvider(settings, provider, providerModel);
         }
 
         setAuthState(AuthState.Authenticated);
@@ -762,9 +788,10 @@ export const AppContainer = (props: AppContainerProps) => {
 
         await config.refreshAuth(AuthType.USE_GEMINI);
 
-        // Persist model: refreshAuth 내부의 setModel(isTemporary=true)은
-        // model.byProvider에 저장하지 않음. 명시적으로 영구 저장.
+        // Persist model: refreshAuth calls setModel(isTemporary=true) which
+        // doesn't save to model.byProvider. Explicitly persist and sync in-memory.
         if (slmConfig.model) {
+          config.setModel(slmConfig.model, true);
           saveModelForProvider(settings, 'openai-compatible', slmConfig.model);
         }
 
@@ -813,13 +840,12 @@ export const AppContainer = (props: AppContainerProps) => {
 
         await config.refreshAuth(AuthType.USE_VERTEX_AI);
 
-        // Reset model to Gemini default (Vertex AI uses Gemini models)
-        const geminiDefault = getDefaultModelFromRegistry('gemini');
-        const currentModel = config.getModel();
-        if (currentModel !== geminiDefault) {
-          config.setModel(geminiDefault);
-          saveModelForProvider(settings, 'gemini', geminiDefault);
-        }
+        // Persist Gemini model: Vertex AI uses Gemini models.
+        // normalizeProviderKey('vertex-ai') → 'gemini', so this reads/writes
+        // byProvider['gemini'] — shared with the direct Gemini path.
+        const vertexModel = resolveModelForAuthSwitch(settings, 'vertex-ai');
+        config.setModel(vertexModel, true);
+        saveModelForProvider(settings, 'gemini', vertexModel);
 
         setAuthState(AuthState.Authenticated);
       } catch (e) {

@@ -302,6 +302,9 @@ npm run lint
 | Core + CLI 전체 테스트 PASS                                                 | ✅   |
 | 빌드 + 타입체크 + 린트 PASS                                                 | ✅   |
 | 커밋 완료 + 작업 결과서 작성                                                | ✅   |
+| **[3차 리뷰]** prefix heuristic false positive (`gpt-oss-20b`) 수정         | ✅   |
+| **[3차 리뷰]** 인증 경로 provider alias 정규화 추가                         | ✅   |
+| **[3차 리뷰]** providerModels.ts prefix 동기화                              | ✅   |
 
 ---
 

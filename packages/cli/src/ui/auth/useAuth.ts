@@ -17,6 +17,7 @@ import {
 } from '@didim365/agent-cli-core';
 import { AuthState } from '../types.js';
 import { validateAuthMethod } from '../../config/auth.js';
+import { normalizeProviderKey } from '../utils/resolveActiveProvider.js';
 
 export function validateAuthMethodWithSettings(
   authType: AuthType,
@@ -84,7 +85,9 @@ export const useAuthCommand = (
     string | undefined
   >(undefined);
   const [selectedProvider, setSelectedProvider] = useState<string | undefined>(
-    settings.merged.security.auth.selectedProvider,
+    settings.merged.security.auth.selectedProvider
+      ? normalizeProviderKey(settings.merged.security.auth.selectedProvider)
+      : undefined,
   );
 
   // Guard against concurrent async execution of the main auth useEffect
@@ -255,7 +258,10 @@ export const useAuthCommand = (
         }
 
         if (authType === AuthType.USE_GEMINI) {
-          const provider = settings.merged.security.auth.selectedProvider;
+          const rawProvider = settings.merged.security.auth.selectedProvider;
+          const provider = rawProvider
+            ? normalizeProviderKey(rawProvider)
+            : undefined;
           if (provider === 'openai-compatible') {
             // sLM (OpenAI-compatible) — load config from settings
             process.env['ENABLE_MULTI_PROVIDER'] = 'true';

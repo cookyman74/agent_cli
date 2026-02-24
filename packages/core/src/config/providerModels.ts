@@ -230,7 +230,7 @@ export function isModelValidForProvider(
  *
  * Prefix rules:
  * - `claude-*` → claude
- * - `gpt-*`, `o[0-9]*` → openai
+ * - `gpt-[0-9]*`, `o[0-9]*` → openai
  * - `gemini-*`, `auto-gemini*` → gemini
  */
 function isModelOwnedByOtherProvider(
@@ -242,7 +242,7 @@ function isModelOwnedByOtherProvider(
 
   const providerPrefixes: Record<string, Array<(m: string) => boolean>> = {
     claude: [(m) => m.startsWith('claude-')],
-    openai: [(m) => m.startsWith('gpt-'), (m) => /^o[0-9]/.test(m)],
+    openai: [(m) => /^gpt-[0-9]/.test(m), (m) => /^o[0-9]/.test(m)],
     gemini: [
       (m) => m.startsWith('gemini-'),
       (m) => m.startsWith('auto-gemini'),

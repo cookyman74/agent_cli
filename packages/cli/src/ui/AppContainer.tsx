@@ -90,6 +90,7 @@ import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useVim } from './hooks/vim.js';
 import { SettingScope, saveModelForProvider } from '../config/settings.js';
+import { normalizeProviderKey } from './utils/resolveActiveProvider.js';
 import { type InitializationResult } from '../core/initializer.js';
 import { useFocus } from './hooks/useFocus.js';
 import { useKeypress, type Key } from './hooks/useKeypress.js';
@@ -610,7 +611,7 @@ export const AppContainer = (props: AppContainerProps) => {
           return;
         }
 
-        const provider = selectedProvider || 'gemini';
+        const provider = normalizeProviderKey(selectedProvider || 'gemini');
         if (provider === 'gemini') {
           // Legacy Gemini path — clear all non-Gemini env vars (including sLM-specific)
           delete process.env['ENABLE_MULTI_PROVIDER'];

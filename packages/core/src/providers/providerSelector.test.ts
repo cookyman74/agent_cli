@@ -446,6 +446,39 @@ describe('ProviderSelector', () => {
       // gemini-2.5-pro는 isGeminiSpecificModel → Gemini 분기에서 처리
       expect(result).toBe('qwen3:8b');
     });
+
+    // --- Issue 4 fix: prefix heuristic false positive ---
+
+    it('should NOT treat gpt-oss-20b as OpenAI model on freeformInput provider', () => {
+      // gpt-oss-20b는 GPUStack sLM 모델 (SlmConfigDialog.tsx:50 참조)
+      // gpt-* prefix가 너무 넓어 OpenAI 모델로 오인 → gpt-[0-9] 패턴으로 제한
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'gpt-oss-20b',
+        ProviderType.OpenAICompatible,
+      );
+      // gpt-oss-20b는 사용자가 --model로 지정한 커스텀 sLM 모델 → 그대로 유지
+      expect(result).toBe('gpt-oss-20b');
+    });
+
+    it('should still detect real OpenAI gpt-4o as stale on freeformInput provider', () => {
+      // gpt-4o는 실제 OpenAI 모델 → gpt-[0-9] 패턴에 매칭되어야 함
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'gpt-4o',
+        ProviderType.OpenAICompatible,
+      );
+      expect(result).toBe('qwen3:8b');
+    });
+
+    it('should still detect real OpenAI gpt-5.2 as stale on freeformInput provider', () => {
+      vi.stubEnv('LLM_MODEL', 'qwen3:8b');
+      const result = resolveProviderModel(
+        'gpt-5.2',
+        ProviderType.OpenAICompatible,
+      );
+      expect(result).toBe('qwen3:8b');
+    });
   });
 
   describe('validateProviderEnv()', () => {

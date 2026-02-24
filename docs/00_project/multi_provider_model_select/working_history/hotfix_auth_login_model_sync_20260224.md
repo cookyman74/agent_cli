@@ -365,3 +365,52 @@ export function saveModelForProvider(...) {
 4. **provider key 정규화는 저장 시점에서**: 로드 시점의 정규화만으로는 저장 시
    alias 키 오염을 방지할 수 없음. `saveModelForProvider` 내부에서
    `normalizeProviderKey`를 적용하는 방어적 프로그래밍이 필요.
+
+---
+
+## 10. 추가 리뷰 수정 (3차)
+
+### 10.1 Issue 4: prefix heuristic false positive
+
+**문제**: `isRegisteredModelOfOtherProvider()`의 `gpt-*` prefix가 GPUStack sLM
+모델 `gpt-oss-20b`를 OpenAI 모델로 오인. `SlmConfigDialog.tsx:50`에서 GPUStack
+예시 모델로 사용되는 실제 sLM 모델명.
+
+**수정**: `gpt-*` → `gpt-[0-9]*` 패턴으로 변경하여 `gpt-4o`, `gpt-5.2` 등 실제
+OpenAI 모델만 매칭. `providerSelector.ts`와 `providerModels.ts` 양쪽 동기화.
+
+| 파일                      | 변경                                            |
+| ------------------------- | ----------------------------------------------- |
+| `providerSelector.ts:325` | `m.startsWith('gpt-')` → `/^gpt-[0-9]/.test(m)` |
+| `providerModels.ts:245`   | `m.startsWith('gpt-')` → `/^gpt-[0-9]/.test(m)` |
+
+**TDD 테스트 (3개 추가)**:
+
+- `should NOT treat gpt-oss-20b as OpenAI model on freeformInput provider`
+- `should still detect real OpenAI gpt-4o as stale on freeformInput provider`
+- `should still detect real OpenAI gpt-5.2 as stale on freeformInput provider`
+
+### 10.2 Issue 5: 인증 경로 provider alias 정규화
+
+**문제**: `useAuth.ts`와 `AppContainer.tsx`의 `envVarMap`이 canonical key만
+보유. 설정에 alias(`anthropic`, `openai_compatible` 등)가 저장된 경우
+`envVarMap` lookup 실패 → API key env var 미설정 → 인증 실패.
+
+**수정**: alias가 유입되는 3개 지점에서 `normalizeProviderKey()` 적용.
+
+| 파일                   | 위치                            | 변경                          |
+| ---------------------- | ------------------------------- | ----------------------------- |
+| `useAuth.ts:87-90`     | `selectedProvider` state 초기화 | `normalizeProviderKey()` 적용 |
+| `useAuth.ts:259-261`   | startup auth flow `provider`    | `normalizeProviderKey()` 적용 |
+| `AppContainer.tsx:614` | `handleApiKeySubmit` `provider` | `normalizeProviderKey()` 적용 |
+
+### 10.3 검증 결과
+
+| 검증 항목                    | 결과                                               |
+| ---------------------------- | -------------------------------------------------- |
+| providerSelector 단위 테스트 | ✅ 60 PASS (기존 57 + 신규 3)                      |
+| Core 전체 테스트             | ✅ 288 files, 5783 PASS, 24 skipped                |
+| CLI 전체 테스트              | ✅ 351 files, 4818 PASS, 2 skipped                 |
+| TypeScript typecheck         | ✅ PASS                                            |
+| Build                        | ✅ PASS                                            |
+| Lint                         | ✅ PASS (기존 `.didim/mcp/rag-server.js` 6건 무관) |

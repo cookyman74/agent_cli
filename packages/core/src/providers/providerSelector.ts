@@ -307,7 +307,7 @@ export function resolveProviderModel(
  *
  * Uses two detection methods:
  * 1. Registry match: exact preset value or model ID in another provider's registry
- * 2. Prefix heuristic: known provider prefixes (claude-*, gpt-*, o[0-9]*, gemini-*)
+ * 2. Prefix heuristic: known provider prefixes (claude-*, gpt-[0-9]*, o[0-9]*, gemini-*)
  *
  * This avoids false positives from allowCustomModels/freeformInput, which would
  * incorrectly flag user-specified models (e.g., 'my-custom-llama') as belonging
@@ -322,7 +322,7 @@ function isRegisteredModelOfOtherProvider(
   // Prefix heuristics for well-known provider model naming conventions
   const providerPrefixes: Record<string, Array<(m: string) => boolean>> = {
     claude: [(m) => m.startsWith('claude-')],
-    openai: [(m) => m.startsWith('gpt-'), (m) => /^o[0-9]/.test(m)],
+    openai: [(m) => /^gpt-[0-9]/.test(m), (m) => /^o[0-9]/.test(m)],
     gemini: [
       (m) => m.startsWith('gemini-'),
       (m) => m.startsWith('auto-gemini'),

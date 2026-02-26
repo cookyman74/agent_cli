@@ -46,6 +46,41 @@ export function resolveActiveProvider(selectedProvider?: string): string {
  * @param key - Provider key from UI state or environment
  * @returns Normalized registry key
  */
+/**
+ * All provider-specific environment variables that must be cleaned
+ * when switching between providers.
+ *
+ * Call this at the top of every auth completion handler to prevent
+ * stale env vars from a previous provider leaking into the next.
+ */
+const PROVIDER_ENV_VARS_TO_CLEAN = [
+  'ENABLE_MULTI_PROVIDER',
+  'LLM_PROVIDER',
+  'ANTHROPIC_API_KEY',
+  'OPENAI_API_KEY',
+  'LLM_API_KEY',
+  'LLM_MODEL',
+  'LLM_BASE_URL',
+  'LLM_API_KEY_HEADER',
+  'LLM_CUSTOM_HEADERS',
+  'DIDIM_API_KEY',
+  'GOOGLE_CLOUD_PROJECT',
+  'GOOGLE_CLOUD_LOCATION',
+] as const;
+
+/**
+ * Clean all provider-specific env vars to prevent cross-provider leakage.
+ *
+ * Should be called at the beginning of every provider switch path
+ * (handleApiKeySubmit, handleSlmConfigComplete, handleVertexConfigComplete,
+ * AuthDialog.onSelect) before setting the new provider's env vars.
+ */
+export function cleanProviderEnvVars(): void {
+  for (const key of PROVIDER_ENV_VARS_TO_CLEAN) {
+    delete process.env[key];
+  }
+}
+
 export function normalizeProviderKey(key: string): string {
   const normalized = key.toLowerCase().trim();
 
@@ -54,6 +89,7 @@ export function normalizeProviderKey(key: string): string {
     case 'openai_compatible':
       return 'openai-compatible';
     case 'vertex-ai':
+    case 'vertex_ai':
       return 'gemini';
     case 'didim-studio':
       return 'didim';

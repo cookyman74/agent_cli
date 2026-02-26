@@ -286,13 +286,22 @@ export function resolveProviderModel(
   // freeformInput accepts any model string, so isModelValidForProvider always returns
   // true — a stale model from another provider (e.g., 'claude-sonnet-4-6') passes
   // through undetected. We check if the model is a registered/known model of another
-  // provider and, if so, prefer LLM_MODEL. Unknown models (e.g., user-specified via
-  // --model) are respected as-is to preserve CLI flag priority (argv.model > LLM_MODEL).
-  const llmModelEnv = process.env['LLM_MODEL'];
-  if (group?.freeformInput && llmModelEnv && llmModelEnv !== model) {
-    if (isRegisteredModelOfOtherProvider(model, provider)) {
+  // provider and, if so, prefer LLM_MODEL or provider default.
+  // Unknown models (e.g., user-specified via --model) are respected as-is to preserve
+  // CLI flag priority (argv.model > LLM_MODEL).
+  if (
+    group?.freeformInput &&
+    isRegisteredModelOfOtherProvider(model, provider)
+  ) {
+    const llmModelEnv = process.env['LLM_MODEL'];
+    // Prefer LLM_MODEL if set and not itself a stale cross-provider model
+    if (
+      llmModelEnv &&
+      !isRegisteredModelOfOtherProvider(llmModelEnv, provider)
+    ) {
       return llmModelEnv;
     }
+    return getDefaultModelFromRegistry(provider);
   }
 
   if (!isModelValidForProvider(model, provider)) {

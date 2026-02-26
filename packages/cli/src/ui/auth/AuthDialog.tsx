@@ -25,6 +25,7 @@ import { AuthState } from '../types.js';
 import { runExitCleanup } from '../../utils/cleanup.js';
 import { validateAuthMethodWithSettings } from './useAuth.js';
 import { RELAUNCH_EXIT_CODE } from '../../utils/processUtils.js';
+import { cleanProviderEnvVars } from '../utils/resolveActiveProvider.js';
 
 interface AuthDialogProps {
   config: Config;
@@ -134,17 +135,8 @@ export function AuthDialog({
           setSelectedProvider('gemini');
         }
 
-        // Clear non-Gemini env vars to prevent providerSelector mis-routing
-        // (e.g. LLM_PROVIDER left over from a previous Claude/OpenAI session)
-        delete process.env['LLM_PROVIDER'];
-        delete process.env['ENABLE_MULTI_PROVIDER'];
-        delete process.env['ANTHROPIC_API_KEY'];
-        delete process.env['OPENAI_API_KEY'];
-        delete process.env['LLM_API_KEY'];
-        delete process.env['LLM_MODEL'];
-        delete process.env['LLM_BASE_URL'];
-        delete process.env['LLM_API_KEY_HEADER'];
-        delete process.env['LLM_CUSTOM_HEADERS'];
+        // Clean all provider env vars to prevent cross-provider leakage
+        cleanProviderEnvVars();
 
         if (
           authType === AuthType.LOGIN_WITH_GOOGLE &&

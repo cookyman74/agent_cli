@@ -314,6 +314,9 @@ export const useAuthCommand = (
             // Load the provider-specific key and set env vars for providerSelector
             const key = await reloadProviderApiKey(provider);
             if (!key) {
+              debugLogger.log(
+                `No stored API key for provider "${provider}". Prompting for key.`,
+              );
               setAuthState(AuthState.AwaitingApiKeyInput);
               return;
             }
@@ -327,6 +330,9 @@ export const useAuthCommand = (
               process.env[envVarName] = key;
             }
             process.env['LLM_PROVIDER'] = provider;
+            debugLogger.log(
+              `Loaded API key for provider "${provider}" (${envVarName}: ${key ? 'set' : 'missing'}).`,
+            );
           } else {
             // Gemini path (legacy)
             const key = await reloadApiKey();
@@ -372,7 +378,13 @@ export const useAuthCommand = (
         try {
           await config.refreshAuth(authType);
 
-          debugLogger.log(`Authenticated via "${authType}".`);
+          // Show the actual provider (not just authType) to prevent confusion.
+          // authType is always "gemini-api-key" for all API-key-based providers,
+          // so showing only authType misleads users into thinking Gemini is active.
+          const activeProvider = process.env['LLM_PROVIDER'] || 'gemini';
+          debugLogger.log(
+            `Authenticated via "${authType}" (provider: ${activeProvider}).`,
+          );
           setAuthError(null);
           setAuthState(AuthState.Authenticated);
         } catch (e) {

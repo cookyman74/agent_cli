@@ -254,7 +254,14 @@ export class OpenAiAdapter extends BaseAdapter {
       return new TimeoutError(message, opts);
     }
 
-    return new NetworkError(message, opts);
+    // Enrich connection errors with provider info so the user knows which
+    // service failed (prevents confusion during multi-provider switching).
+    const cause = (err as { cause?: Error }).cause;
+    const detail = cause ? ` (${cause.message})` : '';
+    return new NetworkError(
+      `${message} [provider: ${this.providerName}]${detail}`,
+      opts,
+    );
   }
 
   /**

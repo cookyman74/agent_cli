@@ -414,3 +414,319 @@ OpenAI 모델만 매칭. `providerSelector.ts`와 `providerModels.ts` 양쪽 동
 | TypeScript typecheck         | ✅ PASS                                            |
 | Build                        | ✅ PASS                                            |
 | Lint                         | ✅ PASS (기존 `.didim/mcp/rag-server.js` 6건 무관) |
+
+---
+
+## 11. 후속 Hotfix (2026-02-26): Connection Error 진단 + Gemini 모델 미전환
+
+### 11.1 문제 1: `/auth login` Claude 전환 후 `[API Error: Connection error.]`
+
+#### 증상
+
+`/auth login`으로 Claude 서비스 전환 후 API key 입력 →
+`[API Error: Connection error.]` 발생. 디버그 콘솔에
+`Authenticated via "gemini-api-key"` 표시되어 사용자가 "API key가 Gemini로
+회귀된 것 아닌가" 의심.
+
+#### 분석 결과
+
+인증 흐름 전체를 추적한 결과, **auth 라우팅은 정상** 동작:
+
+- `handleApiKeySubmit` → `LLM_PROVIDER=claude` + `ANTHROPIC_API_KEY` 설정 →
+  `config.refreshAuth()` → Claude adapter 생성
+- `Authenticated via "gemini-api-key"`는 `AuthType.USE_GEMINI` enum 값으로, 모든
+  API-key 기반 프로바이더가 공유하는 값 (Claude/OpenAI 포함)
+- `Connection error`는 Anthropic SDK의 실제 네트워크 오류 (프록시/방화벽 등)
+
+#### 수정 (진단 개선 3건)
+
+**파일 1**: `packages/cli/src/ui/auth/useAuth.ts`
+
+| 위치      | 변경 내용                                     |
+| --------- | --------------------------------------------- |
+| line ~317 | API key 미존재 시 `debugLogger.log` 추가      |
+| line ~333 | API key 로드 성공 시 `debugLogger.log` 추가   |
+| line ~385 | 인증 완료 로그에 실제 provider 정보 추가 표시 |
+
+```typescript
+// Before
+debugLogger.log(`Authenticated via "${authType}".`);
+
+// After
+const activeProvider = process.env['LLM_PROVIDER'] || 'gemini';
+debugLogger.log(
+  `Authenticated via "${authType}" (provider: ${activeProvider}).`,
+);
+```
+
+**파일 2**: `packages/cli/src/ui/AppContainer.tsx`
+
+| 위치      | 변경 내용                                    |
+| --------- | -------------------------------------------- |
+| line ~671 | Non-Gemini 경로 `refreshAuth` 전 디버그 추가 |
+
+```typescript
+debugLogger.log(
+  `Switching to provider "${provider}" (LLM_PROVIDER=${process.env['LLM_PROVIDER']}, ` +
+    `ENABLE_MULTI_PROVIDER=${process.env['ENABLE_MULTI_PROVIDER']}, ` +
+    `apiKey=${envVarName ? 'set' : 'not-set'}).`,
+);
+```
+
+**파일 3**: `packages/core/src/providers/claude/adapter.ts`
+
+| 위치      | 변경 내용                                  |
+| --------- | ------------------------------------------ |
+| line ~264 | NetworkError에 provider/endpoint 정보 추가 |
+
+```typescript
+// Before
+return new NetworkError(message, opts);
+
+// After
+const cause = (err as { cause?: Error }).cause;
+const detail = cause ? ` (${cause.message})` : '';
+return new NetworkError(
+  `${message} [provider: claude, endpoint: api.anthropic.com]${detail}`,
+  opts,
+);
+```
+
+### 11.2 문제 2: Claude → Gemini 전환 시 모델 미변경
+
+#### 증상
+
+`/auth login`으로 Claude → Gemini로 전환 후, 모델이 `claude-opus-4-6`에서
+변경되지 않음. `/model`을 추가 실행해야만 Gemini 모델로 전환 가능.
+
+#### 근본 원인
+
+`handleApiKeySubmit`의 Gemini 경로(line 616-634)에서 `config.refreshAuth()` 이후
+모델을 리셋하는 코드가 없음. 비-Gemini 경로(line 688-693)는
+`config.getModel()` + `saveModelForProvider()`로 올바르게 처리하고 있었으나,
+Gemini 경로에는 동일 로직이 누락.
+
+```
+[Non-Gemini 경로] (정상)
+  config.refreshAuth()
+  resolvedModel = config.getModel()     ← provider default 반영
+  saveModelForProvider(settings, ...)   ← 영구 저장 ✅
+
+[Gemini 경로] (문제)
+  config.refreshAuth()
+  // ← 모델 리셋 없음! ❌
+```
+
+#### 수정
+
+**파일**: `packages/cli/src/ui/AppContainer.tsx`
+
+**import 추가**:
+
+```typescript
+import {
+  // ... existing imports ...
+  getDefaultModelFromRegistry,
+} from '@didim365/agent-cli-core';
+```
+
+**Gemini 경로 모델 리셋** (`refreshAuth` 직후):
+
+```typescript
+await config.refreshAuth(AuthType.USE_GEMINI);
+
+// Reset model to Gemini default when switching from another provider
+// (e.g., claude-opus-4-6 → gemini-2.5-pro)
+const geminiDefault = getDefaultModelFromRegistry('gemini');
+const currentModel = config.getModel();
+if (currentModel !== geminiDefault) {
+  config.setModel(geminiDefault);
+  saveModelForProvider(settings, 'gemini', geminiDefault);
+}
+```
+
+### 11.3 변경 파일 요약
+
+| 파일                                            | 변경 내용                           | 규모  |
+| ----------------------------------------------- | ----------------------------------- | ----- |
+| `packages/cli/src/ui/auth/useAuth.ts`           | debugLogger 진단 로그 3건 추가/개선 | +14줄 |
+| `packages/cli/src/ui/AppContainer.tsx`          | Gemini 모델 리셋 + 디버그 로그      | +15줄 |
+| `packages/core/src/providers/claude/adapter.ts` | NetworkError provider/endpoint 정보 | +9줄  |
+
+### 11.4 검증 결과
+
+| 검증 항목                    | 결과       |
+| ---------------------------- | ---------- |
+| providerModels 단위 테스트   | ✅ 33 PASS |
+| providerSelector 단위 테스트 | ✅ 60 PASS |
+| Build                        | ✅ PASS    |
+
+---
+
+## 12. 코드 리뷰 후 추가 수정 (2026-02-26)
+
+### 12.1 리뷰 범위
+
+전체 hotfix 작업결과서(5건)에서 언급된 모든 코드 변경 사항을 실제 코드와 교차
+검증. 3개 병렬 리뷰 에이전트를 통해 다음 영역 코드 레벨 분석:
+
+1. **Auth flow 경로**: useAuth.ts, AuthDialog.tsx, AppContainer.tsx
+2. **Provider model resolution**: providerSelector.ts, providerModels.ts,
+   contentGenerator.ts
+3. **Error handling & adapters**: claude/adapter.ts, openai/adapter.ts,
+   openai-compatible/adapter.ts, requestBuilder.ts
+
+### 12.2 발견된 이슈 및 수정
+
+| #   | 심각도     | 이슈                                                                                       | 수정 파일                        |
+| --- | ---------- | ------------------------------------------------------------------------------------------ | -------------------------------- |
+| 1   | **HIGH**   | env var cleanup이 5곳에 중복 — 각 경로마다 누락 불일치 (DIDIM*API_KEY, GOOGLE_CLOUD*\* 등) | `resolveActiveProvider.ts` + 4곳 |
+| 2   | **MEDIUM** | `handleVertexConfigComplete` 모델 리셋 누락                                                | `AppContainer.tsx`               |
+| 3   | **MEDIUM** | freeformInput stale model leak: `LLM_MODEL === model`일 때 감지 실패                       | `providerSelector.ts`            |
+| 4   | **MEDIUM** | OpenAI adapter NetworkError에 provider 정보 누락                                           | `openai/adapter.ts`              |
+| 5   | **LOW**    | `handleApiKeySubmit` envVarMap에 `didim` 누락                                              | `AppContainer.tsx`               |
+| 6   | **LOW**    | `normalizeProviderKey` `vertex_ai` underscore 미처리                                       | `resolveActiveProvider.ts`       |
+
+### 12.3 Issue 1 (HIGH): `cleanProviderEnvVars()` 공통 함수 추출
+
+**근본 원인**: env var cleanup이 5곳(AuthDialog.onSelect, handleApiKeySubmit
+Gemini/non-Gemini, handleSlmConfigComplete, handleVertexConfigComplete)에
+copy-paste로 존재하며, 각 경로마다 누락 항목이 다름.
+
+**수정**: `cleanProviderEnvVars()` 공통 함수를 `resolveActiveProvider.ts`에
+추출.
+
+```typescript
+const PROVIDER_ENV_VARS_TO_CLEAN = [
+  'ENABLE_MULTI_PROVIDER',
+  'LLM_PROVIDER',
+  'ANTHROPIC_API_KEY',
+  'OPENAI_API_KEY',
+  'LLM_API_KEY',
+  'LLM_MODEL',
+  'LLM_BASE_URL',
+  'LLM_API_KEY_HEADER',
+  'LLM_CUSTOM_HEADERS',
+  'DIDIM_API_KEY',
+  'GOOGLE_CLOUD_PROJECT',
+  'GOOGLE_CLOUD_LOCATION',
+] as const;
+
+export function cleanProviderEnvVars(): void {
+  for (const key of PROVIDER_ENV_VARS_TO_CLEAN) {
+    delete process.env[key];
+  }
+}
+```
+
+5곳의 개별 `delete process.env[...]` 블록을 모두 `cleanProviderEnvVars()` 호출로
+교체:
+
+| 파일               | 위치                         | 변경                   |
+| ------------------ | ---------------------------- | ---------------------- |
+| `AuthDialog.tsx`   | `onSelect()` env cleanup     | 9개 delete → 함수 호출 |
+| `AppContainer.tsx` | Gemini 경로                  | 9개 delete → 함수 호출 |
+| `AppContainer.tsx` | Non-Gemini 경로              | 5개 delete → 함수 호출 |
+| `AppContainer.tsx` | `handleSlmConfigComplete`    | 4개 delete → 함수 호출 |
+| `AppContainer.tsx` | `handleVertexConfigComplete` | 9개 delete → 함수 호출 |
+
+### 12.4 Issue 2 (MEDIUM): `handleVertexConfigComplete` 모델 리셋 추가
+
+```typescript
+await config.refreshAuth(AuthType.USE_VERTEX_AI);
+
+// Reset model to Gemini default (Vertex AI uses Gemini models)
+const geminiDefault = getDefaultModelFromRegistry('gemini');
+const currentModel = config.getModel();
+if (currentModel !== geminiDefault) {
+  config.setModel(geminiDefault);
+  saveModelForProvider(settings, 'gemini', geminiDefault);
+}
+```
+
+### 12.5 Issue 3 (MEDIUM): freeformInput stale model 감지 개선
+
+**변경 전**: `LLM_MODEL === model`일 때 stale 감지 스킵, `LLM_MODEL` 미설정 시
+stale 모델이 통과.
+
+**변경 후**: stale 여부를 먼저 판단한 후, `LLM_MODEL`이 유효하면 사용, 아니면
+provider default로 fallback.
+
+```typescript
+// Before
+if (group?.freeformInput && llmModelEnv && llmModelEnv !== model) {
+  if (isRegisteredModelOfOtherProvider(model, provider)) {
+    return llmModelEnv;
+  }
+}
+
+// After
+if (group?.freeformInput && isRegisteredModelOfOtherProvider(model, provider)) {
+  const llmModelEnv = process.env['LLM_MODEL'];
+  if (llmModelEnv && !isRegisteredModelOfOtherProvider(llmModelEnv, provider)) {
+    return llmModelEnv;
+  }
+  return getDefaultModelFromRegistry(provider);
+}
+```
+
+### 12.6 Issue 4 (MEDIUM): OpenAI adapter NetworkError 개선
+
+Claude adapter와 동일한 패턴으로 provider 정보 추가:
+
+```typescript
+const cause = (err as { cause?: Error }).cause;
+const detail = cause ? ` (${cause.message})` : '';
+return new NetworkError(
+  `${message} [provider: ${this.providerName}]${detail}`,
+  opts,
+);
+```
+
+OpenAI-compatible adapter는 `OpenAiAdapter`를 상속하므로 자동 적용.
+`this.providerName`이 `'openai-compatible'`로 override 되어 있어 정확히 표시됨.
+
+### 12.7 Issue 5+6 (LOW): envVarMap didim 추가 + vertex_ai 정규화
+
+- `handleApiKeySubmit` non-Gemini 경로의 `envVarMap`에 `didim: 'DIDIM_API_KEY'`
+  추가
+- `normalizeProviderKey`에 `'vertex_ai'` case 추가 (기존 `'openai_compatible'`과
+  일관)
+
+### 12.8 변경 파일 요약
+
+| 파일                                                 | 변경 내용                                                  |
+| ---------------------------------------------------- | ---------------------------------------------------------- |
+| `packages/cli/src/ui/utils/resolveActiveProvider.ts` | `cleanProviderEnvVars()` 추가, `vertex_ai` 정규화          |
+| `packages/cli/src/ui/AppContainer.tsx`               | 4곳 cleanup → 공통 함수, Vertex 모델 리셋, envVarMap didim |
+| `packages/cli/src/ui/auth/AuthDialog.tsx`            | cleanup → 공통 함수                                        |
+| `packages/core/src/providers/providerSelector.ts`    | freeformInput stale 감지 로직 개선                         |
+| `packages/core/src/providers/openai/adapter.ts`      | NetworkError provider 정보 추가                            |
+
+### 12.9 검증 결과
+
+| 검증 항목                    | 결과                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| providerSelector 단위 테스트 | ✅ 60 PASS                                                                 |
+| providerModels 단위 테스트   | ✅ 33 PASS                                                                 |
+| AuthDialog 단위 테스트       | ✅ 29 PASS                                                                 |
+| AppContainer 단위 테스트     | ✅ 71 PASS                                                                 |
+| Core 전체 테스트             | ✅ 288 files, 5780 PASS, 3 FAIL (기존 실패 — re-export, hookV2, mcp-OAuth) |
+| CLI 전체 테스트              | ✅ 351 files, 4817 PASS, 1 FAIL (기존 실패 — config integration timeout)   |
+| Build                        | ✅ PASS                                                                    |
+
+**본 수정으로 인한 신규 실패 0건.**
+
+### 12.10 리뷰에서 확인했으나 수정하지 않은 항목
+
+다음은 리뷰 과정에서 발견되었으나, 현재 코드에서 실제 문제를 유발하지 않거나
+수정 시 범위가 크므로 별도 이슈로 관리가 적절한 항목:
+
+| #   | 심각도 | 내용                                                                       | 비고                                                          |
+| --- | ------ | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| A   | Low    | `providerPrefixes` 맵이 `providerModels.ts`와 `providerSelector.ts`에 중복 | DRY 위반이나 현재 동기화 상태. 공통 상수 추출은 별도 리팩터링 |
+| B   | Low    | `/^o[0-9]/` 패턴이 `o2-llama-7b` 같은 커스텀 모델을 오인할 가능성          | 실제 사용례 미발견, 향후 false positive 보고 시 대응          |
+| C   | Low    | `GEMINI_ALIASES` Set이 `models.ts` 상수와 별도 유지                        | 현재 동기화 상태, 별도 리팩터링 시 통합                       |
+| D   | Low    | `envVarMap`이 4곳+ 중복 정의                                               | `cleanProviderEnvVars`로 일부 해소, 완전 통합은 별도 리팩터링 |
+| E   | Low    | AbortError가 모든 adapter에서 retryable NetworkError로 분류                | 현재 abort 경로에서 retry가 발생하지 않아 실질적 영향 없음    |
+| F   | Low    | `isRegisteredModelOfOtherProvider` registry match가 case-sensitive         | 모든 현재 모델이 prefix heuristic에서 먼저 매칭되어 영향 없음 |

@@ -63,6 +63,7 @@ import {
   SessionEndReason,
   generateSummary,
   type AgentsDiscoveredPayload,
+  getDefaultModelFromRegistry,
 } from '@didim365/agent-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import process from 'node:process';
@@ -90,7 +91,10 @@ import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useVim } from './hooks/vim.js';
 import { SettingScope, saveModelForProvider } from '../config/settings.js';
-import { normalizeProviderKey } from './utils/resolveActiveProvider.js';
+import {
+  normalizeProviderKey,
+  cleanProviderEnvVars,
+} from './utils/resolveActiveProvider.js';
 import { type InitializationResult } from '../core/initializer.js';
 import { useFocus } from './hooks/useFocus.js';
 import { useKeypress, type Key } from './hooks/useKeypress.js';
@@ -613,16 +617,8 @@ export const AppContainer = (props: AppContainerProps) => {
 
         const provider = normalizeProviderKey(selectedProvider || 'gemini');
         if (provider === 'gemini') {
-          // Legacy Gemini path — clear all non-Gemini env vars (including sLM-specific)
-          delete process.env['ENABLE_MULTI_PROVIDER'];
-          delete process.env['LLM_PROVIDER'];
-          delete process.env['ANTHROPIC_API_KEY'];
-          delete process.env['OPENAI_API_KEY'];
-          delete process.env['LLM_API_KEY'];
-          delete process.env['LLM_MODEL'];
-          delete process.env['LLM_BASE_URL'];
-          delete process.env['LLM_API_KEY_HEADER'];
-          delete process.env['LLM_CUSTOM_HEADERS'];
+          // Legacy Gemini path — clear all provider env vars to prevent cross-provider leakage
+          cleanProviderEnvVars();
           await saveApiKey(apiKey);
           await reloadApiKey();
           // Persist provider so /model resolves correctly on next startup
@@ -632,14 +628,19 @@ export const AppContainer = (props: AppContainerProps) => {
             'gemini',
           );
           await config.refreshAuth(AuthType.USE_GEMINI);
+
+          // Reset model to Gemini default when switching from another provider
+          // (e.g., claude-opus-4-6 → gemini-2.5-pro)
+          const geminiDefault = getDefaultModelFromRegistry('gemini');
+          const currentModel = config.getModel();
+          if (currentModel !== geminiDefault) {
+            config.setModel(geminiDefault);
+            saveModelForProvider(settings, 'gemini', geminiDefault);
+          }
         } else {
           // Non-Gemini provider path (Claude/OpenAI)
-          // Clean up sLM-specific env vars to prevent cross-provider leakage
-          delete process.env['LLM_MODEL'];
-          delete process.env['LLM_BASE_URL'];
-          delete process.env['LLM_API_KEY'];
-          delete process.env['LLM_API_KEY_HEADER'];
-          delete process.env['LLM_CUSTOM_HEADERS'];
+          // Clean all provider env vars first to prevent cross-provider leakage
+          cleanProviderEnvVars();
           // Enable multi-provider routing so contentGenerator uses ProviderFactory
           process.env['ENABLE_MULTI_PROVIDER'] = 'true';
           await saveProviderApiKey(provider, apiKey);
@@ -650,6 +651,7 @@ export const AppContainer = (props: AppContainerProps) => {
             claude: 'ANTHROPIC_API_KEY',
             openai: 'OPENAI_API_KEY',
             'openai-compatible': 'LLM_API_KEY',
+            didim: 'DIDIM_API_KEY',
           };
           const envVarName = envVarMap[provider];
           if (envVarName) {
@@ -667,6 +669,11 @@ export const AppContainer = (props: AppContainerProps) => {
             SettingScope.User,
             'security.auth.selectedType',
             AuthType.USE_GEMINI,
+          );
+          debugLogger.log(
+            `Switching to provider "${provider}" (LLM_PROVIDER=${process.env['LLM_PROVIDER']}, ` +
+              `ENABLE_MULTI_PROVIDER=${process.env['ENABLE_MULTI_PROVIDER']}, ` +
+              `apiKey=${envVarName ? 'set' : 'not-set'}).`,
           );
           await config.refreshAuth(AuthType.USE_GEMINI);
 
@@ -728,18 +735,15 @@ export const AppContainer = (props: AppContainerProps) => {
           AuthType.USE_GEMINI,
         );
 
+        // Clean all provider env vars first to prevent cross-provider leakage
+        cleanProviderEnvVars();
+
         // Enable multi-provider routing so contentGenerator uses ProviderFactory
         process.env['ENABLE_MULTI_PROVIDER'] = 'true';
 
         // Set env vars for providerSelector routing
         process.env['LLM_PROVIDER'] = 'openai-compatible';
         process.env['LLM_BASE_URL'] = slmConfig.baseUrl;
-
-        // Clear optional env vars first to prevent stale values from previous config
-        delete process.env['LLM_API_KEY'];
-        delete process.env['LLM_MODEL'];
-        delete process.env['LLM_API_KEY_HEADER'];
-        delete process.env['LLM_CUSTOM_HEADERS'];
 
         // Always sync API key to keychain — empty/undefined triggers deletion
         await saveProviderApiKey('openai-compatible', slmConfig.apiKey);
@@ -800,23 +804,23 @@ export const AppContainer = (props: AppContainerProps) => {
           AuthType.USE_VERTEX_AI,
         );
 
-        // Clear non-Vertex env vars to prevent stale provider routing
-        // (LLM_PROVIDER takes priority in providerSelector, so must be removed)
-        delete process.env['ENABLE_MULTI_PROVIDER'];
-        delete process.env['LLM_PROVIDER'];
-        delete process.env['ANTHROPIC_API_KEY'];
-        delete process.env['OPENAI_API_KEY'];
-        delete process.env['LLM_API_KEY'];
-        delete process.env['LLM_BASE_URL'];
-        delete process.env['LLM_MODEL'];
-        delete process.env['LLM_API_KEY_HEADER'];
-        delete process.env['LLM_CUSTOM_HEADERS'];
+        // Clean all provider env vars to prevent cross-provider leakage
+        cleanProviderEnvVars();
 
         // Set env vars for Vertex AI routing in contentGenerator
         process.env['GOOGLE_CLOUD_PROJECT'] = vertexConfig.project;
         process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;
 
         await config.refreshAuth(AuthType.USE_VERTEX_AI);
+
+        // Reset model to Gemini default (Vertex AI uses Gemini models)
+        const geminiDefault = getDefaultModelFromRegistry('gemini');
+        const currentModel = config.getModel();
+        if (currentModel !== geminiDefault) {
+          config.setModel(geminiDefault);
+          saveModelForProvider(settings, 'gemini', geminiDefault);
+        }
+
         setAuthState(AuthState.Authenticated);
       } catch (e) {
         onAuthError(

@@ -15,6 +15,7 @@ export {
   type ProviderModelInfo,
   type ProviderModelGroup,
 } from './config/providerModels.js';
+export { normalizeProviderKey } from './providers/providerSelector.js';
 export {
   MODEL_PRICING,
   estimateCost,

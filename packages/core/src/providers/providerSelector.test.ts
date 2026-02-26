@@ -511,6 +511,68 @@ describe('ProviderSelector', () => {
       expect(result).toBe('gpt-5.2');
     });
 
+    // --- Regression: LLM_MODEL deletion during auth switch (stale sLM model leak) ---
+    // When cleanProviderEnvVars() deletes LLM_MODEL before refreshAuth, Strategy 2
+    // is disabled. Without pre-setting LLM_MODEL, gpt-oss-20b passes through
+    // allowCustomModels on Claude/OpenAI.
+
+    it('should pass gpt-oss-20b through on Claude when LLM_MODEL is absent (allowCustomModels)', () => {
+      // Documents the allowCustomModels limitation: without LLM_MODEL signal,
+      // gpt-oss-20b is not detectable as stale by prefix heuristics (no gpt-[0-9] prefix)
+      // and passes allowCustomModels validation.
+      // This is why AppContainer must pre-set LLM_MODEL before refreshAuth.
+      const result = resolveProviderModel('gpt-oss-20b', ProviderType.Claude);
+      expect(result).toBe('gpt-oss-20b');
+    });
+
+    it('should fallback gpt-oss-20b on Claude when LLM_MODEL is pre-set (auth switch)', () => {
+      // Simulates the fixed auth switch path: LLM_MODEL is pre-set to the
+      // resolved model before refreshAuth, enabling Strategy 2 detection.
+      vi.stubEnv('LLM_MODEL', 'claude-opus-4-6');
+      const result = resolveProviderModel('gpt-oss-20b', ProviderType.Claude);
+      expect(result).toBe('claude-opus-4-6');
+    });
+
+    it('should pass gpt-oss-20b through on OpenAI when LLM_MODEL is absent (allowCustomModels)', () => {
+      // Same allowCustomModels limitation on OpenAI: gpt-oss-20b lacks standard
+      // OpenAI prefix (gpt-[0-9]*) and passes custom model validation.
+      const result = resolveProviderModel('gpt-oss-20b', ProviderType.OpenAI);
+      expect(result).toBe('gpt-oss-20b');
+    });
+
+    it('should fallback gpt-oss-20b on OpenAI when LLM_MODEL is pre-set (auth switch)', () => {
+      vi.stubEnv('LLM_MODEL', 'gpt-5.2');
+      const result = resolveProviderModel('gpt-oss-20b', ProviderType.OpenAI);
+      expect(result).toBe('gpt-5.2');
+    });
+
+    it('should respect explicit --model custom value over LLM_MODEL on Claude', () => {
+      vi.stubEnv('LLM_MODEL', 'claude-opus-4-6');
+      const originalArgv = process.argv;
+      process.argv = [...originalArgv, '--model', 'my-custom-finetune'];
+      try {
+        const result = resolveProviderModel(
+          'my-custom-finetune',
+          ProviderType.Claude,
+        );
+        expect(result).toBe('my-custom-finetune');
+      } finally {
+        process.argv = originalArgv;
+      }
+    });
+
+    it('should still fallback stale model when explicit --model differs from current model', () => {
+      vi.stubEnv('LLM_MODEL', 'claude-opus-4-6');
+      const originalArgv = process.argv;
+      process.argv = [...originalArgv, '--model', 'my-custom-finetune'];
+      try {
+        const result = resolveProviderModel('gpt-oss-20b', ProviderType.Claude);
+        expect(result).toBe('claude-opus-4-6');
+      } finally {
+        process.argv = originalArgv;
+      }
+    });
+
     // --- Issue 7 fix: alias provider string 정규화 ---
 
     it('should normalize alias provider key "openai_compatible" in resolveProviderModel', () => {

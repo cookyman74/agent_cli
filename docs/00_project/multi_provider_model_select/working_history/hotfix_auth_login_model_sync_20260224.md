@@ -798,9 +798,9 @@ Core 패키지 내 private helper로 구현 (CLI의 `normalizeProviderKey`와 �
 
 ---
 
-## 12. Gemini 경로 모델 동기화 누락 수정 (5차)
+## 14. Gemini 경로 모델 동기화 누락 수정 (5차)
 
-### 12.1 문제
+### 14.1 문제
 
 `/auth login` → Gemini 선택 시 `handleApiKeySubmit`의 Gemini 경로(line 615)에서
 `refreshAuth` 후 `saveModelForProvider()` 미호출. non-Gemini
@@ -812,7 +812,7 @@ Core 패키지 내 private helper로 구현 (CLI의 `normalizeProviderKey`와 �
   `model.name`에서 로드
 - 이전 provider(예: Claude)의 모델(`claude-opus-4-6`)이 Gemini에서 그대로 표시
 
-### 12.2 수정
+### 14.2 수정
 
 `AppContainer.tsx:634` — `refreshAuth` 직후에 `saveModelForProvider` 추가.
 non-Gemini 경로(line 675-678)와 대칭.
@@ -821,10 +821,337 @@ non-Gemini 경로(line 675-678)와 대칭.
 | -------------------------- | ------------------------- | -------------------------------------------------------------- |
 | `AppContainer.tsx:635-640` | Gemini `refreshAuth` 직후 | `saveModelForProvider(settings, 'gemini', resolvedModel)` 추가 |
 
-### 12.3 검증 결과
+### 14.3 검증 결과
 
 | 검증 항목            | 결과                    |
 | -------------------- | ----------------------- |
 | CLI 전체 테스트      | ✅ 4818 PASS, 2 skipped |
 | TypeScript typecheck | ✅ PASS                 |
 | Build                | ✅ PASS                 |
+
+---
+
+## 15. 전체 auth 경로 stale 모델 누수 방지 (6차)
+
+### 15.1 문제
+
+14차에서 추가한 Gemini 경로
+`saveModelForProvider(settings, 'gemini', config.getModel())`에 근본적 결함
+발견. `config.getModel()`이 이전 프로바이더의 모델을 반환하여 잘못된 모델 저장.
+
+| #   | 심각도 | 위치                       | 설명                                                                                                                   |
+| --- | ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| A   | HIGH   | `AppContainer.tsx:662-668` | **Gemini 경로**: `config.getModel()` = stale `claude-opus-4-6` → `byProvider['gemini']`에 저장                         |
+| B   | HIGH   | `AppContainer.tsx:828-829` | **Vertex AI 경로**: `saveModelForProvider` 완전 누락                                                                   |
+| C   | MEDIUM | `AppContainer.tsx:708-712` | **Non-Gemini 경로**: sLM→Claude 전환 시 `gpt-oss-*`가 `allowCustomModels`로 통과 (LLM_MODEL 삭제 후 Strategy 2 미작동) |
+
+**근본 원인**: `handleApiKeySubmit`에서 `LLM_MODEL`을 삭제한 후 `refreshAuth`
+호출 → Gemini/Vertex legacy 경로는 `resolveProviderModel` 미호출, non-Gemini
+경로는 Strategy 2 (LLM_MODEL 기반 cross-provider 감지) 비활성화.
+
+### 15.2 수정 전략
+
+**`resolveModelForAuthSwitch()` 헬퍼 도입** — `config.getModel()` 대신
+`settings.model.byProvider[provider]` || `getDefaultModelFromRegistry(provider)`
+사용.
+
+```typescript
+function resolveModelForAuthSwitch(
+  settings: LoadedSettings,
+  provider: string,
+): string {
+  const normalizedProvider = normalizeProviderKey(provider);
+  const userSettings = settings.forScope(SettingScope.User).settings;
+  const savedModel = userSettings.model?.byProvider?.[normalizedProvider];
+  if (savedModel) return savedModel;
+  return getDefaultModelFromRegistry(normalizedProvider);
+}
+```
+
+**핵심 논리**: `byProvider[provider]`는 사용자가 해당 프로바이더에서 마지막으로
+선택한 모델. 존재하면 그것을 사용, 없으면 프로바이더 기본 모델. 이전
+프로바이더의 in-memory 모델에 의존하지 않으므로 stale 모델 누수 원천 차단.
+
+### 15.3 변경 내용
+
+| 경로       | 변경 전                    | 변경 후                                                                 |
+| ---------- | -------------------------- | ----------------------------------------------------------------------- |
+| Gemini     | `config.getModel()` → save | `resolveModelForAuthSwitch(settings, 'gemini')` → setModel + save       |
+| Non-Gemini | `config.getModel()` → save | `resolveModelForAuthSwitch(settings, provider)` → setModel + save       |
+| Vertex AI  | (누락)                     | `resolveModelForAuthSwitch(settings, 'vertex-ai')` → setModel + save    |
+| sLM        | save만                     | `config.setModel(slmConfig.model, true)` + save (in-memory 동기화 추가) |
+
+### 15.4 검증 결과
+
+| 검증 항목                    | 결과                    |
+| ---------------------------- | ----------------------- |
+| Core providerSelector 테스트 | ✅ 65 PASS              |
+| CLI 전체 테스트              | ✅ 4818 PASS, 2 skipped |
+| TypeScript typecheck (Core)  | ✅ PASS                 |
+| TypeScript typecheck (CLI)   | ✅ PASS                 |
+| Build                        | ✅ PASS                 |
+| 커밋                         | ✅ `e817a8fd7`          |
+
+---
+
+## 16. Git Rebase 충돌 해결 + 머지 코드 리뷰 (2026-02-26)
+
+### 16.1 배경
+
+`DID/v0.2` 브랜치에서 `git pull` 시 divergent branches 오류 발생.
+
+- **로컬**: 5개 커밋 (v0.2.20 release → Strategy 2 + alias 정규화 → Gemini /auth
+  모델 동기화 → stale 모델 누수 방지 → v0.2.21 release)
+- **리모트**: 2개 커밋 (env var cleanup + version bump)
+
+**해결**: `git pull --rebase origin DID/v0.2` 선택.
+
+### 16.2 충돌 파일 및 해결
+
+| 파일                                       | 충돌 수        | 해결 전략                                                                                 |
+| ------------------------------------------ | -------------- | ----------------------------------------------------------------------------------------- |
+| `providerSelector.ts`                      | 1              | 로컬(Strategy 2) 유지 — HEAD의 단순 freeformInput 로직보다 상위 호환                      |
+| `hotfix_auth_login_model_sync_20260224.md` | 1              | 양쪽 섹션 보존 + 번호 재정렬                                                              |
+| `AppContainer.tsx`                         | 3 (2차 rebase) | import 병합(cleanProviderEnvVars + LoadedSettings), 로컬 `resolveModelForAuthSwitch` 유지 |
+
+### 16.3 머지 코드 리뷰 — 발견된 이슈 및 수정
+
+| #   | 심각도       | 이슈                                                                                                        | 수정                                         |
+| --- | ------------ | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 1   | **CRITICAL** | `providerSelector.ts:329` — HEAD의 freeformInput fallback `return` 잔존 (4개 테스트 실패)                   | 해당 라인 삭제                               |
+| 2   | **MEDIUM**   | `const group` 변수 섀도잉 (line 317 vs line 269)                                                            | 내부 `const group` 삭제, 외부 `group` 재사용 |
+| 3   | **LOW**      | `normalizeProviderRegistryKey`의 무의미한 삼항연산자 `(typeof provider === 'string' ? provider : provider)` | `String(provider)`로 단순화                  |
+| 4   | **LOW**      | 문서 섹션 번호 중복 (## 12, ## 13 각 2회)                                                                   | 12→14, 13→15로 재번호                        |
+
+**Critical 버그 상세**: HEAD의 freeformInput fallback이 Strategy 1+2 블록 내부에
+잔존하여, 두 전략 모두 해당 없는 경우 조기 return → `allowCustomModels` 검증
+우회.
+
+```typescript
+// 머지 아티팩트 (삭제됨)
+    // Neither strategy → fall through
+  }
+  return getDefaultModelFromRegistry(provider);  // ← HEAD 잔존, 조기 return!
+```
+
+**수정 후 테스트**: 65/65 PASS (기존 4건 실패 해소)
+
+---
+
+## 17. 외부 리뷰 Finding 반영 (7차, 2026-02-26)
+
+### 17.1 리뷰 범위
+
+git merge 관련 코드 중심 외부 리뷰에서 3개 Finding 제시:
+
+| #   | 심각도     | Finding                                                                                 | 영향                                                      |
+| --- | ---------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| F1  | **HIGH**   | `cleanProviderEnvVars()`의 `LLM_MODEL` 삭제 → Strategy 2 비활성화 → stale sLM 모델 누수 | `gpt-oss-20b` 같은 sLM 모델이 Claude/OpenAI에서 감지 불가 |
+| F2  | **MEDIUM** | LLM_MODEL 삭제 시나리오 회귀 테스트 부재                                                | 향후 리팩터링 시 누수 재발 위험                           |
+| F3  | **LOW**    | Core `normalizeProviderRegistryKey`와 CLI `normalizeProviderKey` 중복                   | `didim_studio` alias 누락 등 동기화 이탈 위험             |
+
+### 17.2 Finding 1 (HIGH): LLM_MODEL pre-set으로 Strategy 2 활성화
+
+**근본 원인**: `cleanProviderEnvVars()`가 `LLM_MODEL`을 삭제한 후
+`refreshAuth()` 호출. `refreshAuth` 내부의 `resolveProviderModel`에서 Strategy 2
+조건(`llmModelEnv && llmModelEnv !== model`)이 `false`가 되어 `gpt-oss-20b` 같은
+sLM 모델이 `allowCustomModels: true` 통과.
+
+**비교**: sLM 경로만 `process.env['LLM_MODEL'] = slmConfig.model` (line 784)로
+정상 설정. Gemini/Non-Gemini/Vertex AI 경로는 `LLM_MODEL` 미설정.
+
+**수정**: 3개 경로에서 `resolveModelForAuthSwitch()` 호출을 `refreshAuth()`
+**이전**으로 이동하고 `process.env['LLM_MODEL']`을 pre-set.
+
+**파일**: `packages/cli/src/ui/AppContainer.tsx`
+
+| 경로                          | 변경 전                                                  | 변경 후                                                                        |
+| ----------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Gemini** (line 660-663)     | `refreshAuth` → `resolveModelForAuthSwitch` → `setModel` | `resolveModelForAuthSwitch` → `LLM_MODEL` pre-set → `refreshAuth` → `setModel` |
+| **Non-Gemini** (line 704-712) | `refreshAuth` → `resolveModelForAuthSwitch` → `setModel` | `resolveModelForAuthSwitch` → `LLM_MODEL` pre-set → `refreshAuth` → `setModel` |
+| **Vertex AI** (line 849-852)  | `refreshAuth` → `resolveModelForAuthSwitch` → `setModel` | `resolveModelForAuthSwitch` → `LLM_MODEL` pre-set → `refreshAuth` → `setModel` |
+
+**결과**: 4개 경로(sLM 포함) 모두 동일 패턴으로 대칭화.
+
+### 17.3 Finding 2 (MEDIUM): 회귀 테스트 4건 추가
+
+**파일**: `packages/core/src/providers/providerSelector.test.ts`
+
+| 테스트                                                               | 검증 대상                                               |
+| -------------------------------------------------------------------- | ------------------------------------------------------- |
+| `should pass gpt-oss-20b through on Claude when LLM_MODEL is absent` | `allowCustomModels` 한계 문서화 (LLM_MODEL 없으면 통과) |
+| `should fallback gpt-oss-20b on Claude when LLM_MODEL is pre-set`    | Strategy 2 정상 감지 (auth switch 시뮬레이션)           |
+| `should pass gpt-oss-20b through on OpenAI when LLM_MODEL is absent` | OpenAI에서 동일 한계 문서화                             |
+| `should fallback gpt-oss-20b on OpenAI when LLM_MODEL is pre-set`    | OpenAI에서 Strategy 2 정상 작동 확인                    |
+
+**핵심**: 첫 번째/세 번째 테스트는 `allowCustomModels`의 구조적 한계를
+문서화하는 역할. 이것이 AppContainer에서 `LLM_MODEL` pre-set이 필수인 이유를
+증명.
+
+### 17.4 Finding 3 (LOW): Provider alias 정규화 로직 통합
+
+**변경 전**: Core `normalizeProviderRegistryKey` (private) + CLI
+`normalizeProviderKey` (export) 중복. CLI에 `didim_studio` alias 누락.
+
+**수정**: Core의 함수를 `normalizeProviderKey`로 rename + export, CLI는 Core에서
+import + re-export.
+
+| 파일                                                 | 변경                                                                                          |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `packages/core/src/providers/providerSelector.ts`    | `normalizeProviderRegistryKey` → `normalizeProviderKey` rename + `export`                     |
+| `packages/core/src/index.ts`                         | `export { normalizeProviderKey } from './providers/providerSelector.js'` 추가                 |
+| `packages/cli/src/ui/utils/resolveActiveProvider.ts` | 중복 함수 삭제, `import { normalizeProviderKey } from '@didim365/agent-cli-core'` + re-export |
+
+**효과**:
+
+- SSOT(Single Source of Truth) 확립 — 향후 alias 추가/변경 시 Core만 수정
+- CLI에 없던 `didim_studio` alias 자동 포함
+- 기존 CLI 임포트 경로(`../ui/utils/resolveActiveProvider.js`) 유지로 하위
+  호환성 보장
+
+### 17.5 검증 결과
+
+| 검증 항목                    | 결과                          |
+| ---------------------------- | ----------------------------- |
+| providerSelector 단위 테스트 | ✅ 69 PASS (기존 65 + 신규 4) |
+| Core 빌드                    | ✅ PASS                       |
+| CLI 빌드                     | ✅ PASS                       |
+
+---
+
+## 18. 추가 리뷰 이슈 반영 (8차, 2026-02-26)
+
+### 18.1 배경
+
+추가 코드 리뷰에서 확인된 2개 이슈를 보완:
+
+| #   | 심각도     | 이슈                                                                                                         |
+| --- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| 1   | **MEDIUM** | `resolveModelForAuthSwitch()`가 `settings.forScope()` 전제 → 최소 mock/마이그레이션 컨텍스트에서 런타임 예외 |
+| 2   | **MEDIUM** | Strategy 2가 `LLM_MODEL` pre-set 상태에서 명시 `--model` 커스텀 값을 덮어쓸 가능성                           |
+
+### 18.2 Issue 1 수정: `resolveModelForAuthSwitch` 방어적 fallback
+
+**파일**: `packages/cli/src/ui/utils/resolveActiveProvider.ts`
+
+`settings.forScope(SettingScope.User)`가 없거나 비정상인 경우,
+`settings.merged.model.byProvider`를 fallback으로 사용하도록 보강.
+
+```typescript
+if (typeof settings.forScope === 'function') {
+  // user scope 사용
+} else {
+  // merged fallback 사용
+}
+```
+
+**효과**:
+
+- `useAuth` 재시작 경로에서 테스트 fixture/특수 컨텍스트로 인한 `TypeError` 제거
+- 기존 정상 경로(`forScope` 존재) 동작은 그대로 유지
+
+### 18.3 Issue 2 수정: 명시 `--model` 우선 보장
+
+**파일**: `packages/core/src/providers/providerSelector.ts`
+
+Strategy 2 조건에 `wasModelExplicitlySpecified(model)` 가드를 추가.
+
+- 지원 플래그: `--model value`, `--model=value`, `-m value`, `-m=value`
+- 명시 모델과 현재 모델이 일치하면 Strategy 2 override를 건너뜀
+- 명시 모델이 현재 모델과 다르면 기존 stale 감지 로직 유지
+
+```typescript
+if (
+  !group.freeformInput &&
+  !isRegisteredModelForProvider(model, normalizedProvider) &&
+  !isOwnProviderPrefix(model, normalizedProvider) &&
+  !wasModelExplicitlySpecified(model)
+) {
+  // Strategy 2 fallback
+}
+```
+
+### 18.4 테스트 보강
+
+**추가/수정 테스트 파일**:
+
+- `packages/cli/src/ui/utils/resolveActiveProvider.test.ts`
+  - `forScope` 없는 merged 기반 fallback 케이스 추가
+- `packages/core/src/providers/providerSelector.test.ts`
+  - 명시 `--model` 커스텀 모델 유지 케이스 추가
+  - 명시 `--model`이 현재 모델과 다를 때 stale 감지 유지 케이스 추가
+- `packages/cli/src/ui/auth/useAuth.test.tsx`
+  - 최신 의도(`LLM_MODEL` pre-set 유지)에 맞게 회귀 기대값 정정
+
+### 18.5 검증 결과
+
+| 검증 항목                       | 결과       |
+| ------------------------------- | ---------- |
+| `useAuth.test.tsx`              | ✅ 30 PASS |
+| `resolveActiveProvider.test.ts` | ✅ 27 PASS |
+| `providerSelector.test.ts`      | ✅ 71 PASS |
+
+---
+
+## 19. 추가 이슈 보완 (9차, 2026-02-26)
+
+### 19.1 배경
+
+후속 점검에서 아래 3건을 추가 확인:
+
+| #   | 심각도     | 이슈                                                                             |
+| --- | ---------- | -------------------------------------------------------------------------------- |
+| 1   | **HIGH**   | `/auth logout` env cleanup에서 `DIDIM_API_KEY` 누락                              |
+| 2   | **MEDIUM** | `useAuth` env auto-detect 경로에서 Didim(`DIDIM_API_KEY`) 미처리                 |
+| 3   | **LOW**    | `AppContainer` Vertex 회귀 테스트가 최신 의도(`LLM_MODEL` pre-set 유지)와 불일치 |
+
+### 19.2 수정 내용
+
+#### Issue 1 (HIGH): logout cleanup에 Didim 키 추가
+
+**파일**: `packages/cli/src/ui/commands/authCommand.ts`
+
+```typescript
+delete process.env['DIDIM_API_KEY'];
+```
+
+#### Issue 2 (MEDIUM): useAuth Didim auto-detect/검증 보강
+
+**파일**: `packages/cli/src/ui/auth/useAuth.ts`
+
+- 초기 상태 계산(`determineInitialState`)에 `DIDIM_API_KEY` 감지 추가
+- `LLM_PROVIDER` 검증 맵에 `didim: 'DIDIM_API_KEY'` 추가
+- no-auth env auto-detect 경로에 `DIDIM_API_KEY` 분기 추가:
+  - `ENABLE_MULTI_PROVIDER=true`
+  - `LLM_PROVIDER='didim'`
+  - `refreshAuth(AuthType.USE_GEMINI)` 호출
+
+#### Issue 3 (LOW): Vertex 회귀 테스트 기대값 정합화
+
+**파일**: `packages/cli/src/ui/AppContainer.test.tsx`
+
+- `handleVertexConfigComplete` 회귀 테스트에서 `LLM_MODEL`을 clear 대상에서 제외
+- `LLM_MODEL`이 stale 값 삭제 후 **Gemini resolved model**로 pre-set되는 최신
+  의도를 검증:
+  - `getDefaultModelFromRegistry('gemini')`와 비교
+
+### 19.3 테스트 보강
+
+**파일**: `packages/cli/src/ui/auth/useAuth.test.tsx`
+
+- `should auto-detect Didim from DIDIM_API_KEY env var`
+- `should show error when LLM_PROVIDER=didim but DIDIM_API_KEY is missing`
+
+**파일**: `packages/cli/src/ui/commands/authCommand.test.ts`
+
+- `should clear DIDIM_API_KEY runtime env var`
+
+### 19.4 검증 결과
+
+| 검증 항목                         | 결과       |
+| --------------------------------- | ---------- |
+| `authCommand.test.ts`             | ✅ 10 PASS |
+| `useAuth.test.tsx`                | ✅ 32 PASS |
+| `AppContainer.test.tsx`           | ✅ 74 PASS |
+| `resolveActiveProvider.test.ts`   | ✅ 27 PASS |
+| `providerSelector.test.ts` (core) | ✅ 71 PASS |

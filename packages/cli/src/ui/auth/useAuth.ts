@@ -17,7 +17,10 @@ import {
 } from '@didim365/agent-cli-core';
 import { AuthState } from '../types.js';
 import { validateAuthMethod } from '../../config/auth.js';
-import { normalizeProviderKey } from '../utils/resolveActiveProvider.js';
+import {
+  normalizeProviderKey,
+  resolveModelForAuthSwitch,
+} from '../utils/resolveActiveProvider.js';
 
 export function validateAuthMethodWithSettings(
   authType: AuthType,
@@ -65,6 +68,9 @@ export const useAuthCommand = (
         return AuthState.Unauthenticated;
       }
       if (process.env['OPENAI_API_KEY']) {
+        return AuthState.Unauthenticated;
+      }
+      if (process.env['DIDIM_API_KEY']) {
         return AuthState.Unauthenticated;
       }
       // Fall through to original behavior if GEMINI_API_KEY is set
@@ -172,6 +178,7 @@ export const useAuthCommand = (
             const requiredKeyMap: Record<string, string> = {
               claude: 'ANTHROPIC_API_KEY',
               openai: 'OPENAI_API_KEY',
+              didim: 'DIDIM_API_KEY',
               // 'openai-compatible' intentionally omitted — API key is optional for sLM
             };
             const requiredEnvVar = requiredKeyMap[llmProvider];
@@ -240,6 +247,20 @@ export const useAuthCommand = (
             try {
               await config.refreshAuth(AuthType.USE_GEMINI);
               debugLogger.log('Authenticated via env OPENAI_API_KEY.');
+              setAuthError(null);
+              setAuthState(AuthState.Authenticated);
+            } catch (e) {
+              onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+            }
+            return;
+          }
+          if (process.env['DIDIM_API_KEY']) {
+            // Auto-detect Didim provider from env var
+            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+            process.env['LLM_PROVIDER'] = 'didim';
+            try {
+              await config.refreshAuth(AuthType.USE_GEMINI);
+              debugLogger.log('Authenticated via env DIDIM_API_KEY.');
               setAuthError(null);
               setAuthState(AuthState.Authenticated);
             } catch (e) {
@@ -324,14 +345,23 @@ export const useAuthCommand = (
             const envVarMap: Record<string, string> = {
               claude: 'ANTHROPIC_API_KEY',
               openai: 'OPENAI_API_KEY',
+              didim: 'DIDIM_API_KEY',
             };
             const envVarName = envVarMap[provider];
             if (envVarName) {
               process.env[envVarName] = key;
             }
             process.env['LLM_PROVIDER'] = provider;
+
+            // Pre-set LLM_MODEL before refreshAuth so that resolveProviderModel's
+            // Strategy 2 can detect stale sLM models (e.g., gpt-oss-20b) that
+            // evade prefix heuristics. Without LLM_MODEL, allowCustomModels lets
+            // them pass through on non-freeformInput providers.
+            const resolvedModel = resolveModelForAuthSwitch(settings, provider);
+            process.env['LLM_MODEL'] = resolvedModel;
+
             debugLogger.log(
-              `Loaded API key for provider "${provider}" (${envVarName}: ${key ? 'set' : 'missing'}).`,
+              `Loaded API key for provider "${provider}" (${envVarName}: ${key ? 'set' : 'missing'}, model: ${resolvedModel}).`,
             );
           } else {
             // Gemini path (legacy)
@@ -340,6 +370,12 @@ export const useAuthCommand = (
               setAuthState(AuthState.AwaitingApiKeyInput);
               return;
             }
+
+            // Pre-set LLM_MODEL so resolveProviderModel's Strategy 2 can
+            // detect stale models from a previous provider (e.g., sLM's
+            // gpt-oss-20b persisting in model.name across restart).
+            const resolvedModel = resolveModelForAuthSwitch(settings, 'gemini');
+            process.env['LLM_MODEL'] = resolvedModel;
           }
         }
 
@@ -355,6 +391,14 @@ export const useAuthCommand = (
           }
           process.env['GOOGLE_CLOUD_PROJECT'] = vertexConfig.project;
           process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;
+
+          // Pre-set LLM_MODEL for Strategy 2 stale model detection.
+          // Vertex AI uses Gemini models (normalizeProviderKey('vertex-ai') → 'gemini').
+          const resolvedModel = resolveModelForAuthSwitch(
+            settings,
+            'vertex-ai',
+          );
+          process.env['LLM_MODEL'] = resolvedModel;
         }
 
         const error = validateAuthMethodWithSettings(authType, settings);

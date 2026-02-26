@@ -29,6 +29,7 @@ import {
   type ResumedSessionData,
   AuthType,
   type AgentDefinition,
+  getDefaultModelFromRegistry,
 } from '@didim365/agent-cli-core';
 
 // Mock coreEvents
@@ -2510,7 +2511,6 @@ describe('AppContainer State Management', () => {
         'OPENAI_API_KEY',
         'LLM_API_KEY',
         'LLM_BASE_URL',
-        'LLM_MODEL',
         'LLM_API_KEY_HEADER',
         'LLM_CUSTOM_HEADERS',
       ] as const;
@@ -2549,12 +2549,165 @@ describe('AppContainer State Management', () => {
       for (const varName of staleVars) {
         expect(process.env[varName]).toBeUndefined();
       }
+      // LLM_MODEL is intentionally pre-set to a resolved Gemini model for Strategy 2.
+      expect(process.env['LLM_MODEL']).toBe(
+        getDefaultModelFromRegistry('gemini'),
+      );
 
       // Vertex env vars should be set
       expect(process.env['GOOGLE_CLOUD_PROJECT']).toBe('my-gcp-project');
       expect(process.env['GOOGLE_CLOUD_LOCATION']).toBe('us-central1');
 
       // Cleanup
+      delete process.env['GOOGLE_CLOUD_PROJECT'];
+      delete process.env['GOOGLE_CLOUD_LOCATION'];
+      unmount!();
+    });
+
+    it('pre-sets LLM_MODEL before refreshAuth in non-Gemini auth path', async () => {
+      // Simulate switching to Claude provider — LLM_MODEL should be pre-set
+      // to the resolved model before refreshAuth to enable Strategy 2 detection
+      // of stale sLM models (e.g., gpt-oss-20b).
+      const settingsWithForScope = {
+        ...mockSettings,
+        setValue: vi.fn(),
+        forScope: vi.fn().mockReturnValue({
+          settings: {
+            model: { byProvider: { claude: 'claude-opus-4-6' } },
+          },
+        }),
+      } as unknown as LoadedSettings;
+
+      // Set selectedProvider to 'claude' via useAuthCommand mock
+      mockedUseAuthCommand.mockReturnValue({
+        authState: 'authenticated',
+        setAuthState: vi.fn(),
+        authError: null,
+        onAuthError: vi.fn(),
+        apiKeyDefaultValue: '',
+        reloadApiKey: vi.fn(),
+        reloadProviderApiKey: vi.fn(),
+        selectedProvider: 'claude',
+        setSelectedProvider: vi.fn(),
+      });
+
+      let unmount: () => void;
+      await act(async () => {
+        const result = renderAppContainer({ settings: settingsWithForScope });
+        unmount = result.unmount;
+      });
+      await waitFor(() => expect(capturedUIActions).toBeTruthy());
+
+      // Simulate stale env from previous sLM session
+      process.env['LLM_MODEL'] = 'gpt-oss-20b';
+      const refreshAuthSeenModels: string[] = [];
+      const refreshAuthMock = vi.fn(async () => {
+        refreshAuthSeenModels.push(process.env['LLM_MODEL'] ?? '');
+      });
+      Object.assign(mockConfig, { refreshAuth: refreshAuthMock });
+
+      await act(async () => {
+        await capturedUIActions.handleApiKeySubmit('sk-ant-test-key');
+      });
+
+      expect(refreshAuthMock).toHaveBeenCalled();
+      // refreshAuth should observe the resolved target-provider model
+      expect(refreshAuthSeenModels).toContain('claude-opus-4-6');
+      // LLM_MODEL should be pre-set to the resolved Claude model (not stale sLM model)
+      expect(process.env['LLM_MODEL']).toBe('claude-opus-4-6');
+
+      // Cleanup
+      delete process.env['LLM_MODEL'];
+      delete process.env['LLM_PROVIDER'];
+      delete process.env['ENABLE_MULTI_PROVIDER'];
+      delete process.env['ANTHROPIC_API_KEY'];
+      unmount!();
+    });
+
+    it('pre-sets LLM_MODEL before refreshAuth in Gemini auth path', async () => {
+      const settingsWithForScope = {
+        ...mockSettings,
+        setValue: vi.fn(),
+        forScope: vi.fn().mockReturnValue({
+          settings: {
+            model: { byProvider: { gemini: 'gemini-2.5-pro' } },
+          },
+        }),
+      } as unknown as LoadedSettings;
+
+      // selectedProvider defaults to 'gemini' when not set
+      mockedUseAuthCommand.mockReturnValue({
+        authState: 'authenticated',
+        setAuthState: vi.fn(),
+        authError: null,
+        onAuthError: vi.fn(),
+        apiKeyDefaultValue: '',
+        reloadApiKey: vi.fn(),
+        reloadProviderApiKey: vi.fn(),
+        selectedProvider: undefined,
+        setSelectedProvider: vi.fn(),
+      });
+
+      let unmount: () => void;
+      await act(async () => {
+        const result = renderAppContainer({ settings: settingsWithForScope });
+        unmount = result.unmount;
+      });
+      await waitFor(() => expect(capturedUIActions).toBeTruthy());
+
+      process.env['LLM_MODEL'] = 'gpt-oss-20b';
+      const refreshAuthSeenModels: string[] = [];
+      const refreshAuthMock = vi.fn(async () => {
+        refreshAuthSeenModels.push(process.env['LLM_MODEL'] ?? '');
+      });
+      Object.assign(mockConfig, { refreshAuth: refreshAuthMock });
+
+      await act(async () => {
+        await capturedUIActions.handleApiKeySubmit('AIza-test-key');
+      });
+
+      expect(refreshAuthMock).toHaveBeenCalled();
+      // refreshAuth should observe the resolved target-provider model
+      expect(refreshAuthSeenModels).toContain('gemini-2.5-pro');
+      // LLM_MODEL should be pre-set to the resolved Gemini model
+      expect(process.env['LLM_MODEL']).toBe('gemini-2.5-pro');
+
+      // Cleanup
+      delete process.env['LLM_MODEL'];
+      unmount!();
+    });
+
+    it('pre-sets LLM_MODEL before refreshAuth in Vertex AI auth path', async () => {
+      const settingsWithForScope = {
+        ...mockSettings,
+        setValue: vi.fn(),
+        forScope: vi.fn().mockReturnValue({
+          settings: {
+            model: { byProvider: { gemini: 'gemini-2.5-flash' } },
+          },
+        }),
+      } as unknown as LoadedSettings;
+
+      let unmount: () => void;
+      await act(async () => {
+        const result = renderAppContainer({ settings: settingsWithForScope });
+        unmount = result.unmount;
+      });
+      await waitFor(() => expect(capturedUIActions).toBeTruthy());
+
+      await act(async () => {
+        await capturedUIActions.handleVertexConfigComplete({
+          project: 'my-project',
+          location: 'us-central1',
+        });
+      });
+
+      // LLM_MODEL should be pre-set to the resolved Gemini model
+      // (Vertex AI normalizes to 'gemini' provider)
+      expect(process.env['LLM_MODEL']).toBe('gemini-2.5-flash');
+
+      // Cleanup
+      delete process.env['LLM_MODEL'];
       delete process.env['GOOGLE_CLOUD_PROJECT'];
       delete process.env['GOOGLE_CLOUD_LOCATION'];
       unmount!();

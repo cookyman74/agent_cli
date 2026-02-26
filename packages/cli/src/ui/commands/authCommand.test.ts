@@ -96,6 +96,15 @@ describe('authCommand', () => {
       );
     });
 
+    it('should clear DIDIM_API_KEY runtime env var', async () => {
+      const logoutCommand = authCommand.subCommands?.[1];
+      process.env['DIDIM_API_KEY'] = 'didim-test-key';
+
+      await logoutCommand!.action!(mockContext, '');
+
+      expect(process.env['DIDIM_API_KEY']).toBeUndefined();
+    });
+
     it('should strip thoughts from history', async () => {
       const logoutCommand = authCommand.subCommands?.[1];
       const mockStripThoughts = vi.fn();

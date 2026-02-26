@@ -4,6 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {
+  normalizeProviderKey,
+  getDefaultModelFromRegistry,
+} from '@didim365/agent-cli-core';
+import { SettingScope, type LoadedSettings } from '../../config/settings.js';
+
+// Re-export from core (SSOT) so existing CLI imports continue to work.
+export { normalizeProviderKey };
+
 /**
  * Resolve the currently active provider from multiple sources.
  *
@@ -37,15 +46,6 @@ export function resolveActiveProvider(selectedProvider?: string): string {
   return 'gemini';
 }
 
-/**
- * Normalize UI key / env key to registry key.
- *
- * Maps legacy or UI-specific provider names to the canonical
- * PROVIDER_MODEL_REGISTRY keys.
- *
- * @param key - Provider key from UI state or environment
- * @returns Normalized registry key
- */
 /**
  * All provider-specific environment variables that must be cleaned
  * when switching between providers.
@@ -81,21 +81,50 @@ export function cleanProviderEnvVars(): void {
   }
 }
 
-export function normalizeProviderKey(key: string): string {
-  const normalized = key.toLowerCase().trim();
+/**
+ * Resolve the correct model for a provider during auth switch or restart.
+ *
+ * Returns the user's previously saved model for the target provider (byProvider)
+ * if available, otherwise falls back to the provider's default model.
+ * This prevents stale models from a previous provider leaking through
+ * (e.g., 'claude-opus-4-6' persisting when switching to Gemini).
+ *
+ * Used by both AppContainer (interactive auth switch) and useAuth (restart auth).
+ *
+ * @param settings - Loaded settings with user preferences
+ * @param provider - Target provider key (e.g., 'gemini', 'claude', 'vertex-ai')
+ * @returns Resolved model name appropriate for the provider
+ */
+export function resolveModelForAuthSwitch(
+  settings: LoadedSettings,
+  provider: string,
+): string {
+  const normalizedProvider = normalizeProviderKey(provider);
+  // Some test/migration contexts provide a minimal LoadedSettings mock
+  // without forScope(). Fall back to merged settings in that case.
+  const userSettings = (() => {
+    const typedSettings = settings as LoadedSettings & {
+      forScope?: (scope: SettingScope) => unknown;
+      merged?: unknown;
+    };
+    if (typeof typedSettings.forScope === 'function') {
+      const scoped = typedSettings.forScope(SettingScope.User) as
+        | {
+            settings?: unknown;
+          }
+        | undefined;
+      if (scoped?.settings && typeof scoped.settings === 'object') {
+        return scoped.settings as {
+          model?: { byProvider?: Record<string, string> };
+        };
+      }
+    }
+    return (typedSettings.merged ?? {}) as {
+      model?: { byProvider?: Record<string, string> };
+    };
+  })();
 
-  switch (normalized) {
-    case 'slm':
-    case 'openai_compatible':
-      return 'openai-compatible';
-    case 'vertex-ai':
-    case 'vertex_ai':
-      return 'gemini';
-    case 'didim-studio':
-      return 'didim';
-    case 'anthropic':
-      return 'claude';
-    default:
-      return normalized;
-  }
+  const savedModel = userSettings.model?.byProvider?.[normalizedProvider];
+  if (savedModel) return savedModel;
+  return getDefaultModelFromRegistry(normalizedProvider);
 }

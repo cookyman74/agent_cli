@@ -47,6 +47,7 @@ describe('useAuth', () => {
     delete process.env['GEMINI_DEFAULT_AUTH_TYPE'];
     delete process.env['ANTHROPIC_API_KEY'];
     delete process.env['OPENAI_API_KEY'];
+    delete process.env['DIDIM_API_KEY'];
     delete process.env['LLM_PROVIDER'];
     delete process.env['ENABLE_MULTI_PROVIDER'];
     delete process.env['LLM_MODEL'];
@@ -400,6 +401,22 @@ describe('useAuth', () => {
       });
     });
 
+    it('should auto-detect Didim from DIDIM_API_KEY env var', async () => {
+      process.env['DIDIM_API_KEY'] = 'didim-test-key';
+      const { result } = renderHook(() =>
+        useAuthCommand(createSettings(undefined), mockConfig),
+      );
+
+      await waitFor(() => {
+        expect(process.env['LLM_PROVIDER']).toBe('didim');
+        expect(mockConfig.refreshAuth).toHaveBeenCalledWith(
+          AuthType.USE_GEMINI,
+        );
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+        expect(result.current.authError).toBeNull();
+      });
+    });
+
     it('should authenticate directly when LLM_PROVIDER env var is set', async () => {
       process.env['LLM_PROVIDER'] = 'claude';
       process.env['ANTHROPIC_API_KEY'] = 'sk-ant-test';
@@ -425,6 +442,19 @@ describe('useAuth', () => {
 
       await waitFor(() => {
         expect(result.current.authError).toContain('ANTHROPIC_API_KEY');
+        expect(result.current.authError).toContain('missing');
+        expect(mockConfig.refreshAuth).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should show error when LLM_PROVIDER=didim but DIDIM_API_KEY is missing', async () => {
+      process.env['LLM_PROVIDER'] = 'didim';
+      const { result } = renderHook(() =>
+        useAuthCommand(createSettings(undefined), mockConfig),
+      );
+
+      await waitFor(() => {
+        expect(result.current.authError).toContain('DIDIM_API_KEY');
         expect(result.current.authError).toContain('missing');
         expect(mockConfig.refreshAuth).not.toHaveBeenCalled();
       });
@@ -603,8 +633,9 @@ describe('useAuth', () => {
 
       await waitFor(() => {
         expect(result.current.authState).toBe(AuthState.Authenticated);
-        // sLM-specific env vars should be cleaned
-        expect(process.env['LLM_MODEL']).toBeUndefined();
+        // sLM-only env vars should be cleaned, but LLM_MODEL is intentionally pre-set
+        // to the resolved target-provider model for Strategy 2 stale-model detection.
+        expect(process.env['LLM_MODEL']).toBe('claude-opus-4-6');
         expect(process.env['LLM_BASE_URL']).toBeUndefined();
         expect(process.env['LLM_API_KEY']).toBeUndefined();
         expect(process.env['LLM_API_KEY_HEADER']).toBeUndefined();

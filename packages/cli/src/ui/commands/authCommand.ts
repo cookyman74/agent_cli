@@ -58,6 +58,7 @@ const authLogoutCommand: SlashCommand = {
     delete process.env['LLM_PROVIDER'];
     delete process.env['ANTHROPIC_API_KEY'];
     delete process.env['OPENAI_API_KEY'];
+    delete process.env['DIDIM_API_KEY'];
     delete process.env['LLM_API_KEY'];
     delete process.env['LLM_BASE_URL'];
     delete process.env['LLM_MODEL'];

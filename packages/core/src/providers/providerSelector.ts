@@ -263,7 +263,7 @@ export function resolveProviderModel(
   provider: ProviderType | string,
 ): string {
   // Normalize provider alias to canonical registry key (e.g., 'openai_compatible' → 'openai-compatible')
-  const normalizedProvider = normalizeProviderRegistryKey(provider);
+  const normalizedProvider = normalizeProviderKey(provider);
 
   // modelSelectionDisabled providers always use their fixed default
   const group = PROVIDER_MODEL_REGISTRY[normalizedProvider];
@@ -314,19 +314,23 @@ export function resolveProviderModel(
     // Exclude models with target provider's own prefix (e.g., 'claude-sonnet-4-20250514'
     // on Claude) — these are legitimate custom versions of the provider's own models
     // accepted via allowCustomModels, not cross-provider leaks.
-    const group = PROVIDER_MODEL_REGISTRY[normalizedProvider];
+    //
+    // If the user explicitly supplied `--model <value>` (or `-m <value>`) for
+    // this exact model, keep that explicit intent instead of overriding it.
     if (
       group &&
       !group.freeformInput &&
       !isRegisteredModelForProvider(model, normalizedProvider) &&
-      !isOwnProviderPrefix(model, normalizedProvider)
+      !isOwnProviderPrefix(model, normalizedProvider) &&
+      !wasModelExplicitlySpecified(model)
     ) {
       if (isModelValidForProvider(llmModelEnv, normalizedProvider)) {
         return llmModelEnv;
       }
       return getDefaultModelFromRegistry(normalizedProvider);
     }
-    return getDefaultModelFromRegistry(provider);
+    // Neither strategy identified the model as stale → fall through to
+    // normal validation below (respects allowCustomModels / freeformInput).
   }
 
   // No LLM_MODEL: detect stale models using prefix/registry heuristic only.
@@ -353,11 +357,12 @@ export function resolveProviderModel(
  * Maps common aliases (e.g., 'openai_compatible', 'anthropic') to registry keys
  * used in PROVIDER_MODEL_REGISTRY. This prevents registry lookup misses when
  * alias strings are passed from env vars or settings.
+ *
+ * Exported as SSOT so that CLI (resolveActiveProvider.ts) can reuse the same
+ * normalization logic without maintaining a duplicate switch/case.
  */
-function normalizeProviderRegistryKey(provider: ProviderType | string): string {
-  const normalized = (typeof provider === 'string' ? provider : provider)
-    .toLowerCase()
-    .trim();
+export function normalizeProviderKey(provider: ProviderType | string): string {
+  const normalized = String(provider).toLowerCase().trim();
   switch (normalized) {
     case 'openai_compatible':
     case 'slm':
@@ -394,6 +399,40 @@ function isOwnProviderPrefix(model: string, provider: string): boolean {
   const checks = prefixMap[provider];
   if (!checks) return false;
   return checks.some((check) => check(normalized));
+}
+
+/**
+ * Returns true when the current process argv explicitly specifies this model.
+ *
+ * Supported flags:
+ * - `--model value`
+ * - `--model=value`
+ * - `-m value`
+ * - `-m=value`
+ */
+function wasModelExplicitlySpecified(model: string): boolean {
+  const argv = process.argv ?? [];
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--model' || arg === '-m') {
+      if (argv[i + 1] === model) {
+        return true;
+      }
+      continue;
+    }
+    if (arg.startsWith('--model=')) {
+      if (arg.slice('--model='.length) === model) {
+        return true;
+      }
+      continue;
+    }
+    if (arg.startsWith('-m=')) {
+      if (arg.slice('-m='.length) === model) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**

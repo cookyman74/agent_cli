@@ -63,7 +63,6 @@ import {
   SessionEndReason,
   generateSummary,
   type AgentsDiscoveredPayload,
-  getDefaultModelFromRegistry,
 } from '@didim365/agent-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import process from 'node:process';
@@ -90,14 +89,11 @@ import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useVim } from './hooks/vim.js';
-import {
-  SettingScope,
-  saveModelForProvider,
-  type LoadedSettings,
-} from '../config/settings.js';
+import { SettingScope, saveModelForProvider } from '../config/settings.js';
 import {
   normalizeProviderKey,
   cleanProviderEnvVars,
+  resolveModelForAuthSwitch,
 } from './utils/resolveActiveProvider.js';
 import { type InitializationResult } from '../core/initializer.js';
 import { useFocus } from './hooks/useFocus.js';
@@ -144,26 +140,7 @@ import { LoginWithGoogleRestartDialog } from './auth/LoginWithGoogleRestartDialo
 import { NewAgentsChoice } from './components/NewAgentsNotification.js';
 import { isSlashCommand } from './utils/commandUtils.js';
 
-/**
- * Resolve the correct model when switching providers via /auth login.
- *
- * Uses the user's previously saved model for the target provider (byProvider)
- * if available, otherwise falls back to the provider's default model.
- * This prevents stale models from a previous provider leaking through
- * (e.g., 'claude-opus-4-6' persisting when switching to Gemini).
- */
-function resolveModelForAuthSwitch(
-  settings: LoadedSettings,
-  provider: string,
-): string {
-  const normalizedProvider = normalizeProviderKey(provider);
-  const userSettings = settings.forScope(SettingScope.User).settings as {
-    model?: { byProvider?: Record<string, string> };
-  };
-  const savedModel = userSettings.model?.byProvider?.[normalizedProvider];
-  if (savedModel) return savedModel;
-  return getDefaultModelFromRegistry(normalizedProvider);
-}
+// resolveModelForAuthSwitch is imported from ./utils/resolveActiveProvider.js
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
   return pendingHistoryItems.some((item) => {
@@ -652,13 +629,16 @@ export const AppContainer = (props: AppContainerProps) => {
             'security.auth.selectedProvider',
             'gemini',
           );
+
+          // Pre-set LLM_MODEL before refreshAuth so that resolveProviderModel's
+          // Strategy 2 can detect stale sLM models (e.g., gpt-oss-20b) that
+          // evade prefix heuristics. Without LLM_MODEL, allowCustomModels lets
+          // them pass through on non-freeformInput providers.
+          const geminiModel = resolveModelForAuthSwitch(settings, 'gemini');
+          process.env['LLM_MODEL'] = geminiModel;
+
           await config.refreshAuth(AuthType.USE_GEMINI);
 
-          // Persist Gemini model: the legacy Gemini path in createContentGenerator
-          // doesn't call resolveProviderModel, so config.getModel() may still hold
-          // a stale model from a previous provider (e.g., 'claude-opus-4-6').
-          // Use byProvider['gemini'] (user's saved Gemini choice) or provider default.
-          const geminiModel = resolveModelForAuthSwitch(settings, 'gemini');
           config.setModel(geminiModel, true);
           saveModelForProvider(settings, 'gemini', geminiModel);
         } else {
@@ -694,6 +674,13 @@ export const AppContainer = (props: AppContainerProps) => {
             'security.auth.selectedType',
             AuthType.USE_GEMINI,
           );
+          // Pre-set LLM_MODEL before refreshAuth so that resolveProviderModel's
+          // Strategy 2 can detect stale sLM models (e.g., gpt-oss-20b) that
+          // evade prefix heuristics. Without LLM_MODEL, allowCustomModels lets
+          // them pass through on non-freeformInput providers.
+          const providerModel = resolveModelForAuthSwitch(settings, provider);
+          process.env['LLM_MODEL'] = providerModel;
+
           debugLogger.log(
             `Switching to provider "${provider}" (LLM_PROVIDER=${process.env['LLM_PROVIDER']}, ` +
               `ENABLE_MULTI_PROVIDER=${process.env['ENABLE_MULTI_PROVIDER']}, ` +
@@ -701,12 +688,6 @@ export const AppContainer = (props: AppContainerProps) => {
           );
           await config.refreshAuth(AuthType.USE_GEMINI);
 
-          // Persist model: resolveProviderModel (inside createContentGenerator)
-          // handles most cross-provider cases, but may pass through stale sLM
-          // models (e.g., gpt-oss-20b) due to allowCustomModels when LLM_MODEL
-          // is not set. Use byProvider[provider] or provider default as source
-          // of truth to prevent leakage.
-          const providerModel = resolveModelForAuthSwitch(settings, provider);
           config.setModel(providerModel, true);
           saveModelForProvider(settings, provider, providerModel);
         }
@@ -838,12 +819,15 @@ export const AppContainer = (props: AppContainerProps) => {
         process.env['GOOGLE_CLOUD_PROJECT'] = vertexConfig.project;
         process.env['GOOGLE_CLOUD_LOCATION'] = vertexConfig.location;
 
+        // Pre-set LLM_MODEL before refreshAuth so that resolveProviderModel's
+        // Strategy 2 can detect stale sLM models (e.g., gpt-oss-20b) that
+        // evade prefix heuristics. Vertex AI uses Gemini models, so
+        // normalizeProviderKey('vertex-ai') → 'gemini'.
+        const vertexModel = resolveModelForAuthSwitch(settings, 'vertex-ai');
+        process.env['LLM_MODEL'] = vertexModel;
+
         await config.refreshAuth(AuthType.USE_VERTEX_AI);
 
-        // Persist Gemini model: Vertex AI uses Gemini models.
-        // normalizeProviderKey('vertex-ai') → 'gemini', so this reads/writes
-        // byProvider['gemini'] — shared with the direct Gemini path.
-        const vertexModel = resolveModelForAuthSwitch(settings, 'vertex-ai');
         config.setModel(vertexModel, true);
         saveModelForProvider(settings, 'gemini', vertexModel);
 

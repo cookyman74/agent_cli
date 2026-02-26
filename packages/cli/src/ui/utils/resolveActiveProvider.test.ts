@@ -5,9 +5,11 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { getDefaultModelFromRegistry } from '@didim365/agent-cli-core';
 import {
   resolveActiveProvider,
   normalizeProviderKey,
+  resolveModelForAuthSwitch,
 } from './resolveActiveProvider.js';
 
 describe('resolveActiveProvider', () => {
@@ -150,5 +152,69 @@ describe('resolveActiveProvider', () => {
     it('falls back to gemini when selectedProvider is empty string', () => {
       expect(resolveActiveProvider('')).toBe('gemini');
     });
+  });
+});
+
+describe('resolveModelForAuthSwitch', () => {
+  it('returns saved model for normalized alias provider key', () => {
+    const settings = {
+      forScope: vi.fn().mockReturnValue({
+        settings: {
+          model: {
+            byProvider: {
+              claude: 'claude-opus-4-6',
+            },
+          },
+        },
+      }),
+    } as Parameters<typeof resolveModelForAuthSwitch>[0];
+
+    expect(resolveModelForAuthSwitch(settings, 'Anthropic')).toBe(
+      'claude-opus-4-6',
+    );
+  });
+
+  it('maps vertex-ai to gemini and returns saved gemini model', () => {
+    const settings = {
+      forScope: vi.fn().mockReturnValue({
+        settings: {
+          model: {
+            byProvider: {
+              gemini: 'gemini-2.5-pro',
+            },
+          },
+        },
+      }),
+    } as Parameters<typeof resolveModelForAuthSwitch>[0];
+
+    expect(resolveModelForAuthSwitch(settings, 'vertex-ai')).toBe(
+      'gemini-2.5-pro',
+    );
+  });
+
+  it('falls back to provider default model when no saved model exists', () => {
+    const settings = {
+      forScope: vi.fn().mockReturnValue({
+        settings: {},
+      }),
+    } as Parameters<typeof resolveModelForAuthSwitch>[0];
+
+    expect(resolveModelForAuthSwitch(settings, 'openai')).toBe(
+      getDefaultModelFromRegistry('openai'),
+    );
+  });
+
+  it('reads saved model from merged settings when forScope is unavailable', () => {
+    const settings = {
+      merged: {
+        model: {
+          byProvider: {
+            openai: 'gpt-5.2',
+          },
+        },
+      },
+    } as Parameters<typeof resolveModelForAuthSwitch>[0];
+
+    expect(resolveModelForAuthSwitch(settings, 'openai')).toBe('gpt-5.2');
   });
 });

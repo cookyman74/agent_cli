@@ -167,7 +167,7 @@ describe('resolveModelForAuthSwitch', () => {
           },
         },
       }),
-    } as Parameters<typeof resolveModelForAuthSwitch>[0];
+    } as unknown as Parameters<typeof resolveModelForAuthSwitch>[0];
 
     expect(resolveModelForAuthSwitch(settings, 'Anthropic')).toBe(
       'claude-opus-4-6',
@@ -185,7 +185,7 @@ describe('resolveModelForAuthSwitch', () => {
           },
         },
       }),
-    } as Parameters<typeof resolveModelForAuthSwitch>[0];
+    } as unknown as Parameters<typeof resolveModelForAuthSwitch>[0];
 
     expect(resolveModelForAuthSwitch(settings, 'vertex-ai')).toBe(
       'gemini-2.5-pro',
@@ -197,7 +197,7 @@ describe('resolveModelForAuthSwitch', () => {
       forScope: vi.fn().mockReturnValue({
         settings: {},
       }),
-    } as Parameters<typeof resolveModelForAuthSwitch>[0];
+    } as unknown as Parameters<typeof resolveModelForAuthSwitch>[0];
 
     expect(resolveModelForAuthSwitch(settings, 'openai')).toBe(
       getDefaultModelFromRegistry('openai'),
@@ -213,7 +213,7 @@ describe('resolveModelForAuthSwitch', () => {
           },
         },
       },
-    } as Parameters<typeof resolveModelForAuthSwitch>[0];
+    } as unknown as Parameters<typeof resolveModelForAuthSwitch>[0];
 
     expect(resolveModelForAuthSwitch(settings, 'openai')).toBe('gpt-5.2');
   });

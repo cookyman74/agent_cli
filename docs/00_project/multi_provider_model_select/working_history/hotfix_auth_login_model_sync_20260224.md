@@ -1155,3 +1155,96 @@ delete process.env['DIDIM_API_KEY'];
 | `AppContainer.test.tsx`           | ✅ 74 PASS |
 | `resolveActiveProvider.test.ts`   | ✅ 27 PASS |
 | `providerSelector.test.ts` (core) | ✅ 71 PASS |
+
+---
+
+## 20. Zod 버전 충돌에 의한 빌드 OOM 해결 (2026-02-27)
+
+### 20.1 증상
+
+`npm run build` 실행 시 `tsc --build`가 **SIGABRT** (OOM — JavaScript heap out
+of memory)로 크래시. 기본 힙 4GB를 모두 소진.
+
+8GB 힙(`NODE_OPTIONS="--max-old-space-size=8192"`)으로 재시도 시 실제 TypeScript
+에러 드러남:
+
+| 파일                                         | 에러            | 유형                         |
+| -------------------------------------------- | --------------- | ---------------------------- |
+| `core/src/ide/ide-client.ts:699,726,740,756` | TS2589 + TS2345 | Zod `_cached` private 불일치 |
+| `core/src/tools/activate-skill.ts:193`       | TS2589          | 타입 재귀 과도               |
+
+### 20.2 근본 원인
+
+**`node_modules/zod`가 v3.25.76 → v4.3.6으로 hoisting**되면서 타입 충돌 발생.
+
+| 위치                             | 커밋된 lockfile | 실제 node_modules    |
+| -------------------------------- | --------------- | -------------------- |
+| `node_modules/zod` (root)        | **3.25.76**     | **4.3.6**            |
+| `packages/core/node_modules/zod` | 없음 (hoisted)  | **3.25.76** (nested) |
+| `packages/cli/node_modules/zod`  | 없음 (hoisted)  | **3.25.76** (nested) |
+
+**메커니즘**:
+
+1. `@modelcontextprotocol/sdk@1.25.3`이 `zod: "^3.25 || ^4.0"`을 direct + peer
+   dep으로 동시 선언
+2. `npm install` 실행 시 npm resolver가 hoisted zod를 **v4.3.6**으로 결정
+3. core/cli는 `^3.25.76`/`^3.23.8` 선언 → nested `zod@3.25.76` 설치
+4. TypeScript 컴파일 시 MCP SDK 타입은 hoisted `zod@4.3.6`의 `AnyObjectSchema`
+   참조, core 코드는 nested `zod@3.25.76`의 `ZodObject` 생성 → `_cached` private
+   프로퍼티 불일치 → **TS2345** → 타입 재귀 폭발 → **TS2589** → **OOM**
+
+**트리거**: `npm install`, `npm install <any-package>`, `npm update` 등 lockfile
+재계산 명령
+
+### 20.3 확인: 커밋 코드와 무관
+
+이전 커밋(14e06ce1a)의 코드로도 현재 `node_modules`에서 **동일한 에러** 재현됨.
+문제는 코드 변경이 아닌 **npm이 zod v4를 hoisting**한 환경 상태.
+
+### 20.4 해결
+
+**`package.json` overrides에 zod 버전 고정 추가**:
+
+```json
+"overrides": {
+    "ink": "npm:@jrichman/ink@6.4.8",
+    "wrap-ansi": "9.0.2",
+    "cliui": { "wrap-ansi": "7.0.0" },
+    "zod": "^3.25.76"
+}
+```
+
+**효과**:
+
+- 모든 direct/transitive/peer dependency의 zod가 `^3.25.76` 범위로 강제
+- `npm install` 실행 시에도 v4.x 선택 불가
+- MCP SDK/Anthropic SDK/OpenAI SDK 모두 `^3.25` 범위 허용 → 호환성 문제 없음
+
+### 20.5 검증 결과
+
+| 검증 항목                                | 결과       |
+| ---------------------------------------- | ---------- |
+| `npm install` 후 `node_modules/zod` 버전 | ✅ 3.25.76 |
+| `npm run build` (core + cli + vscode)    | ✅ 성공    |
+
+### 20.6 향후 과제: Zod v4 업그레이드
+
+주요 SDK들이 현재 `^3.25 || ^4.0` 과도기 지원 중이며, 향후 v4-only로 전환될
+전망. 업그레이드가 필요해지면:
+
+1. `package.json` overrides에서 `"zod": "^3.25.76"` 제거
+2. `packages/core/package.json`, `packages/cli/package.json`의 zod를
+   `^4.0.0`으로 변경
+3. import 경로 확인 (`import { z } from 'zod'` — v4에서는 네이티브 v4 API 직접
+   노출)
+4. `npm run build` + `npm run typecheck`로 전수 타입 검증
+5. `ZodObject` 내부 타입 변경에 따른 커스텀 타입 유틸리티 수정 여부 확인
+
+**주의**: CLAUDE.md에 Zod override 관련 주의사항 추가 완료 (아래 20.7 참조).
+
+### 20.7 변경 파일
+
+| 파일           | 변경 내용                        |
+| -------------- | -------------------------------- |
+| `package.json` | `overrides.zod: "^3.25.76"` 추가 |
+| `CLAUDE.md`    | Dependency Overrides 섹션 추가   |

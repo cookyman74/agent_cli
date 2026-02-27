@@ -140,6 +140,20 @@ afterEach(() => {
 The CLI uses Ink for terminal rendering. Follow existing component patterns in
 `packages/cli/src/`.
 
+### Dependency Overrides (npm overrides)
+
+The root `package.json` uses `overrides` to pin specific dependency versions.
+**Do not remove these without understanding the impact.**
+
+- **`zod: "^3.25.76"`** — Prevents npm from hoisting `zod@4.x` to the root
+  `node_modules`. Multiple SDKs (`@modelcontextprotocol/sdk`,
+  `@anthropic-ai/sdk`, `openai`) declare `"zod": "^3.25 || ^4.0"`. Without this
+  override, `npm install` may resolve the hoisted zod to v4.x while workspace
+  packages remain on v3.x, causing a `ZodObject` type mismatch (`_cached`
+  private property) that triggers TS2345/TS2589 errors and OOM during
+  `tsc --build`. When upgrading to Zod v4, remove this override and update all
+  workspace `package.json` files to `"zod": "^4.0.0"` simultaneously.
+
 ## Integration Test Diagnostics
 
 ```bash

@@ -2,30 +2,6 @@
   "hooksConfig": {
     "enabled": true
   },
-  "mcpServers": {
-    "rag": {
-      "command": "node",
-      "args": [".didim/mcp/rag-server.js"],
-      "timeout": 10000,
-      "env": {
-        "RAG_DATABASE_URL": "postgresql://postgres:password12@localhost:5432/didim_api",
-        "RAG_TENANT_ID": "AX-TEAM"
-      }
-    }
-  },
-  "hooks": {
-    "AfterAgent": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "name": "rag-after-agent",
-            "command": "RAG_TENANT_ID=AX-TEAM RAG_DATABASE_URL=postgresql://postgres:password12@localhost:5432/didim_api node \"./.didim/hooks/rag-after-agent.js\"",
-            "description": "Q&A + 운영 메타데이터 저장 + memory upsert",
-            "timeout": 5000
-          }
-        ]
-      }
-    ]
-  }
+  "mcpServers": {},
+  "hooks": {}
 }

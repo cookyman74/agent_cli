@@ -1,0 +1,316 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { describe, expect, it, beforeEach } from 'vitest';
+import { TaskStore } from './task-store.js';
+
+describe('TaskStore', () => {
+  let store: TaskStore;
+
+  beforeEach(() => {
+    store = new TaskStore();
+  });
+
+  // RED-1: Task 생성 테스트
+  describe('create', () => {
+    it('should create task with auto-incrementing ID starting at "1"', () => {
+      const task = store.create({
+        subject: 'Run tests',
+        description: 'Execute all unit tests',
+      });
+      expect(task.id).toBe('1');
+      expect(task.subject).toBe('Run tests');
+      expect(task.description).toBe('Execute all unit tests');
+      expect(task.status).toBe('pending');
+      expect(task.blocks).toEqual([]);
+      expect(task.blockedBy).toEqual([]);
+      expect(task.createdAt).toBeGreaterThan(0);
+      expect(task.updatedAt).toBeGreaterThan(0);
+    });
+
+    it('should assign sequential IDs', () => {
+      const task1 = store.create({ subject: 'Task 1', description: 'First' });
+      const task2 = store.create({
+        subject: 'Task 2',
+        description: 'Second',
+      });
+      expect(task1.id).toBe('1');
+      expect(task2.id).toBe('2');
+    });
+
+    it('should store optional activeForm and metadata', () => {
+      const task = store.create({
+        subject: 'Fix bug',
+        description: 'Fix the auth bug',
+        activeForm: 'Fixing auth bug',
+        metadata: { priority: 'high' },
+      });
+      expect(task.activeForm).toBe('Fixing auth bug');
+      expect(task.metadata).toEqual({ priority: 'high' });
+    });
+  });
+
+  // RED-2: Task 조회 테스트
+  describe('get', () => {
+    it('should get task by ID', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      const task = store.get('1');
+      expect(task).not.toBeNull();
+      expect(task!.subject).toBe('Task 1');
+    });
+
+    it('should return null for non-existent task', () => {
+      expect(store.get('999')).toBeNull();
+    });
+  });
+
+  // RED-3: Task 삭제 테스트
+  describe('delete', () => {
+    it('should delete task and return true', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      expect(store.delete('1')).toBe(true);
+      expect(store.get('1')).toBeNull();
+    });
+
+    it('should return false for non-existent task', () => {
+      expect(store.delete('999')).toBe(false);
+    });
+
+    it('should not reuse deleted task IDs', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.delete('1');
+      const task2 = store.create({ subject: 'Task 2', description: 'Second' });
+      expect(task2.id).toBe('2'); // not "1"
+    });
+  });
+
+  // RED-4: 상태 전이 규칙 테스트
+  describe('status transitions', () => {
+    it('should transition pending → in_progress', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const updated = store.update('1', { status: 'in_progress' });
+      expect(updated!.status).toBe('in_progress');
+    });
+
+    it('should transition in_progress → completed', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      store.update('1', { status: 'in_progress' });
+      const updated = store.update('1', { status: 'completed' });
+      expect(updated!.status).toBe('completed');
+    });
+
+    it('should allow pending → completed (skip in_progress)', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const updated = store.update('1', { status: 'completed' });
+      expect(updated!.status).toBe('completed');
+    });
+
+    it('should reject completed → in_progress', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      store.update('1', { status: 'completed' });
+      const updated = store.update('1', { status: 'in_progress' });
+      expect(updated).toBeNull(); // 거부
+    });
+
+    it('should reject completed → pending', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      store.update('1', { status: 'completed' });
+      const updated = store.update('1', { status: 'pending' });
+      expect(updated).toBeNull();
+    });
+
+    it('should allow in_progress → pending (rollback)', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      store.update('1', { status: 'in_progress' });
+      const updated = store.update('1', { status: 'pending' });
+      expect(updated!.status).toBe('pending');
+    });
+  });
+
+  // RED-5: 필드 업데이트 테스트
+  describe('update fields', () => {
+    it('should update subject and description', () => {
+      store.create({ subject: 'Old', description: 'Old desc' });
+      const updated = store.update('1', {
+        subject: 'New',
+        description: 'New desc',
+      });
+      expect(updated!.subject).toBe('New');
+      expect(updated!.description).toBe('New desc');
+    });
+
+    it('should update activeForm', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const updated = store.update('1', { activeForm: 'Working on task' });
+      expect(updated!.activeForm).toBe('Working on task');
+    });
+
+    it('should update owner', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const updated = store.update('1', { owner: 'sub-agent-1' });
+      expect(updated!.owner).toBe('sub-agent-1');
+    });
+
+    it('should merge metadata on update', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        metadata: { a: 1, b: 2 },
+      });
+      const updated = store.update('1', { metadata: { b: 3, c: 4 } });
+      expect(updated!.metadata).toEqual({ a: 1, b: 3, c: 4 });
+    });
+
+    it('should delete metadata key when set to null', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        metadata: { a: 1, b: 2 },
+      });
+      const updated = store.update('1', { metadata: { b: null } });
+      expect(updated!.metadata).toEqual({ a: 1 });
+    });
+
+    it('should update updatedAt timestamp', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const before = store.get('1')!.updatedAt;
+      const updated = store.update('1', { subject: 'Updated' });
+      expect(updated!.updatedAt).toBeGreaterThanOrEqual(before);
+    });
+
+    it('should return null for non-existent task update', () => {
+      expect(store.update('999', { subject: 'X' })).toBeNull();
+    });
+  });
+
+  // RED-6: 의존성 관리 테스트
+  describe('dependency management', () => {
+    it('should add blocks relationship', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.addBlocks('1', ['2']);
+      const task1 = store.get('1')!;
+      const task2 = store.get('2')!;
+      expect(task1.blocks).toContain('2');
+      expect(task2.blockedBy).toContain('1');
+    });
+
+    it('should add blockedBy relationship', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.addBlockedBy('2', ['1']);
+      const task1 = store.get('1')!;
+      const task2 = store.get('2')!;
+      expect(task2.blockedBy).toContain('1');
+      expect(task1.blocks).toContain('2');
+    });
+
+    it('should filter open blockers (exclude completed)', () => {
+      store.create({ subject: 'Task 1', description: 'Blocker' });
+      store.create({ subject: 'Task 2', description: 'Blocked' });
+      store.addBlockedBy('2', ['1']);
+
+      // task 1 미완료 → open blocker
+      expect(store.getOpenBlockers('2')).toEqual(['1']);
+
+      // task 1 완료 → no open blockers
+      store.update('1', { status: 'completed' });
+      expect(store.getOpenBlockers('2')).toEqual([]);
+    });
+
+    it('should clean up references when task deleted', () => {
+      store.create({ subject: 'Task 1', description: 'Blocker' });
+      store.create({ subject: 'Task 2', description: 'Blocked' });
+      store.addBlocks('1', ['2']);
+
+      store.delete('1');
+      const task2 = store.get('2')!;
+      expect(task2.blockedBy).not.toContain('1');
+    });
+
+    it('should ignore non-existent task IDs in addBlocks', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      // 존재하지 않는 ID 999에 대해 에러 없이 무시
+      store.addBlocks('1', ['999']);
+      const task1 = store.get('1')!;
+      expect(task1.blocks).toEqual([]); // 존재하지 않는 태스크는 추가 안됨
+    });
+  });
+
+  // RED-7: list() + toTodoList() 테스트
+  describe('list', () => {
+    it('should return all task summaries', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      const list = store.list();
+      expect(list).toHaveLength(2);
+      expect(list[0]).toEqual({
+        id: '1',
+        subject: 'Task 1',
+        status: 'pending',
+        owner: undefined,
+        blockedBy: [],
+      });
+    });
+
+    it('should return empty array when no tasks', () => {
+      expect(store.list()).toEqual([]);
+    });
+
+    it('should show only open blockers in blockedBy', () => {
+      store.create({ subject: 'Task 1', description: 'Blocker' });
+      store.create({ subject: 'Task 2', description: 'Also Blocker' });
+      store.create({ subject: 'Task 3', description: 'Blocked' });
+      store.addBlockedBy('3', ['1', '2']);
+      store.update('1', { status: 'completed' });
+
+      const list = store.list();
+      const task3Summary = list.find((t) => t.id === '3');
+      expect(task3Summary!.blockedBy).toEqual(['2']); // task 1은 completed → 제외
+    });
+  });
+
+  describe('toTodoList', () => {
+    it('should convert tasks to Todo[] format', () => {
+      store.create({ subject: 'Run tests', description: 'Desc' });
+      store.create({ subject: 'Fix bug', description: 'Desc' });
+      store.update('1', { status: 'in_progress' });
+
+      const todos = store.toTodoList();
+      expect(todos).toEqual([
+        { description: 'Run tests', status: 'in_progress' },
+        { description: 'Fix bug', status: 'pending' },
+      ]);
+    });
+
+    it('should use activeForm in description for in_progress tasks', () => {
+      store.create({
+        subject: 'Run tests',
+        description: 'Desc',
+        activeForm: 'Running tests',
+      });
+      store.update('1', { status: 'in_progress' });
+
+      const todos = store.toTodoList();
+      expect(todos[0].description).toBe('Run tests — Running tests');
+    });
+
+    it('should not use activeForm for pending/completed tasks', () => {
+      store.create({
+        subject: 'Run tests',
+        description: 'Desc',
+        activeForm: 'Running tests',
+      });
+
+      const todos = store.toTodoList();
+      expect(todos[0].description).toBe('Run tests'); // pending → activeForm 미사용
+    });
+
+    it('should return empty array when no tasks', () => {
+      expect(store.toTodoList()).toEqual([]);
+    });
+  });
+});

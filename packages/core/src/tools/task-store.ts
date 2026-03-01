@@ -76,7 +76,10 @@ export class TaskStore {
     ) {
       throw new Error('activeForm must be a string');
     }
-    if (params.metadata) {
+    if (params.metadata !== undefined) {
+      if (params.metadata === null || typeof params.metadata !== 'object') {
+        throw new Error('metadata must be a non-null object');
+      }
       try {
         structuredClone(params.metadata);
       } catch {

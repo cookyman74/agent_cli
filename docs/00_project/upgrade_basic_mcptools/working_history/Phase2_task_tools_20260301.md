@@ -10,7 +10,7 @@
 | 항목        | 내용                                                                                              |
 | ----------- | ------------------------------------------------------------------------------------------------- |
 | 목적        | BaseDeclarativeTool 기반 Task CRUD 도구 4개 구현                                                  |
-| 신규 파일   | `task-create.ts` (154줄), `task-get.ts` (124줄), `task-update.ts` (257줄), `task-list.ts` (109줄) |
+| 신규 파일   | `task-create.ts` (154줄), `task-get.ts` (124줄), `task-update.ts` (281줄), `task-list.ts` (109줄) |
 | 테스트 파일 | `task-create.test.ts`, `task-get.test.ts`, `task-update.test.ts`, `task-list.test.ts`             |
 | 기존 변경   | 없음 (신규 파일만 추가)                                                                           |
 | 위험 수준   | Low — 기존 코드 영향 없음                                                                         |

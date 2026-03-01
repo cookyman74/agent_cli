@@ -570,6 +570,31 @@ describe('TaskStore', () => {
       expect(task.metadata).toEqual({ key: 'original' });
     });
 
+    // RED-R4: create metadata:null 일관성 — update()와 동일하게 거부
+    it('should throw on create with metadata: null', () => {
+      expect(() =>
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          metadata: null as unknown as Record<string, unknown>,
+        }),
+      ).toThrow('metadata');
+    });
+
+    it('should not leave orphan task after create fails due to null metadata', () => {
+      try {
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          metadata: null as unknown as Record<string, unknown>,
+        });
+      } catch {
+        // expected
+      }
+      expect(store.get('1')).toBeNull();
+      expect(store.list()).toEqual([]);
+    });
+
     // RED-R2: metadata null 가드
     it('should return null on update with metadata: null', () => {
       store.create({ subject: 'Task', description: 'Desc' });

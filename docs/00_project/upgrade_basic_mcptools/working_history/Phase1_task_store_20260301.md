@@ -11,8 +11,8 @@
 | 항목        | 내용                                                 |
 | ----------- | ---------------------------------------------------- |
 | 목적        | 세션 단위 인메모리 태스크 CRUD + 의존성 관리 저장소  |
-| 신규 파일   | `packages/core/src/tools/task-store.ts` (266줄)      |
-| 테스트 파일 | `packages/core/src/tools/task-store.test.ts` (526줄) |
+| 신규 파일   | `packages/core/src/tools/task-store.ts` (286줄)      |
+| 테스트 파일 | `packages/core/src/tools/task-store.test.ts` (641줄) |
 | 기존 변경   | 없음 (신규 파일만 추가)                              |
 | 위험 수준   | Low — 기존 코드 영향 없음                            |
 

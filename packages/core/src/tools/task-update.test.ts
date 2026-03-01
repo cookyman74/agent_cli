@@ -177,6 +177,39 @@ describe('TaskUpdateTool', () => {
     expect(result.error).toBeDefined();
   });
 
+  describe('completed + dependency simultaneous', () => {
+    it('should warn when status: completed and addBlocks are sent together', async () => {
+      store.create({ subject: 'Task 2', description: 'Second' });
+      const result = await tool.buildAndExecute(
+        { taskId: '1', status: 'completed', addBlocks: ['2'] },
+        signal,
+      );
+
+      // Status update should succeed
+      expect(store.get('1')!.status).toBe('completed');
+      // Dependencies should NOT be applied
+      expect(store.get('1')!.blocks).toEqual([]);
+      expect(store.get('2')!.blockedBy).toEqual([]);
+      // Response should include warning about skipped dependencies
+      const parsed = JSON.parse(result.llmContent as string);
+      expect(parsed.warning).toBeDefined();
+      expect(parsed.warning).toContain('completed');
+    });
+
+    it('should warn when status: completed and addBlockedBy are sent together', async () => {
+      store.create({ subject: 'Task 2', description: 'Second' });
+      const result = await tool.buildAndExecute(
+        { taskId: '1', status: 'completed', addBlockedBy: ['2'] },
+        signal,
+      );
+
+      expect(store.get('1')!.status).toBe('completed');
+      expect(store.get('1')!.blockedBy).toEqual([]);
+      const parsed = JSON.parse(result.llmContent as string);
+      expect(parsed.warning).toBeDefined();
+    });
+  });
+
   describe('completed task dependency guard', () => {
     it('should return error when adding addBlocks to completed task', async () => {
       store.create({ subject: 'Task 2', description: 'Second' });

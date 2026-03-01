@@ -1242,6 +1242,7 @@
 | **보강3** GREEN-R1~R3: typeof/null/completed 가드 구현    | ✅   |
 | **보강3** REFACTOR-H3: 검증 순서 일관성                   | ✅   |
 | **보강3** 전체 테스트 + 빌드 + 결과서 + 커밋              | ✅   |
+| **보강4** R7: create metadata:null 가드 추가              | ✅   |
 
 ---
 
@@ -1249,4 +1250,5 @@
 toTodoList **보강 완료**: ✅ 리뷰 이슈 5건 수정 완료 (커밋 `8b91bd238`) **보강2
 완료**: ✅ 리뷰 이슈 3건 수정 완료 **보강 결과서**:
 `working_history/Phase1_task_store_20260301.md` 보강 섹션 추가 완료 **보강3
-완료**: ✅ Phase 2 사후 리뷰 이슈 R1~R3 (TaskStore 레벨) — 65 tests
+완료**: ✅ Phase 2 사후 리뷰 이슈 R1~R3 (TaskStore 레벨) — 65 tests **보강4
+완료**: ✅ R7 create metadata:null 가드 — 67 tests

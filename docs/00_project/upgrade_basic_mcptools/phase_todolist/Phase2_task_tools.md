@@ -764,6 +764,47 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ---
 
+| **사후 리뷰 2차** R6: completed+dep 동시 전송 경고 | ✅ | | **사후 리뷰 2차**
+R7: create metadata:null 가드 | ✅ | | **사후 리뷰 2차** R8: 작업 결과서 줄 수
+최종 보정 | ✅ | | **사후 리뷰 2차** R9: I3 responseJsonSchema 연기 확인 | ✅ |
+
+---
+
+## 사후 리뷰 2차 이슈 (R6~R9)
+
+| #   | 구분   | 이슈                                                                          | 검증 결과                                                                                        | 수정 위치                  | 상태 |
+| --- | ------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------- | ---- |
+| R6  | MEDIUM | `status:completed` + `addBlocks/addBlockedBy` 동시 전송 시 dep 무시 경고 없음 | 확인. status 먼저 적용 → dep는 H3 가드에서 무시되나 응답에 경고 없음. 부분 적용 사용자 혼란 유발 | `task-update.ts` execute() | ✅   |
+| R7  | LOW    | `create({ metadata: null })` 무시 vs `update({ metadata: null })` 거부 비대칭 | 확인. create의 truthiness 체크가 null을 falsy로 통과. update는 명시적 null 거부                  | `task-store.ts` create()   | ✅   |
+| R8  | LOW    | 작업 결과서 줄 수가 H3/R3b 보강 후 미갱신                                     | Phase1: 266→286, 526→641. Phase2: task-update.ts 257→281                                         | 작업 결과서 수정           | ✅   |
+| R9  | LOW    | I3 responseJsonSchema Phase 3 연기 상태 확인                                  | R4에서 이미 확인 완료. tools.ts:356 schema getter에 responseJsonSchema 없음                      | Phase 3 (변경 없음)        | ✅   |
+
+### R6 수정: completed + dependency 동시 전송 경고
+
+- [x] **[RED]** `task-update.test.ts`: `completed + dependency simultaneous`
+      describe 블록 추가 (2개 테스트)
+- [x] **[GREEN]** `task-update.ts`: execute()에서 dep 적용 전 completed 여부
+      확인, warning 포함 응답 반환
+- [x] 테스트 통과 확인 (87/87 pass)
+
+### R7 수정: create metadata:null 가드
+
+- [x] **[RED]** `task-store.test.ts`: `metadata cloneability` describe에 null
+      가드 테스트 2개 추가
+- [x] **[GREEN]** `task-store.ts`: create()의 `if (params.metadata)` →
+      `if (params.metadata !== undefined)` + null/type 가드
+- [x] 테스트 통과 확인 (87/87 pass)
+
+### 검증 결과
+
+- Core 전체 테스트: 293 files, 5900 passed, 0 failed
+- TypeScript 컴파일: 에러 없음
+- ESLint: 경고 없음
+- 최종 줄 수: task-store.ts(286), task-store.test.ts(641), task-update.ts(281),
+  task-update.test.ts(258)
+
+---
+
 **작성일**: 2026-03-01 **리뷰**: 2026-03-01 (이슈 I1~I5 반영) **사후 리뷰**:
-2026-03-01 (이슈 R1~R5 검증) **상태**: ✅ Phase 2 전체 완료 (사후 리뷰 이슈
-R1~R5 전체 해소)
+2026-03-01 (이슈 R1~R5 검증) **사후 리뷰 2차**: 2026-03-01 (이슈 R6~R9 검증)
+**상태**: ✅ Phase 2 전체 완료 (사후 리뷰 이슈 R1~R9 전체 해소)

@@ -159,22 +159,35 @@ class TaskUpdateToolInvocation extends BaseToolInvocation<
       }
     }
 
-    // Apply dependency updates
-    if (this.params.addBlocks) {
-      this.taskStore.addBlocks(taskId, this.params.addBlocks);
-    }
-    if (this.params.addBlockedBy) {
-      this.taskStore.addBlockedBy(taskId, this.params.addBlockedBy);
+    // Apply dependency updates (skip if task is now completed)
+    const hasDeps = this.params.addBlocks || this.params.addBlockedBy;
+    const currentTask = this.taskStore.get(taskId)!;
+    let warning: string | undefined;
+
+    if (hasDeps && currentTask.status === 'completed') {
+      warning =
+        'Dependencies were skipped because the task is completed. A completed task cannot have new dependencies.';
+    } else {
+      if (this.params.addBlocks) {
+        this.taskStore.addBlocks(taskId, this.params.addBlocks);
+      }
+      if (this.params.addBlockedBy) {
+        this.taskStore.addBlockedBy(taskId, this.params.addBlockedBy);
+      }
     }
 
     // Return updated task state
     const task = this.taskStore.get(taskId)!;
+    const response: Record<string, unknown> = {
+      taskId: task.id,
+      status: task.status,
+      subject: task.subject,
+    };
+    if (warning) {
+      response['warning'] = warning;
+    }
     return {
-      llmContent: JSON.stringify({
-        taskId: task.id,
-        status: task.status,
-        subject: task.subject,
-      }),
+      llmContent: JSON.stringify(response),
       returnDisplay: { todos: this.taskStore.toTodoList() },
     };
   }

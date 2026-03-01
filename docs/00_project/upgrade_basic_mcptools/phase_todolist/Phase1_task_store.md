@@ -34,6 +34,9 @@
 | 자기 자신 의존(self-dependency) 방지 없음    | 🟡 Medium | `taskId === targetId` 가드 + 테스트         | ✅   |
 | 의존성 변경 시 `updatedAt` 미갱신            | 🟡 Medium | `addDependency`/`delete` cleanup에 갱신     | ✅   |
 | 빈 subject/description 허용                  | 🟡 Medium | `create` throw + `update` null 반환         | ✅   |
+| structuredClone 예외 시 partial write 오염   | 🔴 High   | 메타데이터 사전 검증 + clone-before-store   | ⬜   |
+| trim() 비문자열 입력 시 TypeError            | 🟡 Medium | typeof 가드 추가                            | ⬜   |
+| 결과서 메타데이터(커밋/줄 수) 불일치         | 🟢 Low    | 결과서 헤더 및 1장 개요 수정                | ⬜   |
 
 ---
 
@@ -797,25 +800,237 @@
 
 ---
 
+## 1.7 Phase 1 추가 보강 (Hardening-2) — 런타임 안정성 이슈 수정
+
+> **배경**: Phase 1-H 보강 완료 후 추가 리뷰에서 2개 런타임 안정성 이슈 + 1개
+> 문서 불일치 발견. Phase 2 도구 경계에서 비정상 입력이 유입될 수 있어 수정
+> 필요. **방법**: TDD Red → Green → Refactor 사이클 동일 적용.
+
+### 설계 결정
+
+| 질문                                 | 결정                                                                                                                                                                        |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| structuredClone 실패 시 어떻게 처리? | **사전 검증**: metadata를 `structuredClone()`으로 사전 검증하여 non-cloneable 값을 차단. create는 throw, update는 null 반환. store에 쓰기 전에 실패시켜 partial write 방지. |
+| 비문자열 입력 시 어떻게 처리?        | **typeof 가드**: `typeof x !== 'string'` 검사를 trim() 호출 전에 수행. create는 throw, update는 null 반환.                                                                  |
+
+### 1.7.1 ANALYSIS — 이슈 코드 레벨 검증
+
+| #   | 심각도 | 이슈                                                                                                                  | 코드 위치                              | 검증                                     |
+| --- | ------ | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------- |
+| 6   | HIGH   | `create()`: `tasks.set()` (L86) 후 `structuredClone()` (L87) 실패 → Map에 오염 데이터 잔류, 이후 `get()` 연쇄 예외    | `create`:86-87, `get`:93, `update`:135 | 확인 (DOMException: could not be cloned) |
+| 7   | MEDIUM | `trim()` 직접 호출 시 비문자열 입력(number, null)으로 TypeError 발생. Phase 2 Tool 경계 검증 누락/우회 시 런타임 장애 | `create`:67,70, `update`:105-106       | 확인 (TypeError: trim is not a function) |
+| 8   | LOW    | 결과서 헤더 커밋 `ad54cc465`만 표기 (보강 `8b91bd238` 미반영), 1장 줄 수(219/316) ≠ 6장(247/447) 불일치               | 결과서 :3, :13-14                      | 확인                                     |
+
+### 1.7.2 RED Phase — 추가 보강 실패 테스트
+
+- [ ] **[RED-H6]** structuredClone partial write 방지 테스트
+
+  ```typescript
+  describe('metadata cloneability', () => {
+    it('should throw on create with non-cloneable metadata', () => {
+      expect(() =>
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          metadata: { fn: () => {} },
+        }),
+      ).toThrow('metadata contains non-cloneable values');
+    });
+
+    it('should not leave orphan task after create fails due to non-cloneable metadata', () => {
+      try {
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          metadata: { fn: () => {} },
+        });
+      } catch {
+        // expected
+      }
+      expect(store.get('1')).toBeNull(); // no orphan
+      expect(store.list()).toEqual([]);
+    });
+
+    it('should return null on update with non-cloneable metadata', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const result = store.update('1', {
+        metadata: { fn: () => {} },
+      });
+      expect(result).toBeNull();
+    });
+
+    it('should preserve original task when update fails due to non-cloneable metadata', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        metadata: { key: 'original' },
+      });
+      store.update('1', { metadata: { fn: () => {} } });
+      const task = store.get('1')!;
+      expect(task.metadata).toEqual({ key: 'original' });
+    });
+  });
+  ```
+
+- [ ] **[RED-H7]** typeof 가드 테스트
+
+  ```typescript
+  describe('type-safe input validation', () => {
+    it('should throw on create with non-string subject', () => {
+      expect(() =>
+        store.create({
+          subject: 123 as unknown as string,
+          description: 'Desc',
+        }),
+      ).toThrow('subject must be a non-empty string');
+    });
+
+    it('should throw on create with null description', () => {
+      expect(() =>
+        store.create({
+          subject: 'Task',
+          description: null as unknown as string,
+        }),
+      ).toThrow('description must be a non-empty string');
+    });
+
+    it('should return null on update with non-string subject', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(
+        store.update('1', { subject: 123 as unknown as string }),
+      ).toBeNull();
+    });
+
+    it('should return null on update with null description', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(
+        store.update('1', { description: null as unknown as string }),
+      ).toBeNull();
+    });
+  });
+  ```
+
+- [ ] **[RED-H-VERIFY-2]** 추가 보강 테스트 실패 확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 신규 테스트 FAIL
+  ```
+
+### 1.7.3 GREEN Phase — 추가 보강 구현
+
+- [ ] **[TASK-H6]** structuredClone partial write 방지
+  - `create()`: metadata 사전 검증 후 `tasks.set()` 수행
+    ```typescript
+    // metadata 사전 검증 (non-cloneable 값 차단)
+    if (params.metadata) {
+      try {
+        structuredClone(params.metadata);
+      } catch {
+        throw new Error('metadata contains non-cloneable values');
+      }
+    }
+    // ... task 구성 ...
+    this.tasks.set(task.id, task);
+    return structuredClone(task); // 사전 검증 통과했으므로 안전
+    ```
+  - `update()`: metadata 사전 검증 후 merge 수행
+    ```typescript
+    // metadata 사전 검증
+    if (params.metadata !== undefined) {
+      try {
+        structuredClone(params.metadata);
+      } catch {
+        return null;
+      }
+    }
+    // ... 아래에서 merge ...
+    ```
+  - `get()`: store가 clean 상태이므로 (create/update에서 사전 검증) 변경 불필요.
+    만약 예상치 못한 corruption 발생 시 DataCloneError는 프로그래밍 에러로
+    그대로 전파.
+
+- [ ] **[TASK-H7]** typeof 가드 추가
+  - `create()`: trim() 호출 전 typeof 검사 추가
+    ```typescript
+    if (typeof params.subject !== 'string' || !params.subject.trim()) {
+      throw new Error('subject must be a non-empty string');
+    }
+    if (typeof params.description !== 'string' || !params.description.trim()) {
+      throw new Error('description must be a non-empty string');
+    }
+    ```
+  - `update()`: trim() 호출 전 typeof 검사 추가
+    ```typescript
+    if (
+      params.subject !== undefined &&
+      (typeof params.subject !== 'string' || !params.subject.trim())
+    )
+      return null;
+    if (
+      params.description !== undefined &&
+      (typeof params.description !== 'string' || !params.description.trim())
+    )
+      return null;
+    ```
+
+- [ ] **[GREEN-H-VERIFY-2]** 추가 보강 테스트 통과 확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 전체 PASS
+  ```
+
+### 1.7.4 REFACTOR Phase — 추가 보강 코드 정리
+
+- [ ] **[REFACTOR-H2]** 추가 보강 후 코드 정리
+  - create/update 입력 검증부를 private `validateString(value, name)` 메서드로
+    추출 검토
+  - metadata 검증을 private `validateMetadata(metadata)` 메서드로 추출 검토
+  - 테스트 describe 구조에 자연스럽게 통합
+
+- [ ] **[REFACTOR-H2-VERIFY]** 리팩터링 후 테스트 재확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 여전히 PASS
+  ```
+
+### 1.7.5 추가 보강 사후 작업
+
+- [ ] **[TEST-H2]** 전체 Core 테스트
+- [ ] **[BUILD-H2]** Core 빌드 확인
+- [ ] **[LINT-H2]** 린터 + 타입체크
+- [ ] **[DOC-H2]** 작업 결과서 수정 (Issue 8 — 메타데이터 불일치 수정)
+  - 헤더: 커밋 정보를 1차 `ad54cc465` + 보강 `8b91bd238` + 보강2 커밋으로 갱신
+  - 1장 개요: 줄 수를 최종 값으로 갱신
+  - 보강2 섹션 추가
+- [ ] **[COMMIT-H2]** 변경사항 커밋
+  ```bash
+  git add packages/core/src/tools/task-store.ts packages/core/src/tools/task-store.test.ts
+  git commit -m "fix(core): prevent TaskStore partial writes and type-unsafe input"
+  ```
+
+---
+
 ## Phase 완료 조건
 
-| 검증 항목                                            | 상태 |
-| ---------------------------------------------------- | ---- |
-| RED: TaskStore CRUD + 상태 전이 + 의존성 테스트 작성 | ✅   |
-| GREEN: TaskStore 최소 구현 + 테스트 통과             | ✅   |
-| REFACTOR: 코드 구조 개선                             | ✅   |
-| Core 빌드 성공                                       | ✅   |
-| Lint + Typecheck 통과                                | ✅   |
-| 기존 Core 테스트 회귀 없음                           | ✅   |
-| 작업 결과서 작성                                     | ✅   |
-| 커밋 완료                                            | ✅   |
-| **보강** RED-H1~H5: 불변성/멱등/검증 테스트 추가     | ✅   |
-| **보강** GREEN-H1~H5: 방어적 복사/멱등/가드 구현     | ✅   |
-| **보강** REFACTOR-H: 코드 정리                       | ✅   |
-| **보강** 전체 테스트 + 빌드 + 결과서 + 커밋          | ✅   |
+| 검증 항목                                             | 상태 |
+| ----------------------------------------------------- | ---- |
+| RED: TaskStore CRUD + 상태 전이 + 의존성 테스트 작성  | ✅   |
+| GREEN: TaskStore 최소 구현 + 테스트 통과              | ✅   |
+| REFACTOR: 코드 구조 개선                              | ✅   |
+| Core 빌드 성공                                        | ✅   |
+| Lint + Typecheck 통과                                 | ✅   |
+| 기존 Core 테스트 회귀 없음                            | ✅   |
+| 작업 결과서 작성                                      | ✅   |
+| 커밋 완료                                             | ✅   |
+| **보강** RED-H1~H5: 불변성/멱등/검증 테스트 추가      | ✅   |
+| **보강** GREEN-H1~H5: 방어적 복사/멱등/가드 구현      | ✅   |
+| **보강** REFACTOR-H: 코드 정리                        | ✅   |
+| **보강** 전체 테스트 + 빌드 + 결과서 + 커밋           | ✅   |
+| **보강2** RED-H6~H7: partial write/TypeError 테스트   | ⬜   |
+| **보강2** GREEN-H6~H7: 사전 검증 + typeof 가드 구현   | ⬜   |
+| **보강2** REFACTOR-H2: 코드 정리                      | ⬜   |
+| **보강2** 전체 테스트 + 빌드 + 결과서(Issue 3) + 커밋 | ⬜   |
 
 ---
 
 **작성일**: 2026-03-01 **1차 완료**: ✅ 커밋 `ad54cc465` — 기본 CRUD + 의존성 +
-toTodoList **보강 완료**: ✅ 리뷰 이슈 5건 수정 완료 **보강 결과서**:
+toTodoList **보강 완료**: ✅ 리뷰 이슈 5건 수정 완료 (커밋 `8b91bd238`) **보강2
+상태**: ⬜ 리뷰 이슈 3건 수정 대기 **보강 결과서**:
 `working_history/Phase1_task_store_20260301.md` 보강 섹션 추가 완료

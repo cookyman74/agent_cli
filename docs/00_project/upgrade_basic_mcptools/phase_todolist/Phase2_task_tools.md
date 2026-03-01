@@ -24,12 +24,67 @@
 
 ## 핵심 리스크 요약
 
-| 리스크                                                  | 영향      | 대응 방안                                              | 상태 |
-| ------------------------------------------------------- | --------- | ------------------------------------------------------ | ---- |
-| BaseDeclarativeTool 패턴 미준수                         | 🟠 Medium | WriteTodosTool/AskUserTool 패턴 엄밀 참조              | ⬜   |
-| TaskStore DI 주입 패턴 불일치                           | 🟡 Medium | 기존 도구의 Config DI 패턴 참조 (constructor 인자)     | ⬜   |
-| `returnDisplay: { todos }` 포맷 불일치                  | 🟠 Medium | `toTodoList()` 반환값이 기존 `Todo[]`와 동일 형식 검증 | ⬜   |
-| TaskUpdateTool 파라미터 복잡도 (status + 필드 + 의존성) | 🟡 Medium | 단계적 테스트 (상태만 → 필드 → 의존성 → 삭제)          | ⬜   |
+| 리스크                                                             | 영향      | 대응 방안                                                                 | 상태 |
+| ------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------- | ---- |
+| BaseDeclarativeTool 패턴 미준수                                    | 🟠 Medium | WriteTodosTool/AskUserTool 패턴 엄밀 참조                                 | ⬜   |
+| TaskStore DI 주입 패턴 불일치                                      | 🟡 Medium | 기존 도구의 Config DI 패턴 참조 (constructor 인자)                        | ⬜   |
+| `returnDisplay: { todos }` 포맷 불일치                             | 🟠 Medium | `toTodoList()` 반환값이 기존 `Todo[]`와 동일 형식 검증                    | ⬜   |
+| TaskUpdateTool 파라미터 복잡도 (status + 필드 + 의존성)            | 🟡 Medium | 단계적 테스트 (상태만 → 필드 → 의존성 → 삭제)                             | ⬜   |
+| **[I1]** buildAndExecute validation 실패 시 throw (not error 필드) | 🟠 HIGH   | 테스트에서 validation 실패 = `rejects.toThrow()` 패턴 사용                | ⬜   |
+| **[I2]** TaskStore 싱글턴 DI — Phase 3에서 인스턴스 생성 위치 확정 | 🟡 HIGH   | Phase 2는 테스트에서 직접 주입, Phase 3에서 `createToolRegistry()`에 통합 | ⬜   |
+| **[I3]** `schema` getter override 필요 (responseJsonSchema 포함)   | 🟡 MEDIUM | WriteTodosTool처럼 `get schema()` override하여 response schema 제공       | ⬜   |
+| **[I4]** execute() 내 비즈니스 에러 처리 전략 명확화               | 🟡 MEDIUM | execute()에서 error 필드 반환 (throw 아님), validation만 throw            | ⬜   |
+| **[I5]** REFACTOR 헬퍼 추출 과도 (YAGNI)                           | 🟢 LOW    | 공통 헬퍼 별도 파일 분리 대신 inline 유지                                 | ⬜   |
+
+### 리뷰 이슈 상세 (Phase 2 사전 검토)
+
+#### I1 [HIGH]: buildAndExecute 에러 처리 2-Track 패턴
+
+`buildAndExecute()`는 내부에서 `build()` → `execute()` 순서로 호출한다.
+
+- **validation 실패** (build 단계): `throw Error` → 테스트에서
+  `rejects.toThrow()` 사용
+- **execute 비즈니스 에러** (execute 단계): `return { error: {...} }` →
+  테스트에서 `result.error` 검증
+
+따라서 테스트 코드에서 validation 실패와 execute 에러를 구분하여 작성해야 한다.
+
+#### I2 [HIGH]: registerCoreTool DI 패턴
+
+```typescript
+// config.ts의 registerCoreTool 헬퍼:
+const registerCoreTool = (ToolClass: any, ...args: unknown[]) => {
+  const toolArgs = [...args, this.getMessageBus()]; // messageBus 자동 추가
+  registry.registerTool(new ToolClass(...toolArgs));
+};
+
+// 따라서 Task* 도구 constructor: (taskStore: TaskStore, messageBus: MessageBus)
+// 호출: registerCoreTool(TaskCreateTool, taskStore)
+// 결과: new TaskCreateTool(taskStore, messageBus)
+```
+
+Phase 2에서는 테스트에서 직접 `new TaskCreateTool(store, mockMessageBus)` 주입.
+Phase 3에서 `createToolRegistry()`에 `const taskStore = new TaskStore()` 추가.
+
+#### I3 [MEDIUM]: schema getter override
+
+WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제공하는
+패턴을 따른다. Task\* 도구도 동일하게 적용.
+
+#### I4 [MEDIUM]: 에러 처리 전략
+
+| 상황                    | 처리                                       | 사용 패턴               |
+| ----------------------- | ------------------------------------------ | ----------------------- |
+| 필수 파라미터 누락      | `validateToolParamValues()` return error   | 자동 throw (build 단계) |
+| JSON Schema 불일치      | `SchemaValidator.validate()` 자동 처리     | 자동 throw (build 단계) |
+| 태스크 미존재           | execute()에서 `{ error }` 반환             | `result.error` 검증     |
+| 상태 전이 실패          | execute()에서 `{ error }` 반환             | `result.error` 검증     |
+| TaskStore.create() 예외 | execute()에서 try/catch → `{ error }` 반환 | `result.error` 검증     |
+
+#### I5 [LOW]: REFACTOR YAGNI 원칙
+
+공통 헬퍼 (`createNotFoundError`, `createTodoDisplay`)를 별도 파일로 분리하지
+않는다. 각 도구 파일 내 inline으로 유지하고, 패턴 일관성만 확인한다.
 
 ---
 
@@ -135,26 +190,23 @@
         });
       });
 
-      it('should validate required subject parameter', async () => {
-        const result = await tool.buildAndExecute(
-          {
-            description: 'Missing subject',
-          } as any,
-          signal,
-        );
-
-        expect(result.error).toBeDefined();
+      // I1: validation 실패 = buildAndExecute가 throw (not error 필드)
+      it('should throw on missing subject parameter', async () => {
+        await expect(
+          tool.buildAndExecute(
+            { description: 'Missing subject' } as any,
+            signal,
+          ),
+        ).rejects.toThrow();
       });
 
-      it('should validate required description parameter', async () => {
-        const result = await tool.buildAndExecute(
-          {
-            subject: 'Missing description',
-          } as any,
-          signal,
-        );
-
-        expect(result.error).toBeDefined();
+      it('should throw on missing description parameter', async () => {
+        await expect(
+          tool.buildAndExecute(
+            { subject: 'Missing description' } as any,
+            signal,
+          ),
+        ).rejects.toThrow();
       });
     });
   });
@@ -207,10 +259,9 @@
         expect(result.error!.message).toContain('not found');
       });
 
-      it('should validate required taskId parameter', async () => {
-        const result = await tool.buildAndExecute({} as any, signal);
-
-        expect(result.error).toBeDefined();
+      // I1: validation 실패 = buildAndExecute가 throw
+      it('should throw on missing taskId parameter', async () => {
+        await expect(tool.buildAndExecute({} as any, signal)).rejects.toThrow();
       });
     });
   });
@@ -553,10 +604,9 @@
 ## 2.6 REFACTOR Phase: 코드 개선
 
 - [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
-  - 4개 도구 간 공통 패턴 확인 및 추출:
-    - 에러 응답 생성 헬퍼: `createNotFoundError(taskId)` → 중복 에러 메시지 제거
-    - `returnDisplay` 생성 헬퍼: `createTodoDisplay(taskStore)` → 중복
-      `toTodoList()` 호출 정리
+  - 4개 도구 간 공통 패턴 **일관성 확인** (I5: YAGNI — 별도 헬퍼 파일 분리 금지)
+    - 에러 응답 형식 통일 (각 도구 inline 유지)
+    - `returnDisplay: { todos }` 생성 패턴 통일 (각 도구 inline 유지)
   - 각 도구 파일의 LLM description 문자열 정리 (일관된 포맷)
   - import 순서 통일 (도구 → 타입 → 상수)
 
@@ -622,17 +672,17 @@
 
 | 검증 항목                                   | 상태 |
 | ------------------------------------------- | ---- |
-| RED(A): TaskCreate + TaskGet 테스트 작성    | ⬜   |
-| GREEN(A): TaskCreate + TaskGet 구현 + 통과  | ⬜   |
-| RED(B): TaskUpdate + TaskList 테스트 작성   | ⬜   |
-| GREEN(B): TaskUpdate + TaskList 구현 + 통과 | ⬜   |
-| REFACTOR: 공통 패턴 추출, 구조 개선         | ⬜   |
-| Core 빌드 성공                              | ⬜   |
-| Lint + Typecheck 통과                       | ⬜   |
-| Phase 1 TaskStore 회귀 없음                 | ⬜   |
-| 작업 결과서 작성                            | ⬜   |
-| 커밋 완료                                   | ⬜   |
+| RED(A): TaskCreate + TaskGet 테스트 작성    | ✅   |
+| GREEN(A): TaskCreate + TaskGet 구현 + 통과  | ✅   |
+| RED(B): TaskUpdate + TaskList 테스트 작성   | ✅   |
+| GREEN(B): TaskUpdate + TaskList 구현 + 통과 | ✅   |
+| REFACTOR: 공통 패턴 추출, 구조 개선         | ✅   |
+| Core 빌드 성공                              | ✅   |
+| Lint + Typecheck 통과                       | ✅   |
+| Phase 1 TaskStore 회귀 없음                 | ✅   |
+| 작업 결과서 작성                            | ✅   |
+| 커밋 완료                                   | ✅   |
 
 ---
 
-**작성일**: 2026-03-01 **상태**: ⬜ 작성 중
+**작성일**: 2026-03-01 **리뷰**: 2026-03-01 (이슈 I1~I5 반영) **상태**: ✅ 완료

@@ -26,15 +26,15 @@
 
 | 리스크                                                             | 영향      | 대응 방안                                                                 | 상태 |
 | ------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------- | ---- |
-| BaseDeclarativeTool 패턴 미준수                                    | 🟠 Medium | WriteTodosTool/AskUserTool 패턴 엄밀 참조                                 | ⬜   |
-| TaskStore DI 주입 패턴 불일치                                      | 🟡 Medium | 기존 도구의 Config DI 패턴 참조 (constructor 인자)                        | ⬜   |
-| `returnDisplay: { todos }` 포맷 불일치                             | 🟠 Medium | `toTodoList()` 반환값이 기존 `Todo[]`와 동일 형식 검증                    | ⬜   |
-| TaskUpdateTool 파라미터 복잡도 (status + 필드 + 의존성)            | 🟡 Medium | 단계적 테스트 (상태만 → 필드 → 의존성 → 삭제)                             | ⬜   |
-| **[I1]** buildAndExecute validation 실패 시 throw (not error 필드) | 🟠 HIGH   | 테스트에서 validation 실패 = `rejects.toThrow()` 패턴 사용                | ⬜   |
-| **[I2]** TaskStore 싱글턴 DI — Phase 3에서 인스턴스 생성 위치 확정 | 🟡 HIGH   | Phase 2는 테스트에서 직접 주입, Phase 3에서 `createToolRegistry()`에 통합 | ⬜   |
-| **[I3]** `schema` getter override 필요 (responseJsonSchema 포함)   | 🟡 MEDIUM | WriteTodosTool처럼 `get schema()` override하여 response schema 제공       | ⬜   |
-| **[I4]** execute() 내 비즈니스 에러 처리 전략 명확화               | 🟡 MEDIUM | execute()에서 error 필드 반환 (throw 아님), validation만 throw            | ⬜   |
-| **[I5]** REFACTOR 헬퍼 추출 과도 (YAGNI)                           | 🟢 LOW    | 공통 헬퍼 별도 파일 분리 대신 inline 유지                                 | ⬜   |
+| BaseDeclarativeTool 패턴 미준수                                    | 🟠 Medium | WriteTodosTool/AskUserTool 패턴 엄밀 참조                                 | ✅   |
+| TaskStore DI 주입 패턴 불일치                                      | 🟡 Medium | 기존 도구의 Config DI 패턴 참조 (constructor 인자)                        | ✅   |
+| `returnDisplay: { todos }` 포맷 불일치                             | 🟠 Medium | `toTodoList()` 반환값이 기존 `Todo[]`와 동일 형식 검증                    | ✅   |
+| TaskUpdateTool 파라미터 복잡도 (status + 필드 + 의존성)            | 🟡 Medium | 단계적 테스트 (상태만 → 필드 → 의존성 → 삭제)                             | ✅   |
+| **[I1]** buildAndExecute validation 실패 시 throw (not error 필드) | 🟠 HIGH   | 테스트에서 validation 실패 = `rejects.toThrow()` 패턴 사용                | ✅   |
+| **[I2]** TaskStore 싱글턴 DI — Phase 3에서 인스턴스 생성 위치 확정 | 🟡 HIGH   | Phase 2는 테스트에서 직접 주입, Phase 3에서 `createToolRegistry()`에 통합 | ✅   |
+| **[I3]** `schema` getter override 필요 (responseJsonSchema 포함)   | 🟡 MEDIUM | WriteTodosTool처럼 `get schema()` override하여 response schema 제공       | ✅   |
+| **[I4]** execute() 내 비즈니스 에러 처리 전략 명확화               | 🟡 MEDIUM | execute()에서 error 필드 반환 (throw 아님), validation만 throw            | ✅   |
+| **[I5]** REFACTOR 헬퍼 추출 과도 (YAGNI)                           | 🟢 LOW    | 공통 헬퍼 별도 파일 분리 대신 inline 유지                                 | ✅   |
 
 ### 리뷰 이슈 상세 (Phase 2 사전 검토)
 
@@ -90,29 +90,29 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ## 2.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 1 작업 결과서 검토
+- [x] **[REVIEW]** Phase 1 작업 결과서 검토
   - 파일: `../working_history/Phase1_task_store_{작업일자}.md`
   - 확인: TaskStore 완성 여부, 테스트 통과 상태, 발견 이슈
 
-- [ ] **[CONTEXT]** Phase 2 작업 목적 확인
+- [x] **[CONTEXT]** Phase 2 작업 목적 확인
   - 설계: [plan_20260224.md Step 2](../plan_20260224.md) — 도구 4개 상세 설계
   - 패턴 참조: `packages/core/src/tools/write-todos.ts` — BaseDeclarativeTool
     패턴
 
-- [ ] **[ANALYSIS-1]** BaseDeclarativeTool 패턴 분석
+- [x] **[ANALYSIS-1]** BaseDeclarativeTool 패턴 분석
   - 파일: `packages/core/src/tools/tools.ts`
   - 확인: constructor 시그니처
     (`name, displayName, description, kind, parameterSchema, messageBus, isOutputMarkdown, canUpdateOutput`)
   - 확인: `validateToolParamValues()` override 패턴
   - 확인: `createInvocation()` 팩토리 메서드 패턴
 
-- [ ] **[ANALYSIS-2]** WriteTodosTool 구현 패턴 상세 분석
+- [x] **[ANALYSIS-2]** WriteTodosTool 구현 패턴 상세 분석
   - 파일: `packages/core/src/tools/write-todos.ts`
   - 확인: Invocation 클래스 구조, `getDescription()`, `execute()` 패턴
   - 확인: `returnDisplay: { todos }` 반환 형식
   - 확인: `shouldConfirmExecute()` → false 패턴
 
-- [ ] **[ANALYSIS-2.1]** buildAndExecute 시그니처 확인 (Issue 4)
+- [x] **[ANALYSIS-2.1]** buildAndExecute 시그니처 확인 (Issue 4)
   - 파일: `packages/core/src/tools/tools.ts`
   - 확인:
     `buildAndExecute(params: TParams, signal: AbortSignal, updateOutput?, shellExecutionConfig?)`
@@ -121,10 +121,10 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
   - 참고: `packages/core/src/tools/write-todos.test.ts` —
     `const signal = new AbortController().signal` 패턴
 
-- [ ] **[ANALYSIS-3]** ToolResult/Kind 타입 확인
+- [x] **[ANALYSIS-3]** ToolResult/Kind 타입 확인
   - 확인: `Kind.Other`, `ToolResult` 인터페이스, `ToolErrorType` enum
 
-- [ ] **[ANALYSIS-4]** 기존 테스트 베이스라인
+- [x] **[ANALYSIS-4]** 기존 테스트 베이스라인
   ```bash
   npm test -w @didim365/agent-cli-core  # 전체 Core 테스트 PASS 확인
   ```
@@ -135,7 +135,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ### 2.2.1 TaskCreateTool 테스트
 
-- [ ] **[RED-1]** TaskCreate 기본 동작 테스트
+- [x] **[RED-1]** TaskCreate 기본 동작 테스트
 
   ```typescript
   // packages/core/src/tools/task-create.test.ts (신규)
@@ -214,7 +214,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ### 2.2.2 TaskGetTool 테스트
 
-- [ ] **[RED-2]** TaskGet 기본 동작 테스트
+- [x] **[RED-2]** TaskGet 기본 동작 테스트
 
   ```typescript
   // packages/core/src/tools/task-get.test.ts (신규)
@@ -267,7 +267,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
   });
   ```
 
-- [ ] **[RED-VERIFY-A]** 테스트 실패 확인
+- [x] **[RED-VERIFY-A]** 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-create.test  # FAIL
   npm test -w @didim365/agent-cli-core -- src/tools/task-get.test     # FAIL
@@ -277,7 +277,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ## 2.3 GREEN Phase (Part A): TaskCreate + TaskGet 구현
 
-- [ ] **[TASK-001]** `task-create.ts` 생성
+- [x] **[TASK-001]** `task-create.ts` 생성
   - 파일: `packages/core/src/tools/task-create.ts` (신규)
   - 내용:
     - `TaskCreateParams` 인터페이스 (subject, description, activeForm?,
@@ -289,7 +289,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
     - `returnDisplay: { todos: taskStore.toTodoList() }`
   - 참고: WriteTodosTool 패턴 (constructor DI: TaskStore + MessageBus)
 
-- [ ] **[TASK-002]** `task-get.ts` 생성
+- [x] **[TASK-002]** `task-get.ts` 생성
   - 파일: `packages/core/src/tools/task-get.ts` (신규)
   - 내용:
     - `TaskGetParams` 인터페이스 (taskId: string)
@@ -297,7 +297,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
     - `TaskGetTool` — BaseDeclarativeTool 확장, Kind.Other
     - 미존재 시 `error: { message, type: ToolErrorType.INVALID_TOOL_PARAMS }`
 
-- [ ] **[GREEN-VERIFY-A]** TaskCreate + TaskGet 테스트 통과
+- [x] **[GREEN-VERIFY-A]** TaskCreate + TaskGet 테스트 통과
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-create.test  # PASS
   npm test -w @didim365/agent-cli-core -- src/tools/task-get.test     # PASS
@@ -309,7 +309,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ### 2.4.1 TaskUpdateTool 테스트
 
-- [ ] **[RED-3]** TaskUpdate 상태 변경 테스트
+- [x] **[RED-3]** TaskUpdate 상태 변경 테스트
 
   ```typescript
   // packages/core/src/tools/task-update.test.ts (신규)
@@ -498,7 +498,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ### 2.4.2 TaskListTool 테스트
 
-- [ ] **[RED-4]** TaskList 기본 동작 테스트
+- [x] **[RED-4]** TaskList 기본 동작 테스트
 
   ```typescript
   // packages/core/src/tools/task-list.test.ts (신규)
@@ -560,7 +560,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
   });
   ```
 
-- [ ] **[RED-VERIFY-B]** 테스트 실패 확인
+- [x] **[RED-VERIFY-B]** 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-update.test  # FAIL
   npm test -w @didim365/agent-cli-core -- src/tools/task-list.test    # FAIL
@@ -570,7 +570,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ## 2.5 GREEN Phase (Part B): TaskUpdate + TaskList 구현
 
-- [ ] **[TASK-003]** `task-update.ts` 생성
+- [x] **[TASK-003]** `task-update.ts` 생성
   - 파일: `packages/core/src/tools/task-update.ts` (신규)
   - 내용:
     - `TaskUpdateParams` 인터페이스 (taskId, status?, subject?, description?,
@@ -583,7 +583,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
       `['pending', 'in_progress', 'completed', 'deleted']`
     - `returnDisplay: { todos: taskStore.toTodoList() }`
 
-- [ ] **[TASK-004]** `task-list.ts` 생성
+- [x] **[TASK-004]** `task-list.ts` 생성
   - 파일: `packages/core/src/tools/task-list.ts` (신규)
   - 내용:
     - `TaskListParams` 인터페이스 (빈 객체)
@@ -593,7 +593,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
     - `TaskListTool` — BaseDeclarativeTool 확장
     - JSON Schema: `{ type: 'object', properties: {} }` (파라미터 없음)
 
-- [ ] **[GREEN-VERIFY-B]** TaskUpdate + TaskList 테스트 통과
+- [x] **[GREEN-VERIFY-B]** TaskUpdate + TaskList 테스트 통과
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-update.test  # PASS
   npm test -w @didim365/agent-cli-core -- src/tools/task-list.test    # PASS
@@ -603,14 +603,14 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ## 2.6 REFACTOR Phase: 코드 개선
 
-- [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
+- [x] **[REFACTOR-STRUCTURE]** 코드 구조 개선
   - 4개 도구 간 공통 패턴 **일관성 확인** (I5: YAGNI — 별도 헬퍼 파일 분리 금지)
     - 에러 응답 형식 통일 (각 도구 inline 유지)
     - `returnDisplay: { todos }` 생성 패턴 통일 (각 도구 inline 유지)
   - 각 도구 파일의 LLM description 문자열 정리 (일관된 포맷)
   - import 순서 통일 (도구 → 타입 → 상수)
 
-- [ ] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-create.test
   npm test -w @didim365/agent-cli-core -- src/tools/task-get.test
@@ -622,26 +622,26 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ## 2.7 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 전체 Core 테스트 실행
+- [x] **[TEST]** 전체 Core 테스트 실행
 
   ```bash
   npm test -w @didim365/agent-cli-core
   ```
 
-- [ ] **[BUILD]** Core 빌드 확인
+- [x] **[BUILD]** Core 빌드 확인
 
   ```bash
   npm run build -w @didim365/agent-cli-core
   ```
 
-- [ ] **[LINT]** 린터 + 타입체크
+- [x] **[LINT]** 린터 + 타입체크
 
   ```bash
   npm run lint -w @didim365/agent-cli-core
   npm run typecheck -w @didim365/agent-cli-core
   ```
 
-- [ ] **[VERIFY]** 기능 검증
+- [x] **[VERIFY]** 기능 검증
   - 확인 항목 1: TaskCreate → 태스크 생성 + 자동 ID + returnDisplay todos
   - 확인 항목 2: TaskGet → 미존재 시 에러, 존재 시 상세 JSON
   - 확인 항목 3: TaskUpdate 'deleted' → 물리 삭제 + returnDisplay 갱신
@@ -649,10 +649,10 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
   - 확인 항목 5: TaskList → 빈 목록 메시지, 목록 JSON + returnDisplay todos
   - 확인 항목 6: Phase 1 TaskStore 테스트 회귀 없음
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `../working_history/Phase2_task_tools_{작업일자}.md`
 
-- [ ] **[COMMIT]** 변경사항 커밋 (Tidy First: 구조 → 동작 분리)
+- [x] **[COMMIT]** 변경사항 커밋 (Tidy First: 구조 → 동작 분리)
 
   ```bash
   # 1차 커밋: TaskCreate + TaskGet 신규 (구조적 변경)
@@ -683,9 +683,9 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 | R1  | MEDIUM | activeForm/owner 비문자열 시 structuredClone 실패 → 내부 상태 오염 | 확인. TypeScript 우회 필요 → 실제 심각도 MEDIUM. H2의 typeof 가드 확장으로 해결        | Phase 1-H3 (TaskStore)     | ✅   |
 | R2  | HIGH   | `update({ metadata: null })` → Object.entries(null) TypeError      | 확인. `structuredClone(null)` 통과 → `Object.entries(null)` crash. 내부 상태 오염 동반 | Phase 1-H3 (TaskStore)     | ✅   |
 | R3a | MEDIUM | addBlocks/addBlockedBy에 completed 가드 없음                       | 확인. `addDependency()`:240-241에 completed 체크 누락                                  | Phase 1-H3 (TaskStore)     | ✅   |
-| R3b | MEDIUM | TaskUpdateTool에서 completed 태스크의 의존성 업데이트 미차단       | 확인. `task-update.ts`:135-149 존재 확인만, completed 미확인                           | Phase 2.1 (TaskUpdateTool) | ⬜   |
+| R3b | MEDIUM | TaskUpdateTool에서 completed 태스크의 의존성 업데이트 미차단       | 확인. `task-update.ts`:135-149 존재 확인만, completed 미확인                           | Phase 2.1 (TaskUpdateTool) | ✅   |
 | R4  | LOW    | I3 responseJsonSchema 미해결                                       | 확인. Phase 3 연기 이미 명시. 추가 조치 불필요                                         | Phase 3 (변경 없음)        | ✅   |
-| R5  | LOW    | 작업 결과서 줄 수 메타데이터 불일치                                | 확인. ESLint fix 후 미갱신. 8개 중 5개 불일치                                          | 작업 결과서 수정           | ⬜   |
+| R5  | LOW    | 작업 결과서 줄 수 메타데이터 불일치                                | 확인. ESLint fix 후 미갱신. 8개 중 5개 불일치                                          | 작업 결과서 수정           | ✅   |
 
 ### R3b 수정 계획: TaskUpdateTool completed 의존성 가드
 
@@ -726,8 +726,8 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 #### 사후 작업
 
-- [ ] 테스트 통과 확인
-- [ ] Phase 1 H3 작업과 동일 커밋 또는 연속 커밋으로 처리
+- [x] 테스트 통과 확인
+- [x] Phase 1 H3 작업과 동일 커밋 또는 연속 커밋으로 처리
 
 ### R5 수정: 작업 결과서 줄 수 보정
 

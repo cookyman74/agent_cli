@@ -132,8 +132,8 @@ status enum에 `'deleted'` 포함하되, TaskStore의 `TaskStatus`와 분리
 | `packages/core/src/tools/task-create.test.ts` | 신규      | 119   |
 | `packages/core/src/tools/task-get.ts`         | 신규      | 124   |
 | `packages/core/src/tools/task-get.test.ts`    | 신규      | 66    |
-| `packages/core/src/tools/task-update.ts`      | 신규      | 257   |
-| `packages/core/src/tools/task-update.test.ts` | 신규      | 190   |
+| `packages/core/src/tools/task-update.ts`      | 신규      | 268   |
+| `packages/core/src/tools/task-update.test.ts` | 신규      | 228   |
 | `packages/core/src/tools/task-list.ts`        | 신규      | 109   |
 | `packages/core/src/tools/task-list.test.ts`   | 신규      | 76    |
 
@@ -148,7 +148,7 @@ status enum에 `'deleted'` 포함하되, TaskStore의 `TaskStatus`와 분리
 | R1  | MEDIUM | activeForm/owner 비문자열 → structuredClone 실패 → 내부 오염 | typeof 가드 추가 (H2 패턴 확장)            | Phase 1-H3 TaskStore   | ✅   |
 | R2  | HIGH   | `metadata: null` → `Object.entries(null)` TypeError          | null/비객체 가드 추가                      | Phase 1-H3 TaskStore   | ✅   |
 | R3a | MEDIUM | addDependency completed 가드 누락                            | `task.status === 'completed'` early return | Phase 1-H3 TaskStore   | ✅   |
-| R3b | MEDIUM | TaskUpdateTool completed 태스크 의존성 미차단                | execute()에 completed 체크 추가            | Phase 2 TaskUpdateTool | ⬜   |
+| R3b | MEDIUM | TaskUpdateTool completed 태스크 의존성 미차단                | execute()에 completed 체크 추가            | Phase 2 TaskUpdateTool | ✅   |
 | R4  | LOW    | I3 responseJsonSchema 미해결                                 | Phase 3 연기 (의도적)                      | Phase 3 (변경 없음)    | ✅   |
 | R5  | LOW    | 줄 수 메타데이터 불일치 (8개 중 5개)                         | 본 결과서 6장 줄 수 보정 완료              | 본 결과서              | ✅   |
 
@@ -164,4 +164,4 @@ status enum에 `'deleted'` 포함하되, TaskStore의 `TaskStatus`와 분리
 ---
 
 **작성일**: 2026-03-01 **사후 리뷰**: 2026-03-01 (R1~R5 검증, R4 R5 해소)
-**상태**: 완료 (사후 리뷰 이슈 R1~R3 보강 대기)
+**상태**: 완료 (사후 리뷰 이슈 R1~R3b 전체 해소)

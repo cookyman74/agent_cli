@@ -695,7 +695,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 #### RED — 테스트 추가
 
-- [ ] **[RED-R3b]** TaskUpdateTool completed 태스크 의존성 차단 테스트
+- [x] **[RED-R3b]** TaskUpdateTool completed 태스크 의존성 차단 테스트
   ```typescript
   // task-update.test.ts에 추가
   it('should return error when adding dependencies to completed task', async () => {
@@ -710,7 +710,7 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 #### GREEN — 구현
 
-- [ ] **[TASK-R3b]** execute()에 completed 가드 추가
+- [x] **[TASK-R3b]** execute()에 completed 가드 추가
   ```typescript
   // task-update.ts:135-149의 else 분기에 completed 체크 추가
   } else {
@@ -759,11 +759,11 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 | 작업 결과서 작성                                        | ✅   |
 | 커밋 완료                                               | ✅   |
 | **사후 리뷰** R1~R3a: Phase 1-H3으로 이관               | ✅   |
-| **사후 리뷰** R3b: TaskUpdateTool completed 의존성 가드 | ⬜   |
-| **사후 리뷰** R5: 작업 결과서 줄 수 보정                | ⬜   |
+| **사후 리뷰** R3b: TaskUpdateTool completed 의존성 가드 | ✅   |
+| **사후 리뷰** R5: 작업 결과서 줄 수 보정                | ✅   |
 
 ---
 
 **작성일**: 2026-03-01 **리뷰**: 2026-03-01 (이슈 I1~I5 반영) **사후 리뷰**:
-2026-03-01 (이슈 R1~R5 검증) **상태**: ✅ Phase 2 본작업 완료, ⬜ 사후 리뷰 이슈
-보강 대기
+2026-03-01 (이슈 R1~R5 검증) **상태**: ✅ Phase 2 전체 완료 (사후 리뷰 이슈
+R1~R5 전체 해소)

@@ -60,6 +60,11 @@ import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { ideContextStore } from '../ide/ideContext.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
+import { TaskStore } from '../tools/task-store.js';
+import { TaskCreateTool } from '../tools/task-create.js';
+import { TaskGetTool } from '../tools/task-get.js';
+import { TaskUpdateTool } from '../tools/task-update.js';
+import { TaskListTool } from '../tools/task-list.js';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback, logFlashFallback } from '../telemetry/loggers.js';
@@ -2022,6 +2027,17 @@ export class Config {
     registerCoreTool(WebSearchTool, this);
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool);
+
+      // Task* tools — Phase A coexistence with write_todos.
+      // All 4 tools share a single TaskStore instance (DI).
+      // Gated behind getUseWriteTodos() to match write_todos behavior (Issue 7).
+      // TodoTray "last wins": Task* and write_todos share the same UI slot;
+      // only the last caller's todos are displayed. Phase B will remove write_todos.
+      const taskStore = new TaskStore();
+      registerCoreTool(TaskCreateTool, taskStore);
+      registerCoreTool(TaskGetTool, taskStore);
+      registerCoreTool(TaskUpdateTool, taskStore);
+      registerCoreTool(TaskListTool, taskStore);
     }
 
     // Register Subagents as Tools

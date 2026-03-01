@@ -408,6 +408,49 @@ describe('Core System Prompt (prompts.ts)', () => {
       },
     );
   });
+
+  // RED-3: Task* 도구 프롬프트 통합 테스트
+  describe('Task* tools prompt integration', () => {
+    it('should include Task* tool guidance when task tools are registered', () => {
+      vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
+        'write_todos',
+        'task_create',
+        'task_get',
+        'task_update',
+        'task_list',
+      ]);
+
+      const prompt = getCoreSystemPrompt(mockConfig);
+      expect(prompt).toContain('task_create');
+      expect(prompt).toContain('task_update');
+      expect(prompt).toContain('task_list');
+    });
+
+    it('should NOT include Task* guidance when task tools are not registered', () => {
+      vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
+        'write_todos',
+      ]);
+
+      const prompt = getCoreSystemPrompt(mockConfig);
+      expect(prompt).not.toContain('task_create');
+      expect(prompt).not.toContain('task_update');
+    });
+
+    it('should include Task* guidance in all workflow variants with write_todos', () => {
+      // CI + Todo variant
+      vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
+        'codebase_investigator',
+        'write_todos',
+        'task_create',
+        'task_get',
+        'task_update',
+        'task_list',
+      ]);
+
+      const prompt = getCoreSystemPrompt(mockConfig);
+      expect(prompt).toContain('task_create');
+    });
+  });
 });
 
 // Note: sLM (small Language Model) lightweight prompt tests removed.

@@ -131,6 +131,11 @@ export function getCoreSystemPrompt(
     .getAllToolNames()
     .includes(WriteTodosTool.Name);
 
+  const enableTaskTools = config
+    .getToolRegistry()
+    .getAllToolNames()
+    .includes('task_create');
+
   const interactiveMode = interactiveOverride ?? config.isInteractive();
 
   const approvalMode = config.getApprovalMode?.() ?? ApprovalMode.DEFAULT;
@@ -296,6 +301,17 @@ ${(function () {
 4. **Verify:** Review work against the original request, the approved plan. Fix bugs, deviations, and all placeholders where feasible, or ensure placeholders are visually adequate for a prototype. Ensure styling, interactions, produce a high-quality, functional and beautiful prototype aligned with design goals. Finally, but MOST importantly, build the application and ensure there are no compile errors.`;
   }
 })()}`,
+      taskToolsGuidance: `
+## Task Management Tools
+In addition to \`${WRITE_TODOS_TOOL_NAME}\`, you have access to structured task management tools for tracking complex, multi-step work:
+- \`task_create\`: Create a new task with subject, description, and optional metadata. Returns the created task with an auto-incrementing ID.
+- \`task_get\`: Retrieve full details of a task by its ID, including dependencies.
+- \`task_update\`: Update task status (pending → in_progress → completed), fields, or dependencies (addBlocks/addBlockedBy).
+- \`task_list\`: List all tasks with their current status and dependency information.
+
+**When to use Task tools vs ${WRITE_TODOS_TOOL_NAME}:**
+- Use Task tools (\`task_create\`, \`task_update\`, \`task_list\`) as the **primary** method for tracking progress on multi-step tasks. They provide richer state management with dependencies and metadata.
+- Use \`${WRITE_TODOS_TOOL_NAME}\` for quick, simple todo lists when full task lifecycle management is not needed.`,
       operationalGuidelines: `
 # Operational Guidelines
 ${(function () {
@@ -429,6 +445,9 @@ Your core function is efficient and safe assistance. Balance extreme conciseness
         orderedPrompts.push('primaryWorkflows_prefix');
       }
       orderedPrompts.push('primaryWorkflows_suffix');
+      if (enableTaskTools) {
+        orderedPrompts.push('taskToolsGuidance');
+      }
     }
 
     orderedPrompts.push(

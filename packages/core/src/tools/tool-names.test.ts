@@ -10,9 +10,39 @@ import {
   ALL_BUILTIN_TOOL_NAMES,
   DISCOVERED_TOOL_PREFIX,
   LS_TOOL_NAME,
+  TASK_CREATE_TOOL_NAME,
+  TASK_GET_TOOL_NAME,
+  TASK_UPDATE_TOOL_NAME,
+  TASK_LIST_TOOL_NAME,
 } from './tool-names.js';
 
 describe('tool-names', () => {
+  // RED-1: Task* 상수 존재 + ALL_BUILTIN 포함 검증
+  describe('Task tool name constants', () => {
+    it('should export TASK_CREATE_TOOL_NAME as "task_create"', () => {
+      expect(TASK_CREATE_TOOL_NAME).toBe('task_create');
+    });
+
+    it('should export TASK_GET_TOOL_NAME as "task_get"', () => {
+      expect(TASK_GET_TOOL_NAME).toBe('task_get');
+    });
+
+    it('should export TASK_UPDATE_TOOL_NAME as "task_update"', () => {
+      expect(TASK_UPDATE_TOOL_NAME).toBe('task_update');
+    });
+
+    it('should export TASK_LIST_TOOL_NAME as "task_list"', () => {
+      expect(TASK_LIST_TOOL_NAME).toBe('task_list');
+    });
+
+    it('should include all Task* tools in ALL_BUILTIN_TOOL_NAMES', () => {
+      expect(ALL_BUILTIN_TOOL_NAMES).toContain('task_create');
+      expect(ALL_BUILTIN_TOOL_NAMES).toContain('task_get');
+      expect(ALL_BUILTIN_TOOL_NAMES).toContain('task_update');
+      expect(ALL_BUILTIN_TOOL_NAMES).toContain('task_list');
+    });
+  });
+
   describe('isValidToolName', () => {
     it('should validate built-in tool names', () => {
       expect(isValidToolName(LS_TOOL_NAME)).toBe(true);

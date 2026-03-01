@@ -476,6 +476,53 @@ describe('TaskStore', () => {
         store.update('1', { description: null as unknown as string }),
       ).toBeNull();
     });
+
+    // RED-R1: activeForm/owner typeof 가드
+    it('should throw on create with non-string activeForm', () => {
+      expect(() =>
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          activeForm: (() => {}) as unknown as string,
+        }),
+      ).toThrow('activeForm must be a string');
+    });
+
+    it('should not leave orphan task after create fails due to non-string activeForm', () => {
+      try {
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          activeForm: (() => {}) as unknown as string,
+        });
+      } catch {
+        // expected
+      }
+      expect(store.get('1')).toBeNull();
+      expect(store.list()).toEqual([]);
+    });
+
+    it('should return null on update with non-string activeForm', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(
+        store.update('1', { activeForm: 123 as unknown as string }),
+      ).toBeNull();
+    });
+
+    it('should return null on update with non-string owner', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(store.update('1', { owner: {} as unknown as string })).toBeNull();
+    });
+
+    it('should preserve original task when update fails due to invalid activeForm', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        activeForm: 'Original',
+      });
+      store.update('1', { activeForm: null as unknown as string });
+      expect(store.get('1')!.activeForm).toBe('Original');
+    });
   });
 
   // RED-H6: metadata cloneability — structuredClone partial write 방지
@@ -521,6 +568,49 @@ describe('TaskStore', () => {
       store.update('1', { metadata: { fn: () => {} } });
       const task = store.get('1')!;
       expect(task.metadata).toEqual({ key: 'original' });
+    });
+
+    // RED-R2: metadata null 가드
+    it('should return null on update with metadata: null', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(
+        store.update('1', {
+          metadata: null as unknown as Record<string, unknown>,
+        }),
+      ).toBeNull();
+    });
+
+    it('should preserve existing metadata when update with null rejected', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        metadata: { key: 'original' },
+      });
+      store.update('1', {
+        metadata: null as unknown as Record<string, unknown>,
+      });
+      expect(store.get('1')!.metadata).toEqual({ key: 'original' });
+    });
+  });
+
+  // RED-R3: completed 태스크 의존성 추가 차단
+  describe('completed dependency guard', () => {
+    it('should ignore addBlocks on completed task', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('1', { status: 'completed' });
+      store.addBlocks('1', ['2']);
+      expect(store.get('1')!.blocks).toEqual([]);
+      expect(store.get('2')!.blockedBy).toEqual([]);
+    });
+
+    it('should ignore addBlockedBy on completed task', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('1', { status: 'completed' });
+      store.addBlockedBy('1', ['2']);
+      expect(store.get('1')!.blockedBy).toEqual([]);
+      expect(store.get('2')!.blocks).toEqual([]);
     });
   });
 });

@@ -70,6 +70,12 @@ export class TaskStore {
     if (typeof params.description !== 'string' || !params.description.trim()) {
       throw new Error('description must be a non-empty string');
     }
+    if (
+      params.activeForm !== undefined &&
+      typeof params.activeForm !== 'string'
+    ) {
+      throw new Error('activeForm must be a string');
+    }
     if (params.metadata) {
       try {
         structuredClone(params.metadata);
@@ -119,6 +125,13 @@ export class TaskStore {
       (typeof params.description !== 'string' || !params.description.trim())
     )
       return null;
+    if (
+      params.activeForm !== undefined &&
+      typeof params.activeForm !== 'string'
+    )
+      return null;
+    if (params.owner !== undefined && typeof params.owner !== 'string')
+      return null;
 
     // Status transition: same-status = no-op, otherwise validate
     if (params.status !== undefined && params.status !== task.status) {
@@ -135,6 +148,9 @@ export class TaskStore {
 
     // Merge metadata: pre-validate cloneability, then merge (null deletes keys)
     if (params.metadata !== undefined) {
+      if (params.metadata === null || typeof params.metadata !== 'object') {
+        return null;
+      }
       try {
         structuredClone(params.metadata);
       } catch {
@@ -239,6 +255,7 @@ export class TaskStore {
   ): void {
     const task = this.tasks.get(taskId);
     if (!task) return;
+    if (task.status === 'completed') return;
 
     const forward = direction; // e.g. 'blocks'
     const reverse = direction === 'blocks' ? 'blockedBy' : 'blocks';

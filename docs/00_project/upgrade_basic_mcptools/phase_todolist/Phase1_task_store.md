@@ -34,9 +34,9 @@
 | 자기 자신 의존(self-dependency) 방지 없음    | 🟡 Medium | `taskId === targetId` 가드 + 테스트         | ✅   |
 | 의존성 변경 시 `updatedAt` 미갱신            | 🟡 Medium | `addDependency`/`delete` cleanup에 갱신     | ✅   |
 | 빈 subject/description 허용                  | 🟡 Medium | `create` throw + `update` null 반환         | ✅   |
-| structuredClone 예외 시 partial write 오염   | 🔴 High   | 메타데이터 사전 검증 + clone-before-store   | ⬜   |
-| trim() 비문자열 입력 시 TypeError            | 🟡 Medium | typeof 가드 추가                            | ⬜   |
-| 결과서 메타데이터(커밋/줄 수) 불일치         | 🟢 Low    | 결과서 헤더 및 1장 개요 수정                | ⬜   |
+| structuredClone 예외 시 partial write 오염   | 🔴 High   | 메타데이터 사전 검증 + clone-before-store   | ✅   |
+| trim() 비문자열 입력 시 TypeError            | 🟡 Medium | typeof 가드 추가                            | ✅   |
+| 결과서 메타데이터(커밋/줄 수) 불일치         | 🟢 Low    | 결과서 헤더 및 1장 개요 수정                | ✅   |
 
 ---
 
@@ -1023,14 +1023,14 @@
 | **보강** GREEN-H1~H5: 방어적 복사/멱등/가드 구현      | ✅   |
 | **보강** REFACTOR-H: 코드 정리                        | ✅   |
 | **보강** 전체 테스트 + 빌드 + 결과서 + 커밋           | ✅   |
-| **보강2** RED-H6~H7: partial write/TypeError 테스트   | ⬜   |
-| **보강2** GREEN-H6~H7: 사전 검증 + typeof 가드 구현   | ⬜   |
-| **보강2** REFACTOR-H2: 코드 정리                      | ⬜   |
-| **보강2** 전체 테스트 + 빌드 + 결과서(Issue 3) + 커밋 | ⬜   |
+| **보강2** RED-H6~H7: partial write/TypeError 테스트   | ✅   |
+| **보강2** GREEN-H6~H7: 사전 검증 + typeof 가드 구현   | ✅   |
+| **보강2** REFACTOR-H2: 코드 정리                      | ✅   |
+| **보강2** 전체 테스트 + 빌드 + 결과서(Issue 3) + 커밋 | ✅   |
 
 ---
 
 **작성일**: 2026-03-01 **1차 완료**: ✅ 커밋 `ad54cc465` — 기본 CRUD + 의존성 +
 toTodoList **보강 완료**: ✅ 리뷰 이슈 5건 수정 완료 (커밋 `8b91bd238`) **보강2
-상태**: ⬜ 리뷰 이슈 3건 수정 대기 **보강 결과서**:
+완료**: ✅ 리뷰 이슈 3건 수정 완료 **보강 결과서**:
 `working_history/Phase1_task_store_20260301.md` 보강 섹션 추가 완료

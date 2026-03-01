@@ -443,5 +443,84 @@ describe('TaskStore', () => {
       store.create({ subject: 'Task', description: 'Desc' });
       expect(store.update('1', { description: '   ' })).toBeNull();
     });
+
+    // RED-H7: typeof 가드 — 비문자열 입력
+    it('should throw on create with non-string subject', () => {
+      expect(() =>
+        store.create({
+          subject: 123 as unknown as string,
+          description: 'Desc',
+        }),
+      ).toThrow('subject must be a non-empty string');
+    });
+
+    it('should throw on create with null description', () => {
+      expect(() =>
+        store.create({
+          subject: 'Task',
+          description: null as unknown as string,
+        }),
+      ).toThrow('description must be a non-empty string');
+    });
+
+    it('should return null on update with non-string subject', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(
+        store.update('1', { subject: 123 as unknown as string }),
+      ).toBeNull();
+    });
+
+    it('should return null on update with null description', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(
+        store.update('1', { description: null as unknown as string }),
+      ).toBeNull();
+    });
+  });
+
+  // RED-H6: metadata cloneability — structuredClone partial write 방지
+  describe('metadata cloneability', () => {
+    it('should throw on create with non-cloneable metadata', () => {
+      expect(() =>
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          metadata: { fn: () => {} },
+        }),
+      ).toThrow('metadata contains non-cloneable values');
+    });
+
+    it('should not leave orphan task after create fails due to non-cloneable metadata', () => {
+      try {
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          metadata: { fn: () => {} },
+        });
+      } catch {
+        // expected
+      }
+      expect(store.get('1')).toBeNull();
+      expect(store.list()).toEqual([]);
+    });
+
+    it('should return null on update with non-cloneable metadata', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const result = store.update('1', {
+        metadata: { fn: () => {} },
+      });
+      expect(result).toBeNull();
+    });
+
+    it('should preserve original task when update fails due to non-cloneable metadata', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        metadata: { key: 'original' },
+      });
+      store.update('1', { metadata: { fn: () => {} } });
+      const task = store.get('1')!;
+      expect(task.metadata).toEqual({ key: 'original' });
+    });
   });
 });

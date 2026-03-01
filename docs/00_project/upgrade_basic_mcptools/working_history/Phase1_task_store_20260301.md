@@ -1,7 +1,8 @@
 # Phase 1 작업 결과서: TaskStore 인메모리 태스크 저장소
 
-> **작업일**: 2026-03-01 **브랜치**: `DID/v0.3` **커밋**: `ad54cc465` **작업
-> 계획서**: [Phase1_task_store.md](../phase_todolist/Phase1_task_store.md)
+> **작업일**: 2026-03-01 **브랜치**: `DID/v0.3` **커밋**: 1차 `ad54cc465` → 보강
+> `8b91bd238` → 보강2 (본 커밋) **작업 계획서**:
+> [Phase1_task_store.md](../phase_todolist/Phase1_task_store.md)
 
 ---
 
@@ -10,8 +11,8 @@
 | 항목        | 내용                                                 |
 | ----------- | ---------------------------------------------------- |
 | 목적        | 세션 단위 인메모리 태스크 CRUD + 의존성 관리 저장소  |
-| 신규 파일   | `packages/core/src/tools/task-store.ts` (219줄)      |
-| 테스트 파일 | `packages/core/src/tools/task-store.test.ts` (316줄) |
+| 신규 파일   | `packages/core/src/tools/task-store.ts` (266줄)      |
+| 테스트 파일 | `packages/core/src/tools/task-store.test.ts` (526줄) |
 | 기존 변경   | 없음 (신규 파일만 추가)                              |
 | 위험 수준   | Low — 기존 코드 영향 없음                            |
 
@@ -182,16 +183,77 @@ pending ──→ in_progress ──→ completed (terminal)
 
 ---
 
-## 6. 파일 변경 목록
+## 6. Phase 1-H2 추가 보강 (Hardening-2) — 런타임 안정성 이슈 2건 + 문서 수정
 
-| 파일                                         | 변경 유형   | 줄 수 |
-| -------------------------------------------- | ----------- | ----- |
-| `packages/core/src/tools/task-store.ts`      | 신규 → 보강 | 247   |
-| `packages/core/src/tools/task-store.test.ts` | 신규 → 보강 | 447   |
+> **배경**: Phase 1-H 보강 완료 후 추가 리뷰에서 2개 런타임 안정성 이슈 + 1개
+> 문서 불일치 발견.
+
+### 6.1 RED-H2 Phase — 추가 보강 테스트 추가
+
+| 테스트 그룹 | 내용                                                  | 테스트 수 |
+| ----------- | ----------------------------------------------------- | --------- |
+| RED-H6      | metadata cloneability (non-cloneable 차단, 오염 방지) | 4         |
+| RED-H7      | typeof 가드 (non-string subject/description)          | 4         |
+| **합계**    |                                                       | **8**     |
+
+**RED 검증**: 8 failed / 48 passed (56 total).
+
+### 6.2 GREEN-H2 Phase — 추가 보강 구현
+
+| 구현 | 내용                                                                    | 결과 |
+| ---- | ----------------------------------------------------------------------- | ---- |
+| H6   | metadata `structuredClone()` 사전 검증 (create: throw, update: null)    | 완료 |
+| H7   | `typeof !== 'string'` 가드를 trim() 호출 전에 삽입 (create/update 모두) | 완료 |
+
+**GREEN 검증**: 56/56 tests PASS.
+
+### 6.3 REFACTOR-H2 Phase
+
+구조적 리팩터링 대상 점검 후 불필요 판단. 56/56 유지 확인.
+
+### 6.4 사후 검증
+
+| 검증 항목            | 결과                                         |
+| -------------------- | -------------------------------------------- |
+| 전체 Core 테스트     | 289 files, 5850 passed (기존 5842 + 보강2 8) |
+| Core 빌드            | 성공                                         |
+| ESLint               | 0 errors, 0 warnings                         |
+| TypeScript typecheck | 통과                                         |
+| 기존 테스트 회귀     | 없음                                         |
+
+### 6.5 추가 보강 기능 검증 체크리스트
+
+| #   | 항목                                                              | 결과 |
+| --- | ----------------------------------------------------------------- | ---- |
+| 1   | `create(metadata: { fn: () => {} })` → throw (not DataCloneError) | PASS |
+| 2   | non-cloneable create 실패 후 `get('1')` → null (오염 없음)        | PASS |
+| 3   | `update('1', { metadata: { fn: () => {} } })` → null              | PASS |
+| 4   | non-cloneable update 실패 후 기존 metadata 보존                   | PASS |
+| 5   | `create({ subject: 123 })` → throw (not TypeError)                | PASS |
+| 6   | `create({ description: null })` → throw (not TypeError)           | PASS |
+| 7   | `update('1', { subject: 123 })` → null (not TypeError)            | PASS |
+| 8   | `update('1', { description: null })` → null (not TypeError)       | PASS |
+
+### 6.6 문서 불일치 수정 (Issue 8)
+
+| 항목             | 수정 전     | 수정 후                            |
+| ---------------- | ----------- | ---------------------------------- |
+| 헤더 커밋        | `ad54cc465` | 1차 `ad54cc465` → 보강 `8b91bd238` |
+| 1장 소스 줄 수   | 219         | 266                                |
+| 1장 테스트 줄 수 | 316         | 526                                |
 
 ---
 
-## 7. 다음 단계
+## 7. 파일 변경 목록 (최종)
+
+| 파일                                         | 변경 유형    | 줄 수 |
+| -------------------------------------------- | ------------ | ----- |
+| `packages/core/src/tools/task-store.ts`      | 신규 → 보강2 | 266   |
+| `packages/core/src/tools/task-store.test.ts` | 신규 → 보강2 | 526   |
+
+---
+
+## 8. 다음 단계
 
 - **Phase 2**: Task\* 도구 4개 (TaskCreate, TaskGet, TaskUpdate, TaskList) —
   `BaseDeclarativeTool` 기반 구현
@@ -200,3 +262,4 @@ pending ──→ in_progress ──→ completed (terminal)
 ---
 
 **작성일**: 2026-03-01 **1차 상태**: 완료 (커밋 `ad54cc465`) **보강 상태**: 완료
+(커밋 `8b91bd238`) **보강2 상태**: 완료

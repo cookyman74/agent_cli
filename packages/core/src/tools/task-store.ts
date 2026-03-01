@@ -64,11 +64,18 @@ export class TaskStore {
 
   /** Creates a new task with auto-incrementing string ID and 'pending' status. */
   create(params: TaskCreateParams): Task {
-    if (!params.subject.trim()) {
+    if (typeof params.subject !== 'string' || !params.subject.trim()) {
       throw new Error('subject must be a non-empty string');
     }
-    if (!params.description.trim()) {
+    if (typeof params.description !== 'string' || !params.description.trim()) {
       throw new Error('description must be a non-empty string');
+    }
+    if (params.metadata) {
+      try {
+        structuredClone(params.metadata);
+      } catch {
+        throw new Error('metadata contains non-cloneable values');
+      }
     }
     const now = Date.now();
     const task: Task = {
@@ -101,9 +108,16 @@ export class TaskStore {
     // Completed terminal guard: block ALL writes
     if (task.status === 'completed') return null;
 
-    // Input validation: reject empty strings
-    if (params.subject !== undefined && !params.subject.trim()) return null;
-    if (params.description !== undefined && !params.description.trim())
+    // Input validation: reject empty strings and non-string types
+    if (
+      params.subject !== undefined &&
+      (typeof params.subject !== 'string' || !params.subject.trim())
+    )
+      return null;
+    if (
+      params.description !== undefined &&
+      (typeof params.description !== 'string' || !params.description.trim())
+    )
       return null;
 
     // Status transition: same-status = no-op, otherwise validate
@@ -119,8 +133,13 @@ export class TaskStore {
     if (params.activeForm !== undefined) task.activeForm = params.activeForm;
     if (params.owner !== undefined) task.owner = params.owner;
 
-    // Merge metadata: null values delete keys
+    // Merge metadata: pre-validate cloneability, then merge (null deletes keys)
     if (params.metadata !== undefined) {
+      try {
+        structuredClone(params.metadata);
+      } catch {
+        return null;
+      }
       if (!task.metadata) task.metadata = {};
       for (const [key, value] of Object.entries(params.metadata)) {
         if (value === null) {

@@ -668,21 +668,102 @@ WriteTodosTool이 `get schema()`를 override하여 `responseJsonSchema`도 제�
 
 ---
 
-## Phase 완료 조건
+---
 
-| 검증 항목                                   | 상태 |
-| ------------------------------------------- | ---- |
-| RED(A): TaskCreate + TaskGet 테스트 작성    | ✅   |
-| GREEN(A): TaskCreate + TaskGet 구현 + 통과  | ✅   |
-| RED(B): TaskUpdate + TaskList 테스트 작성   | ✅   |
-| GREEN(B): TaskUpdate + TaskList 구현 + 통과 | ✅   |
-| REFACTOR: 공통 패턴 추출, 구조 개선         | ✅   |
-| Core 빌드 성공                              | ✅   |
-| Lint + Typecheck 통과                       | ✅   |
-| Phase 1 TaskStore 회귀 없음                 | ✅   |
-| 작업 결과서 작성                            | ✅   |
-| 커밋 완료                                   | ✅   |
+## 2.8 Phase 2 사후 리뷰 이슈 (R1~R5)
+
+> **배경**: Phase 2 완료 후 전체 계획서 리뷰에서 5개 이슈 발견. TaskStore 레벨
+> 이슈(R1~R3)는 Phase 1-H3으로, 도구 레벨 이슈(R3b)는 Phase 2.1로, 문서
+> 이슈(R4~R5)는 본 섹션에서 처리.
+
+### 이슈 검증 결과
+
+| #   | 구분   | 이슈                                                               | 검증 결과                                                                              | 수정 위치                  | 상태 |
+| --- | ------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | -------------------------- | ---- |
+| R1  | MEDIUM | activeForm/owner 비문자열 시 structuredClone 실패 → 내부 상태 오염 | 확인. TypeScript 우회 필요 → 실제 심각도 MEDIUM. H2의 typeof 가드 확장으로 해결        | Phase 1-H3 (TaskStore)     | ✅   |
+| R2  | HIGH   | `update({ metadata: null })` → Object.entries(null) TypeError      | 확인. `structuredClone(null)` 통과 → `Object.entries(null)` crash. 내부 상태 오염 동반 | Phase 1-H3 (TaskStore)     | ✅   |
+| R3a | MEDIUM | addBlocks/addBlockedBy에 completed 가드 없음                       | 확인. `addDependency()`:240-241에 completed 체크 누락                                  | Phase 1-H3 (TaskStore)     | ✅   |
+| R3b | MEDIUM | TaskUpdateTool에서 completed 태스크의 의존성 업데이트 미차단       | 확인. `task-update.ts`:135-149 존재 확인만, completed 미확인                           | Phase 2.1 (TaskUpdateTool) | ⬜   |
+| R4  | LOW    | I3 responseJsonSchema 미해결                                       | 확인. Phase 3 연기 이미 명시. 추가 조치 불필요                                         | Phase 3 (변경 없음)        | ✅   |
+| R5  | LOW    | 작업 결과서 줄 수 메타데이터 불일치                                | 확인. ESLint fix 후 미갱신. 8개 중 5개 불일치                                          | 작업 결과서 수정           | ⬜   |
+
+### R3b 수정 계획: TaskUpdateTool completed 의존성 가드
+
+> **범위**: `task-update.ts` execute() 메서드 — 의존성 업데이트 전 completed
+> 체크 추가. Phase 1-H3의 TaskStore 레벨 가드와 함께 방어 적용 (defense in
+> depth).
+
+#### RED — 테스트 추가
+
+- [ ] **[RED-R3b]** TaskUpdateTool completed 태스크 의존성 차단 테스트
+  ```typescript
+  // task-update.test.ts에 추가
+  it('should return error when adding dependencies to completed task', async () => {
+    store.update('1', { status: 'completed' });
+    const result = await tool.buildAndExecute(
+      { taskId: '1', addBlocks: ['2'] },
+      signal,
+    );
+    expect(result.error).toBeDefined();
+  });
+  ```
+
+#### GREEN — 구현
+
+- [ ] **[TASK-R3b]** execute()에 completed 가드 추가
+  ```typescript
+  // task-update.ts:135-149의 else 분기에 completed 체크 추가
+  } else {
+    const task = this.taskStore.get(taskId);
+    if (!task) { /* 기존 에러 */ }
+    if (task.status === 'completed') {
+      const message = `Task ${taskId} is completed and cannot be modified.`;
+      return { llmContent: message, returnDisplay: message,
+               error: { message, type: ToolErrorType.INVALID_TOOL_PARAMS } };
+    }
+  }
+  ```
+
+#### 사후 작업
+
+- [ ] 테스트 통과 확인
+- [ ] Phase 1 H3 작업과 동일 커밋 또는 연속 커밋으로 처리
+
+### R5 수정: 작업 결과서 줄 수 보정
+
+| 파일                  | 결과서 기재 | 실제 (`wc -l`) | 비고                  |
+| --------------------- | ----------- | -------------- | --------------------- |
+| `task-create.ts`      | 155         | 154            | EOF newline 차이 (-1) |
+| `task-create.test.ts` | 113         | 119            | ESLint fix 반영 (+6)  |
+| `task-get.ts`         | 124         | 124            | 일치                  |
+| `task-get.test.ts`    | 71          | 66             | ESLint fix 반영 (-5)  |
+| `task-update.ts`      | 257         | 257            | 일치                  |
+| `task-update.test.ts` | 163         | 190            | ESLint fix 반영 (+27) |
+| `task-list.ts`        | 109         | 109            | 일치                  |
+| `task-list.test.ts`   | 80          | 76             | ESLint fix 반영 (-4)  |
 
 ---
 
-**작성일**: 2026-03-01 **리뷰**: 2026-03-01 (이슈 I1~I5 반영) **상태**: ✅ 완료
+## Phase 완료 조건
+
+| 검증 항목                                               | 상태 |
+| ------------------------------------------------------- | ---- |
+| RED(A): TaskCreate + TaskGet 테스트 작성                | ✅   |
+| GREEN(A): TaskCreate + TaskGet 구현 + 통과              | ✅   |
+| RED(B): TaskUpdate + TaskList 테스트 작성               | ✅   |
+| GREEN(B): TaskUpdate + TaskList 구현 + 통과             | ✅   |
+| REFACTOR: 공통 패턴 추출, 구조 개선                     | ✅   |
+| Core 빌드 성공                                          | ✅   |
+| Lint + Typecheck 통과                                   | ✅   |
+| Phase 1 TaskStore 회귀 없음                             | ✅   |
+| 작업 결과서 작성                                        | ✅   |
+| 커밋 완료                                               | ✅   |
+| **사후 리뷰** R1~R3a: Phase 1-H3으로 이관               | ✅   |
+| **사후 리뷰** R3b: TaskUpdateTool completed 의존성 가드 | ⬜   |
+| **사후 리뷰** R5: 작업 결과서 줄 수 보정                | ⬜   |
+
+---
+
+**작성일**: 2026-03-01 **리뷰**: 2026-03-01 (이슈 I1~I5 반영) **사후 리뷰**:
+2026-03-01 (이슈 R1~R5 검증) **상태**: ✅ Phase 2 본작업 완료, ⬜ 사후 리뷰 이슈
+보강 대기

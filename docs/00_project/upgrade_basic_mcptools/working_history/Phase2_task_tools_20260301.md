@@ -10,7 +10,7 @@
 | 항목        | 내용                                                                                              |
 | ----------- | ------------------------------------------------------------------------------------------------- |
 | 목적        | BaseDeclarativeTool 기반 Task CRUD 도구 4개 구현                                                  |
-| 신규 파일   | `task-create.ts` (155줄), `task-get.ts` (124줄), `task-update.ts` (257줄), `task-list.ts` (109줄) |
+| 신규 파일   | `task-create.ts` (154줄), `task-get.ts` (124줄), `task-update.ts` (257줄), `task-list.ts` (109줄) |
 | 테스트 파일 | `task-create.test.ts`, `task-get.test.ts`, `task-update.test.ts`, `task-list.test.ts`             |
 | 기존 변경   | 없음 (신규 파일만 추가)                                                                           |
 | 위험 수준   | Low — 기존 코드 영향 없음                                                                         |
@@ -19,13 +19,13 @@
 
 ## 2. 사전 리뷰 이슈 반영 (I1~I5)
 
-| #   | 구분   | 이슈                                         | 대응                                   | 상태 |
-| --- | ------ | -------------------------------------------- | -------------------------------------- | ---- |
-| I1  | HIGH   | buildAndExecute validation 실패 시 throw     | 테스트에서 `rejects.toThrow()` 패턴    | ✅   |
-| I2  | HIGH   | TaskStore DI 패턴 — Phase 3 연계             | 테스트에서 직접 주입, Phase 3에서 통합 | ✅   |
-| I3  | MEDIUM | schema getter override (responseJsonSchema)  | 필요 시 Phase 3에서 추가               | ⬜   |
-| I4  | MEDIUM | execute() 에러 = error 필드 반환 (not throw) | 모든 도구에 적용                       | ✅   |
-| I5  | LOW    | REFACTOR 헬퍼 YAGNI                          | inline 유지, 별도 파일 분리 안 함      | ✅   |
+| #   | 구분   | 이슈                                         | 대응                                        | 상태 |
+| --- | ------ | -------------------------------------------- | ------------------------------------------- | ---- |
+| I1  | HIGH   | buildAndExecute validation 실패 시 throw     | 테스트에서 `rejects.toThrow()` 패턴         | ✅   |
+| I2  | HIGH   | TaskStore DI 패턴 — Phase 3 연계             | 테스트에서 직접 주입, Phase 3에서 통합      | ✅   |
+| I3  | MEDIUM | schema getter override (responseJsonSchema)  | Phase 3에서 도구 등록 시 추가 (의도적 연기) | ⬜   |
+| I4  | MEDIUM | execute() 에러 = error 필드 반환 (not throw) | 모든 도구에 적용                            | ✅   |
+| I5  | LOW    | REFACTOR 헬퍼 YAGNI                          | inline 유지, 별도 파일 분리 안 함           | ✅   |
 
 ---
 
@@ -128,18 +128,33 @@ status enum에 `'deleted'` 포함하되, TaskStore의 `TaskStatus`와 분리
 
 | 파일                                          | 변경 유형 | 줄 수 |
 | --------------------------------------------- | --------- | ----- |
-| `packages/core/src/tools/task-create.ts`      | 신규      | 155   |
-| `packages/core/src/tools/task-create.test.ts` | 신규      | 113   |
+| `packages/core/src/tools/task-create.ts`      | 신규      | 154   |
+| `packages/core/src/tools/task-create.test.ts` | 신규      | 119   |
 | `packages/core/src/tools/task-get.ts`         | 신규      | 124   |
-| `packages/core/src/tools/task-get.test.ts`    | 신규      | 71    |
+| `packages/core/src/tools/task-get.test.ts`    | 신규      | 66    |
 | `packages/core/src/tools/task-update.ts`      | 신규      | 257   |
-| `packages/core/src/tools/task-update.test.ts` | 신규      | 163   |
+| `packages/core/src/tools/task-update.test.ts` | 신규      | 190   |
 | `packages/core/src/tools/task-list.ts`        | 신규      | 109   |
-| `packages/core/src/tools/task-list.test.ts`   | 신규      | 80    |
+| `packages/core/src/tools/task-list.test.ts`   | 신규      | 76    |
 
 ---
 
-## 7. 다음 단계
+## 7. 사후 리뷰 이슈 (R1~R5)
+
+> Phase 2 완료 후 전체 계획서 리뷰에서 5개 이슈 발견. 코드 레벨 검증 완료.
+
+| #   | 구분   | 이슈                                                         | 수정 방안                                  | 수정 위치              | 상태 |
+| --- | ------ | ------------------------------------------------------------ | ------------------------------------------ | ---------------------- | ---- |
+| R1  | MEDIUM | activeForm/owner 비문자열 → structuredClone 실패 → 내부 오염 | typeof 가드 추가 (H2 패턴 확장)            | Phase 1-H3 TaskStore   | ✅   |
+| R2  | HIGH   | `metadata: null` → `Object.entries(null)` TypeError          | null/비객체 가드 추가                      | Phase 1-H3 TaskStore   | ✅   |
+| R3a | MEDIUM | addDependency completed 가드 누락                            | `task.status === 'completed'` early return | Phase 1-H3 TaskStore   | ✅   |
+| R3b | MEDIUM | TaskUpdateTool completed 태스크 의존성 미차단                | execute()에 completed 체크 추가            | Phase 2 TaskUpdateTool | ⬜   |
+| R4  | LOW    | I3 responseJsonSchema 미해결                                 | Phase 3 연기 (의도적)                      | Phase 3 (변경 없음)    | ✅   |
+| R5  | LOW    | 줄 수 메타데이터 불일치 (8개 중 5개)                         | 본 결과서 6장 줄 수 보정 완료              | 본 결과서              | ✅   |
+
+---
+
+## 8. 다음 단계
 
 - **Phase 3**: 도구 등록 + 프롬프트 + 빌드 검증
   - `tool-names.ts`에 Task\* 상수 4개 등록
@@ -148,4 +163,5 @@ status enum에 `'deleted'` 포함하되, TaskStore의 `TaskStatus`와 분리
 
 ---
 
-**작성일**: 2026-03-01 **상태**: 완료
+**작성일**: 2026-03-01 **사후 리뷰**: 2026-03-01 (R1~R5 검증, R4 R5 해소)
+**상태**: 완료 (사후 리뷰 이슈 R1~R3 보강 대기)

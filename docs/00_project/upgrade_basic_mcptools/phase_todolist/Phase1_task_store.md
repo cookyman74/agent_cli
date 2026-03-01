@@ -1007,30 +1007,246 @@
 
 ---
 
+## 1.8 Phase 1 추가 보강 (Hardening-3) — Phase 2 사후 리뷰 이슈 수정
+
+> **배경**: Phase 2 완료 후 전체 계획서 리뷰에서 TaskStore 레벨 3개 이슈 발견.
+> Phase 1-H2에서 metadata 사전 검증과 typeof 가드를 추가했으나, activeForm/owner
+> 필드와 metadata null 케이스, completed 태스크 의존성 추가가 미처리 상태.
+> **방법**: TDD Red → Green → Refactor 사이클 동일 적용.
+
+### 설계 결정
+
+| 질문                                 | 결정                                                                                                                    |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| activeForm/owner 비문자열 입력 처리? | **typeof 가드**: subject/description과 동일 패턴. create()는 throw, update()는 null 반환. H2의 typeof 가드 확장.        |
+| metadata: null 입력 처리?            | **null 가드**: `params.metadata !== undefined` 진입 후 null/비객체 체크 추가. update()에서 null 반환.                   |
+| completed 태스크에 의존성 추가 허용? | **불허**: addDependency()에 completed 가드 추가. "completed는 터미널" 불변식을 의존성 관리에도 확장. 무시(silent skip). |
+
+### 1.8.1 ANALYSIS — 이슈 코드 레벨 검증
+
+| #   | 심각도 | 이슈                                                                                                           | 코드 위치                                                    | 검증 |
+| --- | ------ | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ---- |
+| R1  | MEDIUM | activeForm/owner에 비문자열(function, Symbol 등) 전달 시 `tasks.set()` 후 `structuredClone()` 실패 → 내부 오염 | `create`:86,93-94, `update`:133-134,154                      | ⬜   |
+| R2  | HIGH   | `update({ metadata: null })` → `structuredClone(null)` 통과 → `Object.entries(null)` TypeError → 예외 전파     | `update`:137-144                                             | ⬜   |
+| R3  | MEDIUM | `addBlocks`/`addBlockedBy`에 completed 가드 없음 → completed 태스크에 의존성 추가 허용 → 터미널 불변식 위반    | `addDependency`:240-241, `addBlocks`:185, `addBlockedBy`:190 | ⬜   |
+
+### 1.8.2 RED Phase — 보강 실패 테스트
+
+- [ ] **[RED-R1]** activeForm/owner typeof 가드 테스트
+
+  ```typescript
+  describe('activeForm/owner type validation', () => {
+    it('should throw on create with non-string activeForm', () => {
+      expect(() =>
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          activeForm: (() => {}) as unknown as string,
+        }),
+      ).toThrow();
+    });
+
+    it('should not leave orphan task after create fails due to non-cloneable activeForm', () => {
+      try {
+        store.create({
+          subject: 'Task',
+          description: 'Desc',
+          activeForm: (() => {}) as unknown as string,
+        });
+      } catch {
+        // expected
+      }
+      expect(store.get('1')).toBeNull();
+      expect(store.list()).toEqual([]);
+    });
+
+    it('should return null on update with non-string activeForm', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(
+        store.update('1', { activeForm: 123 as unknown as string }),
+      ).toBeNull();
+    });
+
+    it('should return null on update with non-string owner', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(store.update('1', { owner: {} as unknown as string })).toBeNull();
+    });
+
+    it('should preserve original task when update fails due to invalid activeForm', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        activeForm: 'Original',
+      });
+      store.update('1', { activeForm: null as unknown as string });
+      expect(store.get('1')!.activeForm).toBe('Original');
+    });
+  });
+  ```
+
+- [ ] **[RED-R2]** metadata null 가드 테스트
+
+  ```typescript
+  describe('metadata null guard', () => {
+    it('should return null on update with metadata: null', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(
+        store.update('1', {
+          metadata: null as unknown as Record<string, unknown>,
+        }),
+      ).toBeNull();
+    });
+
+    it('should preserve existing metadata when update with null rejected', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        metadata: { key: 'original' },
+      });
+      store.update('1', {
+        metadata: null as unknown as Record<string, unknown>,
+      });
+      expect(store.get('1')!.metadata).toEqual({ key: 'original' });
+    });
+  });
+  ```
+
+- [ ] **[RED-R3]** completed 태스크 의존성 추가 차단 테스트
+
+  ```typescript
+  describe('completed dependency guard', () => {
+    it('should ignore addBlocks on completed task', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('1', { status: 'completed' });
+      store.addBlocks('1', ['2']);
+      expect(store.get('1')!.blocks).toEqual([]);
+      expect(store.get('2')!.blockedBy).toEqual([]);
+    });
+
+    it('should ignore addBlockedBy on completed task', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('1', { status: 'completed' });
+      store.addBlockedBy('1', ['2']);
+      expect(store.get('1')!.blockedBy).toEqual([]);
+      expect(store.get('2')!.blocks).toEqual([]);
+    });
+  });
+  ```
+
+- [ ] **[RED-R-VERIFY]** 보강 테스트 실패 확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 신규 테스트 FAIL
+  ```
+
+### 1.8.3 GREEN Phase — 보강 구현
+
+- [ ] **[TASK-R1]** activeForm/owner typeof 가드 추가
+  - `create()`: metadata 검증 전에 activeForm typeof 검사
+    ```typescript
+    if (
+      params.activeForm !== undefined &&
+      typeof params.activeForm !== 'string'
+    ) {
+      throw new Error('activeForm must be a string');
+    }
+    ```
+  - `update()`: metadata 검증 전에 activeForm/owner typeof 검사
+    ```typescript
+    if (
+      params.activeForm !== undefined &&
+      typeof params.activeForm !== 'string'
+    )
+      return null;
+    if (params.owner !== undefined && typeof params.owner !== 'string')
+      return null;
+    ```
+
+- [ ] **[TASK-R2]** metadata null 가드 추가
+  - `update()`: 기존 `params.metadata !== undefined` 블록 진입 직후
+    ```typescript
+    if (params.metadata !== undefined) {
+      if (params.metadata === null || typeof params.metadata !== 'object') {
+        return null;
+      }
+      // ... 기존 structuredClone 검증 + merge 로직 ...
+    }
+    ```
+
+- [ ] **[TASK-R3]** addDependency completed 가드 추가
+  - `addDependency()`: task 존재 확인 직후
+    ```typescript
+    private addDependency(...): void {
+      const task = this.tasks.get(taskId);
+      if (!task) return;
+      if (task.status === 'completed') return;  // 추가
+      // ...
+    }
+    ```
+
+- [ ] **[GREEN-R-VERIFY]** 보강 테스트 통과 확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 전체 PASS
+  ```
+
+### 1.8.4 REFACTOR Phase
+
+- [ ] **[REFACTOR-H3]** 입력 검증 일관성 확인
+  - create()의 검증 순서: subject → description → activeForm → metadata
+  - update()의 검증 순서: completed 가드 → subject → description → activeForm →
+    owner → status → metadata
+  - addDependency()의 검증: 존재 → completed → self-dep → 대상 존재
+  - 테스트 describe 구조에 자연스럽게 통합
+
+- [ ] **[REFACTOR-H3-VERIFY]** 리팩터링 후 테스트 재확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 여전히 PASS
+  ```
+
+### 1.8.5 보강 사후 작업
+
+- [ ] **[TEST-H3]** 전체 Core 테스트 (Phase 1 + Phase 2 회귀 확인)
+- [ ] **[BUILD-H3]** Core 빌드 확인
+- [ ] **[LINT-H3]** 린터 + 타입체크
+- [ ] **[DOC-H3]** 작업 결과서 업데이트
+- [ ] **[COMMIT-H3]** 변경사항 커밋
+  ```bash
+  git add packages/core/src/tools/task-store.ts packages/core/src/tools/task-store.test.ts
+  git commit -m "fix(core): harden TaskStore — activeForm/owner/metadata guards, completed dep block"
+  ```
+
+---
+
 ## Phase 완료 조건
 
-| 검증 항목                                             | 상태 |
-| ----------------------------------------------------- | ---- |
-| RED: TaskStore CRUD + 상태 전이 + 의존성 테스트 작성  | ✅   |
-| GREEN: TaskStore 최소 구현 + 테스트 통과              | ✅   |
-| REFACTOR: 코드 구조 개선                              | ✅   |
-| Core 빌드 성공                                        | ✅   |
-| Lint + Typecheck 통과                                 | ✅   |
-| 기존 Core 테스트 회귀 없음                            | ✅   |
-| 작업 결과서 작성                                      | ✅   |
-| 커밋 완료                                             | ✅   |
-| **보강** RED-H1~H5: 불변성/멱등/검증 테스트 추가      | ✅   |
-| **보강** GREEN-H1~H5: 방어적 복사/멱등/가드 구현      | ✅   |
-| **보강** REFACTOR-H: 코드 정리                        | ✅   |
-| **보강** 전체 테스트 + 빌드 + 결과서 + 커밋           | ✅   |
-| **보강2** RED-H6~H7: partial write/TypeError 테스트   | ✅   |
-| **보강2** GREEN-H6~H7: 사전 검증 + typeof 가드 구현   | ✅   |
-| **보강2** REFACTOR-H2: 코드 정리                      | ✅   |
-| **보강2** 전체 테스트 + 빌드 + 결과서(Issue 3) + 커밋 | ✅   |
+| 검증 항목                                                 | 상태 |
+| --------------------------------------------------------- | ---- |
+| RED: TaskStore CRUD + 상태 전이 + 의존성 테스트 작성      | ✅   |
+| GREEN: TaskStore 최소 구현 + 테스트 통과                  | ✅   |
+| REFACTOR: 코드 구조 개선                                  | ✅   |
+| Core 빌드 성공                                            | ✅   |
+| Lint + Typecheck 통과                                     | ✅   |
+| 기존 Core 테스트 회귀 없음                                | ✅   |
+| 작업 결과서 작성                                          | ✅   |
+| 커밋 완료                                                 | ✅   |
+| **보강** RED-H1~H5: 불변성/멱등/검증 테스트 추가          | ✅   |
+| **보강** GREEN-H1~H5: 방어적 복사/멱등/가드 구현          | ✅   |
+| **보강** REFACTOR-H: 코드 정리                            | ✅   |
+| **보강** 전체 테스트 + 빌드 + 결과서 + 커밋               | ✅   |
+| **보강2** RED-H6~H7: partial write/TypeError 테스트       | ✅   |
+| **보강2** GREEN-H6~H7: 사전 검증 + typeof 가드 구현       | ✅   |
+| **보강2** REFACTOR-H2: 코드 정리                          | ✅   |
+| **보강2** 전체 테스트 + 빌드 + 결과서(Issue 3) + 커밋     | ✅   |
+| **보강3** RED-R1~R3: activeForm/metadata/completed 테스트 | ✅   |
+| **보강3** GREEN-R1~R3: typeof/null/completed 가드 구현    | ✅   |
+| **보강3** REFACTOR-H3: 검증 순서 일관성                   | ✅   |
+| **보강3** 전체 테스트 + 빌드 + 결과서 + 커밋              | ✅   |
 
 ---
 
 **작성일**: 2026-03-01 **1차 완료**: ✅ 커밋 `ad54cc465` — 기본 CRUD + 의존성 +
 toTodoList **보강 완료**: ✅ 리뷰 이슈 5건 수정 완료 (커밋 `8b91bd238`) **보강2
 완료**: ✅ 리뷰 이슈 3건 수정 완료 **보강 결과서**:
-`working_history/Phase1_task_store_20260301.md` 보강 섹션 추가 완료
+`working_history/Phase1_task_store_20260301.md` 보강 섹션 추가 완료 **보강3
+완료**: ✅ Phase 2 사후 리뷰 이슈 R1~R3 (TaskStore 레벨) — 65 tests

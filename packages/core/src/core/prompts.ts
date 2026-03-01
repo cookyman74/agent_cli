@@ -307,7 +307,7 @@ ${(function () {
 })()}`,
       taskToolsGuidance: `
 ## Task Management Tools
-In addition to \`${WRITE_TODOS_TOOL_NAME}\`, you have access to structured task management tools for tracking complex, multi-step work:
+${enableWriteTodosTool ? `In addition to \`${WRITE_TODOS_TOOL_NAME}\`, you` : 'You'} have access to structured task management tools for tracking complex, multi-step work:
 ${registeredTaskTools
   .map((name) => {
     const descriptions: Record<string, string> = {
@@ -323,10 +323,7 @@ ${registeredTaskTools
     return `- \`${name}\`: ${descriptions[name]}`;
   })
   .join('\n')}
-
-**When to use Task tools vs ${WRITE_TODOS_TOOL_NAME}:**
-- Use Task tools as the **primary** method for tracking progress on multi-step tasks. They provide richer state management with dependencies and metadata.
-- Use \`${WRITE_TODOS_TOOL_NAME}\` for quick, simple todo lists when full task lifecycle management is not needed.`,
+${enableWriteTodosTool ? `\n**When to use Task tools vs ${WRITE_TODOS_TOOL_NAME}:**\n- Use Task tools as the **primary** method for tracking progress on multi-step tasks. They provide richer state management with dependencies and metadata.\n- Use \`${WRITE_TODOS_TOOL_NAME}\` for quick, simple todo lists when full task lifecycle management is not needed.` : ''}`,
       operationalGuidelines: `
 # Operational Guidelines
 ${(function () {

@@ -463,6 +463,24 @@ describe('Core System Prompt (prompts.ts)', () => {
       const prompt = getCoreSystemPrompt(mockConfig);
       expect(prompt).toContain('task_create');
     });
+
+    it('should NOT mention write_todos in Task* guidance when write_todos is not registered', () => {
+      // R15: Task* 도구만 있고 write_todos가 없는 경우 — write_todos 언급하면 안 됨
+      vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
+        'task_create',
+        'task_get',
+        'task_update',
+        'task_list',
+      ]);
+
+      const prompt = getCoreSystemPrompt(mockConfig);
+      // Task* guidance should be present
+      expect(prompt).toContain('task_create');
+      expect(prompt).toContain('task_update');
+      // write_todos should NOT be mentioned in Task guidance section
+      expect(prompt).not.toContain('In addition to `write_todos`');
+      expect(prompt).not.toContain('Task tools vs write_todos');
+    });
   });
 });
 

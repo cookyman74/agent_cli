@@ -177,6 +177,41 @@ describe('TaskUpdateTool', () => {
     expect(result.error).toBeDefined();
   });
 
+  describe('completed task dependency guard', () => {
+    it('should return error when adding addBlocks to completed task', async () => {
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('1', { status: 'completed' });
+      const result = await tool.buildAndExecute(
+        { taskId: '1', addBlocks: ['2'] },
+        signal,
+      );
+
+      expect(result.error).toBeDefined();
+      expect(result.error!.message).toContain('completed');
+    });
+
+    it('should return error when adding addBlockedBy to completed task', async () => {
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('1', { status: 'completed' });
+      const result = await tool.buildAndExecute(
+        { taskId: '1', addBlockedBy: ['2'] },
+        signal,
+      );
+
+      expect(result.error).toBeDefined();
+      expect(result.error!.message).toContain('completed');
+    });
+
+    it('should not modify dependencies on completed task', async () => {
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('1', { status: 'completed' });
+      await tool.buildAndExecute({ taskId: '1', addBlocks: ['2'] }, signal);
+
+      expect(store.get('1')!.blocks).toEqual([]);
+      expect(store.get('2')!.blockedBy).toEqual([]);
+    });
+  });
+
   describe('validation', () => {
     it('should throw on missing taskId parameter', async () => {
       await expect(

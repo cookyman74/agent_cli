@@ -133,10 +133,21 @@ class TaskUpdateToolInvocation extends BaseToolInvocation<
         };
       }
     } else {
-      // No field updates — verify task exists before processing dependencies
+      // No field updates — verify task exists and is not completed
       const task = this.taskStore.get(taskId);
       if (!task) {
         const message = `Task ${taskId} not found.`;
+        return {
+          llmContent: message,
+          returnDisplay: message,
+          error: {
+            message,
+            type: ToolErrorType.INVALID_TOOL_PARAMS,
+          },
+        };
+      }
+      if (task.status === 'completed') {
+        const message = `Task ${taskId} is completed and cannot be modified.`;
         return {
           llmContent: message,
           returnDisplay: message,

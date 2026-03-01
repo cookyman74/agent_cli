@@ -123,16 +123,75 @@ pending ──→ in_progress ──→ completed (terminal)
 
 ---
 
-## 5. 파일 변경 목록
+## 5. Phase 1-H 보강 (Hardening) — 리뷰 이슈 5건 수정
 
-| 파일                                         | 변경 유형 | 줄 수 |
-| -------------------------------------------- | --------- | ----- |
-| `packages/core/src/tools/task-store.ts`      | 신규      | 219   |
-| `packages/core/src/tools/task-store.test.ts` | 신규      | 316   |
+> **배경**: Phase 1 완료 후 코드 리뷰에서 5개 이슈(2 HIGH, 3 MEDIUM) 발견.
+
+### 5.1 RED-H Phase — 보강 테스트 추가
+
+| 테스트 그룹 | 내용                                              | 테스트 수 |
+| ----------- | ------------------------------------------------- | --------- |
+| RED-H1      | 불변성 (create/get/update 반환값 mutation 차단)   | 3         |
+| RED-H2      | 멱등 상태 (pending→pending OK, completed→\* 거부) | 3         |
+| RED-H3      | self-dependency 방지 (addBlocks/addBlockedBy)     | 2         |
+| RED-H4      | updatedAt 갱신 (addBlocks, delete cleanup)        | 2         |
+| RED-H5      | 입력 검증 (빈 subject/description)                | 5         |
+| **합계**    |                                                   | **15**    |
+
+**RED 검증**: 12 failed / 36 passed (48 total).
+
+### 5.2 GREEN-H Phase — 보강 구현
+
+| 구현 | 내용                                                        | 결과 |
+| ---- | ----------------------------------------------------------- | ---- |
+| H1   | `structuredClone()` — create/get/update 반환 시 방어적 복사 | 완료 |
+| H2   | completed 터미널 가드 (모든 write 차단) + same-status no-op | 완료 |
+| H3   | `if (targetId === taskId) continue;` — self-dependency 가드 | 완료 |
+| H4   | `updatedAt = Date.now()` — addDependency/delete cleanup     | 완료 |
+| H5   | create: throw on empty, update: return null on empty        | 완료 |
+
+**GREEN 검증**: 48/48 tests PASS.
+
+### 5.3 REFACTOR-H Phase
+
+구조적 리팩터링 대상 점검 후 불필요 판단 (이미 깔끔한 구조). 48/48 유지 확인.
+
+### 5.4 사후 검증
+
+| 검증 항목            | 결과                                         |
+| -------------------- | -------------------------------------------- |
+| 전체 Core 테스트     | 289 files, 5842 passed (기존 5827 + 보강 15) |
+| Core 빌드            | 성공                                         |
+| ESLint               | 0 errors, 0 warnings                         |
+| TypeScript typecheck | 통과                                         |
+| 기존 테스트 회귀     | 없음                                         |
+
+### 5.5 보강 기능 검증 체크리스트
+
+| #   | 항목                                                                | 결과 |
+| --- | ------------------------------------------------------------------- | ---- |
+| 1   | `create()` 반환값 mutation → 내부 상태 불변                         | PASS |
+| 2   | `get()`/`update()` 반환값 mutation → 내부 상태 불변                 | PASS |
+| 3   | `update('1', { status: 'pending' })` (same) → no-op 성공 (not null) | PASS |
+| 4   | `completed` 태스크에 어떤 update도 null 반환 (터미널 가드)          | PASS |
+| 5   | `addBlocks('1', ['1'])` → self-dependency 무시                      | PASS |
+| 6   | `addBlocks()` 후 양쪽 태스크 `updatedAt` 갱신                       | PASS |
+| 7   | `delete()` cleanup 후 영향받는 태스크 `updatedAt` 갱신              | PASS |
+| 8   | `create({ subject: '', ... })` → throw                              | PASS |
+| 9   | `update('1', { subject: '' })` → null                               | PASS |
 
 ---
 
-## 6. 다음 단계
+## 6. 파일 변경 목록
+
+| 파일                                         | 변경 유형   | 줄 수 |
+| -------------------------------------------- | ----------- | ----- |
+| `packages/core/src/tools/task-store.ts`      | 신규 → 보강 | 247   |
+| `packages/core/src/tools/task-store.test.ts` | 신규 → 보강 | 447   |
+
+---
+
+## 7. 다음 단계
 
 - **Phase 2**: Task\* 도구 4개 (TaskCreate, TaskGet, TaskUpdate, TaskList) —
   `BaseDeclarativeTool` 기반 구현
@@ -140,4 +199,4 @@ pending ──→ in_progress ──→ completed (terminal)
 
 ---
 
-**작성일**: 2026-03-01 **상태**: 완료
+**작성일**: 2026-03-01 **1차 상태**: 완료 (커밋 `ad54cc465`) **보강 상태**: 완료

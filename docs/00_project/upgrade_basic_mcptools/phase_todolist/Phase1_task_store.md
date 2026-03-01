@@ -29,11 +29,11 @@
 | `completed` 상태에서 재변경 허용 실수        | 🟡 Medium | 상태 전이 검증 로직 + 전용 테스트           | ✅   |
 | `delete` 시 양방향 의존성 참조 정합성        | 🟡 Medium | 삭제 시 blocks/blockedBy 양쪽 정리 + 테스트 | ✅   |
 | `toTodoList()` 변환 시 기존 Todo 포맷 불일치 | 🟡 Medium | write_todos의 Todo 인터페이스 정확히 참조   | ✅   |
-| 객체 참조 직접 노출로 불변식 우회 가능       | 🔴 High   | `structuredClone()` 방어적 복사             | ⬜   |
-| 동일 상태 재전송 시 null 반환 (비멱등)       | 🔴 High   | same-status no-op 정책 + 테스트 추가        | ⬜   |
-| 자기 자신 의존(self-dependency) 방지 없음    | 🟡 Medium | `taskId === targetId` 가드 + 테스트         | ⬜   |
-| 의존성 변경 시 `updatedAt` 미갱신            | 🟡 Medium | `addDependency`/`delete` cleanup에 갱신     | ⬜   |
-| 빈 subject/description 허용                  | 🟡 Medium | `create` throw + `update` null 반환         | ⬜   |
+| 객체 참조 직접 노출로 불변식 우회 가능       | 🔴 High   | `structuredClone()` 방어적 복사             | ✅   |
+| 동일 상태 재전송 시 null 반환 (비멱등)       | 🔴 High   | same-status no-op 정책 + 테스트 추가        | ✅   |
+| 자기 자신 의존(self-dependency) 방지 없음    | 🟡 Medium | `taskId === targetId` 가드 + 테스트         | ✅   |
+| 의존성 변경 시 `updatedAt` 미갱신            | 🟡 Medium | `addDependency`/`delete` cleanup에 갱신     | ✅   |
+| 빈 subject/description 허용                  | 🟡 Medium | `create` throw + `update` null 반환         | ✅   |
 
 ---
 
@@ -809,13 +809,13 @@
 | 기존 Core 테스트 회귀 없음                           | ✅   |
 | 작업 결과서 작성                                     | ✅   |
 | 커밋 완료                                            | ✅   |
-| **보강** RED-H1~H5: 불변성/멱등/검증 테스트 추가     | ⬜   |
-| **보강** GREEN-H1~H5: 방어적 복사/멱등/가드 구현     | ⬜   |
-| **보강** REFACTOR-H: 코드 정리                       | ⬜   |
-| **보강** 전체 테스트 + 빌드 + 결과서 + 커밋          | ⬜   |
+| **보강** RED-H1~H5: 불변성/멱등/검증 테스트 추가     | ✅   |
+| **보강** GREEN-H1~H5: 방어적 복사/멱등/가드 구현     | ✅   |
+| **보강** REFACTOR-H: 코드 정리                       | ✅   |
+| **보강** 전체 테스트 + 빌드 + 결과서 + 커밋          | ✅   |
 
 ---
 
 **작성일**: 2026-03-01 **1차 완료**: ✅ 커밋 `ad54cc465` — 기본 CRUD + 의존성 +
-toTodoList **보강 상태**: ⬜ 리뷰 이슈 5건 수정 대기 **보강 결과서**:
-`working_history/Phase1_task_store_20260301.md`에 보강 섹션 추가 예정
+toTodoList **보강 완료**: ✅ 리뷰 이슈 5건 수정 완료 **보강 결과서**:
+`working_history/Phase1_task_store_20260301.md` 보강 섹션 추가 완료

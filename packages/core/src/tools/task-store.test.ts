@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
-import { TaskStore } from './task-store.js';
+import { TaskStore, type TaskStatus } from './task-store.js';
 
 describe('TaskStore', () => {
   let store: TaskStore;
@@ -50,6 +50,39 @@ describe('TaskStore', () => {
       });
       expect(task.activeForm).toBe('Fixing auth bug');
       expect(task.metadata).toEqual({ priority: 'high' });
+    });
+  });
+
+  // RED-H1: 불변성 테스트
+  describe('immutability', () => {
+    it('should return a copy from create — mutating returned object should not affect store', () => {
+      const returned = store.create({ subject: 'Task', description: 'Desc' });
+      returned.subject = 'Mutated';
+      returned.status = 'completed' as TaskStatus;
+      returned.blocks.push('999');
+
+      const internal = store.get('1')!;
+      expect(internal.subject).toBe('Task');
+      expect(internal.status).toBe('pending');
+      expect(internal.blocks).toEqual([]);
+    });
+
+    it('should return a copy from get — mutating returned object should not affect store', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const got = store.get('1')!;
+      got.subject = 'Mutated';
+
+      const fresh = store.get('1')!;
+      expect(fresh.subject).toBe('Task');
+    });
+
+    it('should return a copy from update — mutating returned object should not affect store', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const updated = store.update('1', { subject: 'New' })!;
+      updated.subject = 'Mutated';
+
+      const fresh = store.get('1')!;
+      expect(fresh.subject).toBe('New');
     });
   });
 
@@ -127,6 +160,29 @@ describe('TaskStore', () => {
       store.update('1', { status: 'in_progress' });
       const updated = store.update('1', { status: 'pending' });
       expect(updated!.status).toBe('pending');
+    });
+
+    // RED-H2: 멱등 상태 업데이트
+    it('should accept pending → pending as no-op', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const updated = store.update('1', { status: 'pending' });
+      expect(updated).not.toBeNull();
+      expect(updated!.status).toBe('pending');
+    });
+
+    it('should accept in_progress → in_progress as no-op', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      store.update('1', { status: 'in_progress' });
+      const updated = store.update('1', { status: 'in_progress' });
+      expect(updated).not.toBeNull();
+      expect(updated!.status).toBe('in_progress');
+    });
+
+    it('should reject completed → completed (terminal, no writes)', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      store.update('1', { status: 'completed' });
+      const updated = store.update('1', { status: 'completed' });
+      expect(updated).toBeNull();
     });
   });
 
@@ -238,6 +294,50 @@ describe('TaskStore', () => {
       const task1 = store.get('1')!;
       expect(task1.blocks).toEqual([]); // 존재하지 않는 태스크는 추가 안됨
     });
+
+    // RED-H3: self-dependency 방지
+    it('should ignore self-dependency in addBlocks', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.addBlocks('1', ['1']);
+      const task = store.get('1')!;
+      expect(task.blocks).toEqual([]);
+      expect(task.blockedBy).toEqual([]);
+    });
+
+    it('should ignore self-dependency in addBlockedBy', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.addBlockedBy('1', ['1']);
+      const task = store.get('1')!;
+      expect(task.blocks).toEqual([]);
+      expect(task.blockedBy).toEqual([]);
+    });
+
+    // RED-H4: updatedAt 갱신
+    it('should update updatedAt when dependency added via addBlocks', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      const before1 = store.get('1')!.updatedAt;
+      const before2 = store.get('2')!.updatedAt;
+
+      store.addBlocks('1', ['2']);
+
+      const after1 = store.get('1')!.updatedAt;
+      const after2 = store.get('2')!.updatedAt;
+      expect(after1).toBeGreaterThanOrEqual(before1);
+      expect(after2).toBeGreaterThanOrEqual(before2);
+    });
+
+    it('should update updatedAt on affected tasks when task deleted', () => {
+      store.create({ subject: 'Task 1', description: 'Blocker' });
+      store.create({ subject: 'Task 2', description: 'Blocked' });
+      store.addBlocks('1', ['2']);
+      const before2 = store.get('2')!.updatedAt;
+
+      store.delete('1');
+
+      const after2 = store.get('2')!.updatedAt;
+      expect(after2).toBeGreaterThanOrEqual(before2);
+    });
   });
 
   // RED-7: list() + toTodoList() 테스트
@@ -311,6 +411,37 @@ describe('TaskStore', () => {
 
     it('should return empty array when no tasks', () => {
       expect(store.toTodoList()).toEqual([]);
+    });
+  });
+
+  // RED-H5: 입력 검증
+  describe('input validation', () => {
+    it('should throw on create with empty subject', () => {
+      expect(() => store.create({ subject: '', description: 'Desc' })).toThrow(
+        'subject must be a non-empty string',
+      );
+    });
+
+    it('should throw on create with whitespace-only subject', () => {
+      expect(() =>
+        store.create({ subject: '   ', description: 'Desc' }),
+      ).toThrow('subject must be a non-empty string');
+    });
+
+    it('should throw on create with empty description', () => {
+      expect(() => store.create({ subject: 'Task', description: '' })).toThrow(
+        'description must be a non-empty string',
+      );
+    });
+
+    it('should return null on update with empty subject', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(store.update('1', { subject: '' })).toBeNull();
+    });
+
+    it('should return null on update with whitespace-only description', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(store.update('1', { description: '   ' })).toBeNull();
     });
   });
 });

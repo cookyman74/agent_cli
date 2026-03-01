@@ -64,6 +64,12 @@ export class TaskStore {
 
   /** Creates a new task with auto-incrementing string ID and 'pending' status. */
   create(params: TaskCreateParams): Task {
+    if (!params.subject.trim()) {
+      throw new Error('subject must be a non-empty string');
+    }
+    if (!params.description.trim()) {
+      throw new Error('description must be a non-empty string');
+    }
     const now = Date.now();
     const task: Task = {
       id: String(this.nextId++),
@@ -78,21 +84,30 @@ export class TaskStore {
       updatedAt: now,
     };
     this.tasks.set(task.id, task);
-    return task;
+    return structuredClone(task);
   }
 
   /** Returns the task with the given ID, or null if not found. */
   get(id: string): Task | null {
-    return this.tasks.get(id) ?? null;
+    const task = this.tasks.get(id);
+    return task ? structuredClone(task) : null;
   }
 
-  /** Updates task fields. Returns null if task not found or status transition is invalid. */
+  /** Updates task fields. Returns null if task not found, completed, or invalid. */
   update(id: string, params: TaskUpdateParams): Task | null {
     const task = this.tasks.get(id);
     if (!task) return null;
 
-    // Validate status transition
-    if (params.status !== undefined) {
+    // Completed terminal guard: block ALL writes
+    if (task.status === 'completed') return null;
+
+    // Input validation: reject empty strings
+    if (params.subject !== undefined && !params.subject.trim()) return null;
+    if (params.description !== undefined && !params.description.trim())
+      return null;
+
+    // Status transition: same-status = no-op, otherwise validate
+    if (params.status !== undefined && params.status !== task.status) {
       if (!VALID_TRANSITIONS[task.status].includes(params.status)) {
         return null;
       }
@@ -117,7 +132,7 @@ export class TaskStore {
     }
 
     task.updatedAt = Date.now();
-    return task;
+    return structuredClone(task);
   }
 
   /** Deletes the task and cleans up all dependency references. */
@@ -125,17 +140,21 @@ export class TaskStore {
     const task = this.tasks.get(id);
     if (!task) return false;
 
-    // Clean up dependency references
+    const now = Date.now();
+
+    // Clean up dependency references and update timestamps
     for (const blockedId of task.blocks) {
       const blocked = this.tasks.get(blockedId);
       if (blocked) {
         blocked.blockedBy = blocked.blockedBy.filter((bid) => bid !== id);
+        blocked.updatedAt = now;
       }
     }
     for (const blockerId of task.blockedBy) {
       const blocker = this.tasks.get(blockerId);
       if (blocker) {
         blocker.blocks = blocker.blocks.filter((bid) => bid !== id);
+        blocker.updatedAt = now;
       }
     }
 
@@ -204,15 +223,24 @@ export class TaskStore {
 
     const forward = direction; // e.g. 'blocks'
     const reverse = direction === 'blocks' ? 'blockedBy' : 'blocks';
+    const now = Date.now();
 
     for (const targetId of targetIds) {
+      if (targetId === taskId) continue; // Self-dependency guard
       const target = this.tasks.get(targetId);
       if (!target) continue;
+      let changed = false;
       if (!task[forward].includes(targetId)) {
         task[forward].push(targetId);
+        changed = true;
       }
       if (!target[reverse].includes(taskId)) {
         target[reverse].push(taskId);
+        changed = true;
+      }
+      if (changed) {
+        task.updatedAt = now;
+        target.updatedAt = now;
       }
     }
   }

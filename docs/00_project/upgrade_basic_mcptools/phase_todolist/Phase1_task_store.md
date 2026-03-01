@@ -26,9 +26,14 @@
 
 | 리스크                                       | 영향      | 대응 방안                                   | 상태 |
 | -------------------------------------------- | --------- | ------------------------------------------- | ---- |
-| `completed` 상태에서 재변경 허용 실수        | 🟡 Medium | 상태 전이 검증 로직 + 전용 테스트           | ⬜   |
-| `delete` 시 양방향 의존성 참조 정합성        | 🟡 Medium | 삭제 시 blocks/blockedBy 양쪽 정리 + 테스트 | ⬜   |
-| `toTodoList()` 변환 시 기존 Todo 포맷 불일치 | 🟡 Medium | write_todos의 Todo 인터페이스 정확히 참조   | ⬜   |
+| `completed` 상태에서 재변경 허용 실수        | 🟡 Medium | 상태 전이 검증 로직 + 전용 테스트           | ✅   |
+| `delete` 시 양방향 의존성 참조 정합성        | 🟡 Medium | 삭제 시 blocks/blockedBy 양쪽 정리 + 테스트 | ✅   |
+| `toTodoList()` 변환 시 기존 Todo 포맷 불일치 | 🟡 Medium | write_todos의 Todo 인터페이스 정확히 참조   | ✅   |
+| 객체 참조 직접 노출로 불변식 우회 가능       | 🔴 High   | `structuredClone()` 방어적 복사             | ⬜   |
+| 동일 상태 재전송 시 null 반환 (비멱등)       | 🔴 High   | same-status no-op 정책 + 테스트 추가        | ⬜   |
+| 자기 자신 의존(self-dependency) 방지 없음    | 🟡 Medium | `taskId === targetId` 가드 + 테스트         | ⬜   |
+| 의존성 변경 시 `updatedAt` 미갱신            | 🟡 Medium | `addDependency`/`delete` cleanup에 갱신     | ⬜   |
+| 빈 subject/description 허용                  | 🟡 Medium | `create` throw + `update` null 반환         | ⬜   |
 
 ---
 
@@ -533,6 +538,265 @@
 
 ---
 
+## 1.6 Phase 1 보강 (Hardening) — 리뷰 이슈 수정
+
+> **배경**: Phase 1 완료 후 코드 리뷰에서 5개 이슈 발견. Phase 2 연동 전에 수정
+> 필요. **방법**: TDD Red → Green → Refactor 사이클 동일 적용.
+
+### 설계 결정 (오픈 질문 해소)
+
+| 질문                                       | 결정                                                                                                                                     |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `update(status=현재상태)` 성공 vs 실패?    | **성공 (no-op)** — LLM이 동일 상태를 재전송하는 패턴이 흔함. 멱등 정책 채택.                                                             |
+| TaskStore 참조 노출 허용 vs API 경계 보장? | **방어적 복사** — `structuredClone()`으로 반환. 내부 전용이지만 Phase 2 Tool 계층에서 반환값을 그대로 LLM에 전달하므로 불변식 보호 필수. |
+
+### 1.6.1 ANALYSIS — 이슈 코드 레벨 검증
+
+| #   | 심각도 | 이슈                                                                         | 코드 위치                                 | 검증 |
+| --- | ------ | ---------------------------------------------------------------------------- | ----------------------------------------- | ---- |
+| 1   | HIGH   | 내부 Task 객체 참조 직접 반환 → 외부 mutation으로 상태 전이/의존성 우회 가능 | `create`:81, `get`:86, `update`:120       | 확인 |
+| 2   | HIGH   | `VALID_TRANSITIONS.pending`에 `'pending'` 미포함 → `pending→pending` = null  | `update`:95-99, `VALID_TRANSITIONS`:53-57 | 확인 |
+| 3   | MEDIUM | `addDependency`에서 `taskId === targetId` 체크 없음 → A blocks A 가능        | `addDependency`:208-216                   | 확인 |
+| 4   | MEDIUM | `addDependency`/`delete` cleanup에서 변경된 태스크의 `updatedAt` 미갱신      | `addDependency`:208-217, `delete`:129-140 | 확인 |
+| 5   | MEDIUM | `create()`/`update()`에 `subject`/`description` 빈 문자열 검증 없음          | `create`:70-71, `update`:102-103          | 확인 |
+
+### 1.6.2 RED Phase — 보강 실패 테스트
+
+- [ ] **[RED-H1]** 객체 참조 불변성 테스트
+
+  ```typescript
+  describe('immutability', () => {
+    it('should return a copy from create — mutating returned object should not affect store', () => {
+      const returned = store.create({ subject: 'Task', description: 'Desc' });
+      returned.subject = 'Mutated';
+      returned.status = 'completed' as TaskStatus;
+      returned.blocks.push('999');
+
+      const internal = store.get('1')!;
+      expect(internal.subject).toBe('Task');
+      expect(internal.status).toBe('pending');
+      expect(internal.blocks).toEqual([]);
+    });
+
+    it('should return a copy from get — mutating returned object should not affect store', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const got = store.get('1')!;
+      got.subject = 'Mutated';
+
+      const fresh = store.get('1')!;
+      expect(fresh.subject).toBe('Task');
+    });
+
+    it('should return a copy from update — mutating returned object should not affect store', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const updated = store.update('1', { subject: 'New' })!;
+      updated.subject = 'Mutated';
+
+      const fresh = store.get('1')!;
+      expect(fresh.subject).toBe('New');
+    });
+  });
+  ```
+
+- [ ] **[RED-H2]** 멱등 상태 업데이트 테스트
+
+  ```typescript
+  describe('idempotent status updates', () => {
+    it('should accept pending → pending as no-op', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      const updated = store.update('1', { status: 'pending' });
+      expect(updated).not.toBeNull();
+      expect(updated!.status).toBe('pending');
+    });
+
+    it('should accept in_progress → in_progress as no-op', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      store.update('1', { status: 'in_progress' });
+      const updated = store.update('1', { status: 'in_progress' });
+      expect(updated).not.toBeNull();
+      expect(updated!.status).toBe('in_progress');
+    });
+
+    it('should still reject completed → completed (terminal state, no writes allowed)', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      store.update('1', { status: 'completed' });
+      const updated = store.update('1', { status: 'completed' });
+      expect(updated).toBeNull();
+    });
+  });
+  ```
+
+  > **설계 참고**: `completed → completed`는 null 반환 유지. completed 태스크는
+  > 어떤 필드도 변경할 수 없어야 향후 "completed는 터미널" 불변식이 일관된다.
+  > LLM이 completed 재전송 시 Phase 2 Tool 계층에서 안내 메시지로 대응.
+
+- [ ] **[RED-H3]** 자기 자신 의존 방지 테스트
+
+  ```typescript
+  it('should ignore self-dependency in addBlocks', () => {
+    store.create({ subject: 'Task 1', description: 'First' });
+    store.addBlocks('1', ['1']);
+    const task = store.get('1')!;
+    expect(task.blocks).toEqual([]);
+    expect(task.blockedBy).toEqual([]);
+  });
+
+  it('should ignore self-dependency in addBlockedBy', () => {
+    store.create({ subject: 'Task 1', description: 'First' });
+    store.addBlockedBy('1', ['1']);
+    const task = store.get('1')!;
+    expect(task.blocks).toEqual([]);
+    expect(task.blockedBy).toEqual([]);
+  });
+  ```
+
+- [ ] **[RED-H4]** 의존성 변경 시 updatedAt 갱신 테스트
+
+  ```typescript
+  it('should update updatedAt when dependency added via addBlocks', () => {
+    store.create({ subject: 'Task 1', description: 'First' });
+    store.create({ subject: 'Task 2', description: 'Second' });
+    const before1 = store.get('1')!.updatedAt;
+    const before2 = store.get('2')!.updatedAt;
+
+    store.addBlocks('1', ['2']);
+
+    const after1 = store.get('1')!.updatedAt;
+    const after2 = store.get('2')!.updatedAt;
+    expect(after1).toBeGreaterThanOrEqual(before1);
+    expect(after2).toBeGreaterThanOrEqual(before2);
+  });
+
+  it('should update updatedAt on affected tasks when task deleted', () => {
+    store.create({ subject: 'Task 1', description: 'Blocker' });
+    store.create({ subject: 'Task 2', description: 'Blocked' });
+    store.addBlocks('1', ['2']);
+    const before2 = store.get('2')!.updatedAt;
+
+    store.delete('1');
+
+    const after2 = store.get('2')!.updatedAt;
+    expect(after2).toBeGreaterThanOrEqual(before2);
+  });
+  ```
+
+- [ ] **[RED-H5]** 입력 검증 테스트
+
+  ```typescript
+  describe('input validation', () => {
+    it('should throw on create with empty subject', () => {
+      expect(() => store.create({ subject: '', description: 'Desc' })).toThrow(
+        'subject must be a non-empty string',
+      );
+    });
+
+    it('should throw on create with whitespace-only subject', () => {
+      expect(() =>
+        store.create({ subject: '   ', description: 'Desc' }),
+      ).toThrow('subject must be a non-empty string');
+    });
+
+    it('should throw on create with empty description', () => {
+      expect(() => store.create({ subject: 'Task', description: '' })).toThrow(
+        'description must be a non-empty string',
+      );
+    });
+
+    it('should return null on update with empty subject', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(store.update('1', { subject: '' })).toBeNull();
+    });
+
+    it('should return null on update with whitespace-only description', () => {
+      store.create({ subject: 'Task', description: 'Desc' });
+      expect(store.update('1', { description: '   ' })).toBeNull();
+    });
+  });
+  ```
+
+- [ ] **[RED-H-VERIFY]** 보강 테스트 실패 확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 신규 테스트 FAIL
+  ```
+
+### 1.6.3 GREEN Phase — 보강 구현
+
+- [ ] **[TASK-H1]** 방어적 복사 적용
+  - `create()`, `get()`, `update()` 반환 시 `structuredClone(task)`
+  - 내부 Map에는 원본 참조 유지, 외부에는 복사본 반환
+  - `list()`, `toTodoList()`는 이미 새 객체를 생성하므로 변경 불필요
+
+- [ ] **[TASK-H2]** 멱등 상태 업데이트 적용
+  - `update()` 내 상태 전이 검증 전에 same-status 조기 반환:
+    ```typescript
+    if (params.status !== undefined) {
+      if (params.status === task.status) {
+        // no-op: 동일 상태 재전송은 성공 처리 (멱등)
+        // status 변경 없이 아래 필드 업데이트로 진행
+      } else if (!VALID_TRANSITIONS[task.status].includes(params.status)) {
+        return null;
+      } else {
+        task.status = params.status;
+      }
+    }
+    ```
+  - **예외**: `completed → completed`도 같은 로직이면 no-op 성공이 되나,
+    completed 태스크의 다른 필드 수정도 차단해야 하므로 `completed` 상태일 때
+    조기 null 반환:
+    ```typescript
+    // completed 태스크는 어떤 변경도 불가 (터미널 상태)
+    if (task.status === 'completed' && hasAnyUpdate(params)) {
+      return null;
+    }
+    ```
+
+- [ ] **[TASK-H3]** self-dependency 가드 추가
+  - `addDependency()` 루프 첫 줄에 `if (taskId === targetId) continue;`
+
+- [ ] **[TASK-H4]** 의존성 변경 시 updatedAt 갱신
+  - `addDependency()`: 실제로 관계가 추가된 경우에만 양쪽 태스크의
+    `updatedAt = Date.now()` 갱신
+  - `delete()` cleanup: 참조 제거된 태스크의 `updatedAt = Date.now()` 갱신
+
+- [ ] **[TASK-H5]** 입력 검증 추가
+  - `create()`: `subject.trim()` / `description.trim()` 빈 문자열 시
+    `throw new Error()`
+  - `update()`: `subject?.trim()` / `description?.trim()` 빈 문자열 시
+    `return null`
+
+- [ ] **[GREEN-H-VERIFY]** 보강 테스트 통과 확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 전체 PASS
+  ```
+
+### 1.6.4 REFACTOR Phase — 보강 코드 정리
+
+- [ ] **[REFACTOR-H]** 보강 후 코드 정리
+  - completed 터미널 가드 로직을 별도 private 메서드로 추출 검토
+  - `structuredClone` 호출을 `private snapshot(task)` 래퍼로 추출 검토
+  - 테스트 describe 구조에 보강 테스트 자연스럽게 통합 (별도 섹션이 아닌 기존
+    describe에 병합)
+
+- [ ] **[REFACTOR-H-VERIFY]** 리팩터링 후 테스트 재확인
+  ```bash
+  npm test -w @didim365/agent-cli-core -- src/tools/task-store.test  # 여전히 PASS
+  ```
+
+### 1.6.5 보강 사후 작업
+
+- [ ] **[TEST-H]** 전체 Core 테스트
+- [ ] **[BUILD-H]** Core 빌드 확인
+- [ ] **[LINT-H]** 린터 + 타입체크
+- [ ] **[DOC-H]** 작업 결과서 업데이트
+  - 파일: `../working_history/Phase1_task_store_20260301.md`에 보강 섹션 추가
+- [ ] **[COMMIT-H]** 변경사항 커밋
+  ```bash
+  git add packages/core/src/tools/task-store.ts packages/core/src/tools/task-store.test.ts
+  git commit -m "fix(core): harden TaskStore — immutability, idempotency, validation"
+  ```
+
+---
+
 ## Phase 완료 조건
 
 | 검증 항목                                            | 상태 |
@@ -545,8 +809,13 @@
 | 기존 Core 테스트 회귀 없음                           | ✅   |
 | 작업 결과서 작성                                     | ✅   |
 | 커밋 완료                                            | ✅   |
+| **보강** RED-H1~H5: 불변성/멱등/검증 테스트 추가     | ⬜   |
+| **보강** GREEN-H1~H5: 방어적 복사/멱등/가드 구현     | ⬜   |
+| **보강** REFACTOR-H: 코드 정리                       | ⬜   |
+| **보강** 전체 테스트 + 빌드 + 결과서 + 커밋          | ⬜   |
 
 ---
 
-**작성일**: 2026-03-01 **상태**: ✅ 완료 (커밋 `ad54cc465`, 결과서
-`working_history/Phase1_task_store_20260301.md`)
+**작성일**: 2026-03-01 **1차 완료**: ✅ 커밋 `ad54cc465` — 기본 CRUD + 의존성 +
+toTodoList **보강 상태**: ⬜ 리뷰 이슈 5건 수정 대기 **보강 결과서**:
+`working_history/Phase1_task_store_20260301.md`에 보강 섹션 추가 예정

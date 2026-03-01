@@ -436,6 +436,19 @@ describe('Core System Prompt (prompts.ts)', () => {
       expect(prompt).not.toContain('task_update');
     });
 
+    it('should NOT include Task* guidance when only task_create is registered (partial coreTools)', () => {
+      // Issue 2: coreTools에서 task_create만 활성 → 안내문의 task_get/update/list가 실제 없는 도구를 언급
+      vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
+        'write_todos',
+        'task_create',
+      ]);
+
+      const prompt = getCoreSystemPrompt(mockConfig);
+      // task_create만 등록 시 task_update/task_list 언급하면 안 됨
+      expect(prompt).not.toContain('task_update');
+      expect(prompt).not.toContain('task_list');
+    });
+
     it('should include Task* guidance in all workflow variants with write_todos', () => {
       // CI + Todo variant
       vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([

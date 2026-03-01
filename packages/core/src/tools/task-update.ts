@@ -160,7 +160,9 @@ class TaskUpdateToolInvocation extends BaseToolInvocation<
     }
 
     // Apply dependency updates (skip if task is now completed)
-    const hasDeps = this.params.addBlocks || this.params.addBlockedBy;
+    const hasDeps =
+      (this.params.addBlocks && this.params.addBlocks.length > 0) ||
+      (this.params.addBlockedBy && this.params.addBlockedBy.length > 0);
     const currentTask = this.taskStore.get(taskId)!;
     let warning: string | undefined;
 

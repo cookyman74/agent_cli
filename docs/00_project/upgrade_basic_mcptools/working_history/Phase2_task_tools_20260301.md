@@ -133,7 +133,7 @@ status enum에 `'deleted'` 포함하되, TaskStore의 `TaskStatus`와 분리
 | `packages/core/src/tools/task-get.ts`         | 신규      | 124   |
 | `packages/core/src/tools/task-get.test.ts`    | 신규      | 66    |
 | `packages/core/src/tools/task-update.ts`      | 신규      | 268   |
-| `packages/core/src/tools/task-update.test.ts` | 신규      | 228   |
+| `packages/core/src/tools/task-update.test.ts` | 신규      | 258   |
 | `packages/core/src/tools/task-list.ts`        | 신규      | 109   |
 | `packages/core/src/tools/task-list.test.ts`   | 신규      | 76    |
 

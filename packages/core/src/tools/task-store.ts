@@ -93,7 +93,7 @@ export class TaskStore {
       description: params.description,
       status: 'pending',
       activeForm: params.activeForm,
-      metadata: params.metadata ? { ...params.metadata } : undefined,
+      metadata: params.metadata ? structuredClone(params.metadata) : undefined,
       blocks: [],
       blockedBy: [],
       createdAt: now,
@@ -160,7 +160,8 @@ export class TaskStore {
         return null;
       }
       if (!task.metadata) task.metadata = {};
-      for (const [key, value] of Object.entries(params.metadata)) {
+      const clonedMetadata = structuredClone(params.metadata);
+      for (const [key, value] of Object.entries(clonedMetadata)) {
         if (value === null) {
           delete task.metadata[key];
         } else {

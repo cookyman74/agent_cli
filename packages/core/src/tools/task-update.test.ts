@@ -210,6 +210,30 @@ describe('TaskUpdateTool', () => {
     });
   });
 
+  describe('empty dependency array guard', () => {
+    it('should not warn when status: completed with empty addBlocks array', async () => {
+      const result = await tool.buildAndExecute(
+        { taskId: '1', status: 'completed', addBlocks: [] },
+        signal,
+      );
+
+      expect(store.get('1')!.status).toBe('completed');
+      const parsed = JSON.parse(result.llmContent as string);
+      expect(parsed.warning).toBeUndefined();
+    });
+
+    it('should not warn when status: completed with empty addBlockedBy array', async () => {
+      const result = await tool.buildAndExecute(
+        { taskId: '1', status: 'completed', addBlockedBy: [] },
+        signal,
+      );
+
+      expect(store.get('1')!.status).toBe('completed');
+      const parsed = JSON.parse(result.llmContent as string);
+      expect(parsed.warning).toBeUndefined();
+    });
+  });
+
   describe('completed task dependency guard', () => {
     it('should return error when adding addBlocks to completed task', async () => {
       store.create({ subject: 'Task 2', description: 'Second' });

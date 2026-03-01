@@ -35,6 +35,11 @@ import { logRipgrepFallback } from '../telemetry/loggers.js';
 import { RipgrepFallbackEvent } from '../telemetry/types.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
 import { ACTIVATE_SKILL_TOOL_NAME } from '../tools/tool-names.js';
+import { TaskStore } from '../tools/task-store.js';
+import { TaskCreateTool } from '../tools/task-create.js';
+import { TaskGetTool } from '../tools/task-get.js';
+import { TaskUpdateTool } from '../tools/task-update.js';
+import { TaskListTool } from '../tools/task-list.js';
 import type { SkillDefinition } from '../skills/skillLoader.js';
 import { DEFAULT_MODEL_CONFIGS } from './defaultModelConfigs.js';
 import {
@@ -96,6 +101,12 @@ vi.mock('../tools/shell');
 vi.mock('../tools/write-file');
 vi.mock('../tools/web-fetch');
 vi.mock('../tools/read-many-files');
+vi.mock('../tools/write-todos');
+vi.mock('../tools/task-store');
+vi.mock('../tools/task-create');
+vi.mock('../tools/task-get');
+vi.mock('../tools/task-update');
+vi.mock('../tools/task-list');
 vi.mock('../tools/memoryTool', () => ({
   MemoryTool: vi.fn(),
   setGeminiMdFilename: vi.fn(),
@@ -1111,6 +1122,88 @@ describe('Server Config (config.ts)', () => {
           (call) => call[0] instanceof vi.mocked(ShellTool),
         );
         expect(wasShellToolRegistered).toBe(true);
+      });
+    });
+
+    describe('Task* tool registration', () => {
+      it('should register all 4 Task* tools when useWriteTodos is true (default)', async () => {
+        const config = new Config(baseParams); // useWriteTodos defaults to true
+        await config.initialize();
+
+        const registerToolMock = (
+          (await vi.importMock('../tools/tool-registry')) as {
+            ToolRegistry: { prototype: { registerTool: Mock } };
+          }
+        ).ToolRegistry.prototype.registerTool;
+
+        const taskToolClasses = [
+          TaskCreateTool,
+          TaskGetTool,
+          TaskUpdateTool,
+          TaskListTool,
+        ];
+
+        for (const ToolClass of taskToolClasses) {
+          const wasRegistered = registerToolMock.mock.calls.some(
+            (call) => call[0] instanceof vi.mocked(ToolClass),
+          );
+          expect(wasRegistered).toBe(true);
+        }
+      });
+
+      it('should NOT register Task* tools when useWriteTodos is false', async () => {
+        const params: ConfigParameters = {
+          ...baseParams,
+          useWriteTodos: false,
+        };
+        const config = new Config(params);
+        await config.initialize();
+
+        const registerToolMock = (
+          (await vi.importMock('../tools/tool-registry')) as {
+            ToolRegistry: { prototype: { registerTool: Mock } };
+          }
+        ).ToolRegistry.prototype.registerTool;
+
+        const taskToolClasses = [
+          TaskCreateTool,
+          TaskGetTool,
+          TaskUpdateTool,
+          TaskListTool,
+        ];
+
+        for (const ToolClass of taskToolClasses) {
+          const wasRegistered = registerToolMock.mock.calls.some(
+            (call) => call[0] instanceof vi.mocked(ToolClass),
+          );
+          expect(wasRegistered).toBe(false);
+        }
+      });
+
+      it('should pass a shared TaskStore instance to all 4 Task* tools', async () => {
+        const config = new Config(baseParams);
+        await config.initialize();
+
+        const TaskStoreMock = vi.mocked(TaskStore);
+        // A single TaskStore should be created
+        expect(TaskStoreMock).toHaveBeenCalledTimes(1);
+
+        // Each Task* tool constructor receives (taskStore, messageBus)
+        // registerCoreTool calls new ToolClass(taskStore, messageBus)
+        const taskToolClasses = [
+          TaskCreateTool,
+          TaskGetTool,
+          TaskUpdateTool,
+          TaskListTool,
+        ];
+
+        for (const ToolClass of taskToolClasses) {
+          const MockedClass = vi.mocked(ToolClass);
+          expect(MockedClass).toHaveBeenCalledTimes(1);
+          // First arg should be the shared TaskStore instance
+          const firstArg = MockedClass.mock.calls[0][0];
+          expect(firstArg).toBeInstanceOf(TaskStoreMock);
+        }
       });
     });
   });

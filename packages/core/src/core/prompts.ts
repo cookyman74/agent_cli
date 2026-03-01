@@ -131,10 +131,14 @@ export function getCoreSystemPrompt(
     .getAllToolNames()
     .includes(WriteTodosTool.Name);
 
-  const enableTaskTools = config
-    .getToolRegistry()
-    .getAllToolNames()
-    .includes('task_create');
+  const allToolNames = config.getToolRegistry().getAllToolNames();
+  const registeredTaskTools = [
+    'task_create',
+    'task_get',
+    'task_update',
+    'task_list',
+  ].filter((name) => allToolNames.includes(name));
+  const enableTaskTools = registeredTaskTools.length > 0;
 
   const interactiveMode = interactiveOverride ?? config.isInteractive();
 
@@ -304,13 +308,24 @@ ${(function () {
       taskToolsGuidance: `
 ## Task Management Tools
 In addition to \`${WRITE_TODOS_TOOL_NAME}\`, you have access to structured task management tools for tracking complex, multi-step work:
-- \`task_create\`: Create a new task with subject, description, and optional metadata. Returns the created task with an auto-incrementing ID.
-- \`task_get\`: Retrieve full details of a task by its ID, including dependencies.
-- \`task_update\`: Update task status (pending → in_progress → completed), fields, or dependencies (addBlocks/addBlockedBy).
-- \`task_list\`: List all tasks with their current status and dependency information.
+${registeredTaskTools
+  .map((name) => {
+    const descriptions: Record<string, string> = {
+      task_create:
+        'Create a new task with subject, description, and optional metadata. Returns the created task with an auto-incrementing ID.',
+      task_get:
+        'Retrieve full details of a task by its ID, including dependencies.',
+      task_update:
+        'Update task status (pending → in_progress → completed), fields, or dependencies (addBlocks/addBlockedBy).',
+      task_list:
+        'List all tasks with their current status and dependency information.',
+    };
+    return `- \`${name}\`: ${descriptions[name]}`;
+  })
+  .join('\n')}
 
 **When to use Task tools vs ${WRITE_TODOS_TOOL_NAME}:**
-- Use Task tools (\`task_create\`, \`task_update\`, \`task_list\`) as the **primary** method for tracking progress on multi-step tasks. They provide richer state management with dependencies and metadata.
+- Use Task tools as the **primary** method for tracking progress on multi-step tasks. They provide richer state management with dependencies and metadata.
 - Use \`${WRITE_TODOS_TOOL_NAME}\` for quick, simple todo lists when full task lifecycle management is not needed.`,
       operationalGuidelines: `
 # Operational Guidelines

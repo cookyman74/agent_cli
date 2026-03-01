@@ -525,6 +525,33 @@ describe('TaskStore', () => {
     });
   });
 
+  // RED-R10: metadata deep copy — 외부 참조 변경으로 내부 상태 오염 방지
+  describe('metadata deep copy isolation', () => {
+    it('should not be affected by external mutation after create', () => {
+      const meta = { nested: { value: 'original' } };
+      store.create({ subject: 'Task', description: 'Desc', metadata: meta });
+      meta.nested.value = 'mutated';
+      expect(store.get('1')!.metadata).toEqual({
+        nested: { value: 'original' },
+      });
+    });
+
+    it('should not be affected by external mutation after update', () => {
+      store.create({
+        subject: 'Task',
+        description: 'Desc',
+        metadata: { key: 'initial' },
+      });
+      const newMeta = { nested: { value: 'updated' } };
+      store.update('1', { metadata: newMeta });
+      newMeta.nested.value = 'mutated';
+      expect(store.get('1')!.metadata).toEqual({
+        key: 'initial',
+        nested: { value: 'updated' },
+      });
+    });
+  });
+
   // RED-H6: metadata cloneability — structuredClone partial write 방지
   describe('metadata cloneability', () => {
     it('should throw on create with non-cloneable metadata', () => {

@@ -666,20 +666,22 @@ describe('TaskStore', () => {
     });
 
     // Issue 4: Skip completed target when adding dependency
-    it('should ignore addBlocks when target task is completed', () => {
+    it('should return completed_target skip when target task is completed (addBlocks)', () => {
       store.create({ subject: 'Task 1', description: 'First' });
       store.create({ subject: 'Task 2', description: 'Second' });
       store.update('2', { status: 'completed' });
-      store.addBlocks('1', ['2']); // 1 blocks 2, but 2 is completed
+      const skipped = store.addBlocks('1', ['2']);
+      expect(skipped).toEqual([{ targetId: '2', reason: 'completed_target' }]);
       expect(store.get('1')!.blocks).toEqual([]);
       expect(store.get('2')!.blockedBy).toEqual([]);
     });
 
-    it('should ignore addBlockedBy when target task is completed', () => {
+    it('should return completed_target skip when target task is completed (addBlockedBy)', () => {
       store.create({ subject: 'Task 1', description: 'First' });
       store.create({ subject: 'Task 2', description: 'Second' });
       store.update('2', { status: 'completed' });
-      store.addBlockedBy('1', ['2']); // 1 blocked by 2, but 2 is completed
+      const skipped = store.addBlockedBy('1', ['2']);
+      expect(skipped).toEqual([{ targetId: '2', reason: 'completed_target' }]);
       expect(store.get('1')!.blockedBy).toEqual([]);
       expect(store.get('2')!.blocks).toEqual([]);
     });
@@ -687,45 +689,82 @@ describe('TaskStore', () => {
 
   // Issue 5: Cycle detection in dependency graph
   describe('cycle detection', () => {
-    it('should prevent direct cycle: A blocks B, B blocks A', () => {
+    it('should return cycle skip for direct cycle: A blocks B, B blocks A', () => {
       store.create({ subject: 'A', description: 'Task A' });
       store.create({ subject: 'B', description: 'Task B' });
-      store.addBlocks('1', ['2']); // A blocks B
-      store.addBlocks('2', ['1']); // B blocks A — would create cycle
-      expect(store.get('1')!.blocks).toEqual(['2']);
-      expect(store.get('2')!.blocks).toEqual([]); // Silently rejected
+      expect(store.addBlocks('1', ['2'])).toEqual([]); // A blocks B — OK
+      const skipped = store.addBlocks('2', ['1']); // B blocks A — cycle
+      expect(skipped).toEqual([{ targetId: '1', reason: 'cycle' }]);
+      expect(store.get('2')!.blocks).toEqual([]);
     });
 
-    it('should prevent indirect cycle: A→B→C→A', () => {
+    it('should return cycle skip for indirect cycle: A→B→C→A', () => {
       store.create({ subject: 'A', description: 'Task A' });
       store.create({ subject: 'B', description: 'Task B' });
       store.create({ subject: 'C', description: 'Task C' });
       store.addBlocks('1', ['2']); // A blocks B
       store.addBlocks('2', ['3']); // B blocks C
-      store.addBlocks('3', ['1']); // C blocks A — would create cycle
-      expect(store.get('3')!.blocks).toEqual([]); // Silently rejected
-      expect(store.get('1')!.blockedBy).toEqual([]); // No reverse link
+      const skipped = store.addBlocks('3', ['1']); // C blocks A — cycle
+      expect(skipped).toEqual([{ targetId: '1', reason: 'cycle' }]);
+      expect(store.get('3')!.blocks).toEqual([]);
+      expect(store.get('1')!.blockedBy).toEqual([]);
     });
 
-    it('should prevent cycle via blockedBy: A blockedBy B, B blockedBy A', () => {
+    it('should return cycle skip via blockedBy: A blockedBy B, B blockedBy A', () => {
       store.create({ subject: 'A', description: 'Task A' });
       store.create({ subject: 'B', description: 'Task B' });
       store.addBlockedBy('1', ['2']); // A blockedBy B
-      store.addBlockedBy('2', ['1']); // B blockedBy A — would create cycle
-      expect(store.get('1')!.blockedBy).toEqual(['2']);
-      expect(store.get('2')!.blockedBy).toEqual([]); // Silently rejected
+      const skipped = store.addBlockedBy('2', ['1']); // B blockedBy A — cycle
+      expect(skipped).toEqual([{ targetId: '1', reason: 'cycle' }]);
+      expect(store.get('2')!.blockedBy).toEqual([]);
     });
 
-    it('should allow valid non-cyclic dependencies', () => {
+    it('should allow valid non-cyclic dependencies (empty skipped)', () => {
       store.create({ subject: 'A', description: 'Task A' });
       store.create({ subject: 'B', description: 'Task B' });
       store.create({ subject: 'C', description: 'Task C' });
-      store.addBlocks('1', ['2']); // A blocks B
-      store.addBlocks('1', ['3']); // A blocks C
-      store.addBlocks('2', ['3']); // B blocks C (diamond, not cycle)
+      expect(store.addBlocks('1', ['2'])).toEqual([]); // A blocks B
+      expect(store.addBlocks('1', ['3'])).toEqual([]); // A blocks C
+      expect(store.addBlocks('2', ['3'])).toEqual([]); // B blocks C (diamond)
       expect(store.get('1')!.blocks).toEqual(['2', '3']);
       expect(store.get('2')!.blocks).toEqual(['3']);
       expect(store.get('3')!.blockedBy).toEqual(['1', '2']);
+    });
+  });
+
+  // DependencySkip return value tests
+  describe('addBlocks/addBlockedBy return DependencySkip[]', () => {
+    it('should return self skip reason', () => {
+      store.create({ subject: 'A', description: 'Task A' });
+      const skipped = store.addBlocks('1', ['1']);
+      expect(skipped).toEqual([{ targetId: '1', reason: 'self' }]);
+    });
+
+    it('should return not_found skip reason', () => {
+      store.create({ subject: 'A', description: 'Task A' });
+      const skipped = store.addBlocks('1', ['999']);
+      expect(skipped).toEqual([{ targetId: '999', reason: 'not_found' }]);
+    });
+
+    it('should return mixed skip reasons for batch', () => {
+      store.create({ subject: 'A', description: 'Task A' });
+      store.create({ subject: 'B', description: 'Task B' });
+      store.create({ subject: 'C', description: 'Task C' });
+      store.update('3', { status: 'completed' });
+      const skipped = store.addBlocks('1', ['1', '2', '3', '999']);
+      expect(skipped).toEqual([
+        { targetId: '1', reason: 'self' },
+        { targetId: '3', reason: 'completed_target' },
+        { targetId: '999', reason: 'not_found' },
+      ]);
+      // Only '2' should have been actually linked
+      expect(store.get('1')!.blocks).toEqual(['2']);
+    });
+
+    it('should return empty array when all targets succeed', () => {
+      store.create({ subject: 'A', description: 'Task A' });
+      store.create({ subject: 'B', description: 'Task B' });
+      expect(store.addBlocks('1', ['2'])).toEqual([]);
     });
   });
 });

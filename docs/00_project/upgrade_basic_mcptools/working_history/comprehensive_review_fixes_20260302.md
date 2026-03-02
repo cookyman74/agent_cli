@@ -136,7 +136,7 @@ private wouldCreateCycle(
 
 ---
 
-## 3. 검증 결과
+## 3. 검증 결과 (1차)
 
 | 검증 항목                     | 결과            |
 | ----------------------------- | --------------- |
@@ -149,16 +149,112 @@ private wouldCreateCycle(
 
 ---
 
-## 4. 이슈 대응 요약
+## 4. 2차 리뷰 피드백 반영 (R1~R2)
 
-| #   | 심각도 | 이슈                         | 조치                         | 상태 |
-| --- | ------ | ---------------------------- | ---------------------------- | ---- |
-| 1   | HIGH   | Multi-select 구분자 충돌     | JSON 배열 직렬화 + 폴백 파싱 | ✅   |
-| 2   | MEDIUM | 동시 요청 자동 취소 문서화   | 상세 주석 추가 (의도적 설계) | ✅   |
-| 3   | MEDIUM | Space Type-to-jump 포함      | charCode > 32 변경           | ✅   |
-| 4   | MEDIUM | Completed target 의존성 허용 | completed 가드 추가          | ✅   |
-| 5   | MEDIUM | 순환 의존성 미감지           | BFS 순환 탐지 + 테스트 4개   | ✅   |
+### R1. [MEDIUM] TaskStore 의존성 추가의 조용한 실패(silent skip) — 가시성 확보
+
+**문제**: `addDependency`가 `void` 반환이므로, skip된 타겟(completed, cycle,
+not_found, self)에 대한 피드백이 호출부에 전달되지 않음.
+호출부(TaskUpdateTool)에서 논리 버그가 은닉될 수 있음.
+
+**판단**: fail-fast(throw) 전환은 부분 성공 계약(배열 내 일부만 실패)을 깨므로
+부적절. skip 목록 반환으로 가시성 확보하는 최소 접근 채택.
+
+**조치**:
+
+1. `DependencySkip` 인터페이스 추가 (`task-store.ts`)
+
+```typescript
+export interface DependencySkip {
+  targetId: string;
+  reason: 'not_found' | 'self' | 'completed_target' | 'cycle';
+}
+```
+
+2. `addDependency` → `DependencySkip[]` 반환으로 변경
+3. `addBlocks`/`addBlockedBy` 공개 메서드도 `DependencySkip[]` 반환
+4. `TaskUpdateTool`에서 skip 정보를 수집하여 LLM 응답의 `warning` 필드에 포함
+
+```typescript
+const allSkipped: DependencySkip[] = [];
+// ... addBlocks/addBlockedBy 호출 후 skipped 수집
+if (allSkipped.length > 0) {
+  const details = allSkipped
+    .map((s) => `${s.targetId}(${s.reason})`)
+    .join(', ');
+  warning = `Some dependency targets were skipped: ${details}`;
+}
+```
+
+**테스트 추가**: 4개
+
+| 테스트명                                             | 검증 내용                              |
+| ---------------------------------------------------- | -------------------------------------- |
+| `should return self skip reason`                     | 자기 참조 시 `self` reason 반환        |
+| `should return not_found skip reason`                | 미존재 타겟 시 `not_found` reason 반환 |
+| `should return mixed skip reasons for batch`         | 복합 배치에서 각각 정확한 reason 반환  |
+| `should return empty array when all targets succeed` | 성공 시 빈 배열 반환                   |
+
+기존 Issue 4/5 테스트도 반환값 검증으로 강화
+(`toEqual([{ targetId, reason }])`).
 
 ---
 
-**작성일**: 2026-03-02 **상태**: ✅ 종합 리뷰 이슈 5건 전체 수정 완료
+### R2. [LOW-MEDIUM] AskUser JSON+fallback 공존 유지보수 복잡성
+
+**문제**: multi-select 파싱에서 JSON.parse 실패 시 `split(', ')` fallback을
+유지하여 두 코드 경로가 공존. 향후 유지보수 복잡성 증가 우려.
+
+**판단**: AskUser 답변은 다이얼로그 내부 state(in-memory)로, 외부 영속 DB가
+아니므로 데이터 마이그레이션 실익은 낮음. 다만 제거 시점을 명시하여 관리 필요.
+
+**조치**:
+
+1. fallback 코드 2곳에 DEPRECATION 주석 추가 — 제거 목표 버전 명시
+
+```typescript
+// DEPRECATION: The comma-split fallback exists only for the transition period.
+// Since AskUser answers are ephemeral in-dialog state (not persisted externally),
+// the fallback can be safely removed once all callers produce JSON format.
+// Target removal: v0.3.x or next major release.
+```
+
+2. fallback 전용 테스트 1개 추가 — 제거 시점에 함께 삭제할 수 있도록 표시
+
+```typescript
+// DEPRECATION TEST: Validates comma-split fallback for pre-JSON multi-select answers.
+// Remove this test when the fallback is dropped in v0.3.x (see AskUserDialog.tsx).
+```
+
+---
+
+## 5. 검증 결과 (최종)
+
+| 검증 항목                     | 결과            |
+| ----------------------------- | --------------- |
+| Core typecheck                | 0 에러 ✅       |
+| Lint (변경 파일 4개)          | 0 에러 ✅       |
+| TaskStore 단위 테스트         | 79/79 passed ✅ |
+| TaskUpdate 단위 테스트        | 22/22 passed ✅ |
+| AskUserDialog 단위 테스트     | 30/30 passed ✅ |
+| useAskUserHandler 단위 테스트 | 10/10 passed ✅ |
+| Phase 5 통합 테스트           | 17/17 passed ✅ |
+
+---
+
+## 6. 이슈 대응 요약
+
+| #   | 심각도     | 이슈                         | 조치                                    | 상태 |
+| --- | ---------- | ---------------------------- | --------------------------------------- | ---- |
+| 1   | HIGH       | Multi-select 구분자 충돌     | JSON 배열 직렬화 + 폴백 파싱            | ✅   |
+| 2   | MEDIUM     | 동시 요청 자동 취소 문서화   | 상세 주석 추가 (의도적 설계)            | ✅   |
+| 3   | MEDIUM     | Space Type-to-jump 포함      | charCode > 32 변경                      | ✅   |
+| 4   | MEDIUM     | Completed target 의존성 허용 | completed 가드 추가                     | ✅   |
+| 5   | MEDIUM     | 순환 의존성 미감지           | BFS 순환 탐지 + 테스트 4개              | ✅   |
+| R1  | MEDIUM     | Silent skip 가시성 부재      | DependencySkip 반환 + warning 피드백    | ✅   |
+| R2  | LOW-MEDIUM | JSON+fallback 공존 복잡성    | DEPRECATION 주석 + fallback 전용 테스트 | ✅   |
+
+---
+
+**작성일**: 2026-03-02 **상태**: ✅ 종합 리뷰 이슈 5건 + 2차 리뷰 R1~R2 전체
+반영 완료

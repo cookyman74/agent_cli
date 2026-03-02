@@ -500,6 +500,10 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
     if (question.multiSelect) {
       // Parse multi-select answers: try JSON array first, fall back to comma-split
       // for backward compatibility with pre-JSON answers.
+      // DEPRECATION: The comma-split fallback exists only for the transition period.
+      // Since AskUser answers are ephemeral in-dialog state (not persisted externally),
+      // the fallback can be safely removed once all callers produce JSON format.
+      // Target removal: v0.3.x or next major release.
       let answers: string[];
       try {
         const parsed = JSON.parse(initialAnswer);
@@ -548,6 +552,8 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
   const initialCustomText = useMemo(() => {
     if (!initialAnswer) return '';
     if (question.multiSelect) {
+      // DEPRECATION: Same comma-split fallback as initialReducerState above.
+      // Remove together when fallback is dropped in v0.3.x.
       let answers: string[];
       try {
         const parsed = JSON.parse(initialAnswer);

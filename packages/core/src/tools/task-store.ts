@@ -48,6 +48,12 @@ export interface TaskUpdateParams {
   metadata?: Record<string, unknown | null>;
 }
 
+/** Describes a dependency target that was skipped during addBlocks/addBlockedBy. */
+export interface DependencySkip {
+  targetId: string;
+  reason: 'not_found' | 'self' | 'completed_target' | 'cycle';
+}
+
 // --- Status transition rules ---
 
 const VALID_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
@@ -201,14 +207,14 @@ export class TaskStore {
     return true;
   }
 
-  /** Marks taskId as blocking each of the given blockedIds. */
-  addBlocks(taskId: string, blockedIds: string[]): void {
-    this.addDependency(taskId, blockedIds, 'blocks');
+  /** Marks taskId as blocking each of the given blockedIds. Returns skipped targets with reasons. */
+  addBlocks(taskId: string, blockedIds: string[]): DependencySkip[] {
+    return this.addDependency(taskId, blockedIds, 'blocks');
   }
 
-  /** Marks taskId as blocked by each of the given blockingIds. */
-  addBlockedBy(taskId: string, blockingIds: string[]): void {
-    this.addDependency(taskId, blockingIds, 'blockedBy');
+  /** Marks taskId as blocked by each of the given blockingIds. Returns skipped targets with reasons. */
+  addBlockedBy(taskId: string, blockingIds: string[]): DependencySkip[] {
+    return this.addDependency(taskId, blockingIds, 'blockedBy');
   }
 
   /** Returns IDs of non-completed tasks that block the given task. */
@@ -290,25 +296,34 @@ export class TaskStore {
     taskId: string,
     targetIds: string[],
     direction: 'blocks' | 'blockedBy',
-  ): void {
+  ): DependencySkip[] {
+    const skipped: DependencySkip[] = [];
     const task = this.tasks.get(taskId);
-    if (!task) return;
-    if (task.status === 'completed') return;
+    if (!task) return skipped;
+    if (task.status === 'completed') return skipped;
 
     const forward = direction; // e.g. 'blocks'
     const reverse = direction === 'blocks' ? 'blockedBy' : 'blocks';
     const now = Date.now();
 
     for (const targetId of targetIds) {
-      if (targetId === taskId) continue; // Self-dependency guard
+      if (targetId === taskId) {
+        skipped.push({ targetId, reason: 'self' });
+        continue;
+      }
       const target = this.tasks.get(targetId);
-      if (!target) continue;
-      // Issue 4: Skip completed targets — adding a dependency on a completed task
-      // is meaningless and can confuse the blockedBy/blocks bookkeeping.
-      if (target.status === 'completed') continue;
-      // Issue 5: Cycle detection — verify that adding this dependency won't create
-      // a circular chain (e.g., A blocks B blocks A).
-      if (this.wouldCreateCycle(taskId, targetId, direction)) continue;
+      if (!target) {
+        skipped.push({ targetId, reason: 'not_found' });
+        continue;
+      }
+      if (target.status === 'completed') {
+        skipped.push({ targetId, reason: 'completed_target' });
+        continue;
+      }
+      if (this.wouldCreateCycle(taskId, targetId, direction)) {
+        skipped.push({ targetId, reason: 'cycle' });
+        continue;
+      }
       let changed = false;
       if (!task[forward].includes(targetId)) {
         task[forward].push(targetId);
@@ -323,5 +338,6 @@ export class TaskStore {
         target.updatedAt = now;
       }
     }
+    return skipped;
   }
 }

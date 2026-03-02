@@ -13,7 +13,7 @@ import {
 } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
-import type { TaskStore } from './task-store.js';
+import type { TaskStore, DependencySkip } from './task-store.js';
 
 // --- Tool description ---
 
@@ -166,15 +166,27 @@ class TaskUpdateToolInvocation extends BaseToolInvocation<
     const currentTask = this.taskStore.get(taskId)!;
     let warning: string | undefined;
 
+    const allSkipped: DependencySkip[] = [];
+
     if (hasDeps && currentTask.status === 'completed') {
       warning =
         'Dependencies were skipped because the task is completed. A completed task cannot have new dependencies.';
     } else {
       if (this.params.addBlocks) {
-        this.taskStore.addBlocks(taskId, this.params.addBlocks);
+        allSkipped.push(
+          ...this.taskStore.addBlocks(taskId, this.params.addBlocks),
+        );
       }
       if (this.params.addBlockedBy) {
-        this.taskStore.addBlockedBy(taskId, this.params.addBlockedBy);
+        allSkipped.push(
+          ...this.taskStore.addBlockedBy(taskId, this.params.addBlockedBy),
+        );
+      }
+      if (allSkipped.length > 0) {
+        const details = allSkipped
+          .map((s) => `${s.targetId}(${s.reason})`)
+          .join(', ');
+        warning = `Some dependency targets were skipped: ${details}`;
       }
     }
 

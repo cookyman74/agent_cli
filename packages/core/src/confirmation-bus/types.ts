@@ -121,6 +121,8 @@ export interface ToolExecutionFailure<E = Error> {
 export interface QuestionOption {
   label: string;
   description: string;
+  /** Optional preview content shown in a monospace box when this option is focused. */
+  markdown?: string;
 }
 
 export enum QuestionType {
@@ -152,6 +154,8 @@ export interface AskUserResponse {
   type: MessageBusType.ASK_USER_RESPONSE;
   correlationId: string;
   answers: { [questionIndex: string]: string };
+  /** When true, indicates the user cancelled without answering. */
+  cancelled?: boolean;
 }
 
 export type Message =

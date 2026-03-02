@@ -85,6 +85,13 @@ export class AskUserTool extends BaseDeclarativeTool<
                         description:
                           'Explanation of what this option means or what will happen if chosen. Useful for providing context about trade-offs or implications.',
                       },
+                      markdown: {
+                        type: 'string',
+                        description:
+                          'Optional preview content shown in a monospace box when this option is focused. ' +
+                          'Use for ASCII mockups, code snippets, or diagrams that help users visually compare options. ' +
+                          'Supports multi-line text with newlines.',
+                      },
                     },
                   },
                 },
@@ -131,6 +138,9 @@ export class AskUserInvocation extends BaseToolInvocation<
     return `Asking user: ${this.params.questions.map((q) => q.question).join(', ')}`;
   }
 
+  /** Defensive timeout for response waiting (5 minutes). */
+  private static readonly RESPONSE_TIMEOUT_MS = 5 * 60 * 1000;
+
   async execute(signal: AbortSignal): Promise<ToolResult> {
     const correlationId = randomUUID();
 
@@ -144,9 +154,23 @@ export class AskUserInvocation extends BaseToolInvocation<
     };
 
     return new Promise<ToolResult>((resolve, reject) => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
       const responseHandler = (response: AskUserResponse): void => {
         if (response.correlationId === correlationId) {
           cleanup();
+
+          // Issue 1: Detect user cancellation (cancelled flag from CLI)
+          if (response.cancelled) {
+            resolve({
+              llmContent: 'User cancelled the question without answering.',
+              returnDisplay: 'Cancelled by user',
+              error: {
+                message: 'Cancelled',
+              },
+            });
+            return;
+          }
 
           // Build formatted key-value display
           const formattedAnswers = Object.entries(response.answers)
@@ -167,6 +191,10 @@ export class AskUserInvocation extends BaseToolInvocation<
       };
 
       const cleanup = () => {
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         if (responseHandler) {
           this.messageBus.unsubscribe(
             MessageBusType.ASK_USER_RESPONSE,
@@ -187,10 +215,27 @@ export class AskUserInvocation extends BaseToolInvocation<
         });
       };
 
+      const timeoutHandler = () => {
+        cleanup();
+        resolve({
+          llmContent: 'Ask user request timed out waiting for response.',
+          returnDisplay: 'Timed out',
+          error: {
+            message: 'Ask user request timed out waiting for response.',
+          },
+        });
+      };
+
       if (signal.aborted) {
         abortHandler();
         return;
       }
+
+      // Issue 3: Defensive timeout to prevent indefinite hang
+      timeoutId = setTimeout(
+        timeoutHandler,
+        AskUserInvocation.RESPONSE_TIMEOUT_MS,
+      );
 
       signal.addEventListener('abort', abortHandler);
       this.messageBus.subscribe(

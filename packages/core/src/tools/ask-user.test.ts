@@ -195,6 +195,50 @@ describe('AskUserTool', () => {
     expect(JSON.parse(result.llmContent as string)).toEqual({ answers });
   });
 
+  describe('schema - markdown field', () => {
+    it('should accept markdown in option definition', () => {
+      const result = tool.validateToolParams({
+        questions: [
+          {
+            question: 'Which layout?',
+            header: 'Layout',
+            options: [
+              {
+                label: 'Option A',
+                description: 'Horizontal layout',
+                markdown: '┌─────────┐\n│ A │ B │\n└─────────┘',
+              },
+              {
+                label: 'Option B',
+                description: 'Vertical layout',
+                markdown: '┌───┐\n│ A │\n├───┤\n│ B │\n└───┘',
+              },
+            ],
+            multiSelect: false,
+          },
+        ],
+      });
+      expect(result).toBeNull();
+    });
+
+    it('should still work without markdown (backward compatible)', () => {
+      const result = tool.validateToolParams({
+        questions: [
+          {
+            question: 'Choose one',
+            header: 'Choice',
+            options: [
+              { label: 'A', description: 'First' },
+              { label: 'B', description: 'Second' },
+            ],
+            multiSelect: false,
+          },
+        ],
+      });
+      expect(result).toBeNull();
+    });
+  });
+
   it('should handle cancellation', async () => {
     const invocation = tool.build({
       questions: [
@@ -223,5 +267,163 @@ describe('AskUserTool', () => {
 
     const result = await executePromise;
     expect(result.error?.message).toBe('Cancelled');
+  });
+
+  describe('cancelled response handling (Issue 1)', () => {
+    it('should treat cancelled response as cancellation, not success', async () => {
+      const invocation = tool.build({
+        questions: [
+          {
+            question: 'Pick one',
+            header: 'Test',
+            options: [
+              { label: 'A', description: 'First' },
+              { label: 'B', description: 'Second' },
+            ],
+          },
+        ],
+      });
+
+      const executePromise = invocation.execute(new AbortController().signal);
+
+      // Get the response handler registered by subscribe
+      const subscribeCall = vi
+        .mocked(mockMessageBus.subscribe)
+        .mock.calls.find(
+          (call) => call[0] === MessageBusType.ASK_USER_RESPONSE,
+        );
+      const handler = subscribeCall![1];
+
+      // Get correlationId from the published request
+      const publishCall = vi.mocked(mockMessageBus.publish).mock
+        .calls[0][0] as {
+        correlationId: string;
+      };
+
+      // Simulate cancelled response (empty answers + cancelled flag)
+      handler({
+        type: MessageBusType.ASK_USER_RESPONSE,
+        correlationId: publishCall.correlationId,
+        answers: {},
+        cancelled: true,
+      });
+
+      const result = await executePromise;
+      expect(result.error).toBeDefined();
+      expect(result.error?.message).toBe('Cancelled');
+      expect(result.llmContent).toContain('cancelled');
+    });
+
+    it('should treat empty answers without cancelled flag as valid response', async () => {
+      const invocation = tool.build({
+        questions: [
+          {
+            question: 'Pick one',
+            header: 'Test',
+            options: [
+              { label: 'A', description: 'First' },
+              { label: 'B', description: 'Second' },
+            ],
+          },
+        ],
+      });
+
+      const executePromise = invocation.execute(new AbortController().signal);
+
+      const subscribeCall = vi
+        .mocked(mockMessageBus.subscribe)
+        .mock.calls.find(
+          (call) => call[0] === MessageBusType.ASK_USER_RESPONSE,
+        );
+      const handler = subscribeCall![1];
+
+      const publishCall = vi.mocked(mockMessageBus.publish).mock
+        .calls[0][0] as {
+        correlationId: string;
+      };
+
+      // Empty answers WITHOUT cancelled flag → still a valid response
+      handler({
+        type: MessageBusType.ASK_USER_RESPONSE,
+        correlationId: publishCall.correlationId,
+        answers: {},
+      });
+
+      const result = await executePromise;
+      expect(result.error).toBeUndefined();
+    });
+  });
+
+  describe('response timeout (Issue 3)', () => {
+    it('should resolve with timeout error when no response received', async () => {
+      vi.useFakeTimers();
+
+      const invocation = tool.build({
+        questions: [
+          {
+            question: 'Pick one',
+            header: 'Test',
+            options: [
+              { label: 'A', description: 'First' },
+              { label: 'B', description: 'Second' },
+            ],
+          },
+        ],
+      });
+
+      const executePromise = invocation.execute(new AbortController().signal);
+
+      // Advance past the timeout (5 minutes)
+      vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+
+      const result = await executePromise;
+      expect(result.error).toBeDefined();
+      expect(result.error?.message).toContain('timed out');
+      expect(result.llmContent).toContain('timed out');
+
+      vi.useRealTimers();
+    });
+
+    it('should clear timeout on successful response', async () => {
+      vi.useFakeTimers();
+
+      const invocation = tool.build({
+        questions: [
+          {
+            question: 'Pick one',
+            header: 'Test',
+            options: [
+              { label: 'A', description: 'First' },
+              { label: 'B', description: 'Second' },
+            ],
+          },
+        ],
+      });
+
+      const executePromise = invocation.execute(new AbortController().signal);
+
+      // Respond before timeout
+      const subscribeCall = vi
+        .mocked(mockMessageBus.subscribe)
+        .mock.calls.find(
+          (call) => call[0] === MessageBusType.ASK_USER_RESPONSE,
+        );
+      const handler = subscribeCall![1];
+      const publishCall = vi.mocked(mockMessageBus.publish).mock
+        .calls[0][0] as {
+        correlationId: string;
+      };
+
+      handler({
+        type: MessageBusType.ASK_USER_RESPONSE,
+        correlationId: publishCall.correlationId,
+        answers: { '0': 'A' },
+      });
+
+      const result = await executePromise;
+      expect(result.error).toBeUndefined();
+
+      vi.useRealTimers();
+    });
   });
 });

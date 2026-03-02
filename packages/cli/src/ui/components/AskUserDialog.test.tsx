@@ -77,7 +77,7 @@ describe('AskUserDialog', () => {
         writeKey(stdin, '\x1b[B'); // Down to Done
         writeKey(stdin, '\r'); // Done
       },
-      expectedSubmit: { '0': 'TypeScript, ESLint' },
+      expectedSubmit: { '0': '["TypeScript","ESLint"]' },
     },
     {
       name: 'Text Input',

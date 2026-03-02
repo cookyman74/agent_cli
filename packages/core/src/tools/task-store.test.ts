@@ -664,5 +664,68 @@ describe('TaskStore', () => {
       expect(store.get('1')!.blockedBy).toEqual([]);
       expect(store.get('2')!.blocks).toEqual([]);
     });
+
+    // Issue 4: Skip completed target when adding dependency
+    it('should ignore addBlocks when target task is completed', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('2', { status: 'completed' });
+      store.addBlocks('1', ['2']); // 1 blocks 2, but 2 is completed
+      expect(store.get('1')!.blocks).toEqual([]);
+      expect(store.get('2')!.blockedBy).toEqual([]);
+    });
+
+    it('should ignore addBlockedBy when target task is completed', () => {
+      store.create({ subject: 'Task 1', description: 'First' });
+      store.create({ subject: 'Task 2', description: 'Second' });
+      store.update('2', { status: 'completed' });
+      store.addBlockedBy('1', ['2']); // 1 blocked by 2, but 2 is completed
+      expect(store.get('1')!.blockedBy).toEqual([]);
+      expect(store.get('2')!.blocks).toEqual([]);
+    });
+  });
+
+  // Issue 5: Cycle detection in dependency graph
+  describe('cycle detection', () => {
+    it('should prevent direct cycle: A blocks B, B blocks A', () => {
+      store.create({ subject: 'A', description: 'Task A' });
+      store.create({ subject: 'B', description: 'Task B' });
+      store.addBlocks('1', ['2']); // A blocks B
+      store.addBlocks('2', ['1']); // B blocks A — would create cycle
+      expect(store.get('1')!.blocks).toEqual(['2']);
+      expect(store.get('2')!.blocks).toEqual([]); // Silently rejected
+    });
+
+    it('should prevent indirect cycle: A→B→C→A', () => {
+      store.create({ subject: 'A', description: 'Task A' });
+      store.create({ subject: 'B', description: 'Task B' });
+      store.create({ subject: 'C', description: 'Task C' });
+      store.addBlocks('1', ['2']); // A blocks B
+      store.addBlocks('2', ['3']); // B blocks C
+      store.addBlocks('3', ['1']); // C blocks A — would create cycle
+      expect(store.get('3')!.blocks).toEqual([]); // Silently rejected
+      expect(store.get('1')!.blockedBy).toEqual([]); // No reverse link
+    });
+
+    it('should prevent cycle via blockedBy: A blockedBy B, B blockedBy A', () => {
+      store.create({ subject: 'A', description: 'Task A' });
+      store.create({ subject: 'B', description: 'Task B' });
+      store.addBlockedBy('1', ['2']); // A blockedBy B
+      store.addBlockedBy('2', ['1']); // B blockedBy A — would create cycle
+      expect(store.get('1')!.blockedBy).toEqual(['2']);
+      expect(store.get('2')!.blockedBy).toEqual([]); // Silently rejected
+    });
+
+    it('should allow valid non-cyclic dependencies', () => {
+      store.create({ subject: 'A', description: 'Task A' });
+      store.create({ subject: 'B', description: 'Task B' });
+      store.create({ subject: 'C', description: 'Task C' });
+      store.addBlocks('1', ['2']); // A blocks B
+      store.addBlocks('1', ['3']); // A blocks C
+      store.addBlocks('2', ['3']); // B blocks C (diamond, not cycle)
+      expect(store.get('1')!.blocks).toEqual(['2', '3']);
+      expect(store.get('2')!.blocks).toEqual(['3']);
+      expect(store.get('3')!.blockedBy).toEqual(['1', '2']);
+    });
   });
 });

@@ -31,7 +31,11 @@ export interface AskUserDialogRequest {
  * this hook publishes ASK_USER_RESPONSE back to MessageBus.
  *
  * Issue 1: onCancel sends `cancelled: true` so Core distinguishes cancellation from empty answers.
- * Issue 2: When a new request arrives while one is active, the previous request is auto-cancelled.
+ * Issue 2: Single-slot design — when a new request arrives while one is active, the previous
+ *   request is auto-cancelled via previousCancelRef. This is intentional: the terminal can only
+ *   display one dialog at a time, so the latest request takes precedence. The cancelled request
+ *   receives a `cancelled: true` response, allowing the Core's AskUserTool to report the
+ *   cancellation gracefully to the LLM.
  */
 export function useAskUserHandler(
   config: Config | null,
@@ -39,7 +43,10 @@ export function useAskUserHandler(
   const [askUserRequest, setAskUserRequest] =
     useState<AskUserDialogRequest | null>(null);
 
-  // Issue 2: Track previous request's cancel callback for auto-cancel on concurrent requests
+  // Issue 2: Single-slot auto-cancel — track previous request's cancel callback.
+  // When a new ASK_USER_REQUEST arrives, the previous dialog is programmatically cancelled
+  // so only one dialog is ever active. This is a deliberate design choice for terminal UIs
+  // that cannot render concurrent dialogs.
   const previousCancelRef = useRef<(() => void) | null>(null);
 
   const messageBus = useMemo(() => config?.getMessageBus() ?? null, [config]);

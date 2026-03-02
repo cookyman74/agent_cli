@@ -252,6 +252,40 @@ export class TaskStore {
 
   // --- Private helpers ---
 
+  /**
+   * Issue 5: Checks if adding taskId → targetId dependency in the given direction
+   * would create a cycle. Uses BFS traversal along the *forward* direction
+   * from targetId to see if it can reach taskId.
+   *
+   * Example: if direction='blocks' and we want to add "A blocks B",
+   * we check if B already (transitively) blocks A. If so, adding it creates a cycle.
+   */
+  private wouldCreateCycle(
+    taskId: string,
+    targetId: string,
+    direction: 'blocks' | 'blockedBy',
+  ): boolean {
+    // If we're adding "taskId blocks targetId", then the forward link on target
+    // goes from targetId → its own 'blocks' list. We check if targetId can reach
+    // taskId by traversing 'blocks' (the same direction).
+    const visited = new Set<string>();
+    const queue: string[] = [targetId];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (current === taskId) return true; // Cycle detected
+      if (visited.has(current)) continue;
+      visited.add(current);
+      const currentTask = this.tasks.get(current);
+      if (!currentTask) continue;
+      for (const next of currentTask[direction]) {
+        if (!visited.has(next)) {
+          queue.push(next);
+        }
+      }
+    }
+    return false;
+  }
+
   private addDependency(
     taskId: string,
     targetIds: string[],
@@ -269,6 +303,12 @@ export class TaskStore {
       if (targetId === taskId) continue; // Self-dependency guard
       const target = this.tasks.get(targetId);
       if (!target) continue;
+      // Issue 4: Skip completed targets — adding a dependency on a completed task
+      // is meaningless and can confuse the blockedBy/blocks bookkeeping.
+      if (target.status === 'completed') continue;
+      // Issue 5: Cycle detection — verify that adding this dependency won't create
+      // a circular chain (e.g., A blocks B blocks A).
+      if (this.wouldCreateCycle(taskId, targetId, direction)) continue;
       let changed = false;
       if (!task[forward].includes(targetId)) {
         task[forward].push(targetId);

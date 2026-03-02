@@ -498,7 +498,15 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
     let isCustomOptionSelected = false;
 
     if (question.multiSelect) {
-      const answers = initialAnswer.split(', ');
+      // Parse multi-select answers: try JSON array first, fall back to comma-split
+      // for backward compatibility with pre-JSON answers.
+      let answers: string[];
+      try {
+        const parsed = JSON.parse(initialAnswer);
+        answers = Array.isArray(parsed) ? parsed : [initialAnswer];
+      } catch {
+        answers = initialAnswer.split(', ');
+      }
       answers.forEach((answer) => {
         const index = questionOptions.findIndex((opt) => opt.label === answer);
         if (index !== -1) {
@@ -540,7 +548,13 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
   const initialCustomText = useMemo(() => {
     if (!initialAnswer) return '';
     if (question.multiSelect) {
-      const answers = initialAnswer.split(', ');
+      let answers: string[];
+      try {
+        const parsed = JSON.parse(initialAnswer);
+        answers = Array.isArray(parsed) ? parsed : [initialAnswer];
+      } catch {
+        answers = initialAnswer.split(', ');
+      }
       const custom = answers.find(
         (a) => !questionOptions.some((opt) => opt.label === a),
       );
@@ -594,9 +608,13 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
       if (includeCustomOption && customOption.trim()) {
         answers.push(customOption.trim());
       }
-      return answers.join(', ');
+      // Use JSON array for multi-select to avoid delimiter collision.
+      // Single-select still returns a plain string.
+      return answers.length > 1 || question.multiSelect
+        ? JSON.stringify(answers)
+        : answers[0] || '';
     },
-    [questionOptions],
+    [questionOptions, question.multiSelect],
   );
 
   // Synchronize selection changes with parent - only when it actually changes
@@ -634,7 +652,7 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
         key.sequence.length === 1 &&
         !key.ctrl &&
         !key.alt &&
-        key.sequence.charCodeAt(0) >= 32;
+        key.sequence.charCodeAt(0) > 32;
 
       const isNumber = /^[0-9]$/.test(key.sequence);
 

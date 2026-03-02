@@ -50,6 +50,7 @@ export interface ValidationDialogRequest {
 import { type UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
 import { type RestartReason } from '../hooks/useIdeTrustListener.js';
 import type { TerminalBackgroundColor } from '../utils/terminalCapabilityManager.js';
+import { type AskUserDialogRequest } from '../hooks/useAskUserHandler.js';
 
 export interface UIState {
   history: HistoryItem[];
@@ -88,6 +89,7 @@ export interface UIState {
   confirmationRequest: ConfirmationRequest | null;
   confirmUpdateExtensionRequests: ConfirmationRequest[];
   loopDetectionConfirmationRequest: LoopDetectionConfirmationRequest | null;
+  askUserRequest: AskUserDialogRequest | null;
   geminiMdFileCount: number;
   streamingState: StreamingState;
   initError: string | null;

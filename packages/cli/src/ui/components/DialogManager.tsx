@@ -39,6 +39,7 @@ import { AdminSettingsChangedDialog } from './AdminSettingsChangedDialog.js';
 import { IdeTrustChangeDialog } from './IdeTrustChangeDialog.js';
 import { NewAgentsNotification } from './NewAgentsNotification.js';
 import { AgentConfigDialog } from './AgentConfigDialog.js';
+import { AskUserDialog } from './AskUserDialog.js';
 
 interface DialogManagerProps {
   addItem: UseHistoryManagerReturn['addItem'];
@@ -137,6 +138,15 @@ export const DialogManager = ({
         prompt={request.prompt}
         onConfirm={request.onConfirm}
         terminalWidth={terminalWidth}
+      />
+    );
+  }
+  if (uiState.askUserRequest) {
+    return (
+      <AskUserDialog
+        questions={uiState.askUserRequest.questions}
+        onSubmit={uiState.askUserRequest.onSubmit}
+        onCancel={uiState.askUserRequest.onCancel}
       />
     );
   }

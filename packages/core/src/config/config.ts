@@ -65,6 +65,7 @@ import { TaskCreateTool } from '../tools/task-create.js';
 import { TaskGetTool } from '../tools/task-get.js';
 import { TaskUpdateTool } from '../tools/task-update.js';
 import { TaskListTool } from '../tools/task-list.js';
+import { AskUserTool } from '../tools/ask-user.js';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback, logFlashFallback } from '../telemetry/loggers.js';
@@ -2025,6 +2026,12 @@ export class Config {
     registerCoreTool(WebFetchTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
+
+    // AskUserTool: always registered, bypasses coreTools allowlist filter.
+    // This is a communication tool essential for agent-user interaction;
+    // filtering it out in restricted environments would break E2E flow.
+    registry.registerTool(new AskUserTool(this.getMessageBus()));
+
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool);
 

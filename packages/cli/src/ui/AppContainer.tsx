@@ -132,6 +132,7 @@ import { terminalCapabilityManager } from './utils/terminalCapabilityManager.js'
 import { useInputHistoryStore } from './hooks/useInputHistoryStore.js';
 import { useBanner } from './hooks/useBanner.js';
 import { useHookDisplayState } from './hooks/useHookDisplayState.js';
+import { useAskUserHandler } from './hooks/useAskUserHandler.js';
 import {
   WARNING_PROMPT_DURATION_MS,
   QUEUE_ERROR_DISPLAY_DURATION_MS,
@@ -1134,6 +1135,8 @@ export const AppContainer = (props: AppContainerProps) => {
 
   const { isMcpReady } = useMcpStatus(config);
 
+  const askUserRequest = useAskUserHandler(config);
+
   const {
     messageQueue,
     addMessage,
@@ -1888,6 +1891,7 @@ export const AppContainer = (props: AppContainerProps) => {
       confirmationRequest,
       confirmUpdateExtensionRequests,
       loopDetectionConfirmationRequest,
+      askUserRequest,
       geminiMdFileCount,
       streamingState,
       initError,
@@ -1991,6 +1995,7 @@ export const AppContainer = (props: AppContainerProps) => {
       confirmationRequest,
       confirmUpdateExtensionRequests,
       loopDetectionConfirmationRequest,
+      askUserRequest,
       geminiMdFileCount,
       streamingState,
       initError,

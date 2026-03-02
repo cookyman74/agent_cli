@@ -40,6 +40,7 @@ import { TaskCreateTool } from '../tools/task-create.js';
 import { TaskGetTool } from '../tools/task-get.js';
 import { TaskUpdateTool } from '../tools/task-update.js';
 import { TaskListTool } from '../tools/task-list.js';
+import { AskUserTool } from '../tools/ask-user.js';
 import type { SkillDefinition } from '../skills/skillLoader.js';
 import { DEFAULT_MODEL_CONFIGS } from './defaultModelConfigs.js';
 import {
@@ -107,6 +108,7 @@ vi.mock('../tools/task-create');
 vi.mock('../tools/task-get');
 vi.mock('../tools/task-update');
 vi.mock('../tools/task-list');
+vi.mock('../tools/ask-user');
 vi.mock('../tools/memoryTool', () => ({
   MemoryTool: vi.fn(),
   setGeminiMdFilename: vi.fn(),
@@ -1204,6 +1206,65 @@ describe('Server Config (config.ts)', () => {
           const firstArg = MockedClass.mock.calls[0][0];
           expect(firstArg).toBeInstanceOf(TaskStoreMock);
         }
+      });
+    });
+
+    describe('AskUser tool registration', () => {
+      it('should register ask_user tool unconditionally', async () => {
+        const config = new Config(baseParams);
+        await config.initialize();
+
+        const registerToolMock = (
+          (await vi.importMock('../tools/tool-registry')) as {
+            ToolRegistry: { prototype: { registerTool: Mock } };
+          }
+        ).ToolRegistry.prototype.registerTool;
+
+        const wasRegistered = registerToolMock.mock.calls.some(
+          (call) => call[0] instanceof vi.mocked(AskUserTool),
+        );
+        expect(wasRegistered).toBe(true);
+      });
+
+      it('should register ask_user tool even when useWriteTodos is false', async () => {
+        const params: ConfigParameters = {
+          ...baseParams,
+          useWriteTodos: false,
+        };
+        const config = new Config(params);
+        await config.initialize();
+
+        const registerToolMock = (
+          (await vi.importMock('../tools/tool-registry')) as {
+            ToolRegistry: { prototype: { registerTool: Mock } };
+          }
+        ).ToolRegistry.prototype.registerTool;
+
+        const wasRegistered = registerToolMock.mock.calls.some(
+          (call) => call[0] instanceof vi.mocked(AskUserTool),
+        );
+        expect(wasRegistered).toBe(true);
+      });
+
+      it('should register ask_user tool even when coreTools allowlist is restricted (Issue 4)', async () => {
+        const params: ConfigParameters = {
+          ...baseParams,
+          coreTools: ['ShellTool'], // restrictive allowlist, ask_user NOT listed
+        };
+        const config = new Config(params);
+        await config.initialize();
+
+        const registerToolMock = (
+          (await vi.importMock('../tools/tool-registry')) as {
+            ToolRegistry: { prototype: { registerTool: Mock } };
+          }
+        ).ToolRegistry.prototype.registerTool;
+
+        // AskUserTool should STILL be registered (bypasses allowlist)
+        const wasRegistered = registerToolMock.mock.calls.some(
+          (call) => call[0] instanceof vi.mocked(AskUserTool),
+        );
+        expect(wasRegistered).toBe(true);
       });
     });
   });

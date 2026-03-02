@@ -1153,7 +1153,7 @@ describe('Server Config (config.ts)', () => {
         }
       });
 
-      it('should NOT register Task* tools when useWriteTodos is false', async () => {
+      it('should register Task* tools even when useWriteTodos is false (preview model fix)', async () => {
         const params: ConfigParameters = {
           ...baseParams,
           useWriteTodos: false,
@@ -1178,7 +1178,7 @@ describe('Server Config (config.ts)', () => {
           const wasRegistered = registerToolMock.mock.calls.some(
             (call) => call[0] instanceof vi.mocked(ToolClass),
           );
-          expect(wasRegistered).toBe(false);
+          expect(wasRegistered).toBe(true);
         }
       });
 

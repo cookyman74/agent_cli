@@ -2034,18 +2034,19 @@ export class Config {
 
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool);
-
-      // Task* tools — Phase A coexistence with write_todos.
-      // All 4 tools share a single TaskStore instance (DI).
-      // Gated behind getUseWriteTodos() to match write_todos behavior (Issue 7).
-      // TodoTray "last wins": Task* and write_todos share the same UI slot;
-      // only the last caller's todos are displayed. Phase B will remove write_todos.
-      const taskStore = new TaskStore();
-      registerCoreTool(TaskCreateTool, taskStore);
-      registerCoreTool(TaskGetTool, taskStore);
-      registerCoreTool(TaskUpdateTool, taskStore);
-      registerCoreTool(TaskListTool, taskStore);
     }
+
+    // Task* tools — always registered, independent of write_todos gate.
+    // Preview models disable write_todos (Issue 7), but Task* tools must
+    // remain available for structured task management regardless of model.
+    // All 4 tools share a single TaskStore instance (DI).
+    // TodoTray "last wins": Task* and write_todos share the same UI slot;
+    // only the last caller's todos are displayed. Phase B will remove write_todos.
+    const taskStore = new TaskStore();
+    registerCoreTool(TaskCreateTool, taskStore);
+    registerCoreTool(TaskGetTool, taskStore);
+    registerCoreTool(TaskUpdateTool, taskStore);
+    registerCoreTool(TaskListTool, taskStore);
 
     // Register Subagents as Tools
     this.registerSubAgentTools(registry);

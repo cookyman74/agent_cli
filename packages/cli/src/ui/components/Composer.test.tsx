@@ -70,6 +70,10 @@ vi.mock('./ShowMoreLines.js', () => ({
   ShowMoreLines: () => <Text>ShowMoreLines</Text>,
 }));
 
+vi.mock('./messages/Todo.js', () => ({
+  TodoTray: () => <Text>TodoTray</Text>,
+}));
+
 vi.mock('./QueuedMessageDisplay.js', () => ({
   QueuedMessageDisplay: ({ messageQueue }: { messageQueue: string[] }) => {
     if (messageQueue.length === 0) {
@@ -119,6 +123,7 @@ const createMockUIState = (overrides: Partial<UIState> = {}): UIState =>
     renderMarkdown: true,
     filteredConsoleMessages: [],
     history: [],
+    pendingHistoryItems: [],
     sessionStats: {
       lastPromptTokenCount: 0,
       sessionTokenCount: 0,

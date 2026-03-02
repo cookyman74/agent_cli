@@ -25,30 +25,30 @@
 
 | 리스크                                              | 영향      | 대응 방안                                                                | 상태 |
 | --------------------------------------------------- | --------- | ------------------------------------------------------------------------ | ---- |
-| Core rebuild 누락으로 CLI 테스트 실패               | 🟠 Medium | Phase 5 시작 시 `npm run build -w @didim365/agent-cli-core` 필수         | ⬜   |
-| Task\* + write_todos TodoTray "last wins" (Issue 6) | 🟡 Medium | 공존 테스트: 각 독립 데이터 유지, UI는 마지막 호출자 표시 — Phase A 허용 | ⬜   |
-| AskUser markdown 변경이 기존 UI 깨뜨림              | 🟡 Medium | 기존 ask_user 호출 (markdown 없음) 회귀 테스트                           | ⬜   |
-| AskUser E2E 런타임 MessageBus 연동 누락 (Issue 9)   | 🟠 Medium | 런타임 MessageBus 라운드트립 통합 테스트 추가                            | ⬜   |
+| Core rebuild 누락으로 CLI 테스트 실패               | 🟠 Medium | Phase 5 시작 시 `npm run build -w @didim365/agent-cli-core` 필수         | ✅   |
+| Task\* + write_todos TodoTray "last wins" (Issue 6) | 🟡 Medium | 공존 테스트: 각 독립 데이터 유지, UI는 마지막 호출자 표시 — Phase A 허용 | ✅   |
+| AskUser markdown 변경이 기존 UI 깨뜨림              | 🟡 Medium | 기존 ask_user 호출 (markdown 없음) 회귀 테스트                           | ✅   |
+| AskUser E2E 런타임 MessageBus 연동 누락 (Issue 9)   | 🟠 Medium | 런타임 MessageBus 라운드트립 통합 테스트 추가                            | ✅   |
 
 ---
 
 ## 5.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 1~4 작업 결과서 일괄 검토
+- [x] **[REVIEW]** Phase 1~4 작업 결과서 일괄 검토
   - Phase 1: `../working_history/Phase1_task_store_{작업일자}.md`
   - Phase 2: `../working_history/Phase2_task_tools_{작업일자}.md`
   - Phase 3: `../working_history/Phase3_tool_registration_{작업일자}.md`
   - Phase 4: `../working_history/Phase4_askuser_markdown_preview_{작업일자}.md`
   - 확인: 각 Phase 완료 조건 충족 여부, 미해결 이슈
 
-- [ ] **[BUILD]** 전체 빌드 확인
+- [x] **[BUILD]** 전체 빌드 확인
 
   ```bash
   npm run build -w @didim365/agent-cli-core
   npm run build -w @didim365/agent-cli
   ```
 
-- [ ] **[BASELINE]** 전체 테스트 베이스라인
+- [x] **[BASELINE]** 전체 테스트 베이스라인
   ```bash
   npm test -w @didim365/agent-cli-core
   npm test -w @didim365/agent-cli
@@ -58,25 +58,25 @@
 
 ## 5.2 Quality Gate 1: Typecheck + Lint
 
-- [ ] **[TYPECHECK-CORE]** Core 타입체크
+- [x] **[TYPECHECK-CORE]** Core 타입체크
 
   ```bash
   npm run typecheck -w @didim365/agent-cli-core
   ```
 
-- [ ] **[TYPECHECK-CLI]** CLI 타입체크
+- [x] **[TYPECHECK-CLI]** CLI 타입체크
 
   ```bash
   npm run typecheck -w @didim365/agent-cli
   ```
 
-- [ ] **[LINT-CORE]** Core 린터
+- [x] **[LINT-CORE]** Core 린터
 
   ```bash
   npm run lint -w @didim365/agent-cli-core
   ```
 
-- [ ] **[LINT-CLI]** CLI 린터
+- [x] **[LINT-CLI]** CLI 린터
   ```bash
   npm run lint -w @didim365/agent-cli
   ```
@@ -87,31 +87,31 @@
 
 ### Core — TaskStore + Task\* 도구
 
-- [ ] **[TEST-CORE-1]** TaskStore 테스트
+- [x] **[TEST-CORE-1]** TaskStore 테스트
 
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-store.test
   ```
 
-- [ ] **[TEST-CORE-2]** TaskCreate 테스트
+- [x] **[TEST-CORE-2]** TaskCreate 테스트
 
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-create.test
   ```
 
-- [ ] **[TEST-CORE-3]** TaskGet 테스트
+- [x] **[TEST-CORE-3]** TaskGet 테스트
 
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-get.test
   ```
 
-- [ ] **[TEST-CORE-4]** TaskUpdate 테스트
+- [x] **[TEST-CORE-4]** TaskUpdate 테스트
 
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-update.test
   ```
 
-- [ ] **[TEST-CORE-5]** TaskList 테스트
+- [x] **[TEST-CORE-5]** TaskList 테스트
 
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/task-list.test
@@ -119,7 +119,7 @@
 
 ### Core — AskUser 변경
 
-- [ ] **[TEST-CORE-6]** AskUser 테스트 (markdown 스키마 + E2E 경로 포함)
+- [x] **[TEST-CORE-6]** AskUser 테스트 (markdown 스키마 + E2E 경로 포함)
 
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/ask-user.test
@@ -127,20 +127,20 @@
 
 ### Core — 전체 회귀
 
-- [ ] **[TEST-CORE-7]** Core 전체 테스트
+- [x] **[TEST-CORE-7]** Core 전체 테스트
   ```bash
   npm test -w @didim365/agent-cli-core
   ```
 
 ### CLI — AskUserDialog + DialogManager 변경
 
-- [ ] **[TEST-CLI-1]** AskUserDialog 테스트 (markdown preview 포함)
+- [x] **[TEST-CLI-1]** AskUserDialog 테스트 (markdown preview 포함)
 
   ```bash
   npm test -w @didim365/agent-cli -- src/ui/components/AskUserDialog.test
   ```
 
-- [ ] **[TEST-CLI-2]** DialogManager 테스트 (AskUserDialog 연동)
+- [x] **[TEST-CLI-2]** DialogManager 테스트 (AskUserDialog 연동)
 
   ```bash
   npm test -w @didim365/agent-cli -- src/ui/components/DialogManager.test
@@ -148,7 +148,7 @@
 
 ### CLI — 전체 회귀
 
-- [ ] **[TEST-CLI-3]** CLI 전체 테스트
+- [x] **[TEST-CLI-3]** CLI 전체 테스트
   ```bash
   npm test -w @didim365/agent-cli
   ```
@@ -161,7 +161,7 @@
 
 ### TaskStore → Task\* 도구 → TodoTray UI 연동
 
-- [ ] **[INTEGRATION-1]** TaskCreate → TaskList 왕복 테스트
+- [x] **[INTEGRATION-1]** TaskCreate → TaskList 왕복 테스트
 
   ```typescript
   const signal = new AbortController().signal; // Issue 4: AbortSignal 필수
@@ -188,7 +188,7 @@
   });
   ```
 
-- [ ] **[INTEGRATION-2]** TaskCreate → TaskUpdate → TaskGet 워크플로우 테스트
+- [x] **[INTEGRATION-2]** TaskCreate → TaskUpdate → TaskGet 워크플로우 테스트
 
   ```typescript
   it('TaskCreate → TaskUpdate → TaskGet workflow', async () => {
@@ -219,7 +219,7 @@
   });
   ```
 
-- [ ] **[INTEGRATION-3]** returnDisplay 포맷 일관성 검증
+- [x] **[INTEGRATION-3]** returnDisplay 포맷 일관성 검증
 
   ```typescript
   it('all Task* tools return compatible TodoList in returnDisplay', async () => {
@@ -252,7 +252,7 @@
 
 ### Task\* 도구 + write_todos 공존 검증 (Issue 6)
 
-- [ ] **[INTEGRATION-4]** write_todos + Task\* 도구 공존 동작 확인
+- [x] **[INTEGRATION-4]** write_todos + Task\* 도구 공존 동작 확인
 
   ```typescript
   describe('write_todos + Task* coexistence (Issue 6)', () => {
@@ -299,14 +299,14 @@
 
 ### AskUser E2E 연동 + markdown preview 통합
 
-- [ ] **[INTEGRATION-5]** Core → CLI 연동: markdown 필드 전달 확인
+- [x] **[INTEGRATION-5]** Core → CLI 연동: markdown 필드 전달 확인
 
   ```bash
   # Core의 QuestionOption.markdown이 CLI AskUserDialog까지 전달되는지 빌드 후 타입체크
   npm run build -w @didim365/agent-cli-core && npm run typecheck -w @didim365/agent-cli
   ```
 
-- [ ] **[INTEGRATION-6]** AskUser MessageBus 런타임 라운드트립 테스트 (1차 Issue
+- [x] **[INTEGRATION-6]** AskUser MessageBus 런타임 라운드트립 테스트 (1차 Issue
       9, 2차 Issue 1,2,3)
 
   ```typescript
@@ -464,14 +464,14 @@
 
 ## 5.6 사후 작업 (Post-Work)
 
-- [ ] **[SNAPSHOT]** 스냅샷 테스트 업데이트 (필요 시)
+- [x] **[SNAPSHOT]** 스냅샷 테스트 업데이트 (필요 시)
 
   ```bash
   npm test -w @didim365/agent-cli -- --update  # 스냅샷 갱신
   # 갱신된 스냅샷 diff 수동 확인
   ```
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `../working_history/Phase5_quality_gates_{작업일자}.md`
   - 내용:
     - 전체 테스트 결과 요약
@@ -491,19 +491,19 @@
 
 | 검증 항목                                                    | 상태 |
 | ------------------------------------------------------------ | ---- |
-| Typecheck: Core + CLI 통과                                   | ⬜   |
-| Lint: Core + CLI 통과                                        | ⬜   |
-| 단위 테스트: Core 전체 PASS                                  | ⬜   |
-| 단위 테스트: CLI 전체 PASS                                   | ⬜   |
-| 통합 테스트: Task\* 도구 워크플로우 확인                     | ⬜   |
-| 통합 테스트: write_todos 공존 + "last wins" 문서화 (Issue 6) | ⬜   |
-| 통합 테스트: AskUser markdown 전달 확인                      | ⬜   |
-| 통합 테스트: AskUser MessageBus 라운드트립 (Issue 9)         | ⬜   |
-| 통합 테스트: AskUser cancel 계약 검증 (2차 Issue 3)          | ⬜   |
-| E2E 시나리오 #1~#6: Task\* 기본 동작                         | ⬜   |
-| E2E 시나리오 #7~#12: Task\* 고급 + 공존                      | ⬜   |
-| E2E 시나리오 #13~#18: AskUser E2E + markdown + cancel        | ⬜   |
-| 작업 결과서 작성                                             | ⬜   |
+| Typecheck: Core + CLI 통과                                   | ✅   |
+| Lint: Core + CLI 통과                                        | ✅   |
+| 단위 테스트: Core 전체 PASS                                  | ✅   |
+| 단위 테스트: CLI 전체 PASS                                   | ✅   |
+| 통합 테스트: Task\* 도구 워크플로우 확인                     | ✅   |
+| 통합 테스트: write_todos 공존 + "last wins" 문서화 (Issue 6) | ✅   |
+| 통합 테스트: AskUser markdown 전달 확인                      | ✅   |
+| 통합 테스트: AskUser MessageBus 라운드트립 (Issue 9)         | ✅   |
+| 통합 테스트: AskUser cancel 계약 검증 (2차 Issue 3)          | ✅   |
+| E2E 시나리오 #1~#6: Task\* 기본 동작                         | ✅   |
+| E2E 시나리오 #7~#12: Task\* 고급 + 공존                      | ✅   |
+| E2E 시나리오 #13~#18: AskUser E2E + markdown + cancel        | ✅   |
+| 작업 결과서 작성                                             | ✅   |
 | 커밋 완료                                                    | ⬜   |
 
 ---
@@ -512,14 +512,14 @@
 
 ### TDD 사이클 완료
 
-- [ ] Phase 1~4 모든 Red → Green → Refactor 사이클 완료
-- [ ] 전체 테스트 통과 (`npm test`)
-- [ ] 린터 경고 0개
-- [ ] 타입체크 에러 0개
+- [x] Phase 1~4 모든 Red → Green → Refactor 사이클 완료
+- [x] 전체 테스트 통과 (`npm test`)
+- [x] 린터 경고 0개
+- [x] 타입체크 에러 0개
 
 ### 문서화
 
-- [ ] Phase 1~5 각 작업 결과서 작성 완료
+- [x] Phase 1~5 각 작업 결과서 작성 완료
 - [ ] 변경 로그 업데이트
 
 ### 최종 커밋 및 PR
@@ -533,14 +533,13 @@
 
 | Phase    | 범위                        | RED | GREEN | REFACTOR | 결과서 | 커밋 | 상태 |
 | -------- | --------------------------- | --- | ----- | -------- | ------ | ---- | ---- |
-| Phase 1  | TaskStore 저장소            | ⬜  | ⬜    | ⬜       | ⬜     | ⬜   | ⬜   |
-| Phase 2  | Task\* 도구 4개             | ⬜  | ⬜    | ⬜       | ⬜     | ⬜   | ⬜   |
-| Phase 3  | 도구 등록 + 프롬프트 + 빌드 | ⬜  | ⬜    | ⬜       | ⬜     | ⬜   | ⬜   |
-| Phase 4A | AskUser E2E 경로 구축       | ⬜  | ⬜    | ⬜       | ⬜     | ⬜   | ⬜   |
-| Phase 4B | AskUser markdown preview    | ⬜  | ⬜    | ⬜       | ⬜     | ⬜   | ⬜   |
-| Phase 5  | Quality Gates + E2E         | —   | —     | —        | ⬜     | ⬜   | ⬜   |
+| Phase 1  | TaskStore 저장소            | ✅  | ✅    | ✅       | ✅     | ✅   | ✅   |
+| Phase 2  | Task\* 도구 4개             | ✅  | ✅    | ✅       | ✅     | ✅   | ✅   |
+| Phase 3  | 도구 등록 + 프롬프트 + 빌드 | ✅  | ✅    | ✅       | ✅     | ✅   | ✅   |
+| Phase 4A | AskUser E2E 경로 구축       | ✅  | ✅    | ✅       | ✅     | ✅   | ✅   |
+| Phase 4B | AskUser markdown preview    | ✅  | ✅    | ✅       | ✅     | ✅   | ✅   |
+| Phase 5  | Quality Gates + E2E         | —   | —     | —        | ✅     | ⬜   | ✅   |
 
 ---
 
-**작성일**: 2026-03-01 **상태**: ⬜ 작성 중 (1차 리뷰 Issue 4,6,9 + 2차 리뷰
-Issue 1,2,3 반영 완료)
+**작성일**: 2026-03-02 **상태**: ✅ Phase 5 완료 (커밋 미완료)

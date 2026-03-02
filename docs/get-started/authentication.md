@@ -260,7 +260,10 @@ Available tool names:
 | `google_web_search`   | Search the web via Google           |
 | `save_memory`         | Save context to memory              |
 | `activate_skill`      | Activate agent skills               |
-| `write_todos`         | Manage todo lists                   |
+| `task_create`         | Create structured tasks             |
+| `task_get`            | Get task details                    |
+| `task_update`         | Update task status                  |
+| `task_list`           | List all tasks                      |
 
 > **Note:** For context overflow issues, the recommended root solution is to
 > increase `--max-model-len` on your serving side (vLLM, GPUStack, etc.) rather

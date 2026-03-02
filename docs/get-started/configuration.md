@@ -668,7 +668,8 @@ their corresponding top-level category object in your `settings.json` file.
     context windows.
   - **Available tool names:** `read_file`, `search_file_content`, `glob`,
     `replace`, `write_file`, `run_shell_command`, `list_directory`, `web_fetch`,
-    `google_web_search`, `save_memory`, `activate_skill`, `write_todos`
+    `google_web_search`, `save_memory`, `activate_skill`, `task_create`,
+    `task_get`, `task_update`, `task_list`
   - **Default:** `undefined` (all tools enabled)
   - **Requires restart:** Yes
   - **Example for sLM:**
@@ -762,12 +763,6 @@ their corresponding top-level category object in your `settings.json` file.
   - **Description:** A list of MCP servers to exclude.
   - **Default:** `undefined`
   - **Requires restart:** Yes
-
-#### `useWriteTodos`
-
-- **`useWriteTodos`** (boolean):
-  - **Description:** Enable the write_todos tool.
-  - **Default:** `true`
 
 #### `security`
 

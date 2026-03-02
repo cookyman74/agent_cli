@@ -149,7 +149,7 @@ async function main() {
   }
 
   const text = lastUserMessage.content;
-  const allowed = ['write_todos']; // Always allow memory
+  const allowed = ['task_create', 'task_list']; // Always allow task tools
 
   // Simple keyword matching
   if (text.includes('read') || text.includes('check')) {

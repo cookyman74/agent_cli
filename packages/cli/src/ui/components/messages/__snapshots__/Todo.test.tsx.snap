@@ -11,7 +11,7 @@ exports[`<TodoTray /> (showFullTodos: false) > renders null when no todos are in
 
 exports[`<TodoTray /> (showFullTodos: false) > renders null when todo list is empty 1`] = `""`;
 
-exports[`<TodoTray /> (showFullTodos: false) > renders the most recent todo list when multiple write_todos calls are in history 1`] = `
+exports[`<TodoTray /> (showFullTodos: false) > renders the most recent todo list when multiple task tool calls are in history 1`] = `
 "────────────────────────────────────────────────────────────────────────────────────────────────────
  Todo  0/2 completed (ctrl+t to toggle) » Newer Task 2"
 `;
@@ -49,7 +49,7 @@ exports[`<TodoTray /> (showFullTodos: true) > renders null when no todos are in 
 
 exports[`<TodoTray /> (showFullTodos: true) > renders null when todo list is empty 1`] = `""`;
 
-exports[`<TodoTray /> (showFullTodos: true) > renders the most recent todo list when multiple write_todos calls are in history 1`] = `
+exports[`<TodoTray /> (showFullTodos: true) > renders the most recent todo list when multiple task tool calls are in history 1`] = `
 "────────────────────────────────────────────────────────────────────────────────────────────────────
  Todo  0/2 completed (ctrl+t to toggle)
 

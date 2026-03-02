@@ -196,6 +196,113 @@ describe('convertSessionToHistoryFormats', () => {
     expect(result.clientHistory).toHaveLength(0);
   });
 
+  it('should replace removed tool (write_todos) with text summary in client history', () => {
+    const messages: MessageRecord[] = [
+      { type: 'user', content: 'Plan my tasks' } as MessageRecord,
+      {
+        type: 'gemini',
+        content: 'I will create a todo list.',
+        toolCalls: [
+          {
+            id: 'call_removed',
+            name: 'write_todos',
+            args: { todos: [{ description: 'Task 1', status: 'pending' }] },
+            status: 'success',
+            result: 'Todos saved',
+          },
+        ],
+      } as unknown as MessageRecord,
+    ];
+
+    const result = convertSessionToHistoryFormats(messages);
+
+    // UI history: user + gemini text + tool_group
+    expect(result.uiHistory).toHaveLength(3);
+    expect(result.uiHistory[2]).toMatchObject({
+      type: 'tool_group',
+      tools: [expect.objectContaining({ name: 'write_todos' })],
+    });
+
+    // Client history: model message should have text summary instead of functionCall
+    expect(result.clientHistory).toHaveLength(2); // User + Model (text only, no functionResponse)
+    expect(result.clientHistory[1]).toEqual({
+      role: 'model',
+      parts: [
+        { text: 'I will create a todo list.' },
+        {
+          text: '[Previously used tool "write_todos" — result: Todos saved]',
+        },
+      ],
+    });
+
+    // No functionCall or functionResponse for the removed tool
+    for (const entry of result.clientHistory) {
+      for (const part of entry.parts) {
+        expect(part).not.toHaveProperty('functionCall');
+        expect(part).not.toHaveProperty('functionResponse');
+      }
+    }
+  });
+
+  it('should keep valid tools and filter removed tools in mixed tool calls', () => {
+    const messages: MessageRecord[] = [
+      { type: 'user', content: 'Do multiple things' } as MessageRecord,
+      {
+        type: 'gemini',
+        content: '',
+        toolCalls: [
+          {
+            id: 'call_valid',
+            name: 'read_file',
+            args: { path: '/test.txt' },
+            status: 'success',
+            result: 'file content',
+          },
+          {
+            id: 'call_removed',
+            name: 'write_todos',
+            args: { todos: [] },
+            status: 'success',
+            result: 'Todos saved',
+          },
+        ],
+      } as unknown as MessageRecord,
+    ];
+
+    const result = convertSessionToHistoryFormats(messages);
+
+    // Model parts: functionCall for read_file + text summary for write_todos
+    expect(result.clientHistory[1]).toEqual({
+      role: 'model',
+      parts: [
+        {
+          functionCall: {
+            name: 'read_file',
+            args: { path: '/test.txt' },
+            id: 'call_valid',
+          },
+        },
+        {
+          text: '[Previously used tool "write_todos" — result: Todos saved]',
+        },
+      ],
+    });
+
+    // Function response: only read_file, no write_todos
+    expect(result.clientHistory[2]).toEqual({
+      role: 'user',
+      parts: [
+        {
+          functionResponse: {
+            id: 'call_valid',
+            name: 'read_file',
+            response: { output: 'file content' },
+          },
+        },
+      ],
+    });
+  });
+
   it('should handle tool calls and responses', () => {
     const messages: MessageRecord[] = [
       { type: 'user', content: 'What time is it?' } as MessageRecord,

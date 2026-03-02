@@ -84,8 +84,8 @@ Gemini CLI's built-in tools can be broadly categorized as follows:
   the web.
 - **[Memory Tool](./memory.md) (`save_memory`):** For saving and recalling
   information across sessions.
-- **[Todo Tool](./todos.md) (`write_todos`):** For managing subtasks of complex
-  requests.
+- **[Task Tools](./todos.md) (`task_create`, `task_get`, `task_update`,
+  `task_list`):** For managing structured tasks of complex requests.
 
 Additionally, these tools incorporate:
 

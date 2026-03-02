@@ -18,6 +18,13 @@ import { partListUnionToString, coreEvents } from '@didim365/agent-cli-core';
 import type { SessionInfo } from '../../utils/sessionUtils.js';
 import { MessageType, ToolCallStatus } from '../types.js';
 
+/**
+ * Tool names that have been removed from the registry.
+ * When resuming old sessions, their functionCall/functionResponse pairs
+ * are replaced with text summaries to prevent the model from re-calling them.
+ */
+const REMOVED_TOOL_NAMES = new Set(['write_todos']);
+
 export const useSessionBrowser = (
   config: Config,
   onLoadHistory: (
@@ -215,8 +222,19 @@ export function convertSessionToHistoryFormats(
           modelParts.push({ text: contentString });
         }
 
-        // Add function calls
+        // Add function calls (skip removed tools, replace with text summary)
         for (const toolCall of msg.toolCalls!) {
+          if (REMOVED_TOOL_NAMES.has(toolCall.name)) {
+            const resultSummary = toolCall.result
+              ? typeof toolCall.result === 'string'
+                ? toolCall.result.slice(0, 200)
+                : '[structured result]'
+              : '[no result]';
+            modelParts.push({
+              text: `[Previously used tool "${toolCall.name}" — result: ${resultSummary}]`,
+            });
+            continue;
+          }
           modelParts.push({
             functionCall: {
               name: toolCall.name,
@@ -234,6 +252,10 @@ export function convertSessionToHistoryFormats(
         // Create single function response message with all tool call responses
         const functionResponseParts: Part[] = [];
         for (const toolCall of msg.toolCalls!) {
+          // Skip removed tools — already replaced with text summary above
+          if (REMOVED_TOOL_NAMES.has(toolCall.name)) {
+            continue;
+          }
           if (toolCall.result) {
             // Convert PartListUnion result to function response format
             let responseData: Part;

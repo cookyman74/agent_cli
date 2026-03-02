@@ -20,7 +20,7 @@ const createTodoHistoryItem = (todos: Todo[]): HistoryItem =>
     id: '1',
     tools: [
       {
-        name: 'write_todos',
+        name: 'task_list',
         callId: 'tool-1',
         status: ToolCallStatus.Success,
         resultDisplay: {
@@ -113,7 +113,7 @@ describe.each([true, false])(
       expect(lastFrame()).toMatchSnapshot();
     });
 
-    it('renders the most recent todo list when multiple write_todos calls are in history', () => {
+    it('renders the most recent todo list when multiple task tool calls are in history', () => {
       const { lastFrame } = renderWithUiState({
         history: [
           createTodoHistoryItem([

@@ -413,7 +413,6 @@ describe('Core System Prompt (prompts.ts)', () => {
   describe('Task* tools prompt integration', () => {
     it('should include Task* tool guidance when task tools are registered', () => {
       vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
-        'write_todos',
         'task_create',
         'task_get',
         'task_update',
@@ -426,9 +425,9 @@ describe('Core System Prompt (prompts.ts)', () => {
       expect(prompt).toContain('task_list');
     });
 
-    it('should NOT include Task* guidance when task tools are not registered', () => {
+    it('should NOT include Task* guidance when no task tools are registered', () => {
       vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
-        'write_todos',
+        'read_file',
       ]);
 
       const prompt = getCoreSystemPrompt(mockConfig);
@@ -437,9 +436,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     });
 
     it('should NOT include Task* guidance when only task_create is registered (partial coreTools)', () => {
-      // Issue 2: coreTools에서 task_create만 활성 → 안내문의 task_get/update/list가 실제 없는 도구를 언급
       vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
-        'write_todos',
         'task_create',
       ]);
 
@@ -449,11 +446,9 @@ describe('Core System Prompt (prompts.ts)', () => {
       expect(prompt).not.toContain('task_list');
     });
 
-    it('should include Task* guidance in all workflow variants with write_todos', () => {
-      // CI + Todo variant
+    it('should include Task* guidance in CI workflow variant', () => {
       vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
         'codebase_investigator',
-        'write_todos',
         'task_create',
         'task_get',
         'task_update',
@@ -464,8 +459,7 @@ describe('Core System Prompt (prompts.ts)', () => {
       expect(prompt).toContain('task_create');
     });
 
-    it('should NOT mention write_todos in Task* guidance when write_todos is not registered', () => {
-      // R15: Task* 도구만 있고 write_todos가 없는 경우 — write_todos 언급하면 안 됨
+    it('should not mention write_todos anywhere in the prompt', () => {
       vi.mocked(mockConfig.getToolRegistry().getAllToolNames).mockReturnValue([
         'task_create',
         'task_get',
@@ -474,12 +468,7 @@ describe('Core System Prompt (prompts.ts)', () => {
       ]);
 
       const prompt = getCoreSystemPrompt(mockConfig);
-      // Task* guidance should be present
-      expect(prompt).toContain('task_create');
-      expect(prompt).toContain('task_update');
-      // write_todos should NOT be mentioned in Task guidance section
-      expect(prompt).not.toContain('In addition to `write_todos`');
-      expect(prompt).not.toContain('Task tools vs write_todos');
+      expect(prompt).not.toContain('write_todos');
     });
   });
 });

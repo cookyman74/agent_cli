@@ -59,7 +59,6 @@ import {
 import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { ideContextStore } from '../ide/ideContext.js';
-import { WriteTodosTool } from '../tools/write-todos.js';
 import { TaskStore } from '../tools/task-store.js';
 import { TaskCreateTool } from '../tools/task-create.js';
 import { TaskGetTool } from '../tools/task-get.js';
@@ -375,7 +374,6 @@ export interface ConfigParameters {
   truncateToolOutputLines?: number;
   enableToolOutputTruncation?: boolean;
   eventEmitter?: EventEmitter;
-  useWriteTodos?: boolean;
   policyEngineConfig?: PolicyEngineConfig;
   output?: OutputSettings;
   disableModelRouterForAuth?: AuthType[];
@@ -521,7 +519,6 @@ export class Config {
   readonly storage: Storage;
   private readonly fileExclusions: FileExclusions;
   private readonly eventEmitter?: EventEmitter;
-  private readonly useWriteTodos: boolean;
   private readonly messageBus: MessageBus;
   private readonly policyEngine: PolicyEngine;
   private readonly outputSettings: OutputSettings;
@@ -692,10 +689,6 @@ export class Config {
     this.truncateToolOutputLines =
       params.truncateToolOutputLines ?? DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES;
     this.enableToolOutputTruncation = params.enableToolOutputTruncation ?? true;
-    // // TODO(joshualitt): Re-evaluate the todo tool for 3 family.
-    this.useWriteTodos = isPreviewModel(this.model)
-      ? false
-      : (params.useWriteTodos ?? true);
     this.enableHooksUI = params.enableHooksUI ?? true;
     this.enableHooks = params.enableHooks ?? true;
     this.disabledHooks = params.disabledHooks ?? [];
@@ -1952,10 +1945,6 @@ export class Config {
     return ++this.compressionTruncationCounter;
   }
 
-  getUseWriteTodos(): boolean {
-    return this.useWriteTodos;
-  }
-
   getOutputFormat(): OutputFormat {
     return this.outputSettings?.format
       ? this.outputSettings.format
@@ -2064,27 +2053,15 @@ export class Config {
     // filtering it out in restricted environments would break E2E flow.
     registry.registerTool(new AskUserTool(this.getMessageBus()));
 
-    if (this.getUseWriteTodos()) {
-      registerCoreTool(WriteTodosTool);
-    }
-
-    // Task* tools — registered independent of write_todos gate.
+    // Task* tools — structured task management.
     //
-    // Rationale: useWriteTodos is disabled for preview models (gemini-3.x)
-    // and can be explicitly set to false. However, useWriteTodos only controls
-    // the legacy write_todos tool; Task* tools are a separate, structured task
-    // management system that should remain available regardless of model type.
-    //
-    // Note: Task* tools still go through registerCoreTool(), so they ARE
+    // Note: Task* tools go through registerCoreTool(), so they ARE
     // subject to the coreTools allowlist filter. This is intentional —
     // restricted tool environments (e.g., sLM mode) can still exclude them.
     //
     // TaskStore is guarded: only allocated when at least one Task* tool
     // passes the coreTools allowlist, avoiding unnecessary overhead in
     // restricted environments where all Task* tools are excluded.
-    //
-    // TodoTray "last wins": Task* and write_todos share the same UI slot;
-    // only the last caller's todos are displayed. Phase B will remove write_todos.
     {
       const taskToolClasses = [
         TaskCreateTool,

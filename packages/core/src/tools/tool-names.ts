@@ -9,7 +9,6 @@
 // need to reference a tool's name without importing the tool's implementation.
 
 export const GLOB_TOOL_NAME = 'glob';
-export const WRITE_TODOS_TOOL_NAME = 'write_todos';
 export const WRITE_FILE_TOOL_NAME = 'write_file';
 export const WEB_SEARCH_TOOL_NAME = 'google_web_search';
 export const WEB_FETCH_TOOL_NAME = 'web_fetch';
@@ -37,7 +36,6 @@ export const DISCOVERED_TOOL_PREFIX = 'discovered_tool_';
  */
 export const ALL_BUILTIN_TOOL_NAMES = [
   GLOB_TOOL_NAME,
-  WRITE_TODOS_TOOL_NAME,
   WRITE_FILE_TOOL_NAME,
   WEB_SEARCH_TOOL_NAME,
   WEB_FETCH_TOOL_NAME,

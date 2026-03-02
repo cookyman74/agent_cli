@@ -1223,15 +1223,6 @@ const SETTINGS_SCHEMA = {
       },
     },
   },
-  useWriteTodos: {
-    type: 'boolean',
-    label: 'Use WriteTodos',
-    category: 'Advanced',
-    requiresRestart: false,
-    default: true,
-    description: 'Enable the write_todos tool.',
-    showInDialog: false,
-  },
   security: {
     type: 'object',
     label: 'Security',

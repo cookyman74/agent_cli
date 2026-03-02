@@ -220,7 +220,10 @@ prompt size and improve reliability, you can limit enabled tools using the
 | `google_web_search`   | Search the web via Google                   |
 | `save_memory`         | Save context to memory (AGENTS.md)          |
 | `activate_skill`      | Activate agent skills                       |
-| `write_todos`         | Manage todo lists                           |
+| `task_create`         | Create structured tasks                     |
+| `task_get`            | Get task details                            |
+| `task_update`         | Update task status                          |
+| `task_list`           | List all tasks                              |
 
 > **Tip:** For context overflow errors (e.g., `max_tokens` negative), the
 > recommended solution is to increase `--max-model-len` on your serving side

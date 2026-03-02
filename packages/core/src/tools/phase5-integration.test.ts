@@ -11,7 +11,6 @@
  * - INTEGRATION-1: TaskCreate → TaskList round-trip
  * - INTEGRATION-2: TaskCreate → TaskUpdate → TaskGet workflow
  * - INTEGRATION-3: returnDisplay format consistency (todos: Todo[])
- * - INTEGRATION-4: write_todos + Task* coexistence (Issue 6)
  * - INTEGRATION-5: QuestionOption.markdown type propagation
  * - INTEGRATION-6: AskUser MessageBus round-trip (Issue 9)
  */
@@ -22,7 +21,6 @@ import { TaskCreateTool } from './task-create.js';
 import { TaskGetTool } from './task-get.js';
 import { TaskUpdateTool } from './task-update.js';
 import { TaskListTool } from './task-list.js';
-import { WriteTodosTool } from './write-todos.js';
 import { AskUserTool } from './ask-user.js';
 import {
   createMockMessageBus,
@@ -254,50 +252,6 @@ describe('Phase 5 — Cross-Module Integration Tests', () => {
       expect(display.todos[0]).toHaveProperty('status');
       expect(typeof display.todos[0].description).toBe('string');
       expect(typeof display.todos[0].status).toBe('string');
-    });
-  });
-
-  // ── INTEGRATION-4: write_todos + Task* coexistence (Issue 6) ──
-
-  describe('INTEGRATION-4: write_todos + Task* coexistence (Issue 6)', () => {
-    it('write_todos and Task* maintain independent data stores', async () => {
-      const mockBus = createMockMessageBus();
-      const writeTodosTool = new WriteTodosTool(mockBus);
-
-      // Task* 도구로 태스크 생성
-      await createTool.buildAndExecute(
-        { subject: 'Task Tool Task', description: 'Via task_create' },
-        signal,
-      );
-
-      // write_todos로 별도 Todo 설정
-      const writeTodosResult = await writeTodosTool.buildAndExecute(
-        {
-          todos: [{ description: 'Write Todos Task', status: 'pending' }],
-        },
-        signal,
-      );
-
-      // write_todos는 자체 데이터만 반영 (TaskStore와 무관)
-      expect(writeTodosResult.returnDisplay).toEqual({
-        todos: [{ description: 'Write Todos Task', status: 'pending' }],
-      });
-
-      // Task* 도구의 데이터도 독립 유지
-      const listResult = await listTool.buildAndExecute({}, signal);
-      const tasks = JSON.parse(listResult.llmContent as string);
-      expect(tasks).toHaveLength(1);
-      expect(tasks[0].subject).toBe('Task Tool Task');
-    });
-
-    it('TodoTray "last wins" behavior is documented (Issue 6)', () => {
-      // ⚠️ Issue 6: TodoTray는 uiState.history 역순 탐색 → 마지막 todos 결과만 표시
-      // Task* 호출 → write_todos 호출 → TodoTray에는 write_todos 데이터만 표시
-      // 이것은 Phase A 공존 전략에서 허용되는 동작이다.
-      //
-      // 이 테스트는 "last wins" 동작을 명시적으로 문서화한다.
-      // Phase B(전환) 시 write_todos 제거로 해소된다.
-      expect(true).toBe(true); // Documentation-only test
     });
   });
 

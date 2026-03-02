@@ -41,7 +41,6 @@ import { TaskGetTool } from '../tools/task-get.js';
 import { TaskUpdateTool } from '../tools/task-update.js';
 import { TaskListTool } from '../tools/task-list.js';
 import { AskUserTool } from '../tools/ask-user.js';
-import { WriteTodosTool } from '../tools/write-todos.js';
 import type { SkillDefinition } from '../skills/skillLoader.js';
 import { DEFAULT_MODEL_CONFIGS } from './defaultModelConfigs.js';
 import {
@@ -103,7 +102,6 @@ vi.mock('../tools/shell');
 vi.mock('../tools/write-file');
 vi.mock('../tools/web-fetch');
 vi.mock('../tools/read-many-files');
-vi.mock('../tools/write-todos');
 vi.mock('../tools/task-store');
 vi.mock('../tools/task-create');
 vi.mock('../tools/task-get');
@@ -865,40 +863,6 @@ describe('Server Config (config.ts)', () => {
     });
   });
 
-  describe('UseWriteTodos Configuration', () => {
-    it('should default useWriteTodos to true when not provided', () => {
-      const config = new Config(baseParams);
-      expect(config.getUseWriteTodos()).toBe(true);
-    });
-
-    it('should set useWriteTodos to false when provided as false', () => {
-      const params: ConfigParameters = {
-        ...baseParams,
-        useWriteTodos: false,
-      };
-      const config = new Config(params);
-      expect(config.getUseWriteTodos()).toBe(false);
-    });
-
-    it('should disable useWriteTodos for preview models', () => {
-      const params: ConfigParameters = {
-        ...baseParams,
-        model: 'gemini-3-pro-preview',
-      };
-      const config = new Config(params);
-      expect(config.getUseWriteTodos()).toBe(false);
-    });
-
-    it('should NOT disable useWriteTodos for non-preview models', () => {
-      const params: ConfigParameters = {
-        ...baseParams,
-        model: 'gemini-2.5-pro',
-      };
-      const config = new Config(params);
-      expect(config.getUseWriteTodos()).toBe(true);
-    });
-  });
-
   describe('Event Driven Scheduler Configuration', () => {
     it('should default enableEventDrivenScheduler to true when not provided', () => {
       const config = new Config(baseParams);
@@ -1129,8 +1093,8 @@ describe('Server Config (config.ts)', () => {
     });
 
     describe('Task* tool registration', () => {
-      it('should register all 4 Task* tools when useWriteTodos is true (default)', async () => {
-        const config = new Config(baseParams); // useWriteTodos defaults to true
+      it('should register all 4 Task* tools by default', async () => {
+        const config = new Config(baseParams);
         await config.initialize();
 
         const registerToolMock = (
@@ -1139,75 +1103,6 @@ describe('Server Config (config.ts)', () => {
           }
         ).ToolRegistry.prototype.registerTool;
 
-        const taskToolClasses = [
-          TaskCreateTool,
-          TaskGetTool,
-          TaskUpdateTool,
-          TaskListTool,
-        ];
-
-        for (const ToolClass of taskToolClasses) {
-          const wasRegistered = registerToolMock.mock.calls.some(
-            (call) => call[0] instanceof vi.mocked(ToolClass),
-          );
-          expect(wasRegistered).toBe(true);
-        }
-      });
-
-      it('should register Task* tools even when useWriteTodos is false (preview model fix)', async () => {
-        const params: ConfigParameters = {
-          ...baseParams,
-          useWriteTodos: false,
-        };
-        const config = new Config(params);
-        await config.initialize();
-
-        const registerToolMock = (
-          (await vi.importMock('../tools/tool-registry')) as {
-            ToolRegistry: { prototype: { registerTool: Mock } };
-          }
-        ).ToolRegistry.prototype.registerTool;
-
-        const taskToolClasses = [
-          TaskCreateTool,
-          TaskGetTool,
-          TaskUpdateTool,
-          TaskListTool,
-        ];
-
-        for (const ToolClass of taskToolClasses) {
-          const wasRegistered = registerToolMock.mock.calls.some(
-            (call) => call[0] instanceof vi.mocked(ToolClass),
-          );
-          expect(wasRegistered).toBe(true);
-        }
-      });
-
-      it('should register Task* but NOT write_todos on preview models (R3 regression)', async () => {
-        const params: ConfigParameters = {
-          ...baseParams,
-          model: PREVIEW_GEMINI_31_MODEL, // gemini-3.1-pro-preview
-        };
-        const config = new Config(params);
-
-        // Verify preview model disables write_todos
-        expect(config.getUseWriteTodos()).toBe(false);
-
-        await config.initialize();
-
-        const registerToolMock = (
-          (await vi.importMock('../tools/tool-registry')) as {
-            ToolRegistry: { prototype: { registerTool: Mock } };
-          }
-        ).ToolRegistry.prototype.registerTool;
-
-        // write_todos should NOT be registered
-        const wasWriteTodosRegistered = registerToolMock.mock.calls.some(
-          (call) => call[0] instanceof vi.mocked(WriteTodosTool),
-        );
-        expect(wasWriteTodosRegistered).toBe(false);
-
-        // All 4 Task* tools SHOULD be registered
         const taskToolClasses = [
           TaskCreateTool,
           TaskGetTool,
@@ -1324,26 +1219,6 @@ describe('Server Config (config.ts)', () => {
     describe('AskUser tool registration', () => {
       it('should register ask_user tool unconditionally', async () => {
         const config = new Config(baseParams);
-        await config.initialize();
-
-        const registerToolMock = (
-          (await vi.importMock('../tools/tool-registry')) as {
-            ToolRegistry: { prototype: { registerTool: Mock } };
-          }
-        ).ToolRegistry.prototype.registerTool;
-
-        const wasRegistered = registerToolMock.mock.calls.some(
-          (call) => call[0] instanceof vi.mocked(AskUserTool),
-        );
-        expect(wasRegistered).toBe(true);
-      });
-
-      it('should register ask_user tool even when useWriteTodos is false', async () => {
-        const params: ConfigParameters = {
-          ...baseParams,
-          useWriteTodos: false,
-        };
-        const config = new Config(params);
         await config.initialize();
 
         const registerToolMock = (

@@ -116,7 +116,8 @@ This documentation is organized into the following sections:
   `google_web_search` tool.
 - **[Memory tool](./tools/memory.md):** Documentation for the `save_memory`
   tool.
-- **[Todo tool](./tools/todos.md):** Documentation for the `write_todos` tool.
+- **[Task tools](./tools/todos.md):** Documentation for the `task_create`,
+  `task_get`, `task_update`, and `task_list` tools.
 - **[MCP servers](./tools/mcp-server.md):** Using MCP servers with the CLI.
   Includes deterministic tool naming and sLM-compatible parameter normalization.
 

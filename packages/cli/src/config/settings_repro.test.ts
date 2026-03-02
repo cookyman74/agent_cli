@@ -176,7 +176,6 @@ describe('Settings Repro', () => {
           hideModelInfo: false,
         },
       },
-      useWriteTodos: true,
       output: {
         format: 'text',
       },

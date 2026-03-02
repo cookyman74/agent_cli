@@ -1256,6 +1256,44 @@ describe('Server Config (config.ts)', () => {
         expect(TaskStoreMock).not.toHaveBeenCalled();
       });
 
+      it('should register Task* tools when coreTools uses class names (R5)', async () => {
+        const params: ConfigParameters = {
+          ...baseParams,
+          coreTools: [
+            'TaskCreateTool',
+            'TaskGetTool',
+            'TaskUpdateTool',
+            'TaskListTool',
+          ],
+        };
+        const config = new Config(params);
+        await config.initialize();
+
+        const registerToolMock = (
+          (await vi.importMock('../tools/tool-registry')) as {
+            ToolRegistry: { prototype: { registerTool: Mock } };
+          }
+        ).ToolRegistry.prototype.registerTool;
+
+        const taskToolClasses = [
+          TaskCreateTool,
+          TaskGetTool,
+          TaskUpdateTool,
+          TaskListTool,
+        ];
+
+        for (const ToolClass of taskToolClasses) {
+          const wasRegistered = registerToolMock.mock.calls.some(
+            (call) => call[0] instanceof vi.mocked(ToolClass),
+          );
+          expect(wasRegistered).toBe(true);
+        }
+
+        // TaskStore should have been created
+        const TaskStoreMock = vi.mocked(TaskStore);
+        expect(TaskStoreMock).toHaveBeenCalledTimes(1);
+      });
+
       it('should pass a shared TaskStore instance to all 4 Task* tools', async () => {
         const config = new Config(baseParams);
         await config.initialize();

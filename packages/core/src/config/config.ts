@@ -862,12 +862,16 @@ export class Config {
         );
         this.getSkillManager().setDisabledSkills(this.disabledSkills);
 
-        // Re-register ActivateSkillTool to update its schema with the discovered enabled skill enums
+        // Re-register ActivateSkillTool to update its schema with the discovered enabled skill enums.
+        // Respects coreTools allowlist: if ActivateSkillTool was filtered out at initial
+        // registration, it must not be re-introduced via direct registerTool() call.
         if (this.getSkillManager().getSkills().length > 0) {
           this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
-          this.getToolRegistry().registerTool(
-            new ActivateSkillTool(this, this.messageBus),
-          );
+          if (this.isCoreToolAllowed(ActivateSkillTool)) {
+            this.getToolRegistry().registerTool(
+              new ActivateSkillTool(this, this.messageBus),
+            );
+          }
         }
       }
     }
@@ -1245,6 +1249,31 @@ export class Config {
 
   getCoreTools(): string[] | undefined {
     return this.coreTools;
+  }
+
+  /**
+   * Checks whether a tool class is allowed by the coreTools allowlist.
+   * Mirrors the matching logic in registerCoreTool: matches against
+   * toolName (static Name || className), normalizedClassName, and
+   * argument-specific patterns like "ToolName(args)".
+   * Returns true if coreTools is not set (no restriction).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  isCoreToolAllowed(ToolClass: any): boolean {
+    const coreTools = this.coreTools;
+    if (!coreTools) {
+      return true;
+    }
+    const className = ToolClass.name;
+    const toolName = ToolClass.Name || className;
+    const normalizedClassName = className.replace(/^_+/, '');
+    return coreTools.some(
+      (tool) =>
+        tool === toolName ||
+        tool === normalizedClassName ||
+        tool.startsWith(`${toolName}(`) ||
+        tool.startsWith(`${normalizedClassName}(`),
+    );
   }
 
   getAllowedTools(): string[] | undefined {
@@ -1808,12 +1837,15 @@ export class Config {
       );
       this.getSkillManager().setDisabledSkills(this.disabledSkills);
 
-      // Re-register ActivateSkillTool to update its schema with the newly discovered skills
+      // Re-register ActivateSkillTool to update its schema with the newly discovered skills.
+      // Respects coreTools allowlist: skip re-registration if the tool was excluded.
       if (this.getSkillManager().getSkills().length > 0) {
         this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
-        this.getToolRegistry().registerTool(
-          new ActivateSkillTool(this, this.messageBus),
-        );
+        if (this.isCoreToolAllowed(ActivateSkillTool)) {
+          this.getToolRegistry().registerTool(
+            new ActivateSkillTool(this, this.messageBus),
+          );
+        }
       } else {
         this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
       }
@@ -2054,27 +2086,15 @@ export class Config {
     // TodoTray "last wins": Task* and write_todos share the same UI slot;
     // only the last caller's todos are displayed. Phase B will remove write_todos.
     {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const taskToolClasses: any[] = [
+      const taskToolClasses = [
         TaskCreateTool,
         TaskGetTool,
         TaskUpdateTool,
         TaskListTool,
       ];
-      const coreToolsAllowlist = this.getCoreTools();
-      const anyTaskToolAllowed =
-        !coreToolsAllowlist ||
-        taskToolClasses.some((TC) => {
-          const name = TC.Name || TC.name;
-          const normalized = name.replace(/^_+/, '');
-          return coreToolsAllowlist.some(
-            (t: string) =>
-              t === name ||
-              t === normalized ||
-              t.startsWith(`${name}(`) ||
-              t.startsWith(`${normalized}(`),
-          );
-        });
+      const anyTaskToolAllowed = taskToolClasses.some((TC) =>
+        this.isCoreToolAllowed(TC),
+      );
 
       if (anyTaskToolAllowed) {
         const taskStore = new TaskStore();

@@ -155,15 +155,89 @@ if (anyTaskToolAllowed) {
 
 ---
 
-## 7. 리뷰 피드백 대응 요약
+## 7. 추가 리뷰 피드백 반영 (R5~R6)
 
-| #   | 심각도 | 이슈                               | 조치             | 상태 |
-| --- | ------ | ---------------------------------- | ---------------- | ---- |
-| R1  | MEDIUM | useWriteTodos 의미 변경 하위호환   | 코드 주석 보강   | ✅   |
-| R2  | MEDIUM | 문서 "항상 등록" 부정확            | 주석 + 문서 수정 | ✅   |
-| R3  | MEDIUM | Preview 모델 조합 회귀 테스트 없음 | 테스트 2개 추가  | ✅   |
-| R4  | LOW    | TaskStore 불필요 생성              | 가드 패턴 적용   | ✅   |
+### R5. HIGH — Task\* 사전 가드가 registerCoreTool 허용 규칙과 불일치
+
+**문제**: R4에서 도입한 가드가 `TC.Name || TC.name`으로 toolName만 체크하여,
+coreTools에 클래스명(`TaskCreateTool`)을 넣는 케이스를 매칭하지 못함.
+`registerCoreTool`은 `toolName`과 `normalizedClassName` 양쪽을 모두 체크하므로
+불일치 발생.
+
+**조치**: `isCoreToolAllowed()` 공통 메서드를 추출하여 registerCoreTool과 동일한
+매칭 규칙(toolName + normalizedClassName + 패턴매칭)을 단일 지점에서 관리.
+Task\* 가드에서 기존 인라인 로직을 `isCoreToolAllowed(TC)` 호출로 대체.
+
+```typescript
+// config.ts — 공통 메서드 추출
+isCoreToolAllowed(ToolClass: any): boolean {
+  const coreTools = this.coreTools;
+  if (!coreTools) return true;
+  const className = ToolClass.name;
+  const toolName = ToolClass.Name || className;
+  const normalizedClassName = className.replace(/^_+/, '');
+  return coreTools.some(
+    (tool) => tool === toolName || tool === normalizedClassName ||
+              tool.startsWith(`${toolName}(`) || tool.startsWith(`${normalizedClassName}(`),
+  );
+}
+```
+
+**테스트 추가**:
+
+- `should register Task* tools when coreTools uses class names (R5)` —
+  `coreTools: ['TaskCreateTool', ...]` 시 정상 등록 + TaskStore 생성 검증
+
+### R6. HIGH — ActivateSkillTool 재등록 시 coreTools 우회
+
+**문제**: 초기 등록은 `registerCoreTool()` 경유하여 coreTools 필터를 적용하지만,
+스킬 발견/리로드 경로(initialize line 867, reloadConfig line 1813)에서
+`registry.registerTool(new ActivateSkillTool(...))` 직접 호출로 필터를 우회.
+
+**조치**: 두 재등록 지점 모두 `this.isCoreToolAllowed(ActivateSkillTool)` 검사를
+추가. coreTools에서 제외된 도구는 재등록되지 않음.
+
+```typescript
+// 수정된 재등록 경로 (2곳)
+if (this.getSkillManager().getSkills().length > 0) {
+  this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
+  if (this.isCoreToolAllowed(ActivateSkillTool)) {
+    this.getToolRegistry().registerTool(
+      new ActivateSkillTool(this, this.messageBus),
+    );
+  }
+}
+```
 
 ---
 
-**작성일**: 2026-03-02 **상태**: ✅ Hotfix + 리뷰 반영 완료
+## 8. 검증 결과 (최종)
+
+| 검증 항목                        | 결과              |
+| -------------------------------- | ----------------- |
+| Core typecheck                   | 0 에러 ✅         |
+| Lint (config.ts, config.test.ts) | 0 에러 ✅         |
+| config.test.ts                   | 149/149 passed ✅ |
+| TaskStore 단위 테스트            | 69/69 passed ✅   |
+| TaskCreate 단위 테스트           | 8/8 passed ✅     |
+| TaskGet 단위 테스트              | 5/5 passed ✅     |
+| TaskUpdate 단위 테스트           | 22/22 passed ✅   |
+| TaskList 단위 테스트             | 6/6 passed ✅     |
+| Phase 5 통합 테스트              | 17/17 passed ✅   |
+
+---
+
+## 9. 리뷰 피드백 대응 요약
+
+| #   | 심각도 | 이슈                                    | 조치                          | 상태 |
+| --- | ------ | --------------------------------------- | ----------------------------- | ---- |
+| R1  | MEDIUM | useWriteTodos 의미 변경 하위호환        | 코드 주석 보강                | ✅   |
+| R2  | MEDIUM | 문서 "항상 등록" 부정확                 | 주석 + 문서 수정              | ✅   |
+| R3  | MEDIUM | Preview 모델 조합 회귀 테스트 없음      | 테스트 2개 추가               | ✅   |
+| R4  | LOW    | TaskStore 불필요 생성                   | 가드 패턴 적용                | ✅   |
+| R5  | HIGH   | Task\* 가드 매칭 규칙 불일치            | isCoreToolAllowed 공통 메서드 | ✅   |
+| R6  | HIGH   | ActivateSkillTool 재등록 coreTools 우회 | 재등록 2곳에 검사 추가        | ✅   |
+
+---
+
+**작성일**: 2026-03-02 **상태**: ✅ Hotfix + 리뷰 R1~R6 전체 반영 완료

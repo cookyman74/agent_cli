@@ -89,7 +89,7 @@ describe('getDefaultModelFromRegistry', () => {
   });
 
   it('returns isDefault model for openai', () => {
-    expect(getDefaultModelFromRegistry('openai')).toBe('gpt-5.2');
+    expect(getDefaultModelFromRegistry('openai')).toBe('gpt-5.3-codex');
   });
 
   it('returns "default" for openai-compatible (freeformInput)', () => {

@@ -113,16 +113,20 @@ export const PROVIDER_MODEL_REGISTRY: Record<string, ProviderModelGroup> = {
     providerKey: 'openai',
     presets: [
       {
-        value: 'gpt-5.2',
-        title: 'Recommended (gpt-5.2)',
-        description: 'Flagship reasoning model with 400K context',
+        value: 'gpt-5.3-codex',
+        title: 'Recommended (gpt-5.3-codex)',
+        description: 'Codex model optimized for software engineering tasks',
       },
     ],
     models: [
       {
+        id: 'gpt-5.3-codex',
+        description: 'Codex model for software engineering, 1M context',
+        isDefault: true,
+      },
+      {
         id: 'gpt-5.2',
         description: 'Flagship reasoning model, 400K context',
-        isDefault: true,
       },
       {
         id: 'gpt-5-mini',

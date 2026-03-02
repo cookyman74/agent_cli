@@ -371,12 +371,14 @@ interface OptionItem {
   description: string;
   type: 'option' | 'other' | 'done';
   index: number;
+  markdown?: string;
 }
 
 interface ChoiceQuestionState {
   selectedIndices: Set<number>;
   isCustomOptionSelected: boolean;
   isCustomOptionFocused: boolean;
+  focusedOptionIndex: number;
 }
 
 type ChoiceQuestionAction =
@@ -386,7 +388,8 @@ type ChoiceQuestionAction =
       payload: { selected: boolean; multiSelect: boolean };
     }
   | { type: 'TOGGLE_CUSTOM_SELECTED'; payload: { multiSelect: boolean } }
-  | { type: 'SET_CUSTOM_FOCUSED'; payload: { focused: boolean } };
+  | { type: 'SET_CUSTOM_FOCUSED'; payload: { focused: boolean } }
+  | { type: 'SET_FOCUSED_OPTION'; payload: { index: number } };
 
 function choiceQuestionReducer(
   state: ChoiceQuestionState,
@@ -434,6 +437,15 @@ function choiceQuestionReducer(
         isCustomOptionFocused: action.payload.focused,
       };
     }
+    case 'SET_FOCUSED_OPTION': {
+      if (state.focusedOptionIndex === action.payload.index) {
+        return state;
+      }
+      return {
+        ...state,
+        focusedOptionIndex: action.payload.index,
+      };
+    }
     default:
       checkExhaustive(action);
       return state;
@@ -477,6 +489,7 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
         selectedIndices: new Set<number>(),
         isCustomOptionSelected: false,
         isCustomOptionFocused: false,
+        focusedOptionIndex: 0,
       };
     }
 
@@ -509,6 +522,7 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
       selectedIndices,
       isCustomOptionSelected,
       isCustomOptionFocused: false,
+      focusedOptionIndex: 0,
     };
   }, [initialAnswer, questionOptions, question.multiSelect]);
 
@@ -516,8 +530,12 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
     choiceQuestionReducer,
     initialReducerState,
   );
-  const { selectedIndices, isCustomOptionSelected, isCustomOptionFocused } =
-    state;
+  const {
+    selectedIndices,
+    isCustomOptionSelected,
+    isCustomOptionFocused,
+    focusedOptionIndex,
+  } = state;
 
   const initialCustomText = useMemo(() => {
     if (!initialAnswer) return '';
@@ -642,6 +660,7 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
           description: opt.description,
           type: 'option',
           index: i,
+          markdown: opt.markdown,
         };
         return { key: item.key, value: item };
       },
@@ -679,6 +698,10 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
       dispatch({
         type: 'SET_CUSTOM_FOCUSED',
         payload: { focused: nowFocusingCustomOption },
+      });
+      dispatch({
+        type: 'SET_FOCUSED_OPTION',
+        payload: { index: itemValue.index },
       });
       // Notify parent when we start/stop focusing custom option (so navigation can resume)
       onEditingCustomOption?.(nowFocusingCustomOption);
@@ -740,6 +763,100 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
     }
   }, [customOptionText, isCustomOptionSelected, question.multiSelect]);
 
+  // Determine if markdown preview should be shown:
+  // - At least one option has markdown content
+  // - Not multiSelect (Claude Code behavior: multiSelect disables preview)
+  const hasMarkdownPreview = useMemo(
+    () => !question.multiSelect && questionOptions.some((opt) => opt.markdown),
+    [question.multiSelect, questionOptions],
+  );
+
+  // Get the currently focused option's markdown content
+  const focusedMarkdown = useMemo(() => {
+    if (!hasMarkdownPreview) return null;
+    const focusedOption = questionOptions[focusedOptionIndex];
+    return focusedOption?.markdown ?? null;
+  }, [hasMarkdownPreview, questionOptions, focusedOptionIndex]);
+
+  const optionsList = (
+    <BaseSelectionList<OptionItem>
+      items={selectionItems}
+      onSelect={handleSelect}
+      onHighlight={handleHighlight}
+      focusKey={isCustomOptionFocused ? 'other' : undefined}
+      renderItem={(item, context) => {
+        const optionItem = item.value;
+        const isChecked =
+          selectedIndices.has(optionItem.index) ||
+          (optionItem.type === 'other' && isCustomOptionSelected);
+        const showCheck =
+          question.multiSelect &&
+          (optionItem.type === 'option' || optionItem.type === 'other');
+
+        // Render inline text input for custom option
+        if (optionItem.type === 'other') {
+          const placeholder = 'Enter a custom value';
+          return (
+            <Box flexDirection="row">
+              {showCheck && (
+                <Text
+                  color={isChecked ? theme.text.accent : theme.text.secondary}
+                >
+                  [{isChecked ? 'x' : ' '}]
+                </Text>
+              )}
+              <Text color={theme.text.primary}> </Text>
+              <TextInput
+                buffer={customBuffer}
+                placeholder={placeholder}
+                focus={context.isSelected}
+                onSubmit={() => handleSelect(optionItem)}
+              />
+              {isChecked && !question.multiSelect && (
+                <Text color={theme.status.success}> ✓</Text>
+              )}
+            </Box>
+          );
+        }
+
+        // Determine label color: checked (previously answered) uses success, selected uses accent, else primary
+        const labelColor =
+          isChecked && !question.multiSelect
+            ? theme.status.success
+            : context.isSelected
+              ? context.titleColor
+              : theme.text.primary;
+
+        return (
+          <Box flexDirection="column">
+            <Box flexDirection="row">
+              {showCheck && (
+                <Text
+                  color={isChecked ? theme.text.accent : theme.text.secondary}
+                >
+                  [{isChecked ? 'x' : ' '}]
+                </Text>
+              )}
+              <Text color={labelColor} bold={optionItem.type === 'done'}>
+                {' '}
+                {optionItem.label}
+              </Text>
+              {isChecked && !question.multiSelect && (
+                <Text color={theme.status.success}> ✓</Text>
+              )}
+            </Box>
+            {optionItem.description && (
+              <Text color={theme.text.secondary} wrap="wrap">
+                {' '}
+                {optionItem.description}
+              </Text>
+            )}
+          </Box>
+        );
+      }}
+    />
+  );
+
   return (
     <Box
       flexDirection="column"
@@ -760,82 +877,30 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
         </Text>
       )}
 
-      <BaseSelectionList<OptionItem>
-        items={selectionItems}
-        onSelect={handleSelect}
-        onHighlight={handleHighlight}
-        focusKey={isCustomOptionFocused ? 'other' : undefined}
-        renderItem={(item, context) => {
-          const optionItem = item.value;
-          const isChecked =
-            selectedIndices.has(optionItem.index) ||
-            (optionItem.type === 'other' && isCustomOptionSelected);
-          const showCheck =
-            question.multiSelect &&
-            (optionItem.type === 'option' || optionItem.type === 'other');
-
-          // Render inline text input for custom option
-          if (optionItem.type === 'other') {
-            const placeholder = 'Enter a custom value';
-            return (
-              <Box flexDirection="row">
-                {showCheck && (
-                  <Text
-                    color={isChecked ? theme.text.accent : theme.text.secondary}
-                  >
-                    [{isChecked ? 'x' : ' '}]
-                  </Text>
-                )}
-                <Text color={theme.text.primary}> </Text>
-                <TextInput
-                  buffer={customBuffer}
-                  placeholder={placeholder}
-                  focus={context.isSelected}
-                  onSubmit={() => handleSelect(optionItem)}
-                />
-                {isChecked && !question.multiSelect && (
-                  <Text color={theme.status.success}> ✓</Text>
-                )}
-              </Box>
-            );
-          }
-
-          // Determine label color: checked (previously answered) uses success, selected uses accent, else primary
-          const labelColor =
-            isChecked && !question.multiSelect
-              ? theme.status.success
-              : context.isSelected
-                ? context.titleColor
-                : theme.text.primary;
-
-          return (
-            <Box flexDirection="column">
-              <Box flexDirection="row">
-                {showCheck && (
-                  <Text
-                    color={isChecked ? theme.text.accent : theme.text.secondary}
-                  >
-                    [{isChecked ? 'x' : ' '}]
-                  </Text>
-                )}
-                <Text color={labelColor} bold={optionItem.type === 'done'}>
-                  {' '}
-                  {optionItem.label}
-                </Text>
-                {isChecked && !question.multiSelect && (
-                  <Text color={theme.status.success}> ✓</Text>
-                )}
-              </Box>
-              {optionItem.description && (
-                <Text color={theme.text.secondary} wrap="wrap">
-                  {' '}
-                  {optionItem.description}
-                </Text>
-              )}
+      {hasMarkdownPreview ? (
+        <Box flexDirection="row">
+          <Box flexDirection="column" flexShrink={0}>
+            {optionsList}
+          </Box>
+          <Box
+            flexDirection="column"
+            borderStyle="round"
+            borderColor={theme.border.default}
+            paddingX={1}
+            marginLeft={1}
+            flexGrow={1}
+          >
+            <Box marginBottom={1}>
+              <Text bold color={theme.text.secondary}>
+                Preview
+              </Text>
             </Box>
-          );
-        }}
-      />
+            <Text wrap="wrap">{focusedMarkdown ?? ''}</Text>
+          </Box>
+        </Box>
+      ) : (
+        optionsList
+      )}
       {keyboardHints}
     </Box>
   );

@@ -483,6 +483,131 @@ describe('AskUserDialog', () => {
     });
   });
 
+  describe('Markdown preview', () => {
+    it('should render markdown preview panel when option has markdown field', () => {
+      const questions: Question[] = [
+        {
+          question: 'Which layout?',
+          header: 'Layout',
+          options: [
+            {
+              label: 'Horizontal',
+              description: 'Side by side',
+              markdown: '┌─────────┐\n│ A │ B │\n└─────────┘',
+            },
+            {
+              label: 'Vertical',
+              description: 'Stacked',
+              markdown: '┌───┐\n│ A │\n├───┤\n│ B │\n└───┘',
+            },
+          ],
+        },
+      ];
+
+      const { lastFrame } = renderWithProviders(
+        <AskUserDialog
+          questions={questions}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      // Preview panel should show the first option's markdown (focused by default)
+      expect(lastFrame()).toContain('┌─────────┐');
+    });
+
+    it('should update preview when focused option changes', async () => {
+      const questions: Question[] = [
+        {
+          question: 'Which layout?',
+          header: 'Layout',
+          options: [
+            {
+              label: 'Option A',
+              description: 'First',
+              markdown: 'Preview A content',
+            },
+            {
+              label: 'Option B',
+              description: 'Second',
+              markdown: 'Preview B content',
+            },
+          ],
+        },
+      ];
+
+      const { lastFrame, stdin } = renderWithProviders(
+        <AskUserDialog
+          questions={questions}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      // Initial: Option A focused → Preview A displayed
+      expect(lastFrame()).toContain('Preview A content');
+
+      // Arrow Down → Option B focused → Preview B displayed
+      writeKey(stdin, '\x1b[B');
+
+      await waitFor(() => {
+        expect(lastFrame()).toContain('Preview B content');
+      });
+    });
+
+    it('should not show preview panel when no options have markdown', () => {
+      const questions: Question[] = [
+        {
+          question: 'Choose one',
+          header: 'Choice',
+          options: [
+            { label: 'Option A', description: 'No markdown' },
+            { label: 'Option B', description: 'No markdown either' },
+          ],
+        },
+      ];
+
+      const { lastFrame } = renderWithProviders(
+        <AskUserDialog
+          questions={questions}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      // Should not contain "Preview" border label
+      expect(lastFrame()).not.toContain('Preview');
+    });
+
+    it('should not show preview for multiSelect questions', () => {
+      const questions: Question[] = [
+        {
+          question: 'Select multiple',
+          header: 'Multi',
+          multiSelect: true,
+          options: [
+            {
+              label: 'Option A',
+              description: 'First',
+              markdown: 'Should not appear',
+            },
+          ],
+        },
+      ];
+
+      const { lastFrame } = renderWithProviders(
+        <AskUserDialog
+          questions={questions}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      // multiSelect should not show markdown preview
+      expect(lastFrame()).not.toContain('Should not appear');
+    });
+  });
+
   describe('Text type questions', () => {
     it('renders text input for type: "text"', () => {
       const textQuestion: Question[] = [

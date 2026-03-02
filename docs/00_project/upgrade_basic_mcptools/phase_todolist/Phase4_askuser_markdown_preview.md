@@ -43,13 +43,13 @@
 
 | 리스크                                                                      | 영향           | 대응 방안                                                                              | 상태 |
 | --------------------------------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------- | ---- |
-| `ask_user` E2E 경로 완전 단절 (Issue 1)                                     | 🟠 High        | Part A에서 config 등록 + CLI 구독 + DialogManager 연동                                 | ⬜   |
-| `execute()` 호출 시 ASK_USER_RESPONSE 대기로 hang / cancel 미정의 (Issue 3) | 🟠 Medium-High | 테스트: subscribe auto-respond 패턴; 취소: `signal.abort()` → cancel resolve 계약 정의 | ⬜   |
-| AskUserDialog props `onSubmit`/`onCancel` 혼동 (Issue 5)                    | 🟡 Medium      | 실제 코드: `onSubmit`/`onCancel` — 테스트 코드에서 정확히 사용                         | ⬜   |
-| 기존 `ask_user` 호출 패턴 깨짐                                              | 🟡 Medium      | `markdown`은 optional → 기존 호출에 영향 없음                                          | ⬜   |
-| `QuestionOption` 인터페이스 변경 시 타입 충돌                               | 🟡 Medium      | optional 필드 추가만 수행, breaking change 없음                                        | ⬜   |
-| Ink Box 내 markdown 렌더링 품질                                             | 🟡 Medium      | monospace 강제, 길이 제한, Box 컴포넌트 사용                                           | ⬜   |
-| `multiSelect` + `markdown` 조합 시 레이아웃 깨짐                            | 🟡 Medium      | Claude Code 동작: multiSelect 시 preview 미지원 → 동일 제한                            | ⬜   |
+| `ask_user` E2E 경로 완전 단절 (Issue 1)                                     | 🟠 High        | Part A에서 config 등록 + CLI 구독 + DialogManager 연동                                 | ✅   |
+| `execute()` 호출 시 ASK_USER_RESPONSE 대기로 hang / cancel 미정의 (Issue 3) | 🟠 Medium-High | 테스트: subscribe auto-respond 패턴; 취소: `signal.abort()` → cancel resolve 계약 정의 | ✅   |
+| AskUserDialog props `onSubmit`/`onCancel` 혼동 (Issue 5)                    | 🟡 Medium      | 실제 코드: `onSubmit`/`onCancel` — 테스트 코드에서 정확히 사용                         | ✅   |
+| 기존 `ask_user` 호출 패턴 깨짐                                              | 🟡 Medium      | `markdown`은 optional → 기존 호출에 영향 없음                                          | ✅   |
+| `QuestionOption` 인터페이스 변경 시 타입 충돌                               | 🟡 Medium      | optional 필드 추가만 수행, breaking change 없음                                        | ✅   |
+| Ink Box 내 markdown 렌더링 품질                                             | 🟡 Medium      | monospace 강제, 길이 제한, Box 컴포넌트 사용                                           | ✅   |
+| `multiSelect` + `markdown` 조합 시 레이아웃 깨짐                            | 🟡 Medium      | Claude Code 동작: multiSelect 시 preview 미지원 → 동일 제한                            | ✅   |
 
 ---
 
@@ -57,19 +57,19 @@
 
 ## 4A.1 사전 작업 (Pre-Work)
 
-- [ ] **[CONTEXT]** AskUser E2E 단절 현황 분석 (Issue 1)
+- [x] **[CONTEXT]** AskUser E2E 단절 현황 분석 (Issue 1)
   - `config.ts`: `AskUserTool`이 `createToolRegistry()`에 등록되지 않음 확인
   - CLI: `ASK_USER_REQUEST` MessageBus 이벤트 구독 부재 확인
   - `DialogManager.tsx`: ~20+ 다이얼로그 등록 중 `AskUserDialog` 미포함 확인
   - `AskUserDialog.tsx`: 1,106줄 완전 구현, Props: `onSubmit`/`onCancel` (NOT
     `onAnswer`)
 
-- [ ] **[ANALYSIS-1]** CLI 대화 패턴 분석
+- [x] **[ANALYSIS-1]** CLI 대화 패턴 분석
   - 파일: `packages/cli/src/ui/components/DialogManager.tsx`
   - 확인: 기존 다이얼로그(ConfirmDialog, InputDialog 등) 등록 및 렌더링 패턴
   - 확인: MessageBus 이벤트 → 다이얼로그 표시 → 응답 전송 패턴
 
-- [ ] **[ANALYSIS-2]** MessageBus 이벤트 흐름 분석
+- [x] **[ANALYSIS-2]** MessageBus 이벤트 흐름 분석
   - 파일: `packages/core/src/tools/ask-user.ts`
   - 확인: `execute()` → `publish(ASK_USER_REQUEST)` →
     `subscribe(ASK_USER_RESPONSE)` 패턴
@@ -83,7 +83,7 @@
     `this.messageBus.publish(request).catch(reject)` 호출 →
     MockMessageBus.publish가 Promise 반환하도록 설정 필요할 수 있음
 
-- [ ] **[ANALYSIS-3]** AskUserDialog.tsx props 정확한 인터페이스 확인 (Issue 5)
+- [x] **[ANALYSIS-3]** AskUserDialog.tsx props 정확한 인터페이스 확인 (Issue 5)
   - 파일: `packages/cli/src/ui/components/AskUserDialog.tsx`
   - 확인: Props =
     `{ questions: Question[], onSubmit: (answers) => void, onCancel: () => void }`
@@ -93,7 +93,7 @@
 
 ## 4A.2 RED Phase: E2E 경로 구축 테스트
 
-- [ ] **[RED-A1]** config.ts에 AskUserTool 등록 테스트
+- [x] **[RED-A1]** config.ts에 AskUserTool 등록 테스트
 
   ```typescript
   describe('createToolRegistry - ask_user', () => {
@@ -104,7 +104,7 @@
   });
   ```
 
-- [ ] **[RED-A2]** AskUser E2E 라운드트립 테스트 (2차 리뷰 Issue 1, 3: 정확한
+- [x] **[RED-A2]** AskUser E2E 라운드트립 테스트 (2차 리뷰 Issue 1, 3: 정확한
       mock API + hang 방지)
 
   ```typescript
@@ -181,7 +181,7 @@
   >   확인 (`.getLastPublished()` 메서드 없음)
   > - `execute(signal)`: AbortSignal은 필수 파라미터
 
-- [ ] **[RED-A3]** DialogManager에 AskUserDialog 포함 테스트
+- [x] **[RED-A3]** DialogManager에 AskUserDialog 포함 테스트
 
   ```typescript
   describe('DialogManager - AskUserDialog', () => {
@@ -198,7 +198,7 @@
   });
   ```
 
-- [ ] **[RED-A4]** Cancel 계약 테스트 (2차 리뷰 Issue 3: hang 방지 — AbortSignal
+- [x] **[RED-A4]** Cancel 계약 테스트 (2차 리뷰 Issue 3: hang 방지 — AbortSignal
       경유)
 
   ```typescript
@@ -271,7 +271,7 @@
   > - AskUserDialog의 `onCancel` prop은 DialogManager에서
   >   AbortController.abort() 호출로 구현
 
-- [ ] **[RED-VERIFY-A]** 테스트 실패 확인
+- [x] **[RED-VERIFY-A]** 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/ask-user  # 신규 테스트 FAIL
   npm test -w @didim365/agent-cli -- src/ui/components/DialogManager  # 신규 테스트 FAIL
@@ -281,17 +281,17 @@
 
 ## 4A.3 GREEN Phase: E2E 경로 구현
 
-- [ ] **[TASK-A1]** `config.ts`에 AskUserTool 등록
+- [x] **[TASK-A1]** `config.ts`에 AskUserTool 등록
   - 파일: `packages/core/src/config/config.ts`
   - 변경: `createToolRegistry()` 내에 `registerCoreTool(AskUserTool)` 추가
   - 위치: 기존 도구 등록 블록 내 적절한 위치
 
-- [ ] **[TASK-A2]** CLI MessageBus 구독 추가
+- [x] **[TASK-A2]** CLI MessageBus 구독 추가
   - 파일: CLI 측 MessageBus 구독 훅/유틸리티
   - 변경: `ASK_USER_REQUEST` 이벤트 구독 → AskUserDialog 표시 트리거
   - 패턴: 기존 ConfirmDialog 등의 MessageBus 연동 패턴 참조
 
-- [ ] **[TASK-A3]** DialogManager에 AskUserDialog 연동
+- [x] **[TASK-A3]** DialogManager에 AskUserDialog 연동
   - 파일: `packages/cli/src/ui/components/DialogManager.tsx`
   - 변경: AskUserDialog 컴포넌트 import + 렌더링 조건 추가
   - Props 매핑:
@@ -301,7 +301,7 @@
     - `onCancel` ← 취소 시 `AbortController.abort()` 호출 → ask-user.ts의
       abortHandler 트리거 (2차 리뷰 Issue 3, 1차 Issue 5)
 
-- [ ] **[GREEN-VERIFY-A]** E2E 경로 테스트 통과
+- [x] **[GREEN-VERIFY-A]** E2E 경로 테스트 통과
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/ask-user  # PASS
   npm test -w @didim365/agent-cli -- src/ui/components/DialogManager  # PASS
@@ -313,21 +313,21 @@
 
 ## 4B.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW-A]** Part A 완료 확인
+- [x] **[REVIEW-A]** Part A 완료 확인
   - E2E 경로 구축 완료, 테스트 통과 확인
   - ask_user 도구가 config.ts에 등록되어 LLM 호출 가능 상태
 
-- [ ] **[ANALYSIS-B1]** 현재 `QuestionOption` 타입 분석
+- [x] **[ANALYSIS-B1]** 현재 `QuestionOption` 타입 분석
   - 파일: `packages/core/src/confirmation-bus/types.ts`
   - 확인: 현재 `QuestionOption` 필드 (`label`, `description`)
   - 확인: `Question` 인터페이스 내 `options` 필드 타입
 
-- [ ] **[ANALYSIS-B2]** 현재 `ask-user.ts` 스키마 분석
+- [x] **[ANALYSIS-B2]** 현재 `ask-user.ts` 스키마 분석
   - 파일: `packages/core/src/tools/ask-user.ts`
   - 확인: JSON Schema 내 `options.items.properties` 구조
   - 확인: `AskUserInvocation.execute()` 에서 options 전달 경로
 
-- [ ] **[ANALYSIS-B3]** 현재 `AskUserDialog.tsx` 구조 분석
+- [x] **[ANALYSIS-B3]** 현재 `AskUserDialog.tsx` 구조 분석
   - 파일: `packages/cli/src/ui/components/AskUserDialog.tsx`
   - 확인: `ChoiceQuestionView` 컴포넌트 — 옵션 렌더링 방식
   - 확인: 레이아웃 구조 (Ink Box, Text 등)
@@ -337,7 +337,7 @@
 
 ## 4B.2 RED Phase: Core 타입 + 스키마 + markdown preview 테스트
 
-- [ ] **[RED-B1]** `QuestionOption.markdown` 필드 존재 테스트
+- [x] **[RED-B1]** `QuestionOption.markdown` 필드 존재 테스트
 
   ````typescript
   // types.test.ts 또는 별도 검증
@@ -362,7 +362,7 @@
   });
   ````
 
-- [ ] **[RED-B2]** `ask_user` 스키마에 `markdown` 속성 포함 테스트
+- [x] **[RED-B2]** `ask_user` 스키마에 `markdown` 속성 포함 테스트
 
   ```typescript
   // ask-user.test.ts (기존 파일에 추가)
@@ -422,7 +422,7 @@
   });
   ```
 
-- [ ] **[RED-B3]** markdown preview 기본 렌더링 테스트
+- [x] **[RED-B3]** markdown preview 기본 렌더링 테스트
 
   ```typescript
   // AskUserDialog.test.tsx (기존 파일에 추가)
@@ -500,7 +500,7 @@
   });
   ```
 
-- [ ] **[RED-B4]** markdown 없는 옵션과 혼합 시 동작 테스트
+- [x] **[RED-B4]** markdown 없는 옵션과 혼합 시 동작 테스트
 
   ```typescript
   // Issue 5: onSubmit/onCancel 사용
@@ -561,7 +561,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY-B]** 테스트 실패 확인
+- [x] **[RED-VERIFY-B]** 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/ask-user.test  # 신규 테스트 FAIL (markdown 미인식)
   npm test -w @didim365/agent-cli -- src/ui/components/AskUserDialog.test  # 신규 테스트 FAIL
@@ -571,7 +571,7 @@
 
 ## 4B.3 GREEN Phase: types.ts + ask-user.ts + AskUserDialog.tsx 수정
 
-- [ ] **[TASK-B1]** `types.ts`에 `QuestionOption.markdown` 추가
+- [x] **[TASK-B1]** `types.ts`에 `QuestionOption.markdown` 추가
   - 파일: `packages/core/src/confirmation-bus/types.ts`
   - 변경:
     ```typescript
@@ -582,7 +582,7 @@
     }
     ```
 
-- [ ] **[TASK-B2]** `ask-user.ts` JSON Schema에 `markdown` 속성 추가
+- [x] **[TASK-B2]** `ask-user.ts` JSON Schema에 `markdown` 속성 추가
   - 파일: `packages/core/src/tools/ask-user.ts`
   - 위치: `options.items.properties` 섹션
   - 변경:
@@ -596,14 +596,14 @@
     },
     ```
 
-- [ ] **[TASK-B3]** `AskUserDialog.tsx` — markdown preview 활성화 조건 추가
+- [x] **[TASK-B3]** `AskUserDialog.tsx` — markdown preview 활성화 조건 추가
   - 파일: `packages/cli/src/ui/components/AskUserDialog.tsx`
   - 변경: `ChoiceQuestionView` 내에서:
     - `hasMarkdownPreview` 판별: options 중 하나라도 `markdown` 필드 존재 +
       `!multiSelect`
     - `hasMarkdownPreview === true` 이면 side-by-side 레이아웃 활성화
 
-- [ ] **[TASK-B4]** `AskUserDialog.tsx` — MarkdownPreviewPanel 컴포넌트 구현
+- [x] **[TASK-B4]** `AskUserDialog.tsx` — MarkdownPreviewPanel 컴포넌트 구현
   - 위치: `AskUserDialog.tsx` 내부 또는 별도 파일
   - 내용:
     - `Ink Box` + `borderStyle: 'round'` 래퍼
@@ -618,11 +618,11 @@
     └───────────────────┘ └───────────────────┘
     ```
 
-- [ ] **[TASK-B5]** `AskUserDialog.tsx` — multiSelect 제한 적용
+- [x] **[TASK-B5]** `AskUserDialog.tsx` — multiSelect 제한 적용
   - 변경: `multiSelect === true` 이면 markdown preview 비활성화
   - 이유: Claude Code 동작과 동일 — multiSelect에서는 preview 미지원
 
-- [ ] **[GREEN-VERIFY-B]** 테스트 통과
+- [x] **[GREEN-VERIFY-B]** 테스트 통과
   ```bash
   npm test -w @didim365/agent-cli-core -- src/tools/ask-user.test  # PASS
   npm test -w @didim365/agent-cli -- src/ui/components/AskUserDialog.test  # PASS
@@ -632,13 +632,13 @@
 
 ## 4.6 REFACTOR Phase: 컴포넌트 구조 개선
 
-- [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
+- [x] **[REFACTOR-STRUCTURE]** 코드 구조 개선
   - `MarkdownPreviewPanel` 컴포넌트가 너무 크면 별도 파일로 분리 검토
   - side-by-side 레이아웃 로직을 `ChoiceQuestionView` 내부 private 함수로 추출
   - markdown 콘텐츠 길이 제한 (터미널 너비 초과 시 truncate)
   - DialogManager 내 AskUserDialog 연동 코드 정리
 
-- [ ] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
   ```bash
   npm test -w @didim365/agent-cli -- src/ui/components/AskUserDialog.test  # 여전히 PASS
   npm test -w @didim365/agent-cli -- src/ui/components/DialogManager.test  # 여전히 PASS
@@ -648,21 +648,21 @@
 
 ## 4.7 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 전체 테스트 실행
+- [x] **[TEST]** 전체 테스트 실행
 
   ```bash
   npm test -w @didim365/agent-cli-core  # Core (ask-user 변경)
   npm test -w @didim365/agent-cli        # CLI (AskUserDialog + DialogManager 변경)
   ```
 
-- [ ] **[BUILD]** 빌드 확인
+- [x] **[BUILD]** 빌드 확인
 
   ```bash
   npm run build -w @didim365/agent-cli-core
   npm run build -w @didim365/agent-cli
   ```
 
-- [ ] **[LINT]** 린터 + 타입체크
+- [x] **[LINT]** 린터 + 타입체크
 
   ```bash
   npm run lint -w @didim365/agent-cli-core
@@ -671,7 +671,7 @@
   npm run typecheck -w @didim365/agent-cli
   ```
 
-- [ ] **[VERIFY]** 기능 검증
+- [x] **[VERIFY]** 기능 검증
   - 확인 항목 1: `ask_user` 도구가 `config.ts`에 등록 확인 (Part A)
   - 확인 항목 2: CLI에서 `ASK_USER_REQUEST` MessageBus 수신 → AskUserDialog 표시
     (Part A)
@@ -684,10 +684,10 @@
   - 확인 항목 7: markdown 없는 옵션 → 기존 레이아웃 유지 (Part B)
   - 확인 항목 8: multiSelect → preview 미표시 (Part B)
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `../working_history/Phase4_askuser_markdown_preview_{작업일자}.md`
 
-- [ ] **[COMMIT]** 변경사항 커밋 (Tidy First: E2E 경로 → 스키마 → UI)
+- [ ] **[COMMIT]** 변경사항 커밋 (Tidy First: E2E 경로 → 스키마 → UI) ← 미완료
 
   ```bash
   # 1차 커밋: Part A — E2E 경로 구축 (구조적 변경)
@@ -711,24 +711,25 @@
 | 검증 항목                                                  | 상태 |
 | ---------------------------------------------------------- | ---- |
 | **Part A: E2E 경로 구축**                                  |      |
-| RED(A): config 등록 + CLI 구독 + DialogManager 테스트 작성 | ⬜   |
-| GREEN(A): config.ts + CLI + DialogManager 수정 + 통과      | ⬜   |
-| ask_user E2E 라운드트립 확인 (Issue 1)                     | ⬜   |
-| ask_user cancel 계약 검증 (2차 리뷰 Issue 3)               | ⬜   |
+| RED(A): config 등록 + CLI 구독 + DialogManager 테스트 작성 | ✅   |
+| GREEN(A): config.ts + CLI + DialogManager 수정 + 통과      | ✅   |
+| ask_user E2E 라운드트립 확인 (Issue 1)                     | ✅   |
+| ask_user cancel 계약 검증 (2차 리뷰 Issue 3)               | ✅   |
 | **Part B: markdown preview**                               |      |
-| RED(B): 타입 + 스키마 + preview 테스트 작성                | ⬜   |
-| GREEN(B): types.ts + ask-user.ts + AskUserDialog 수정      | ⬜   |
-| REFACTOR: 컴포넌트 구조 개선                               | ⬜   |
+| RED(B): 타입 + 스키마 + preview 테스트 작성                | ✅   |
+| GREEN(B): types.ts + ask-user.ts + AskUserDialog 수정      | ✅   |
+| REFACTOR: 컴포넌트 구조 개선                               | ✅   |
 | **공통**                                                   |      |
-| Core 빌드 성공                                             | ⬜   |
-| CLI 빌드 성공                                              | ⬜   |
-| Lint + Typecheck 통과 (Core + CLI)                         | ⬜   |
-| 기존 ask_user 호출 하위 호환 확인                          | ⬜   |
-| onSubmit/onCancel props 정확성 확인 (Issue 5)              | ⬜   |
-| 작업 결과서 작성                                           | ⬜   |
+| Core 빌드 성공                                             | ✅   |
+| CLI 빌드 성공                                              | ✅   |
+| Lint + Typecheck 통과 (Core + CLI)                         | ✅   |
+| 기존 ask_user 호출 하위 호환 확인                          | ✅   |
+| onSubmit/onCancel props 정확성 확인 (Issue 5)              | ✅   |
+| 작업 결과서 작성                                           | ✅   |
 | 커밋 완료 (3개)                                            | ⬜   |
 
 ---
 
-**작성일**: 2026-03-01 **상태**: ⬜ 작성 중 (1차 리뷰 Issue 1,3,5 + 2차 리뷰
-Issue 1,3 반영 완료)
+**작성일**: 2026-03-01 **상태**: ✅ Phase 4 완료 (커밋 미완료) — 1차 리뷰 Issue
+1,3,5 + 2차 리뷰 Issue 1,3 반영, Part A (E2E 경로 구축) + Part B (markdown
+preview) 구현 완료

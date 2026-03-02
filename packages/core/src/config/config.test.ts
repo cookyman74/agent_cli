@@ -41,6 +41,7 @@ import { TaskGetTool } from '../tools/task-get.js';
 import { TaskUpdateTool } from '../tools/task-update.js';
 import { TaskListTool } from '../tools/task-list.js';
 import { AskUserTool } from '../tools/ask-user.js';
+import { WriteTodosTool } from '../tools/write-todos.js';
 import type { SkillDefinition } from '../skills/skillLoader.js';
 import { DEFAULT_MODEL_CONFIGS } from './defaultModelConfigs.js';
 import {
@@ -1180,6 +1181,79 @@ describe('Server Config (config.ts)', () => {
           );
           expect(wasRegistered).toBe(true);
         }
+      });
+
+      it('should register Task* but NOT write_todos on preview models (R3 regression)', async () => {
+        const params: ConfigParameters = {
+          ...baseParams,
+          model: PREVIEW_GEMINI_31_MODEL, // gemini-3.1-pro-preview
+        };
+        const config = new Config(params);
+
+        // Verify preview model disables write_todos
+        expect(config.getUseWriteTodos()).toBe(false);
+
+        await config.initialize();
+
+        const registerToolMock = (
+          (await vi.importMock('../tools/tool-registry')) as {
+            ToolRegistry: { prototype: { registerTool: Mock } };
+          }
+        ).ToolRegistry.prototype.registerTool;
+
+        // write_todos should NOT be registered
+        const wasWriteTodosRegistered = registerToolMock.mock.calls.some(
+          (call) => call[0] instanceof vi.mocked(WriteTodosTool),
+        );
+        expect(wasWriteTodosRegistered).toBe(false);
+
+        // All 4 Task* tools SHOULD be registered
+        const taskToolClasses = [
+          TaskCreateTool,
+          TaskGetTool,
+          TaskUpdateTool,
+          TaskListTool,
+        ];
+
+        for (const ToolClass of taskToolClasses) {
+          const wasRegistered = registerToolMock.mock.calls.some(
+            (call) => call[0] instanceof vi.mocked(ToolClass),
+          );
+          expect(wasRegistered).toBe(true);
+        }
+      });
+
+      it('should NOT register Task* tools when coreTools allowlist excludes them (R4)', async () => {
+        const params: ConfigParameters = {
+          ...baseParams,
+          coreTools: ['ShellTool'], // restrictive allowlist, no Task* tools
+        };
+        const config = new Config(params);
+        await config.initialize();
+
+        const registerToolMock = (
+          (await vi.importMock('../tools/tool-registry')) as {
+            ToolRegistry: { prototype: { registerTool: Mock } };
+          }
+        ).ToolRegistry.prototype.registerTool;
+
+        const taskToolClasses = [
+          TaskCreateTool,
+          TaskGetTool,
+          TaskUpdateTool,
+          TaskListTool,
+        ];
+
+        for (const ToolClass of taskToolClasses) {
+          const wasRegistered = registerToolMock.mock.calls.some(
+            (call) => call[0] instanceof vi.mocked(ToolClass),
+          );
+          expect(wasRegistered).toBe(false);
+        }
+
+        // TaskStore should NOT have been created (lazy guard)
+        const TaskStoreMock = vi.mocked(TaskStore);
+        expect(TaskStoreMock).not.toHaveBeenCalled();
       });
 
       it('should pass a shared TaskStore instance to all 4 Task* tools', async () => {

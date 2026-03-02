@@ -2036,17 +2036,54 @@ export class Config {
       registerCoreTool(WriteTodosTool);
     }
 
-    // Task* tools — always registered, independent of write_todos gate.
-    // Preview models disable write_todos (Issue 7), but Task* tools must
-    // remain available for structured task management regardless of model.
-    // All 4 tools share a single TaskStore instance (DI).
+    // Task* tools — registered independent of write_todos gate.
+    //
+    // Rationale: useWriteTodos is disabled for preview models (gemini-3.x)
+    // and can be explicitly set to false. However, useWriteTodos only controls
+    // the legacy write_todos tool; Task* tools are a separate, structured task
+    // management system that should remain available regardless of model type.
+    //
+    // Note: Task* tools still go through registerCoreTool(), so they ARE
+    // subject to the coreTools allowlist filter. This is intentional —
+    // restricted tool environments (e.g., sLM mode) can still exclude them.
+    //
+    // TaskStore is guarded: only allocated when at least one Task* tool
+    // passes the coreTools allowlist, avoiding unnecessary overhead in
+    // restricted environments where all Task* tools are excluded.
+    //
     // TodoTray "last wins": Task* and write_todos share the same UI slot;
     // only the last caller's todos are displayed. Phase B will remove write_todos.
-    const taskStore = new TaskStore();
-    registerCoreTool(TaskCreateTool, taskStore);
-    registerCoreTool(TaskGetTool, taskStore);
-    registerCoreTool(TaskUpdateTool, taskStore);
-    registerCoreTool(TaskListTool, taskStore);
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const taskToolClasses: any[] = [
+        TaskCreateTool,
+        TaskGetTool,
+        TaskUpdateTool,
+        TaskListTool,
+      ];
+      const coreToolsAllowlist = this.getCoreTools();
+      const anyTaskToolAllowed =
+        !coreToolsAllowlist ||
+        taskToolClasses.some((TC) => {
+          const name = TC.Name || TC.name;
+          const normalized = name.replace(/^_+/, '');
+          return coreToolsAllowlist.some(
+            (t: string) =>
+              t === name ||
+              t === normalized ||
+              t.startsWith(`${name}(`) ||
+              t.startsWith(`${normalized}(`),
+          );
+        });
+
+      if (anyTaskToolAllowed) {
+        const taskStore = new TaskStore();
+        registerCoreTool(TaskCreateTool, taskStore);
+        registerCoreTool(TaskGetTool, taskStore);
+        registerCoreTool(TaskUpdateTool, taskStore);
+        registerCoreTool(TaskListTool, taskStore);
+      }
+    }
 
     // Register Subagents as Tools
     this.registerSubAgentTools(registry);

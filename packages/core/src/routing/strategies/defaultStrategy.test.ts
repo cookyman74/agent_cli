@@ -10,12 +10,13 @@ import type { RoutingContext } from '../routingStrategy.js';
 import type { BaseLlmClient } from '../../core/baseLlmClient.js';
 import {
   DEFAULT_GEMINI_MODEL,
-  PREVIEW_GEMINI_MODEL,
+  PREVIEW_GEMINI_31_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
   DEFAULT_GEMINI_MODEL_AUTO,
   GEMINI_MODEL_ALIAS_AUTO,
   PREVIEW_GEMINI_FLASH_MODEL,
 } from '../../config/models.js';
+
 import type { Config } from '../../config/config.js';
 
 describe('DefaultStrategy', () => {
@@ -52,11 +53,11 @@ describe('DefaultStrategy', () => {
     const decision = await strategy.route(mockContext, mockConfig, mockClient);
 
     expect(decision).toEqual({
-      model: PREVIEW_GEMINI_MODEL,
+      model: PREVIEW_GEMINI_31_MODEL,
       metadata: {
         source: 'default',
         latencyMs: 0,
-        reasoning: `Routing to default model: ${PREVIEW_GEMINI_MODEL}`,
+        reasoning: `Routing to default model: ${PREVIEW_GEMINI_31_MODEL}`,
       },
     });
   });
@@ -73,11 +74,11 @@ describe('DefaultStrategy', () => {
     const decision = await strategy.route(mockContext, mockConfig, mockClient);
 
     expect(decision).toEqual({
-      model: PREVIEW_GEMINI_MODEL,
+      model: PREVIEW_GEMINI_31_MODEL,
       metadata: {
         source: 'default',
         latencyMs: 0,
-        reasoning: `Routing to default model: ${PREVIEW_GEMINI_MODEL}`,
+        reasoning: `Routing to default model: ${PREVIEW_GEMINI_31_MODEL}`,
       },
     });
   });

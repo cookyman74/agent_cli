@@ -312,8 +312,16 @@ export async function restoreNonGeminiEnvVars(
 
   // Claude, OpenAI, sLM, didim — multi-provider env vars
   process.env['ENABLE_MULTI_PROVIDER'] = 'true';
-  if (!process.env['LLM_PROVIDER']) {
-    process.env['LLM_PROVIDER'] = provider;
+  process.env['LLM_PROVIDER'] = provider;
+
+  // When restoring a persisted non-Gemini provider, stale sLM routing env vars
+  // must not survive. Otherwise the UI can say "openai" while runtime routing
+  // still points at an openai-compatible endpoint.
+  if (provider !== 'openai-compatible') {
+    delete process.env['LLM_BASE_URL'];
+    delete process.env['LLM_API_KEY'];
+    delete process.env['LLM_API_KEY_HEADER'];
+    delete process.env['LLM_CUSTOM_HEADERS'];
   }
 
   // Restore provider-specific API key from keychain (only if not already set)

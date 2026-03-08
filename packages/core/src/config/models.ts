@@ -48,7 +48,7 @@ export function resolveModel(
 ): string {
   switch (requestedModel) {
     case PREVIEW_GEMINI_MODEL_AUTO: {
-      return PREVIEW_GEMINI_MODEL;
+      return PREVIEW_GEMINI_31_MODEL;
     }
     case DEFAULT_GEMINI_MODEL_AUTO: {
       return DEFAULT_GEMINI_MODEL;
@@ -56,7 +56,7 @@ export function resolveModel(
     case GEMINI_MODEL_ALIAS_AUTO:
     case GEMINI_MODEL_ALIAS_PRO: {
       return previewFeaturesEnabled
-        ? PREVIEW_GEMINI_MODEL
+        ? PREVIEW_GEMINI_31_MODEL
         : DEFAULT_GEMINI_MODEL;
     }
     case GEMINI_MODEL_ALIAS_FLASH: {
@@ -95,6 +95,7 @@ export function resolveClassifierModel(
     }
     if (
       requestedModel === PREVIEW_GEMINI_MODEL_AUTO ||
+      requestedModel === PREVIEW_GEMINI_31_MODEL ||
       requestedModel === PREVIEW_GEMINI_MODEL
     ) {
       return PREVIEW_GEMINI_FLASH_MODEL;
@@ -114,7 +115,7 @@ export function getDisplayString(
       return 'Auto (Gemini 2.5)';
     case GEMINI_MODEL_ALIAS_PRO:
       return previewFeaturesEnabled
-        ? PREVIEW_GEMINI_MODEL
+        ? PREVIEW_GEMINI_31_MODEL
         : DEFAULT_GEMINI_MODEL;
     case GEMINI_MODEL_ALIAS_FLASH:
       return previewFeaturesEnabled

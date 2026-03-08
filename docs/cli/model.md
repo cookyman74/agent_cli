@@ -23,15 +23,16 @@ provider.
 
 ### Gemini
 
-| Option            | Description                                                    | Models                                                                 |
-| ----------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Auto (Gemini 3)   | Let the system choose the best Gemini 3 model for your task.   | gemini-3-pro-preview (if enabled), gemini-3-flash-preview (if enabled) |
-| Auto (Gemini 2.5) | Let the system choose the best Gemini 2.5 model for your task. | gemini-2.5-pro, gemini-2.5-flash                                       |
-| Manual            | Select a specific model.                                       | Any available Gemini model.                                            |
+| Option            | Description                                                    | Models                                                                   |
+| ----------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Auto (Gemini 3)   | Let the system choose the best Gemini 3 model for your task.   | gemini-3.1-pro-preview (if enabled), gemini-3-flash-preview (if enabled) |
+| Auto (Gemini 2.5) | Let the system choose the best Gemini 2.5 model for your task. | gemini-2.5-pro, gemini-2.5-flash                                         |
+| Manual            | Select a specific model.                                       | Any available Gemini model.                                              |
 
 We recommend selecting one of the **Auto** options. However, you can select
 **Manual** to choose a specific model:
 
+- gemini-3.1-pro-preview _(Preview API model — not a stable ID)_
 - gemini-3-pro-preview
 - gemini-3-flash-preview
 - gemini-2.5-pro
@@ -56,10 +57,10 @@ To enable Gemini 3 Pro and Gemini 3 Flash (if available), enable
 
 ### OpenAI
 
-| Option                | Description               | Models                                                   |
-| --------------------- | ------------------------- | -------------------------------------------------------- |
-| Recommended (gpt-4.1) | Recommended OpenAI model. | gpt-4.1                                                  |
-| Manual                | Select a specific model.  | gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o, o3, o4-mini |
+| Option                | Description               | Models                                                                                       |
+| --------------------- | ------------------------- | -------------------------------------------------------------------------------------------- |
+| Recommended (gpt-5.4) | Recommended OpenAI model. | gpt-5.4                                                                                      |
+| Manual                | Select a specific model.  | gpt-5.4, gpt-5.4-pro, gpt-5.3-codex, gpt-5.2, gpt-5-mini, gpt-4.1, gpt-4.1-mini, o3, o4-mini |
 
 ### OpenAI-compatible (sLM)
 
@@ -100,7 +101,7 @@ gemini -m gemini-2.5-flash
 gemini -m claude-sonnet-4-5-20250929
 
 # OpenAI (requires OPENAI_API_KEY)
-gemini -m gpt-4.1-mini
+gemini -m gpt-5.4
 
 # sLM (requires LLM_BASE_URL)
 gemini -m Qwen/Qwen2.5-7B-Instruct
@@ -128,7 +129,7 @@ This per-provider memory is stored in your user settings under
   the default option provides the best balance for your tasks.
 
 - **Switch to a specific model for specialized tasks.** Use reasoning models
-  (o3, claude-opus) for complex tasks, or lighter models (gpt-4.1-nano,
+  (o3, claude-opus) for complex tasks, or lighter models (gpt-5-mini,
   claude-haiku) for faster results.
 
 - **Use sLM for local development.** OpenAI-compatible providers let you use

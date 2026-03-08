@@ -21,7 +21,7 @@ export interface ModelPricing {
 /**
  * Static pricing table: provider → model → pricing.
  *
- * Prices sourced from official API pricing pages (as of 2026-02).
+ * Prices sourced from official API pricing pages (as of 2026-03).
  * Models not listed here will be treated as $0 (unknown pricing).
  */
 export const MODEL_PRICING: Record<string, Record<string, ModelPricing>> = {
@@ -60,15 +60,24 @@ export const MODEL_PRICING: Record<string, Record<string, ModelPricing>> = {
     },
   },
   openai: {
+    'gpt-5.4': {
+      inputPerMToken: 2.5,
+      outputPerMToken: 15.0,
+      cachedPerMToken: 1.25,
+    },
+    'gpt-5.4-pro': {
+      inputPerMToken: 30.0,
+      outputPerMToken: 180.0,
+    },
     'gpt-5.2': {
       inputPerMToken: 1.25,
       outputPerMToken: 10.0,
       cachedPerMToken: 0.625,
     },
     'gpt-5-mini': {
-      inputPerMToken: 0.4,
-      outputPerMToken: 1.6,
-      cachedPerMToken: 0.1,
+      inputPerMToken: 0.25,
+      outputPerMToken: 1.5,
+      cachedPerMToken: 0.125,
     },
     'gpt-4.1': {
       inputPerMToken: 2.0,

@@ -10,6 +10,7 @@ import {
   resolveActiveProvider,
   normalizeProviderKey,
   resolveModelForAuthSwitch,
+  cleanProviderEnvVars,
 } from './resolveActiveProvider.js';
 
 describe('resolveActiveProvider', () => {
@@ -152,6 +153,24 @@ describe('resolveActiveProvider', () => {
     it('falls back to gemini when selectedProvider is empty string', () => {
       expect(resolveActiveProvider('')).toBe('gemini');
     });
+  });
+});
+
+describe('cleanProviderEnvVars', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('removes OpenAI SDK env vars that can leak endpoint routing', () => {
+    vi.stubEnv('OPENAI_BASE_URL', 'http://localhost:11434/v1');
+    vi.stubEnv('OPENAI_ORG_ID', 'org_test');
+    vi.stubEnv('OPENAI_PROJECT_ID', 'proj_test');
+
+    cleanProviderEnvVars();
+
+    expect(process.env['OPENAI_BASE_URL']).toBeUndefined();
+    expect(process.env['OPENAI_ORG_ID']).toBeUndefined();
+    expect(process.env['OPENAI_PROJECT_ID']).toBeUndefined();
   });
 });
 

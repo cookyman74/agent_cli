@@ -41,6 +41,9 @@ function createMockClient(overrides?: Partial<OpenAiClient>): OpenAiClient {
         }),
       },
     },
+    responses: {
+      create: vi.fn(),
+    },
     ...overrides,
   };
 }

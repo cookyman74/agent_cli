@@ -34,9 +34,33 @@ describe('costEstimation (Phase 4 F4-2)', () => {
 
     it('should contain pricing for known openai models', () => {
       expect(MODEL_PRICING['openai']).toBeDefined();
+      expect(MODEL_PRICING['openai']['gpt-5.4']).toBeDefined();
+      expect(MODEL_PRICING['openai']['gpt-5.4-pro']).toBeDefined();
       expect(MODEL_PRICING['openai']['gpt-5.2']).toBeDefined();
+      expect(MODEL_PRICING['openai']['gpt-5-mini']).toBeDefined();
       expect(MODEL_PRICING['openai']['o3']).toBeDefined();
       expect(MODEL_PRICING['openai']['o4-mini']).toBeDefined();
+    });
+
+    it('should have correct gpt-5.4 pricing per official rates', () => {
+      const pricing = MODEL_PRICING['openai']['gpt-5.4'];
+      expect(pricing.inputPerMToken).toBe(2.5);
+      expect(pricing.cachedPerMToken).toBe(1.25);
+      expect(pricing.outputPerMToken).toBe(15.0);
+    });
+
+    it('should have correct gpt-5.4-pro pricing per official rates', () => {
+      const pricing = MODEL_PRICING['openai']['gpt-5.4-pro'];
+      expect(pricing.inputPerMToken).toBe(30.0);
+      expect(pricing.outputPerMToken).toBe(180.0);
+      expect(pricing.cachedPerMToken).toBeUndefined();
+    });
+
+    it('should have correct gpt-5-mini pricing per official rates', () => {
+      const pricing = MODEL_PRICING['openai']['gpt-5-mini'];
+      expect(pricing.inputPerMToken).toBe(0.25);
+      expect(pricing.cachedPerMToken).toBe(0.125);
+      expect(pricing.outputPerMToken).toBe(1.5);
     });
   });
 
@@ -110,6 +134,24 @@ describe('costEstimation (Phase 4 F4-2)', () => {
 
       expect(result.totalCost).toBe(0);
       expect(result.byProvider).toEqual({});
+    });
+
+    it('should calculate cost correctly for gpt-5.4', () => {
+      // gpt-5.4: input $2.50/MTok, cached $1.25/MTok, output $15.00/MTok
+      const models = {
+        'openai::gpt-5.4': {
+          tokens: { input: 1_000_000, cached: 200_000, candidates: 100_000 },
+        },
+      };
+
+      const result = estimateCost(models, parseCompositeKey);
+
+      // input: (1_000_000 - 200_000) / 1M * 2.50 = 2.0
+      // cached: 200_000 / 1M * 1.25 = 0.25
+      // output: 100_000 / 1M * 15.0 = 1.5
+      // total = 3.75
+      expect(result.totalCost).toBeCloseTo(3.75, 3);
+      expect(result.byProvider['openai']).toBeCloseTo(3.75, 3);
     });
 
     it('should handle model with no cached pricing (fallback to input rate)', () => {

@@ -23,6 +23,9 @@ vi.mock('openai', () => ({
         create: vi.fn(),
       },
     },
+    responses: {
+      create: vi.fn(),
+    },
   })),
 }));
 
@@ -79,6 +82,17 @@ describe('bootstrapOpenAiProvider', () => {
     expect(OpenAI).toHaveBeenCalledWith(
       expect.objectContaining({
         baseURL: 'https://custom.openai.com/v1',
+      }),
+    );
+  });
+
+  it('should default baseURL to the official OpenAI API', async () => {
+    const OpenAI = (await import('openai')).default;
+    bootstrapOpenAiProvider(registry);
+    registry.createAdapter('openai', { apiKey: 'key' });
+    expect(OpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseURL: 'https://api.openai.com/v1',
       }),
     );
   });

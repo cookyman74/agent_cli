@@ -8,10 +8,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { applyModelSelection } from './policyHelpers.js';
 import type { Config } from '../config/config.js';
 import {
-  PREVIEW_GEMINI_MODEL,
+  PREVIEW_GEMINI_31_MODEL,
   PREVIEW_GEMINI_FLASH_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
 } from '../config/models.js';
+
 import { ModelAvailabilityService } from './modelAvailabilityService.js';
 import { ModelConfigService } from '../services/modelConfigService.js';
 import { DEFAULT_MODEL_CONFIGS } from '../config/defaultModelConfigs.js';
@@ -41,11 +42,11 @@ describe('Fallback Integration', () => {
 
   it('should select fallback model when primary model is terminal and config is in AUTO mode', () => {
     // 1. Simulate "Pro" failing with a terminal quota error
-    // The policy chain for PREVIEW_GEMINI_MODEL_AUTO is [PREVIEW_GEMINI_MODEL, PREVIEW_GEMINI_FLASH_MODEL]
-    availabilityService.markTerminal(PREVIEW_GEMINI_MODEL, 'quota');
+    // The policy chain for PREVIEW_GEMINI_MODEL_AUTO is [PREVIEW_GEMINI_31_MODEL, PREVIEW_GEMINI_FLASH_MODEL]
+    availabilityService.markTerminal(PREVIEW_GEMINI_31_MODEL, 'quota');
 
     // 2. Request "Pro" explicitly (as Agent would)
-    const requestedModel = PREVIEW_GEMINI_MODEL;
+    const requestedModel = PREVIEW_GEMINI_31_MODEL;
 
     // 3. Apply model selection
     const result = applyModelSelection(config, { model: requestedModel });
@@ -61,18 +62,18 @@ describe('Fallback Integration', () => {
 
   it('should NOT fallback if config is NOT in AUTO mode', () => {
     // 1. Config is explicitly set to Pro, not Auto
-    vi.spyOn(config, 'getModel').mockReturnValue(PREVIEW_GEMINI_MODEL);
+    vi.spyOn(config, 'getModel').mockReturnValue(PREVIEW_GEMINI_31_MODEL);
 
     // 2. Simulate "Pro" failing
-    availabilityService.markTerminal(PREVIEW_GEMINI_MODEL, 'quota');
+    availabilityService.markTerminal(PREVIEW_GEMINI_31_MODEL, 'quota');
 
     // 3. Request "Pro"
-    const requestedModel = PREVIEW_GEMINI_MODEL;
+    const requestedModel = PREVIEW_GEMINI_31_MODEL;
 
     // 4. Apply model selection
     const result = applyModelSelection(config, { model: requestedModel });
 
     // 5. Expect it to stay on Pro (because single model chain)
-    expect(result.model).toBe(PREVIEW_GEMINI_MODEL);
+    expect(result.model).toBe(PREVIEW_GEMINI_31_MODEL);
   });
 });

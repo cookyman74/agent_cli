@@ -26,6 +26,7 @@ import {
   type GoogleApiError,
   RetryableQuotaError,
   PREVIEW_GEMINI_MODEL,
+  PREVIEW_GEMINI_31_MODEL,
   ModelNotFoundError,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
@@ -509,6 +510,41 @@ To disable gemini-3-pro-preview, disable "Preview features" in /settings.`,
       expect(lastCall.text).toContain(
         `Switched to fallback model gemini-2.5-flash`,
       );
+    });
+
+    it('should show "all Pro models" message when gemini-3.1-pro-preview fails', async () => {
+      const { result } = renderHook(() =>
+        useQuotaAndFallback({
+          config: mockConfig,
+          historyManager: mockHistoryManager,
+          userTier: UserTierId.FREE,
+          setModelSwitchedFromQuotaError: mockSetModelSwitchedFromQuotaError,
+          onShowAuthSelection: mockOnShowAuthSelection,
+        }),
+      );
+
+      const handler = setFallbackHandlerSpy.mock
+        .calls[0][0] as FallbackModelHandler;
+      let promise: Promise<FallbackIntent | null>;
+      act(() => {
+        promise = handler(
+          PREVIEW_GEMINI_31_MODEL,
+          DEFAULT_GEMINI_FLASH_MODEL,
+          new TerminalQuotaError('quota exceeded', {} as GoogleApiError),
+        );
+      });
+
+      // The dialog message should contain "all Pro models" (mapped from gemini-3.1-pro-preview)
+      expect(result.current.proQuotaRequest).not.toBeNull();
+      expect(result.current.proQuotaRequest!.message).toContain(
+        'all Pro models',
+      );
+
+      act(() => {
+        result.current.handleProQuotaChoice('retry_always');
+      });
+
+      await promise!;
     });
   });
 

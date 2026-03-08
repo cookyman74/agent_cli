@@ -51,7 +51,7 @@ export default defineConfig({
     },
     server: {
       deps: {
-        inline: [/@google\/gemini-cli-core/],
+        inline: [/@google\/gemini-cli-core/, /@didim365\/agent-cli-core/],
       },
     },
   },

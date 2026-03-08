@@ -154,8 +154,8 @@ To use this CLI with OpenAI models:
    ```
 
 4. The CLI automatically detects your OpenAI API key and selects OpenAI as the
-   active provider. Use `/model` to choose between OpenAI models (gpt-4.1,
-   gpt-4.1-mini, o3, o4-mini, etc.).
+   active provider. Use `/model` to choose between OpenAI models (gpt-5.4,
+   gpt-5.4-pro, gpt-5.3-codex, gpt-5-mini, o3, o4-mini, etc.).
 
 ### Using `/auth login` for OpenAI
 

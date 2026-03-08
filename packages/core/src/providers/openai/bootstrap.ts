@@ -34,7 +34,10 @@ export function bootstrapOpenAiProvider(registry?: ProviderRegistry): void {
   reg.register('openai', (config: AdapterConfig) => {
     const client = new OpenAI({
       apiKey: config.apiKey,
-      baseURL: config.baseUrl,
+      // Pin the official API unless the caller explicitly overrides it.
+      // Otherwise the SDK inherits OPENAI_BASE_URL from the shell, which can
+      // silently route OpenAI requests to a stale gateway or local server.
+      baseURL: config.baseUrl ?? 'https://api.openai.com/v1',
     });
     return new OpenAiAdapter(config, client as unknown as OpenAiClient);
   });

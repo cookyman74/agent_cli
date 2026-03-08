@@ -52,6 +52,14 @@ describe('PROVIDER_MODEL_REGISTRY', () => {
     expect(openai.models.length).toBeGreaterThan(0);
   });
 
+  it('openai models include gpt-5.4, gpt-5.4-pro, and gpt-5.3-codex', () => {
+    const openai = PROVIDER_MODEL_REGISTRY['openai'];
+    const modelIds = openai.models.map((m) => m.id);
+    expect(modelIds).toContain('gpt-5.4');
+    expect(modelIds).toContain('gpt-5.4-pro');
+    expect(modelIds).toContain('gpt-5.3-codex');
+  });
+
   it('openai-compatible has freeformInput enabled', () => {
     const slm = PROVIDER_MODEL_REGISTRY['openai-compatible'];
     expect(slm.freeformInput).toBe(true);
@@ -89,7 +97,7 @@ describe('getDefaultModelFromRegistry', () => {
   });
 
   it('returns isDefault model for openai', () => {
-    expect(getDefaultModelFromRegistry('openai')).toBe('gpt-5.3-codex');
+    expect(getDefaultModelFromRegistry('openai')).toBe('gpt-5.4');
   });
 
   it('returns "default" for openai-compatible (freeformInput)', () => {
@@ -198,5 +206,15 @@ describe('isModelValidForProvider', () => {
 
   it('rejects uppercase O3 on claude (case-insensitive)', () => {
     expect(isModelValidForProvider('O3', 'claude')).toBe(false);
+  });
+
+  it('accepts gpt-5.4 on openai provider', () => {
+    expect(isModelValidForProvider('gpt-5.4', 'openai')).toBe(true);
+  });
+
+  it('registers gpt-5.4-pro on openai provider manual list (Responses API)', () => {
+    const openai = PROVIDER_MODEL_REGISTRY['openai'];
+    const modelIds = openai.models.map((m) => m.id);
+    expect(modelIds).toContain('gpt-5.4-pro');
   });
 });

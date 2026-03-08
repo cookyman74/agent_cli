@@ -23,6 +23,9 @@ vi.mock('openai', () => ({
         create: vi.fn(),
       },
     },
+    responses: {
+      create: vi.fn(),
+    },
   })),
 }));
 

@@ -41,7 +41,7 @@ didim --include-directories ../lib,../docs
 # 모델 지정
 didim -m gemini-2.5-flash            # Gemini
 didim -m claude-sonnet-4-5-20250929  # Claude
-didim -m gpt-4.1                     # OpenAI
+didim -m gpt-5.4                     # OpenAI
 
 # 비대화형 모드 (스크립트 연동)
 didim -p "이 코드베이스를 설명해줘"

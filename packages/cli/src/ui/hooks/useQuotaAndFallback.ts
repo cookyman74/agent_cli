@@ -15,6 +15,7 @@ import {
   ModelNotFoundError,
   type UserTierId,
   PREVIEW_GEMINI_MODEL,
+  PREVIEW_GEMINI_31_MODEL,
   DEFAULT_GEMINI_MODEL,
   VALID_GEMINI_MODELS,
 } from '@didim365/agent-cli-core';
@@ -69,7 +70,8 @@ export function useQuotaAndFallback({
       let isModelNotFoundError = false;
       const usageLimitReachedModel =
         failedModel === DEFAULT_GEMINI_MODEL ||
-        failedModel === PREVIEW_GEMINI_MODEL
+        failedModel === PREVIEW_GEMINI_MODEL ||
+        failedModel === PREVIEW_GEMINI_31_MODEL
           ? 'all Pro models'
           : failedModel;
       if (error instanceof TerminalQuotaError) {

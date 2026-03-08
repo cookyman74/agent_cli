@@ -12,6 +12,7 @@ import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 
 import {
   PREVIEW_GEMINI_MODEL,
+  PREVIEW_GEMINI_31_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
 } from '@didim365/agent-cli-core';
 
@@ -105,6 +106,37 @@ describe('ProQuotaDialog', () => {
             failedModel={PREVIEW_GEMINI_MODEL}
             fallbackModel={PREVIEW_GEMINI_MODEL}
             message="flash error"
+            isTerminalQuotaError={true}
+            onChoice={mockOnChoice}
+          />,
+        );
+
+        expect(RadioButtonSelect).toHaveBeenCalledWith(
+          expect.objectContaining({
+            items: [
+              {
+                label: 'Keep trying',
+                value: 'retry_once',
+                key: 'retry_once',
+              },
+              {
+                label: 'Stop',
+                value: 'retry_later',
+                key: 'retry_later',
+              },
+            ],
+          }),
+          undefined,
+        );
+        unmount();
+      });
+
+      it('should render "Keep trying" and "Stop" options when gemini-3.1-pro-preview failed and fallback is same', () => {
+        const { unmount } = render(
+          <ProQuotaDialog
+            failedModel={PREVIEW_GEMINI_31_MODEL}
+            fallbackModel={PREVIEW_GEMINI_31_MODEL}
+            message="3.1 preview error"
             isTerminalQuotaError={true}
             onChoice={mockOnChoice}
           />,

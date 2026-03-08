@@ -88,13 +88,13 @@ describe('restoreNonGeminiEnvVars', () => {
     expect(mockLoadProviderApiKey).not.toHaveBeenCalled();
   });
 
-  it('should not overwrite existing LLM_PROVIDER from env', async () => {
-    process.env['LLM_PROVIDER'] = 'custom-provider';
+  it('should overwrite stale LLM_PROVIDER to match the restored provider', async () => {
+    process.env['LLM_PROVIDER'] = 'openai-compatible';
     const settings = createSettings();
 
-    await restoreNonGeminiEnvVars('claude', settings);
+    await restoreNonGeminiEnvVars('openai', settings);
 
-    expect(process.env['LLM_PROVIDER']).toBe('custom-provider');
+    expect(process.env['LLM_PROVIDER']).toBe('openai');
   });
 
   // --- OpenAI ---
@@ -108,6 +108,23 @@ describe('restoreNonGeminiEnvVars', () => {
     expect(process.env['ENABLE_MULTI_PROVIDER']).toBe('true');
     expect(process.env['LLM_PROVIDER']).toBe('openai');
     expect(process.env['OPENAI_API_KEY']).toBe('sk-openai-xxx');
+  });
+
+  it('should clear stale sLM routing env vars when restoring OpenAI', async () => {
+    process.env['LLM_PROVIDER'] = 'openai-compatible';
+    process.env['LLM_BASE_URL'] = 'http://localhost:11434/v1';
+    process.env['LLM_API_KEY'] = 'slm-key';
+    process.env['LLM_API_KEY_HEADER'] = 'X-Api-Key';
+    process.env['LLM_CUSTOM_HEADERS'] = 'X-Test: 1';
+    const settings = createSettings();
+
+    await restoreNonGeminiEnvVars('openai', settings);
+
+    expect(process.env['LLM_PROVIDER']).toBe('openai');
+    expect(process.env['LLM_BASE_URL']).toBeUndefined();
+    expect(process.env['LLM_API_KEY']).toBeUndefined();
+    expect(process.env['LLM_API_KEY_HEADER']).toBeUndefined();
+    expect(process.env['LLM_CUSTOM_HEADERS']).toBeUndefined();
   });
 
   it('should not overwrite existing OPENAI_API_KEY from env', async () => {

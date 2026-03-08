@@ -58,7 +58,7 @@ export const PROVIDER_MODEL_REGISTRY: Record<string, ProviderModelGroup> = {
         value: 'auto-gemini-3',
         title: 'Auto (Gemini 3)',
         description:
-          'Let Didim CLI decide the best model: gemini-3-pro, gemini-3-flash',
+          'Let Didim CLI decide the best model: gemini-3.1-pro-preview, gemini-3-flash-preview',
       },
       {
         value: 'auto-gemini-2.5',
@@ -70,7 +70,9 @@ export const PROVIDER_MODEL_REGISTRY: Record<string, ProviderModelGroup> = {
     models: [
       {
         id: 'gemini-3.1-pro-preview',
-        description: 'Most capable, complex problem-solving (1M context)',
+        displayName: 'Gemini 3.1 Pro Preview',
+        description:
+          'Preview API model — most capable, complex problem-solving (1M context)',
         category: 'general',
       },
       { id: 'gemini-3-pro-preview', category: 'general' },
@@ -113,16 +115,25 @@ export const PROVIDER_MODEL_REGISTRY: Record<string, ProviderModelGroup> = {
     providerKey: 'openai',
     presets: [
       {
-        value: 'gpt-5.3-codex',
-        title: 'Recommended (gpt-5.3-codex)',
-        description: 'Codex model optimized for software engineering tasks',
+        value: 'gpt-5.4',
+        title: 'Recommended (gpt-5.4)',
+        description: 'Latest flagship model for complex tasks',
       },
     ],
     models: [
       {
+        id: 'gpt-5.4',
+        description: 'Latest flagship model, complex tasks',
+        isDefault: true,
+      },
+      {
+        id: 'gpt-5.4-pro',
+        description: 'Most capable reasoning model (Responses API)',
+        category: 'reasoning',
+      },
+      {
         id: 'gpt-5.3-codex',
         description: 'Codex model for software engineering, 1M context',
-        isDefault: true,
       },
       {
         id: 'gpt-5.2',

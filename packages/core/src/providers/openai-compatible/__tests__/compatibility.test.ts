@@ -31,6 +31,9 @@ function createMockClient(response: unknown): OpenAiClient {
         create: vi.fn().mockResolvedValue(response),
       },
     },
+    responses: {
+      create: vi.fn(),
+    },
   };
 }
 
@@ -46,6 +49,9 @@ function createStreamMockClient(chunks: unknown[]): OpenAiClient {
           },
         }),
       },
+    },
+    responses: {
+      create: vi.fn(),
     },
   };
 }

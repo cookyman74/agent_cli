@@ -10,6 +10,10 @@
  * Accepts provider-independent LlmGenerateRequest, converts to OpenAI SDK
  * format, and converts responses back to LlmGenerateResponse / LlmEventStream.
  *
+ * Supports two API paths:
+ *   - Chat Completions API (`/v1/chat/completions`) — default for most models
+ *   - Responses API (`/v1/responses`) — for codex models (gpt-5.3-codex, etc.)
+ *
  * @see docs/ai_adapter/03-technical-design.md §3.3.7
  * @see packages/core/src/providers/claude/adapter.ts (Claude counterpart)
  */
@@ -39,6 +43,7 @@ import {
   OPENAI_RATE_LIMIT_HEADERS,
 } from '../rateLimitUtils.js';
 import { OpenAiConverter } from './converter.js';
+import { OpenAiResponsesConverter } from './responsesConverter.js';
 import { debugLogger } from '../../utils/debugLogger.js';
 
 /**
@@ -53,6 +58,12 @@ export interface OpenAiClient {
         options?: Record<string, unknown>,
       ): Promise<unknown>;
     };
+  };
+  responses: {
+    create(
+      params: Record<string, unknown>,
+      options?: Record<string, unknown>,
+    ): Promise<unknown>;
   };
 }
 
@@ -85,13 +96,22 @@ const OPENAI_CAPABILITIES: LlmProviderCapabilities = {
 };
 
 /**
+ * Models that require the Responses API (`/v1/responses`).
+ * These models do NOT support Chat Completions (`/v1/chat/completions`).
+ */
+const RESPONSES_API_MODELS = new Set(['gpt-5.3-codex', 'gpt-5.4-pro']);
+
+/**
  * OpenAiAdapter wraps the OpenAI SDK behind the BaseAdapter interface.
+ *
+ * Routes requests to either Chat Completions or Responses API based on model.
  */
 export class OpenAiAdapter extends BaseAdapter {
   readonly providerName: string = 'openai';
   readonly capabilities = OPENAI_CAPABILITIES;
 
   protected readonly converter: OpenAiConverter;
+  protected readonly responsesConverter: OpenAiResponsesConverter;
 
   constructor(
     config: AdapterConfig,
@@ -99,10 +119,13 @@ export class OpenAiAdapter extends BaseAdapter {
   ) {
     super(config);
     this.converter = new OpenAiConverter();
+    this.responsesConverter = new OpenAiResponsesConverter();
   }
 
   /**
    * Generate content (non-streaming).
+   *
+   * Routes to Responses API for codex/pro models, Chat Completions otherwise.
    */
   async generateContent(
     request: LlmGenerateRequest,
@@ -110,6 +133,10 @@ export class OpenAiAdapter extends BaseAdapter {
     options?: GenerateOptions,
   ): Promise<LlmGenerateResponse> {
     this.validateRequest(request);
+
+    if (this.isResponsesApiModel(request.model)) {
+      return this.generateContentViaResponses(request, options);
+    }
 
     try {
       const params = this.converter.toOpenAiRequest(request);
@@ -132,6 +159,8 @@ export class OpenAiAdapter extends BaseAdapter {
 
   /**
    * Generate content as a stream of LlmEvents.
+   *
+   * Routes to Responses API streaming for codex/pro models.
    */
   generateContentStream(
     request: LlmGenerateRequest,
@@ -139,6 +168,10 @@ export class OpenAiAdapter extends BaseAdapter {
     options?: GenerateOptions,
   ): LlmEventStream {
     this.validateRequest(request);
+
+    if (this.isResponsesApiModel(request.model)) {
+      return this.generateContentStreamViaResponses(request, options);
+    }
 
     const client = this.client;
     const converter = this.converter;
@@ -202,6 +235,118 @@ export class OpenAiAdapter extends BaseAdapter {
     }
 
     return streamGenerator();
+  }
+
+  // ============================================================================
+  // Responses API methods
+  // ============================================================================
+
+  /**
+   * Non-streaming via Responses API.
+   */
+  private async generateContentViaResponses(
+    request: LlmGenerateRequest,
+    options?: GenerateOptions,
+  ): Promise<LlmGenerateResponse> {
+    try {
+      const params = this.responsesConverter.toResponsesRequest(request);
+      const createResult = this.client.responses.create(params, {
+        signal: options?.signal,
+      });
+      const { data, rateLimits } = await extractWithRateLimits(
+        createResult,
+        OPENAI_RATE_LIMIT_HEADERS,
+      );
+      const result = this.responsesConverter.fromResponsesResponse(
+        data,
+        request.model,
+      );
+      if (rateLimits) {
+        result.rateLimits = rateLimits;
+      }
+      return result;
+    } catch (error) {
+      throw this.classifyError(error);
+    }
+  }
+
+  /**
+   * Streaming via Responses API.
+   */
+  private generateContentStreamViaResponses(
+    request: LlmGenerateRequest,
+    options?: GenerateOptions,
+  ): LlmEventStream {
+    const client = this.client;
+    const responsesConverter = this.responsesConverter;
+    const classify = this.classifyError.bind(this);
+    const params = responsesConverter.toResponsesRequest(request);
+    const signal = options?.signal;
+
+    async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
+      try {
+        const createResult = client.responses.create(
+          {
+            ...params,
+            stream: true,
+          },
+          { signal },
+        );
+        const { data, rateLimits } = await extractWithRateLimits(
+          createResult,
+          OPENAI_RATE_LIMIT_HEADERS,
+        );
+        const stream = data as AsyncIterable<unknown>;
+
+        const state = responsesConverter.createStreamState();
+        let chunkIndex = 0;
+        let messageEndEmitted = false;
+        for await (const event of stream) {
+          const events = responsesConverter.convertStreamEvent(event, state);
+          for (const llmEvent of events) {
+            if (llmEvent.type === LlmEventType.TextDelta) {
+              debugLogger.log(
+                `[OpenAI Responses stream] chunk#${chunkIndex} TextDelta: "${llmEvent.text.substring(0, 80)}"`,
+              );
+            }
+            if (llmEvent.type === LlmEventType.MessageEnd) {
+              messageEndEmitted = true;
+              yield rateLimits ? { ...llmEvent, rateLimits } : llmEvent;
+            } else {
+              yield llmEvent;
+            }
+          }
+          chunkIndex++;
+        }
+
+        if (!messageEndEmitted) {
+          yield {
+            type: LlmEventType.MessageEnd as const,
+            ...(rateLimits && { rateLimits }),
+          };
+        }
+      } catch (error) {
+        const classified = classify(error);
+        yield createErrorEvent(
+          classified,
+          classified.code,
+          classified.isRetryable,
+        );
+      }
+    }
+
+    return streamGenerator();
+  }
+
+  // ============================================================================
+  // Helpers
+  // ============================================================================
+
+  /**
+   * Check if a model requires the Responses API.
+   */
+  private isResponsesApiModel(model: string): boolean {
+    return RESPONSES_API_MODELS.has(model);
   }
 
   /**

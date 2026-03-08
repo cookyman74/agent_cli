@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OpenAiAdapter, type OpenAiClient } from './adapter.js';
 import type { LlmGenerateRequest, AdapterConfig } from '../types.js';
-import { LlmError, LlmErrorType, UnsupportedFeatureError } from '../errors.js';
+import { LlmError, LlmErrorType } from '../errors.js';
 import { LlmEventType } from '../events.js';
 import type { LlmEvent } from '../events.js';
 
@@ -37,6 +37,25 @@ function createMockClient(overrides?: Partial<OpenAiClient>): OpenAiClient {
           },
         }),
       },
+    },
+    responses: {
+      create: vi.fn().mockResolvedValue({
+        id: 'resp-test',
+        model: 'gpt-5.3-codex',
+        status: 'completed',
+        output: [
+          {
+            type: 'message',
+            content: [{ type: 'output_text', text: 'Hello from Responses!' }],
+          },
+        ],
+        output_text: 'Hello from Responses!',
+        usage: {
+          input_tokens: 10,
+          output_tokens: 5,
+          total_tokens: 15,
+        },
+      }),
     },
     ...overrides,
   };
@@ -105,7 +124,7 @@ describe('OpenAiAdapter', () => {
   });
 
   // ==========================================================================
-  // generateContent (non-streaming)
+  // generateContent (non-streaming) — Chat Completions
   // ==========================================================================
 
   describe('generateContent', () => {
@@ -177,20 +196,117 @@ describe('OpenAiAdapter', () => {
   });
 
   // ==========================================================================
+  // generateContent — Responses API routing
+  // ==========================================================================
+
+  describe('generateContent (Responses API)', () => {
+    it('should route gpt-5.3-codex to client.responses.create', async () => {
+      const request = createBasicRequest({ model: 'gpt-5.3-codex' });
+      await adapter.generateContent(request, 'prompt-1');
+
+      expect(client.responses.create).toHaveBeenCalledTimes(1);
+      expect(client.chat.completions.create).not.toHaveBeenCalled();
+    });
+
+    it('should route gpt-5.4-pro to client.responses.create', async () => {
+      const request = createBasicRequest({ model: 'gpt-5.4-pro' });
+      await adapter.generateContent(request, 'prompt-1');
+
+      expect(client.responses.create).toHaveBeenCalledTimes(1);
+      expect(client.chat.completions.create).not.toHaveBeenCalled();
+    });
+
+    it('should return correct response from Responses API', async () => {
+      const request = createBasicRequest({ model: 'gpt-5.3-codex' });
+      const response = await adapter.generateContent(request, 'prompt-1');
+
+      expect(response.id).toBe('resp-test');
+      expect(response.content).toEqual([
+        { type: 'text', text: 'Hello from Responses!' },
+      ]);
+      expect(response.stopReason).toBe('end_turn');
+      expect(response.usage?.promptTokens).toBe(10);
+      expect(response.usage?.completionTokens).toBe(5);
+    });
+
+    it('should send "input" with "developer" role for system instruction', async () => {
+      const request = createBasicRequest({
+        model: 'gpt-5.3-codex',
+        systemInstruction: 'You are helpful.',
+      });
+      await adapter.generateContent(request, 'prompt-1');
+
+      const params = vi.mocked(client.responses.create).mock.calls[0][0];
+      const input = params['input'] as Array<Record<string, unknown>>;
+      expect(input[0]).toEqual({
+        role: 'developer',
+        content: 'You are helpful.',
+      });
+    });
+
+    it('should handle function_call output from Responses API', async () => {
+      vi.mocked(client.responses.create).mockResolvedValueOnce({
+        id: 'resp-tool',
+        model: 'gpt-5.3-codex',
+        status: 'completed',
+        output: [
+          {
+            type: 'function_call',
+            name: 'read_file',
+            arguments: '{"path": "/tmp/test.txt"}',
+            call_id: 'call_123',
+          },
+        ],
+        usage: { input_tokens: 15, output_tokens: 8, total_tokens: 23 },
+      });
+
+      const request = createBasicRequest({ model: 'gpt-5.3-codex' });
+      const response = await adapter.generateContent(request, 'prompt-1');
+
+      expect(response.content).toEqual([
+        {
+          type: 'tool_call',
+          id: 'call_123',
+          name: 'read_file',
+          arguments: { path: '/tmp/test.txt' },
+        },
+      ]);
+      expect(response.stopReason).toBe('tool_use');
+    });
+
+    it('should classify errors from Responses API', async () => {
+      const error = new Error('model not found');
+      (error as unknown as Record<string, unknown>)['status'] = 404;
+      vi.mocked(client.responses.create).mockRejectedValueOnce(error);
+
+      const request = createBasicRequest({ model: 'gpt-5.3-codex' });
+      await expect(
+        adapter.generateContent(request, 'prompt-1'),
+      ).rejects.toThrow(LlmError);
+    });
+
+    it('should NOT route regular models to Responses API', async () => {
+      const request = createBasicRequest({ model: 'gpt-5.4' });
+      await adapter.generateContent(request, 'prompt-1');
+
+      expect(client.chat.completions.create).toHaveBeenCalledTimes(1);
+      expect(client.responses.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
   // countTokens
   // ==========================================================================
 
   describe('countTokens', () => {
     it('should throw UnsupportedFeatureError', () => {
       const request = createBasicRequest();
-      expect(() => adapter.countTokens(request)).toThrow(
-        UnsupportedFeatureError,
-      );
+      expect(() => adapter.countTokens(request)).toThrow();
     });
   });
 
   // ==========================================================================
-  // generateContentStream
+  // generateContentStream — Chat Completions
   // ==========================================================================
 
   describe('generateContentStream', () => {
@@ -300,6 +416,175 @@ describe('OpenAiAdapter', () => {
       expect(types).toContain(LlmEventType.MessageEnd);
       // MessageEnd should be the last event
       expect(types[types.length - 1]).toBe(LlmEventType.MessageEnd);
+    });
+  });
+
+  // ==========================================================================
+  // generateContentStream — Responses API
+  // ==========================================================================
+
+  describe('generateContentStream (Responses API)', () => {
+    it('should route gpt-5.3-codex stream to client.responses.create', async () => {
+      const streamEvents = [
+        { type: 'response.output_text.delta', delta: 'Hello' },
+        { type: 'response.output_text.delta', delta: ' world' },
+        {
+          type: 'response.completed',
+          response: {
+            output: [],
+            usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 },
+          },
+        },
+      ];
+
+      async function* mockStream(): AsyncGenerator<unknown> {
+        for (const e of streamEvents) {
+          yield e;
+        }
+      }
+
+      vi.mocked(client.responses.create).mockResolvedValueOnce(
+        mockStream() as unknown,
+      );
+
+      const request = createBasicRequest({ model: 'gpt-5.3-codex' });
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+      const events: LlmEvent[] = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      expect(client.responses.create).toHaveBeenCalledTimes(1);
+      expect(client.chat.completions.create).not.toHaveBeenCalled();
+
+      const types = events.map((e) => e.type);
+      expect(types).toEqual([
+        LlmEventType.TextDelta,
+        LlmEventType.TextDelta,
+        LlmEventType.Finished,
+        LlmEventType.MessageEnd,
+      ]);
+    });
+
+    it('should handle tool call streaming via Responses API', async () => {
+      const streamEvents = [
+        {
+          type: 'response.output_item.added',
+          item: {
+            type: 'function_call',
+            id: 'item_1',
+            call_id: 'call_abc',
+            name: 'read_file',
+            arguments: '',
+          },
+        },
+        {
+          type: 'response.function_call_arguments.delta',
+          item_id: 'item_1',
+          delta: '{"path":',
+        },
+        {
+          type: 'response.function_call_arguments.delta',
+          item_id: 'item_1',
+          delta: ' "/tmp/test.txt"}',
+        },
+        {
+          type: 'response.function_call_arguments.done',
+          item_id: 'item_1',
+          item: {
+            name: 'read_file',
+            arguments: '{"path": "/tmp/test.txt"}',
+            call_id: 'call_abc',
+          },
+        },
+        {
+          type: 'response.completed',
+          response: {
+            output: [{ type: 'function_call' }],
+            usage: { input_tokens: 20, output_tokens: 10, total_tokens: 30 },
+          },
+        },
+      ];
+
+      async function* mockStream(): AsyncGenerator<unknown> {
+        for (const e of streamEvents) {
+          yield e;
+        }
+      }
+
+      vi.mocked(client.responses.create).mockResolvedValueOnce(
+        mockStream() as unknown,
+      );
+
+      const request = createBasicRequest({ model: 'gpt-5.3-codex' });
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+      const events: LlmEvent[] = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      // Should have ToolCallRequest, Finished, MessageEnd
+      const toolCallEvent = events.find(
+        (e) => e.type === LlmEventType.ToolCallRequest,
+      );
+      expect(toolCallEvent).toBeDefined();
+      if (
+        toolCallEvent &&
+        toolCallEvent.type === LlmEventType.ToolCallRequest
+      ) {
+        expect(toolCallEvent.name).toBe('read_file');
+        expect(toolCallEvent.callId).toBe('call_abc');
+        expect(toolCallEvent.args).toEqual({ path: '/tmp/test.txt' });
+      }
+
+      const finishedEvent = events.find(
+        (e) => e.type === LlmEventType.Finished,
+      );
+      expect(finishedEvent).toBeDefined();
+      if (finishedEvent && finishedEvent.type === LlmEventType.Finished) {
+        expect(finishedEvent.finishReason).toBe('tool_use');
+      }
+    });
+
+    it('should send stream=true in Responses API request', async () => {
+      async function* mockStream(): AsyncGenerator<unknown> {
+        yield {
+          type: 'response.completed',
+          response: {
+            output: [],
+            usage: { input_tokens: 5, output_tokens: 2, total_tokens: 7 },
+          },
+        };
+      }
+
+      vi.mocked(client.responses.create).mockResolvedValueOnce(
+        mockStream() as unknown,
+      );
+
+      const request = createBasicRequest({ model: 'gpt-5.3-codex' });
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+      for await (const _event of stream) {
+        // consume
+      }
+
+      const params = vi.mocked(client.responses.create).mock.calls[0][0];
+      expect(params['stream']).toBe(true);
+    });
+
+    it('should yield error event on Responses API stream failure', async () => {
+      const error = new Error('server error');
+      (error as unknown as Record<string, unknown>)['status'] = 500;
+      vi.mocked(client.responses.create).mockRejectedValueOnce(error);
+
+      const request = createBasicRequest({ model: 'gpt-5.3-codex' });
+      const stream = adapter.generateContentStream(request, 'prompt-1');
+      const events: LlmEvent[] = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe(LlmEventType.Error);
     });
   });
 

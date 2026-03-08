@@ -54,7 +54,7 @@ didim --model claude-sonnet-4-20250514
 export ENABLE_MULTI_PROVIDER=true
 export LLM_PROVIDER=openai
 export OPENAI_API_KEY="your-key"
-didim --model gpt-4o
+didim --model gpt-5.4
 ```
 
 ### OpenAI-compatible (vLLM)
@@ -151,12 +151,12 @@ didim -m Qwen/Qwen2.5-7B-Instruct
 When a Gemini-specific model is configured with a non-Gemini provider, the
 runtime resolves a provider-appropriate model:
 
-| Provider          | Default resolved model | Available via `/model`                                                        |
-| ----------------- | ---------------------- | ----------------------------------------------------------------------------- |
-| Gemini            | `gemini-2.5-pro`       | gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro/flash/flash-lite |
-| Claude            | `claude-opus-4-6`      | claude-opus-4-6, claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001        |
-| OpenAI            | `gpt-4.1`              | gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o, o3, o4-mini                      |
-| OpenAI-compatible | `default`              | Freeform text input (any model name)                                          |
+| Provider          | Default resolved model | Available via `/model`                                                                       |
+| ----------------- | ---------------------- | -------------------------------------------------------------------------------------------- |
+| Gemini            | `gemini-2.5-pro`       | gemini-3.1-pro-preview, gemini-3-flash-preview, gemini-2.5-pro/flash/flash-lite              |
+| Claude            | `claude-opus-4-6`      | claude-opus-4-6, claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001                       |
+| OpenAI            | `gpt-5.4`              | gpt-5.4, gpt-5.4-pro, gpt-5.3-codex, gpt-5.2, gpt-5-mini, gpt-4.1, gpt-4.1-mini, o3, o4-mini |
+| OpenAI-compatible | `default`              | Freeform text input (any model name)                                                         |
 
 Override with `LLM_MODEL` for non-Gemini providers when needed.
 

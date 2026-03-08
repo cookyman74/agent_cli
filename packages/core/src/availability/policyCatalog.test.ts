@@ -12,13 +12,13 @@ import {
 } from './policyCatalog.js';
 import {
   DEFAULT_GEMINI_MODEL,
-  PREVIEW_GEMINI_MODEL,
+  PREVIEW_GEMINI_31_MODEL,
 } from '../config/models.js';
 
 describe('policyCatalog', () => {
   it('returns preview chain when preview enabled', () => {
     const chain = getModelPolicyChain({ previewEnabled: true });
-    expect(chain[0]?.model).toBe(PREVIEW_GEMINI_MODEL);
+    expect(chain[0]?.model).toBe(PREVIEW_GEMINI_31_MODEL);
     expect(chain).toHaveLength(2);
   });
 
@@ -30,7 +30,7 @@ describe('policyCatalog', () => {
 
   it('marks preview transients as sticky retries', () => {
     const [previewPolicy] = getModelPolicyChain({ previewEnabled: true });
-    expect(previewPolicy.model).toBe(PREVIEW_GEMINI_MODEL);
+    expect(previewPolicy.model).toBe(PREVIEW_GEMINI_31_MODEL);
     expect(previewPolicy.stateTransitions.transient).toBe('terminal');
   });
 

@@ -263,10 +263,8 @@ describe('ProviderSelector', () => {
       );
     });
 
-    it('openai default matches registry (gpt-5.3-codex)', () => {
-      expect(getDefaultModelForProvider(ProviderType.OpenAI)).toBe(
-        'gpt-5.3-codex',
-      );
+    it('openai default matches registry (gpt-5.4)', () => {
+      expect(getDefaultModelForProvider(ProviderType.OpenAI)).toBe('gpt-5.4');
     });
 
     it('gemini default matches registry (gemini-2.5-pro)', () => {
@@ -292,7 +290,7 @@ describe('ProviderSelector', () => {
         'claude-opus-4-6',
         ProviderType.OpenAI,
       );
-      expect(result).toBe('gpt-5.3-codex');
+      expect(result).toBe('gpt-5.4');
     });
 
     it('rejects gpt model on claude and returns claude default', () => {
@@ -337,7 +335,7 @@ describe('ProviderSelector', () => {
         'gemini-2.5-pro',
         ProviderType.OpenAI,
       );
-      expect(result).toBe('gpt-5.3-codex'); // should NOT return claude-opus-4-6
+      expect(result).toBe('gpt-5.4'); // should NOT return claude-opus-4-6
     });
 
     it('accepts valid LLM_MODEL for target provider', () => {

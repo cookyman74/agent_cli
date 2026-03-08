@@ -24,7 +24,7 @@ import {
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
   PREVIEW_GEMINI_FLASH_MODEL,
-  PREVIEW_GEMINI_MODEL,
+  PREVIEW_GEMINI_31_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
 } from '../config/models.js';
 import type { FallbackModelHandler } from './types.js';
@@ -243,7 +243,7 @@ describe('handleFallback', () => {
       policyHandler.mockResolvedValue('retry_once');
       vi.mocked(policyConfig.getPreviewFeatures).mockReturnValue(true);
       vi.mocked(policyConfig.getActiveModel).mockReturnValue(
-        PREVIEW_GEMINI_MODEL,
+        PREVIEW_GEMINI_31_MODEL,
       );
       vi.mocked(policyConfig.getModel).mockReturnValue(
         PREVIEW_GEMINI_MODEL_AUTO,
@@ -251,7 +251,7 @@ describe('handleFallback', () => {
 
       const result = await handleFallback(
         policyConfig,
-        PREVIEW_GEMINI_MODEL,
+        PREVIEW_GEMINI_31_MODEL,
         AUTH_OAUTH,
       );
 

@@ -6,7 +6,7 @@
 >
 > - [99_TDD_plan.md](../../multi_provider_model_select/template/99_TDD_plan.md)
 >   — TDD 방법론
-> - [Phase2 결과서](../working_history/) — 이전 Phase 결과 검토
+> - [Phase2 결과서](./working_history/) — 이전 Phase 결과 검토
 > - [DidimAIStudio 연동 가이드](../../../../docs/temp_howto_develop_integration_didimaistudio.md)
 >   — §3, §7, §8
 
@@ -40,7 +40,7 @@
 ## 3.1 사전 작업 (Pre-Work)
 
 - [ ] **[REVIEW]** Phase 2 작업 결과서 검토
-  - 파일: `../working_history/Phase2_core_didim_adapter_{작업일자}.md`
+  - 파일: `./working_history/Phase2_core_didim_adapter_{작업일자}.md`
   - 확인: DidimAdapter 동작 확인, contentGenerator 등록 완료
 
 - [ ] **[CONTEXT]** Phase 3 작업 목적 확인
@@ -649,7 +649,7 @@
   - 확인 항목 5: 재시작 후 `didimConfig` 설정 영속화 확인
 
 - [ ] **[DOC]** 작업 결과서 작성
-  - 파일: `../working_history/Phase3_cli_auth_and_settings_{작업일자}.md`
+  - 파일: `./working_history/Phase3_cli_auth_and_settings_{작업일자}.md`
 
 - [ ] **[COMMIT]** 변경사항 커밋 (Tidy First)
   ```bash

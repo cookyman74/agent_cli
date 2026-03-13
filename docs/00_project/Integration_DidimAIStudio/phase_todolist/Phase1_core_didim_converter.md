@@ -557,7 +557,7 @@
   - 확인 항목 3: LlmEvent 변환이 기존 이벤트 시스템과 호환되는가
 
 - [ ] **[DOC]** 작업 결과서 작성
-  - 파일: `../working_history/Phase1_core_didim_converter_{작업일자}.md`
+  - 파일: `./working_history/Phase1_core_didim_converter_{작업일자}.md`
   - 내용: 작업 요약, 변경 파일, 테스트 결과, 이슈, Phase 2 인수 사항
 
 - [ ] **[COMMIT]** 변경사항 커밋

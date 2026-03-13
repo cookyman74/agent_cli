@@ -380,7 +380,7 @@ Tidy First 원칙에 따라 **구조적 변경**과 **동작 변경**을 분리�
 
 ### 7.4 작업 결과서
 
-- 각 Phase 완료 시 `../working_history/Phase{N}_{제목}_{작업일자}.md` 작성
+- 각 Phase 완료 시 `./working_history/Phase{N}_{제목}_{작업일자}.md` 작성
 - 내용: 작업 요약, 변경 파일, 테스트 결과, 발견 이슈, 다음 Phase 인수 사항
 
 ### 7.5 DidimAIStudio 전용 규칙

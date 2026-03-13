@@ -6,7 +6,7 @@
 >
 > - [99_TDD_plan.md](../../multi_provider_model_select/template/99_TDD_plan.md)
 >   — TDD 방법론
-> - [Phase1 결과서](../working_history/) — 이전 Phase 결과 검토
+> - [Phase1 결과서](./working_history/) — 이전 Phase 결과 검토
 > - [DidimAIStudio 연동 가이드](../../../../docs/temp_howto_develop_integration_didimaistudio.md)
 >   — §5, §6
 
@@ -42,7 +42,7 @@
 ## 2.1 사전 작업 (Pre-Work)
 
 - [ ] **[REVIEW]** Phase 1 작업 결과서 검토
-  - 파일: `../working_history/Phase1_core_didim_converter_{작업일자}.md`
+  - 파일: `./working_history/Phase1_core_didim_converter_{작업일자}.md`
   - 확인: 체크리스트 완료, 미해결 이슈, converter 함수 목록
 
 - [ ] **[CONTEXT]** Phase 2 작업 목적 확인
@@ -793,7 +793,7 @@
   - 확인 항목 4: thread_id가 요청 간에 올바르게 유지되는가
 
 - [ ] **[DOC]** 작업 결과서 작성
-  - 파일: `../working_history/Phase2_core_didim_adapter_{작업일자}.md`
+  - 파일: `./working_history/Phase2_core_didim_adapter_{작업일자}.md`
 
 - [ ] **[COMMIT]** 변경사항 커밋 (Tidy First: 구조 → 동작 분리)
   ```bash

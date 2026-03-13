@@ -22,9 +22,9 @@
 ## 4.1 사전 작업 (Pre-Work)
 
 - [ ] **[REVIEW]** Phase 1~3 작업 결과서 전수 검토
-  - Phase 1: `../working_history/Phase1_core_didim_converter_{날짜}.md`
-  - Phase 2: `../working_history/Phase2_core_didim_adapter_{날짜}.md`
-  - Phase 3: `../working_history/Phase3_cli_auth_and_settings_{날짜}.md`
+  - Phase 1: `./working_history/Phase1_core_didim_converter_{날짜}.md`
+  - Phase 2: `./working_history/Phase2_core_didim_adapter_{날짜}.md`
+  - Phase 3: `./working_history/Phase3_cli_auth_and_settings_{날짜}.md`
   - 확인: 미해결 이슈, 알려진 제한사항 정리
 
 - [ ] **[CONTEXT]** Phase 4 목적 확인
@@ -266,7 +266,7 @@
   ```
 
 - [ ] **[DOC]** Phase 4 작업 결과서 작성
-  - 파일: `../working_history/Phase4_quality_gates_and_e2e_{작업일자}.md`
+  - 파일: `./working_history/Phase4_quality_gates_and_e2e_{작업일자}.md`
   - 내용:
     - Quality Gate 1~4 결과
     - E2E 시나리오 15개 결과 요약

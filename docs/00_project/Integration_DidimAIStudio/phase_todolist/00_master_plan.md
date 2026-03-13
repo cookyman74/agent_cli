@@ -37,33 +37,45 @@ UI 플레이스홀더** 까지만 구현되어 있다. 실제 API 통신, SSE �
 
 ### 1.3 현재 구현 상태 (AS-IS)
 
-| 구분                                  | 상태                                     | 파일                              |
-| ------------------------------------- | ---------------------------------------- | --------------------------------- |
-| `ProviderType.Didim` enum             | ✅ 존재                                  | `providerTypes.ts:22`             |
-| PROVIDER_MODEL_REGISTRY didim 엔트리  | ✅ 존재 (`modelSelectionDisabled: true`) | `providerModels.ts:173`           |
-| `DIDIM_API_KEY` 환경변수 매핑         | ✅ 존재                                  | `providerSelector.ts:50`          |
-| `resolveActiveProvider()` didim 감지  | ✅ 존재                                  | `resolveActiveProvider.ts:43`     |
-| Auth UI (DidimStudioComingSoonDialog) | ✅ 플레이스홀더                          | `DidimStudioComingSoonDialog.tsx` |
-| ModelDialog didim 비활성 안내         | ✅ 동작                                  | `ModelDialog.tsx:214`             |
-| `providers/didim/` 어댑터 디렉토리    | ❌ 없음                                  | —                                 |
-| DidimAdapter (BaseAdapter 구현)       | ❌ 없음                                  | —                                 |
-| DidimConverter (API 변환)             | ❌ 없음                                  | —                                 |
-| bootstrapDidimProvider                | ❌ 없음                                  | —                                 |
-| contentGenerator 등록                 | ❌ 없음                                  | —                                 |
-| Auth flow 실제 연동                   | ❌ Coming Soon 상태                      | —                                 |
-| Didim 전용 설정 (domain, streamMode)  | ❌ 없음                                  | —                                 |
+| 구분                                  | 상태                                     | 파일                                  |
+| ------------------------------------- | ---------------------------------------- | ------------------------------------- |
+| `ProviderType.Didim` enum             | ✅ 존재                                  | `providerTypes.ts:22`                 |
+| PROVIDER_MODEL_REGISTRY didim 엔트리  | ✅ 존재 (`modelSelectionDisabled: true`) | `providerModels.ts:173`               |
+| `DIDIM_API_KEY` 환경변수 매핑         | ✅ 존재                                  | `providerSelector.ts:50`              |
+| `resolveActiveProvider()` didim 감지  | ✅ 존재                                  | `resolveActiveProvider.ts:43`         |
+| Auth UI (DidimStudioComingSoonDialog) | ✅ 플레이스홀더                          | `DidimStudioComingSoonDialog.tsx`     |
+| ModelDialog didim 비활성 안내         | ✅ 동작                                  | `ModelDialog.tsx:214`                 |
+| `DidimProviderConfig` typed config    | ✅ 존재 (endpoint 필드 포함)             | `providerConfig.ts:80`                |
+| `createDidimConfig()` factory         | ✅ 존재                                  | `providerConfig.ts:166`               |
+| `providerConfigIntegration.ts`        | ✅ 존재 (validate/resolve 유틸)          | `providerConfigIntegration.ts`        |
+| `PROVIDER_SELECT_ITEMS` didim 포함    | ⚠️ 선택 목록 포함 (주석은 "hidden")      | `providerMetadata.ts:86,92`           |
+| `providers/didim/` 어댑터 디렉토리    | ❌ 없음                                  | —                                     |
+| DidimAdapter (BaseAdapter 구현)       | ❌ 없음                                  | —                                     |
+| DidimConverter (API 변환)             | ❌ 없음                                  | —                                     |
+| bootstrapDidimProvider                | ❌ 없음                                  | —                                     |
+| contentGenerator 등록                 | ❌ 없음                                  | —                                     |
+| Auth flow 실제 연동                   | ❌ Coming Soon 상태                      | —                                     |
+| Didim 전용 설정 (domain, streamMode)  | ❌ 없음 (settingsSchema에 미존재)        | —                                     |
+| Auth 상태머신 Didim 진입              | ❌ PreviewingDidimStudio→ComingSoon 고정 | `types.ts:43`, `AppContainer.tsx:867` |
+
+> **⚠️ 주석 모순**: `providerMetadata.ts:82`의 주석은 "Didim provider is hidden
+> from user selection"이라 적혀 있지만, `PROVIDER_SELECT_ITEMS` 배열에
+> `'didim-studio'`가 실제 포함되어 있다. Phase 3에서 주석을 실제 동작에 맞게
+> 수정해야 한다.
 
 ### 1.4 핵심 설계 결정
 
-| #   | 결정                                                 | 설계 근거                                                           |
-| --- | ---------------------------------------------------- | ------------------------------------------------------------------- |
-| 1   | 자체 HTTP 클라이언트 (fetch 기반)                    | DidimAIStudio는 SDK 없음, REST API 직접 호출                        |
-| 2   | SSE 두 모드 동시 지원 (`sse` / `improved`)           | 서버 배포 버전에 따라 다름, 사용자 선택                             |
-| 3   | `thread_id` 어댑터 내부 관리                         | 대화 연속성을 프로바이더 레벨에서 투명하게 처리                     |
-| 4   | `modelSelectionDisabled` 유지                        | 시나리오 기반이므로 모델 선택 UI 비활성 그대로                      |
-| 5   | JWT → `DIDIM_API_KEY` env 저장                       | 기존 프로바이더와 동일한 API key 저장 패턴                          |
-| 6   | 도메인 정규화 (프로토콜/경로 제거)                   | 사용자 입력 오류 방지, 고정 경로 `/scenario-gateway/v1/invoke` 사용 |
-| 7   | 도구 호출 미지원 (`capabilities.toolCalling: false`) | 시나리오가 도구를 제어, 클라이언트 측 도구 불필요                   |
+| #   | 결정                                          | 설계 근거                                                           |
+| --- | --------------------------------------------- | ------------------------------------------------------------------- |
+| 1   | 자체 HTTP 클라이언트 (fetch 기반)             | DidimAIStudio는 SDK 없음, REST API 직접 호출                        |
+| 2   | SSE 두 모드 동시 지원 (`sse` / `improved`)    | 서버 배포 버전에 따라 다름, 사용자 선택                             |
+| 3   | `thread_id` 어댑터 내부 관리                  | 대화 연속성을 프로바이더 레벨에서 투명하게 처리                     |
+| 4   | `modelSelectionDisabled` 유지                 | 시나리오 기반이므로 모델 선택 UI 비활성 그대로                      |
+| 5   | JWT → `DIDIM_API_KEY` env 저장                | 기존 프로바이더와 동일한 API key 저장 패턴                          |
+| 6   | 도메인 정규화 (프로토콜/경로 제거)            | 사용자 입력 오류 방지, 고정 경로 `/scenario-gateway/v1/invoke` 사용 |
+| 7   | 도구 호출 미지원 (`supportsToolCalls: false`) | 시나리오가 도구를 제어, 클라이언트 측 도구 불필요                   |
+| 8   | 기존 typed config 레이어 활용                 | `DidimProviderConfig`에 endpoint/streamMode 확장, 이중 구조 방지    |
+| 9   | 설정 정규화는 "일시적 무시" 패턴              | Didim 모드에서 비활성 설정을 영구 삭제하지 않고 런타임에서만 무시   |
 
 ### 1.5 참고 문서
 
@@ -92,12 +104,21 @@ UI 플레이스홀더** 까지만 구현되어 있다. 실제 API 통신, SSE �
 | 7   | `packages/core/src/providers/didim/index.ts`               | **신규**  | Core | 2     |
 | 8   | `packages/core/src/providers/index.ts`                     | 수정      | Core | 2     |
 | 9   | `packages/core/src/core/contentGenerator.ts`               | 수정      | Core | 2     |
-| 10  | `packages/cli/src/ui/auth/DidimStudioAuthDialog.tsx`       | **신규**  | CLI  | 3     |
-| 11  | `packages/cli/src/ui/auth/DidimStudioComingSoonDialog.tsx` | 수정/대체 | CLI  | 3     |
-| 12  | `packages/cli/src/ui/auth/providerMetadata.ts`             | 수정      | CLI  | 3     |
-| 13  | `packages/cli/src/ui/auth/DidimStudioAuthDialog.test.tsx`  | **신규**  | CLI  | 3     |
-| 14  | `docs/providers.md`                                        | 수정      | Docs | 4     |
-| 15  | `docs/get-started/authentication.md`                       | 수정      | Docs | 4     |
+| 10  | `packages/core/src/providers/providerConfig.ts`            | 수정      | Core | 2     |
+| 11  | `packages/cli/src/ui/auth/DidimStudioAuthDialog.tsx`       | **신규**  | CLI  | 3     |
+| 12  | `packages/cli/src/ui/auth/DidimStudioComingSoonDialog.tsx` | 삭제/대체 | CLI  | 3     |
+| 13  | `packages/cli/src/ui/auth/providerMetadata.ts`             | 수정      | CLI  | 3     |
+| 14  | `packages/cli/src/ui/auth/DidimStudioAuthDialog.test.tsx`  | **신규**  | CLI  | 3     |
+| 15  | `packages/cli/src/ui/types.ts`                             | 수정      | CLI  | 3     |
+| 16  | `packages/cli/src/ui/AppContainer.tsx`                     | 수정      | CLI  | 3     |
+| 17  | `packages/cli/src/ui/components/DialogManager.tsx`         | 수정      | CLI  | 3     |
+| 18  | `packages/cli/src/ui/auth/useAuth.ts`                      | 수정      | CLI  | 3     |
+| 19  | `packages/cli/src/config/settingsSchema.ts`                | 수정      | CLI  | 3     |
+| 20  | `packages/cli/src/ui/contexts/UIStateContext.tsx`          | 수정      | CLI  | 3     |
+| 21  | `packages/cli/src/ui/contexts/UIActionsContext.tsx`        | 수정      | CLI  | 3     |
+| 22  | `packages/cli/src/test-utils/render.tsx`                   | 수정      | CLI  | 3     |
+| 23  | `docs/providers.md`                                        | 수정      | Docs | 4     |
+| 24  | `docs/get-started/authentication.md`                       | 수정      | Docs | 4     |
 
 ### 2.2 의존 관계
 
@@ -191,20 +212,28 @@ Phase 1 (Core — Converter: 순수 변환 함수)
 > **상세 계획서**:
 > [Phase3_cli_auth_and_settings.md](./Phase3_cli_auth_and_settings.md)
 
-| 항목        | 내용                                                 |
-| ----------- | ---------------------------------------------------- |
-| 범위        | Auth UI 대체 + Didim 전용 설정 추가                  |
-| 위험 수준   | 🟡 Medium — UI 변경, 기존 ComingSoon 다이얼로그 대체 |
-| 성능 민감도 | 🟢 Low — UI/설정 로직                                |
+| 항목        | 내용                                                               |
+| ----------- | ------------------------------------------------------------------ |
+| 범위        | Auth 상태머신 전체 변경 + Auth UI 대체 + Didim 설정 영속화         |
+| 위험 수준   | 🟠 Medium-High — Auth 상태머신 전체 변경, 설정 영구 손실 방지 필수 |
+| 성능 민감도 | 🟢 Low — UI/설정 로직                                              |
 
 **주요 산출물:**
 
-- `DidimStudioAuthDialog.tsx` — JWT 토큰 + 서버 도메인 입력 UI
-- 기존 `DidimStudioComingSoonDialog.tsx` → 실제 Auth 다이얼로그로 대체
-- `providerMetadata.ts` 업데이트 — `envVarName: 'DIDIM_API_KEY'` 등
-- Didim 전용 설정 항목 — `didimStreamMode: 'sse' | 'improved'`,
-  `didimServerAddress`
-- 설정 정규화 — Didim 모드에서 비활성 항목 자동 초기화
+- `DidimStudioAuthDialog.tsx` — JWT 토큰 + 서버 도메인 입력 UI (마스킹 대응,
+  defaultConfig prefill 지원)
+- Auth 상태머신 전체 변경 (9곳) — `types.ts`, `UIStateContext.tsx`,
+  `AppContainer.tsx` (7곳), `DialogManager.tsx`
+- `handleDidimConfigComplete` UIActions 핸들러 추가 — `UIActionsContext.tsx`,
+  `AppContainer.tsx`
+- 기존 `DidimStudioComingSoonDialog.tsx` 삭제
+- `providerMetadata.ts` 업데이트 — `envVarName: 'DIDIM_API_KEY'` + 주석 모순
+  수정
+- `settingsSchema.ts`에 `security.auth.didimConfig` 객체 추가
+  (slmConfig/vertexConfig 패턴)
+- 설정 "일시적 무시" 패턴 — `getEffectiveSettings` 래퍼로 런타임에서만 무시
+  (settings.json 영구 삭제 금지)
+- 테스트 유틸 업데이트 — `render.tsx` mock에 handleDidimConfigComplete 추가
 
 **TDD 사이클:**
 
@@ -237,24 +266,27 @@ Phase 1 (Core — Converter: 순수 변환 함수)
 | QG1  | Typecheck + Lint (Core + CLI)                                 | ⬜   |
 | QG2  | 단위 테스트 전수 통과 (Core 294+ files, CLI 전체)             | ⬜   |
 | QG3  | Core → CLI 연동 빌드 검증 (`npm run build && npm run bundle`) | ⬜   |
-| QG4  | 수동 E2E 시나리오 검증 (12개)                                 | ⬜   |
+| QG4  | 수동 E2E 시나리오 검증 (15개)                                 | ⬜   |
 
 **E2E 시나리오:**
 
-| #   | 시나리오                                    | 검증 내용                               |
-| --- | ------------------------------------------- | --------------------------------------- |
-| 1   | `DIDIM_API_KEY` 설정 → 프로바이더 자동 감지 | didim으로 활성화                        |
-| 2   | `LLM_PROVIDER=didim` 명시 설정              | didim 선택                              |
-| 3   | `/auth login` → DidimAIStudio 선택          | Auth 다이얼로그 표시 (Coming Soon 아님) |
-| 4   | JWT 토큰 + 도메인 입력 후 저장              | 설정 영속화                             |
-| 5   | `/model` → Didim 비활성 안내 표시           | modelSelectionDisabled 메시지           |
-| 6   | 일반 채팅 요청 → 응답 수신                  | `POST /invoke` 정상 동작                |
-| 7   | SSE 스트리밍 채팅 (sse 모드)                | 실시간 텍스트 스트리밍                  |
-| 8   | SSE 스트리밍 채팅 (improved 모드)           | improved 이벤트 처리                    |
-| 9   | 대화 연속성 (thread_id 유지)                | 다중 턴 대화                            |
-| 10  | 401 에러 → 인증 오류 메시지                 | JWT 만료 안내                           |
-| 11  | 프로바이더 전환 (Didim → Gemini)            | thread_id 초기화, env 정리              |
-| 12  | 프로바이더 전환 (Gemini → Didim)            | Didim 설정 복원                         |
+| #   | 시나리오                                    | 검증 내용                                   |
+| --- | ------------------------------------------- | ------------------------------------------- |
+| 1   | `DIDIM_API_KEY` 설정 → 프로바이더 자동 감지 | didim으로 활성화                            |
+| 2   | `LLM_PROVIDER=didim` 명시 설정              | didim 선택                                  |
+| 3   | `/auth login` → DidimAIStudio 선택          | Auth 다이얼로그 표시 (Coming Soon 아님)     |
+| 4   | JWT 토큰 + 도메인 입력 후 저장              | didimConfig 설정 영속화                     |
+| 5   | `/model` → Didim 비활성 안내 표시           | modelSelectionDisabled 메시지               |
+| 6   | 일반 채팅 요청 → 응답 수신                  | `POST /invoke` 정상 동작                    |
+| 7   | SSE 스트리밍 채팅 (sse 모드)                | 실시간 텍스트 스트리밍                      |
+| 8   | SSE 스트리밍 채팅 (improved 모드)           | improved 이벤트 처리                        |
+| 9   | 대화 연속성 (thread_id 유지)                | 다중 턴 대화                                |
+| 10  | 401 에러 → 인증 오류 메시지                 | JWT 만료 안내                               |
+| 11  | 프로바이더 전환 (Didim → Gemini)            | thread_id 초기화, env 정리                  |
+| 12  | 프로바이더 전환 (Gemini → Didim)            | didimConfig 설정 복원                       |
+| 13  | Env 우선순위 (LLM_PROVIDER + DIDIM_API_KEY) | 정상 활성화                                 |
+| 14  | Env 우선순위 (DIDIM_API_KEY 누락)           | 에러 메시지 또는 Auth 다이얼로그            |
+| 15  | 설정 비파괴 검증                            | systemRole 영구 삭제 없이 Didim→Gemini 복원 |
 
 **문서 업데이트:**
 
@@ -266,16 +298,21 @@ Phase 1 (Core — Converter: 순수 변환 함수)
 
 ## 4. 리스크 매트릭스
 
-| #   | 리스크                                           | 영향      | Phase | 대응 방안                                           |
-| --- | ------------------------------------------------ | --------- | ----- | --------------------------------------------------- |
-| R1  | DidimAIStudio API 계약 변경 (chat→message 등)    | 🟠 Medium | 1     | Converter에 집중하여 변경 시 한 곳만 수정           |
-| R2  | JWT 토큰 만료 시 사용자 혼란                     | 🟡 Medium | 2     | 401 에러에 명확한 만료 안내 메시지                  |
-| R3  | SSE improved 모드 서버 미배포 시 호환성          | 🟡 Medium | 2     | fallback 로직 + 사용자 선택 옵션                    |
-| R4  | 도메인 정규화 실패 (비표준 URL 입력)             | 🟡 Medium | 1     | 엣지 케이스 테스트 (이중 프로토콜, 경로 포함 등)    |
-| R5  | contentGenerator.ts 수정 시 기존 프로바이더 회귀 | 🟠 Medium | 2     | bootstrap 추가만 수행, 기존 로직 불변 + 회귀 테스트 |
-| R6  | Auth UI 대체 시 기존 ComingSoon 로직 깨짐        | 🟡 Medium | 3     | 점진적 교체, 기존 import 경로 유지                  |
-| R7  | thread_id 누적으로 메모리 누수                   | 🟢 Low    | 2     | 프로바이더 전환/새 채팅 시 명시적 초기화            |
-| R8  | 도구 호출 요청 시 오류                           | 🟢 Low    | 2     | `capabilities.toolCalling: false` 명시              |
+| #   | 리스크                                           | 영향      | Phase | 대응 방안                                                         |
+| --- | ------------------------------------------------ | --------- | ----- | ----------------------------------------------------------------- |
+| R1  | DidimAIStudio API 계약 변경 (chat→message 등)    | 🟠 Medium | 1     | Converter에 집중하여 변경 시 한 곳만 수정                         |
+| R2  | JWT 토큰 만료 시 사용자 혼란                     | 🟡 Medium | 2     | 401 에러에 명확한 만료 안내 메시지                                |
+| R3  | SSE improved 모드 서버 미배포 시 호환성          | 🟡 Medium | 2     | fallback 로직 + 사용자 선택 옵션                                  |
+| R4  | 도메인 정규화 실패 (비표준 URL 입력)             | 🟡 Medium | 1     | 엣지 케이스 테스트 (이중 프로토콜, 경로 포함 등)                  |
+| R5  | contentGenerator.ts 수정 시 기존 프로바이더 회귀 | 🟠 Medium | 2     | bootstrap 추가만 수행, 기존 로직 불변 + 회귀 테스트               |
+| R6  | Auth 상태머신 전체 변경 시 기존 흐름 깨짐        | 🟠 Medium | 3     | AuthState enum + AppContainer + DialogManager + useAuth 전수 변경 |
+| R7  | thread_id 누적으로 메모리 누수                   | 🟢 Low    | 2     | 프로바이더 전환/새 채팅 시 명시적 초기화                          |
+| R8  | 도구 호출 요청 시 오류                           | 🟢 Low    | 2     | `supportsToolCalls: false` 명시                                   |
+| R9  | Didim 설정 정규화로 사용자 설정 영구 손실        | 🔴 High   | 3     | "일시적 무시" 패턴 적용 (settings.json 덮어쓰기 금지)             |
+| R10 | countTokens UnsupportedFeatureError 전파 크래시  | 🟡 Medium | 2     | countTokens 호출부 전수 조사 + try-catch 보강                     |
+| R11 | Provider 전환 시 env 우선순위 비결정적 동작      | 🟡 Medium | 4     | LLM_PROVIDER/DIDIM_API_KEY env 우선순위 E2E 검증 추가             |
+| R12 | AdapterConfig에 Didim 전용 필드 전달 불가        | 🟠 Medium | 2     | DidimProviderConfig 확장 + AdapterConfig index signature 활용     |
+| R13 | JWT 토큰 UI 노출 (TextInput masking 미지원)      | 🟡 Medium | 3     | 커스텀 MaskedTextInput 컴포넌트 구현 또는 별도 입력 패턴 적용     |
 
 ---
 
@@ -315,7 +352,7 @@ Tidy First 원칙에 따라 **구조적 변경**과 **동작 변경**을 분리�
 | 3   | Typecheck 에러 0개                                      | ⬜   |
 | 4   | Lint 경고 0개                                           | ⬜   |
 | 5   | 빌드 + 번들 성공 (`npm run build && npm run bundle`)    | ⬜   |
-| 6   | E2E 시나리오 12개 수동 검증 통과                        | ⬜   |
+| 6   | E2E 시나리오 15개 수동 검증 통과                        | ⬜   |
 | 7   | Phase 1~4 각 작업 결과서 작성 완료                      | ⬜   |
 | 8   | 모든 변경사항 커밋 완료 (7개 커밋)                      | ⬜   |
 
@@ -353,8 +390,8 @@ Tidy First 원칙에 따라 **구조적 변경**과 **동작 변경**을 분리�
 - **thread_id 생명주기**: 새 채팅 시작, 프로바이더 전환, 설정 변경 시 반드시
   초기화
 - **SDK 없음**: fetch API 직접 사용, DI를 위한 HTTP 클라이언트 인터페이스 정의
-- **도구 호출 미지원**: `capabilities.toolCalling: false` 명시, 도구 요청 시
-  graceful 처리
+- **도구 호출 미지원**: `capabilities.supportsToolCalls: false` 명시, 도구 요청
+  시 graceful 처리
 
 ---
 

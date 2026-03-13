@@ -3,7 +3,7 @@
 > **작업 원칙**: Phase 1~3 전체 변경 사항의 품질 검증 + 문서 업데이트 **참고
 > 문서**:
 >
-> - [00_master_plan.md](./00_master_plan.md) — E2E 시나리오 12개
+> - [00_master_plan.md](./00_master_plan.md) — E2E 시나리오 15개
 > - Phase 1~3 작업 결과서
 
 ---
@@ -29,7 +29,7 @@
 
 - [ ] **[CONTEXT]** Phase 4 목적 확인
   - Quality Gate 4단계 통과
-  - E2E 시나리오 12개 수동 검증
+  - E2E 시나리오 15개 수동 검증 (기존 12개 + env 우선순위 2개 + 설정 비파괴 1개)
   - 문서 업데이트 (providers.md, authentication.md, index.md)
 
 ---
@@ -137,6 +137,15 @@
   - 입력: 도메인 + JWT 토큰 + 스트림 모드
   - 결과: ⬜ Pass / ⬜ Fail
 
+- [ ] **[E2E-03a]** Auth 다이얼로그 재진입 시 기존 설정 prefill (1팀 권장사항
+      대응)
+  - 기대: 이전에 저장한 도메인/스트림 모드가 defaultConfig로 폼에 사전 채움
+  - 결과: ⬜ Pass / ⬜ Fail
+
+- [ ] **[E2E-03b]** Auth 다이얼로그 중간 취소 (ESC) (1팀 권장사항 대응)
+  - 기대: 기존 설정 변경 없이 이전 상태로 복귀
+  - 결과: ⬜ Pass / ⬜ Fail
+
 - [ ] **[E2E-04]** JWT 토큰 + 도메인 저장 후 재시작
   - 기대: 설정이 영속화되어 재시작 후에도 유지
   - 결과: ⬜ Pass / ⬜ Fail
@@ -176,10 +185,50 @@
 
 - [ ] **[E2E-11]** 프로바이더 전환 (Didim → Gemini)
   - 기대: thread_id 초기화, DIDIM_API_KEY env 정리
+  - **추가 검증** (1팀 Issue #7): `LLM_PROVIDER` env가 남아있지 않은지 확인
   - 결과: ⬜ Pass / ⬜ Fail
 
 - [ ] **[E2E-12]** 프로바이더 전환 (Gemini → Didim)
-  - 기대: Didim 설정 복원 (도메인, 스트림 모드)
+  - 기대: Didim 설정 복원 (didimConfig의 도메인, 스트림 모드)
+  - **추가 검증**: `didimConfig`가 settings.json에서 정상 로드되는지 확인
+  - 결과: ⬜ Pass / ⬜ Fail
+
+- [ ] **[E2E-12a]** 반복적 프로바이더 전환 안정성 (1팀 권장사항 대응)
+  - Didim → Gemini → Didim → Gemini 반복 3회
+  - 기대: 각 전환 시 설정 정상 복원, env 누수 없음, 크래시 없음
+  - 결과: ⬜ Pass / ⬜ Fail
+
+### Env 우선순위 시나리오 (1팀 Issue #7 대응)
+
+> **배경**: `providerSelector.ts`에서 `LLM_PROVIDER` env > settings 우선순위.
+> 프로바이더 전환 시 stale env가 남으면 비결정적 동작 발생 가능.
+
+- [ ] **[E2E-13]** Env 우선순위 검증 — `LLM_PROVIDER=didim` + `DIDIM_API_KEY`
+      동시 설정
+
+  ```bash
+  LLM_PROVIDER=didim DIDIM_API_KEY=test_jwt didim
+  # 기대: didim 프로바이더 정상 활성화
+  ```
+  - 결과: ⬜ Pass / ⬜ Fail
+
+- [ ] **[E2E-14]** Env 우선순위 검증 — `LLM_PROVIDER=didim` 만 설정 (API key
+      없음)
+
+  ```bash
+  LLM_PROVIDER=didim didim
+  # 기대: DIDIM_API_KEY 누락 에러 메시지 또는 Auth 다이얼로그 표시
+  ```
+  - 결과: ⬜ Pass / ⬜ Fail
+
+- [ ] **[E2E-15]** 설정 정규화 비파괴 검증 (2팀 Issue #3 대응)
+  ```bash
+  # 1. Gemini 모드에서 systemRole='Custom prompt' 설정
+  # 2. 프로바이더를 didim으로 전환
+  # 3. settings.json의 systemRole 확인 → 'Custom prompt' 유지
+  # 4. didim 모드에서 런타임 systemRole → 빈 문자열
+  # 5. 다시 Gemini로 전환 → systemRole='Custom prompt' 복원
+  ```
   - 결과: ⬜ Pass / ⬜ Fail
 
 ---
@@ -220,7 +269,7 @@
   - 파일: `../working_history/Phase4_quality_gates_and_e2e_{작업일자}.md`
   - 내용:
     - Quality Gate 1~4 결과
-    - E2E 시나리오 12개 결과 요약
+    - E2E 시나리오 15개 결과 요약
     - 문서 업데이트 목록
     - 알려진 제한사항
     - 향후 개선 사항 (이미지 첨부, 경로 프록시 등)
@@ -244,20 +293,23 @@
 
 ### E2E 검증
 
-| #   | 시나리오                | 결과 |
-| --- | ----------------------- | ---- |
-| 1   | DIDIM_API_KEY 자동 감지 | ⬜   |
-| 2   | LLM_PROVIDER=didim 명시 | ⬜   |
-| 3   | Auth 다이얼로그 표시    | ⬜   |
-| 4   | 설정 영속화             | ⬜   |
-| 5   | /model 비활성 안내      | ⬜   |
-| 6   | 일반 채팅               | ⬜   |
-| 7   | SSE sse 모드            | ⬜   |
-| 8   | SSE improved 모드       | ⬜   |
-| 9   | thread_id 유지          | ⬜   |
-| 10  | 401 에러 안내           | ⬜   |
-| 11  | Didim → Gemini 전환     | ⬜   |
-| 12  | Gemini → Didim 전환     | ⬜   |
+| #   | 시나리오                            | 결과 |
+| --- | ----------------------------------- | ---- |
+| 1   | DIDIM_API_KEY 자동 감지             | ⬜   |
+| 2   | LLM_PROVIDER=didim 명시             | ⬜   |
+| 3   | Auth 다이얼로그 표시                | ⬜   |
+| 4   | 설정 영속화 (didimConfig)           | ⬜   |
+| 5   | /model 비활성 안내                  | ⬜   |
+| 6   | 일반 채팅                           | ⬜   |
+| 7   | SSE sse 모드                        | ⬜   |
+| 8   | SSE improved 모드                   | ⬜   |
+| 9   | thread_id 유지                      | ⬜   |
+| 10  | 401 에러 안내                       | ⬜   |
+| 11  | Didim → Gemini 전환 + env 정리      | ⬜   |
+| 12  | Gemini → Didim 전환 + 설정 복원     | ⬜   |
+| 13  | Env 우선순위 (LLM_PROVIDER+API_KEY) | ⬜   |
+| 14  | Env 우선순위 (API_KEY 누락)         | ⬜   |
+| 15  | 설정 비파괴 검증 (systemRole 보존)  | ⬜   |
 
 ### 문서화
 

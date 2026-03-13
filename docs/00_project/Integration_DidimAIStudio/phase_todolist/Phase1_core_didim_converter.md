@@ -284,6 +284,7 @@
 
   ```typescript
   describe('parseDidimSseEvent (sse mode)', () => {
+    // --- Happy path ---
     it('should parse message event with chunk', () => {
       const result = parseDidimSseEvent('message', '{"chunk": "Hello"}', 'sse');
       expect(result).toEqual({ type: 'delta', text: 'Hello' });
@@ -298,6 +299,35 @@
       const result = parseDidimSseEvent('error', '{"message": "fail"}', 'sse');
       expect(result).toEqual({ type: 'error', message: 'fail' });
     });
+
+    // --- Malformed input (2팀 Issue #4 대응) ---
+    it('should handle invalid JSON data gracefully', () => {
+      // JSON 파싱 실패 시 raw 텍스트를 content로 fallback하거나 에러 이벤트 반환
+      const result = parseDidimSseEvent('message', '{invalid json}', 'sse');
+      // 구현에 따라: fallback text 또는 error 이벤트
+      expect(result.type).toBeDefined();
+    });
+
+    it('should handle unknown event type gracefully', () => {
+      // 알 수 없는 이벤트 타입은 무시하거나 null 반환
+      const result = parseDidimSseEvent(
+        'unknown_event',
+        '{"data": "test"}',
+        'sse',
+      );
+      expect(result).toBeNull(); // 또는 적절한 fallback
+    });
+
+    it('should handle empty data (keep-alive frame)', () => {
+      const result = parseDidimSseEvent('message', '', 'sse');
+      expect(result).toBeNull(); // keep-alive는 무시
+    });
+
+    it('should handle missing chunk field in message event', () => {
+      // JSON은 유효하지만 기대 필드(chunk)가 없는 경우
+      const result = parseDidimSseEvent('message', '{"other": "field"}', 'sse');
+      expect(result).toEqual({ type: 'delta', text: '' }); // 빈 텍스트 또는 null
+    });
   });
   ```
 
@@ -307,6 +337,7 @@
 
   ```typescript
   describe('parseDidimSseEvent (improved mode)', () => {
+    // --- Happy path ---
     it('should parse message_partial event', () => {
       const result = parseDidimSseEvent(
         'message_partial',
@@ -333,6 +364,30 @@
       );
       expect(result).toEqual({ type: 'done', threadId: 'th_2' });
     });
+
+    // --- Malformed input (2팀 Issue #4 대응) ---
+    it('should handle invalid JSON in improved mode', () => {
+      const result = parseDidimSseEvent(
+        'message_partial',
+        'not-json',
+        'improved',
+      );
+      expect(result.type).toBeDefined(); // fallback 또는 error
+    });
+
+    it('should handle missing content field in message_partial', () => {
+      const result = parseDidimSseEvent(
+        'message_partial',
+        '{"other": "value"}',
+        'improved',
+      );
+      expect(result).toEqual({ type: 'delta', text: '' }); // 빈 텍스트 또는 null
+    });
+
+    it('should handle empty keep-alive data in improved mode', () => {
+      const result = parseDidimSseEvent('message_partial', '', 'improved');
+      expect(result).toBeNull();
+    });
   });
   ```
 
@@ -350,36 +405,70 @@
       expect(result.content).toEqual([{ type: 'text', text: 'Hello!' }]);
       expect(result.stopReason).toBe('end_turn');
     });
+
+    it('should handle empty content', () => {
+      const result = convertDidimResponseToLlm(
+        { content: '', threadId: 'th_1' },
+        'didim-default',
+      );
+      expect(result.content).toEqual([{ type: 'text', text: '' }]);
+    });
   });
   ```
 
 - [ ] **[RED-9]** `convertDidimSseToLlmEvents()` 테스트
 
+  > **⚠️ 2팀 Issue #5 대응**: 이벤트 타입 존재 여부만이 아닌 payload 내용,
+  > 이벤트 순서, 필수 필드를 정확히 검증한다.
+  >
+  > - `LlmErrorEvent.error` (Error | string) — 필수
+  > - `LlmFinishedEvent.finishReason` — optional이지만 `'end_turn'` 기대
+  > - `Finished` → `MessageEnd` 순서 보장 필수
+
   ```typescript
   describe('convertDidimSseToLlmEvents', () => {
-    it('should convert delta to TextDelta event', () => {
+    it('should convert delta to TextDelta event with correct text', () => {
       const events = convertDidimSseToLlmEvents({ type: 'delta', text: 'Hi' });
       expect(events).toHaveLength(1);
       expect(events[0].type).toBe(LlmEventType.TextDelta);
+      // payload 정확성 검증
+      expect((events[0] as LlmTextDeltaEvent).text).toBe('Hi');
     });
 
-    it('should convert done to Finished + MessageEnd events', () => {
+    it('should convert done to Finished then MessageEnd in correct order', () => {
       const events = convertDidimSseToLlmEvents({
         type: 'done',
         threadId: 'th_1',
       });
       expect(events).toHaveLength(2);
+      // 순서 검증: Finished BEFORE MessageEnd
       expect(events[0].type).toBe(LlmEventType.Finished);
       expect(events[1].type).toBe(LlmEventType.MessageEnd);
+      // Finished payload 검증
+      expect((events[0] as LlmFinishedEvent).finishReason).toBe('end_turn');
     });
 
-    it('should convert error to Error event', () => {
+    it('should convert error to Error event with error payload', () => {
       const events = convertDidimSseToLlmEvents({
         type: 'error',
-        message: 'fail',
+        message: 'Server failure',
       });
       expect(events).toHaveLength(1);
       expect(events[0].type).toBe(LlmEventType.Error);
+      // error 필드는 LlmErrorEvent의 필수 필드 (Error | string)
+      const errorEvent = events[0] as LlmErrorEvent;
+      expect(errorEvent.error).toBeDefined();
+      expect(String(errorEvent.error)).toContain('Server failure');
+    });
+
+    it('should not produce events with empty error message', () => {
+      const events = convertDidimSseToLlmEvents({
+        type: 'error',
+        message: '',
+      });
+      const errorEvent = events[0] as LlmErrorEvent;
+      // 빈 에러 메시지라도 error 필드는 반드시 존재해야 함
+      expect(errorEvent.error).toBeDefined();
     });
   });
   ```

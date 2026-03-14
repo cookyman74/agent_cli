@@ -20,6 +20,8 @@ export interface TextInputProps {
   onSubmit?: (value: string) => void;
   onCancel?: () => void;
   focus?: boolean;
+  /** When set, replaces each character with this mask character (e.g., '*') */
+  mask?: string;
 }
 
 export function TextInput({
@@ -28,6 +30,7 @@ export function TextInput({
   onSubmit,
   onCancel,
   focus = true,
+  mask,
 }: TextInputProps): React.JSX.Element {
   const {
     text,
@@ -76,10 +79,15 @@ export function TextInput({
 
   return (
     <Box flexDirection="column">
-      {viewportVisualLines.map((lineText, idx) => {
+      {viewportVisualLines.map((rawLineText, idx) => {
         const currentVisualRow = visualScrollRow + idx;
         const isCursorLine =
           focus && currentVisualRow === cursorVisualRowAbsolute;
+
+        // Apply mask: replace each character with mask char for display
+        const lineText = mask
+          ? mask.repeat([...rawLineText].length)
+          : rawLineText;
 
         const lineDisplay = isCursorLine
           ? cpSlice(lineText, 0, cursorVisualColAbsolute) +

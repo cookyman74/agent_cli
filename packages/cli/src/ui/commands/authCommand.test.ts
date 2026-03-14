@@ -9,12 +9,23 @@ import { authCommand } from './authCommand.js';
 import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import { SettingScope } from '../../config/settings.js';
+import { cleanProviderEnvVars } from '../utils/resolveActiveProvider.js';
 
 vi.mock('@didim365/agent-cli-core', async () => {
   const actual = await vi.importActual('@didim365/agent-cli-core');
   return {
     ...actual,
     clearCachedCredentialFile: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
+vi.mock('../utils/resolveActiveProvider.js', async () => {
+  const actual = await vi.importActual('../utils/resolveActiveProvider.js');
+  return {
+    ...actual,
+    cleanProviderEnvVars: vi.fn(
+      (actual as { cleanProviderEnvVars: () => void }).cleanProviderEnvVars,
+    ),
   };
 });
 
@@ -126,6 +137,29 @@ describe('authCommand', () => {
         'security.auth.didimConfig',
         undefined,
       );
+    });
+
+    it('should use cleanProviderEnvVars shared helper for env cleanup', async () => {
+      const logoutCommand = authCommand.subCommands?.[1];
+
+      await logoutCommand!.action!(mockContext, '');
+
+      expect(cleanProviderEnvVars).toHaveBeenCalledOnce();
+    });
+
+    it('should clear OpenAI SDK env vars via cleanProviderEnvVars', async () => {
+      const logoutCommand = authCommand.subCommands?.[1];
+      process.env['OPENAI_BASE_URL'] = 'http://localhost:11434/v1';
+      process.env['OPENAI_ORG_ID'] = 'org_test';
+      process.env['OPENAI_PROJECT_ID'] = 'proj_test';
+
+      await logoutCommand!.action!(mockContext, '');
+
+      // These were previously missing from authCommand's individual delete list
+      // but are covered by cleanProviderEnvVars
+      expect(process.env['OPENAI_BASE_URL']).toBeUndefined();
+      expect(process.env['OPENAI_ORG_ID']).toBeUndefined();
+      expect(process.env['OPENAI_PROJECT_ID']).toBeUndefined();
     });
 
     it('should strip thoughts from history', async () => {

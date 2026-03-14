@@ -241,7 +241,12 @@ export function DidimStudioAuthDialog({
               borderColor={theme.border.default}
               width="100%"
             >
-              <TextInput buffer={buffer} onSubmit={handleSubmit} focus={true} />
+              <TextInput
+                buffer={buffer}
+                onSubmit={handleSubmit}
+                focus={true}
+                mask="*"
+              />
             </Box>
           </Box>
           {maskedApiKey && (

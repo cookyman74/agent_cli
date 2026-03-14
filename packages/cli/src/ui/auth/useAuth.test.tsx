@@ -705,6 +705,10 @@ describe('useAuth', () => {
       await waitFor(() => {
         expect(result.current.authState).toBe(AuthState.AuthenticatingDidim);
       });
+
+      // No env vars should be set — ENABLE_MULTI_PROVIDER is deferred until after validation
+      expect(process.env['ENABLE_MULTI_PROVIDER']).toBeUndefined();
+      expect(process.env['LLM_PROVIDER']).toBeUndefined();
     });
 
     it('should redirect to AuthenticatingDidim when stored Didim key is missing on restart', async () => {

@@ -12,6 +12,7 @@ import type {
 import { CommandKind } from './types.js';
 import { clearCachedCredentialFile } from '@didim365/agent-cli-core';
 import { SettingScope } from '../../config/settings.js';
+import { cleanProviderEnvVars } from '../utils/resolveActiveProvider.js';
 
 const authLoginCommand: SlashCommand = {
   name: 'login',
@@ -59,21 +60,9 @@ const authLogoutCommand: SlashCommand = {
       'security.auth.didimConfig',
       undefined,
     );
-    // Clear provider-related runtime env vars to prevent stale routing
-    delete process.env['ENABLE_MULTI_PROVIDER'];
-    delete process.env['LLM_PROVIDER'];
-    delete process.env['ANTHROPIC_API_KEY'];
-    delete process.env['OPENAI_API_KEY'];
-    delete process.env['DIDIM_API_KEY'];
-    delete process.env['LLM_API_KEY'];
-    delete process.env['LLM_BASE_URL'];
-    delete process.env['LLM_MODEL'];
-    delete process.env['LLM_API_KEY_HEADER'];
-    delete process.env['LLM_CUSTOM_HEADERS'];
-    delete process.env['DIDIM_SERVER_ADDRESS'];
-    delete process.env['DIDIM_STREAM_MODE'];
-    delete process.env['GOOGLE_CLOUD_PROJECT'];
-    delete process.env['GOOGLE_CLOUD_LOCATION'];
+    // Clear all provider-related runtime env vars via shared helper
+    // (single source of truth — prevents drift between logout and provider switch)
+    cleanProviderEnvVars();
     // Strip thoughts from history instead of clearing completely
     context.services.config?.getGeminiClient()?.stripThoughtsFromHistory();
     // Return logout action to signal explicit state change

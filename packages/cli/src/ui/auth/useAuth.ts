@@ -342,7 +342,6 @@ export const useAuthCommand = (
             }
           } else if (provider === 'didim') {
             // Didim — load config from settings (similar to sLM pattern)
-            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
             const didimConfig = settings.merged.security.auth.didimConfig as
               | { serverAddress?: string; streamMode?: string }
               | undefined;
@@ -351,6 +350,7 @@ export const useAuthCommand = (
               setAuthState(AuthState.AuthenticatingDidim);
               return;
             }
+            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
             process.env['LLM_PROVIDER'] = 'didim';
             process.env['DIDIM_SERVER_ADDRESS'] = didimConfig.serverAddress;
             process.env['DIDIM_STREAM_MODE'] = didimConfig.streamMode ?? 'sse';

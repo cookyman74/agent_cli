@@ -294,7 +294,7 @@ export class GeminiConverter {
           type: 'tool_call',
           id: crypto.randomUUID(),
           name: part.functionCall.name!,
-          arguments: (part.functionCall.args ?? {}),
+          arguments: part.functionCall.args ?? {},
         });
       } else if ('inlineData' in part && part.inlineData) {
         contents.push({

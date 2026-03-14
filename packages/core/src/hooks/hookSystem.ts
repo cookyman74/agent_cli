@@ -265,12 +265,8 @@ export class HookSystem {
     const isLegacy = 'contents' in llmRequest;
     try {
       const result = isLegacy
-        ? await this.hookEventHandler.fireBeforeModelEvent(
-            llmRequest,
-          )
-        : await this.hookEventHandler.fireBeforeModelEventV2(
-            llmRequest,
-          );
+        ? await this.hookEventHandler.fireBeforeModelEvent(llmRequest)
+        : await this.hookEventHandler.fireBeforeModelEventV2(llmRequest);
       const hookOutput = result.finalOutput;
 
       if (hookOutput?.shouldStopExecution()) {
@@ -398,9 +394,7 @@ export class HookSystem {
     const isLegacy = 'contents' in llmRequest;
     try {
       const result = isLegacy
-        ? await this.hookEventHandler.fireBeforeToolSelectionEvent(
-            llmRequest,
-          )
+        ? await this.hookEventHandler.fireBeforeToolSelectionEvent(llmRequest)
         : await this.hookEventHandler.fireBeforeToolSelectionEventV2(
             llmRequest,
           );

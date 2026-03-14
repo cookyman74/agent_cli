@@ -463,7 +463,9 @@ export function SlmConfigDialog({
           </Text>
           <Box marginTop={1} flexDirection="column">
             {(
-              Object.entries(SERVER_TYPES) as Array<[ServerType, ServerTypeInfo]>
+              Object.entries(SERVER_TYPES) as Array<
+                [ServerType, ServerTypeInfo]
+              >
             ).map(([type, info], index) => (
               <Box key={type} flexDirection="row" gap={1}>
                 <Text color={theme.text.accent}>[{index + 1}]</Text>

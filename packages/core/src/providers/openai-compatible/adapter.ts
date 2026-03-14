@@ -98,10 +98,7 @@ export class OpenAiCompatibleAdapter extends OpenAiAdapter {
       const response = await this.client.chat.completions.create(params, {
         signal: options?.signal,
       });
-      return this.converter.fromOpenAiResponse(
-        response,
-        request.model,
-      );
+      return this.converter.fromOpenAiResponse(response, request.model);
     } catch (error) {
       throw this.classifyError(error);
     }

@@ -11,7 +11,10 @@ import { Text, Box } from 'ink';
 import { useKeypress } from '../../hooks/useKeypress.js';
 import chalk from 'chalk';
 import { theme } from '../../semantic-colors.js';
-import type { TextBuffer } from './text-buffer.js';
+import {
+  type TextBuffer,
+  PASTED_TEXT_PLACEHOLDER_REGEX,
+} from './text-buffer.js';
 import { cpSlice } from '../../utils/textUtils.js';
 
 export interface TextInputProps {
@@ -49,13 +52,22 @@ export function TextInput({
       }
 
       if (key.name === 'return') {
-        onSubmit?.(text);
+        // Expand paste placeholders (e.g. "[Pasted Text: 2400 chars]")
+        // back to actual content before submitting, matching InputPrompt behavior.
+        let value = text;
+        if (buffer.pastedContent) {
+          value = value.replace(
+            PASTED_TEXT_PLACEHOLDER_REGEX,
+            (match) => buffer.pastedContent[match] || match,
+          );
+        }
+        onSubmit?.(value);
         return;
       }
 
       handleInput(key);
     },
-    [handleInput, onCancel, onSubmit, text],
+    [buffer, handleInput, onCancel, onSubmit, text],
   );
 
   useKeypress(handleKeyPress, { isActive: focus });

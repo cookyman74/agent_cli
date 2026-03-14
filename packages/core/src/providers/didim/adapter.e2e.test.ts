@@ -20,7 +20,6 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { DidimAdapter } from './adapter.js';
 import { LlmEventType } from '../events.js';
 import type { LlmGenerateRequest } from '../types.js';
-import type { AdapterConfig } from '../baseAdapter.js';
 
 const API_KEY = process.env['DIDIM_API_KEY'] ?? '';
 const SERVER_ADDRESS = process.env['DIDIM_SERVER_ADDRESS'] ?? '';
@@ -39,7 +38,7 @@ function createRequest(text: string): LlmGenerateRequest {
   } as unknown as LlmGenerateRequest;
 }
 
-const adapterConfig: AdapterConfig = {
+const adapterConfig = {
   model: 'didim-default',
   maxOutputTokens: 8192,
   temperature: 0.7,
@@ -92,7 +91,7 @@ describe.skipIf(!isConfigured)('DidimAdapter E2E', () => {
       expect(response.content.length).toBeGreaterThan(0);
       expect(response.content[0]?.type).toBe('text');
       expect(
-        (response.content[0] as { text: string }).text.length,
+        (response.content[0] as unknown as { text: string }).text.length,
       ).toBeGreaterThan(0);
       expect(response.stopReason).toBe('end_turn');
       expect(response.id).toMatch(/^didim-/);
@@ -126,7 +125,7 @@ describe.skipIf(!isConfigured)('DidimAdapter E2E', () => {
       expect(messageEnd).toHaveLength(1);
 
       // TextDelta should have non-empty text
-      const firstDelta = textDeltas[0] as { text: string };
+      const firstDelta = textDeltas[0] as unknown as { text: string };
       expect(firstDelta.text.length).toBeGreaterThan(0);
 
       // Finished should have end_turn
@@ -170,7 +169,7 @@ describe.skipIf(!isConfigured)('DidimAdapter E2E', () => {
 
       // Concatenated text should form a coherent response
       const fullText = textDeltas
-        .map((d) => (d as { text: string }).text)
+        .map((d) => (d as unknown as { text: string }).text)
         .join('');
       expect(fullText.length).toBeGreaterThan(10);
 
@@ -191,7 +190,7 @@ describe.skipIf(!isConfigured)('DidimAdapter E2E', () => {
         (e) => e.type === LlmEventType.TextDelta,
       );
       const fullText = textDeltas
-        .map((d) => (d as { text: string }).text)
+        .map((d) => (d as unknown as { text: string }).text)
         .join('');
 
       // The text should NOT contain duplicated content
@@ -200,7 +199,7 @@ describe.skipIf(!isConfigured)('DidimAdapter E2E', () => {
       expect(fullText.length).toBeLessThan(2000);
 
       // More precise: count how many times the first delta appears
-      const firstChunk = (textDeltas[0] as { text: string }).text;
+      const firstChunk = (textDeltas[0] as unknown as { text: string }).text;
       if (firstChunk.length > 5) {
         const occurrences = fullText.split(firstChunk).length - 1;
         expect(occurrences).toBe(1);

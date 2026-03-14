@@ -29,29 +29,29 @@
 
 | 리스크                                            | 영향      | 대응 방안                                           | 상태 |
 | ------------------------------------------------- | --------- | --------------------------------------------------- | ---- |
-| BaseAdapter 구현 시 필수 메서드 누락              | 🟠 Medium | abstract 메서드 전수 확인                           | ⬜   |
-| contentGenerator.ts 수정으로 기존 프로바이더 회귀 | 🟠 Medium | bootstrap 추가만 수행 + 회귀 테스트                 | ⬜   |
-| SSE POST 방식 ReadableStream 파싱 복잡도          | 🟡 Medium | 기존 OpenAI SSE 파서 패턴 참고                      | ⬜   |
-| thread_id 상태 관리 누수                          | 🟡 Medium | adapter 내부 상태로 관리 + 초기화 명시              | ⬜   |
-| fetch API 환경별 차이 (Node.js vs browser)        | 🟢 Low    | Node.js 20+ 네이티브 fetch 사용                     | ⬜   |
-| AdapterConfig에 Didim 설정 전달 경로 부재         | 🟠 Medium | AdapterConfig index signature + DidimProviderConfig | ⬜   |
-| countTokens UnsupportedFeatureError 전파          | 🟡 Medium | 호출부 전수 조사 + 에러 핸들링 보강                 | ⬜   |
+| BaseAdapter 구현 시 필수 메서드 누락              | 🟠 Medium | abstract 메서드 전수 확인                           | ✅   |
+| contentGenerator.ts 수정으로 기존 프로바이더 회귀 | 🟠 Medium | bootstrap 추가만 수행 + 회귀 테스트                 | ✅   |
+| SSE POST 방식 ReadableStream 파싱 복잡도          | 🟡 Medium | 기존 OpenAI SSE 파서 패턴 참고                      | ✅   |
+| thread_id 상태 관리 누수                          | 🟡 Medium | adapter 내부 상태로 관리 + 초기화 명시              | ✅   |
+| fetch API 환경별 차이 (Node.js vs browser)        | 🟢 Low    | Node.js 20+ 네이티브 fetch 사용                     | ✅   |
+| AdapterConfig에 Didim 설정 전달 경로 부재         | 🟠 Medium | AdapterConfig index signature + DidimProviderConfig | ✅   |
+| countTokens UnsupportedFeatureError 전파          | 🟡 Medium | 호출부 전수 조사 + 에러 핸들링 보강                 | ✅   |
 
 ---
 
 ## 2.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 1 작업 결과서 검토
+- [x] **[REVIEW]** Phase 1 작업 결과서 검토
   - 파일: `./working_history/Phase1_core_didim_converter_{작업일자}.md`
   - 확인: 체크리스트 완료, 미해결 이슈, converter 함수 목록
 
-- [ ] **[CONTEXT]** Phase 2 작업 목적 확인
+- [x] **[CONTEXT]** Phase 2 작업 목적 확인
   - DidimAdapter: BaseAdapter를 상속하여 generateContent + generateContentStream
     구현
   - Bootstrap: ProviderRegistry에 factory 등록
   - ContentGenerator: bootstrapDidimProvider 호출 추가
 
-- [ ] **[ANALYSIS-1]** BaseAdapter 추상 메서드 분석
+- [x] **[ANALYSIS-1]** BaseAdapter 추상 메서드 분석
   - 파일: `packages/core/src/providers/baseAdapter.ts`
   - 확인: `providerName`, `capabilities`, `generateContent()`,
     `generateContentStream()`, `countTokens()`
@@ -60,15 +60,15 @@
     `generateContentStream(request, userPromptId, options?)` —
     `userPromptId: string`이 2번째 필수 파라미터
 
-- [ ] **[ANALYSIS-2]** ClaudeAdapter 패턴 분석
+- [x] **[ANALYSIS-2]** ClaudeAdapter 패턴 분석
   - 파일: `packages/core/src/providers/claude/adapter.ts`
   - 확인: HTTP 클라이언트 DI 패턴, 에러 분류, 스트리밍 AsyncGenerator
 
-- [ ] **[ANALYSIS-3]** ContentGenerator bootstrap 패턴 분석
+- [x] **[ANALYSIS-3]** ContentGenerator bootstrap 패턴 분석
   - 파일: `packages/core/src/core/contentGenerator.ts`
   - 확인: bootstrapClaudeProvider, bootstrapOpenAiProvider 호출 위치
 
-- [ ] **[ANALYSIS-4]** Phase 1 회귀 테스트 실행
+- [x] **[ANALYSIS-4]** Phase 1 회귀 테스트 실행
   ```bash
   npm test -w @didim365/agent-cli-core -- --run src/providers/didim/converter.test.ts
   ```
@@ -79,7 +79,7 @@
 
 > **목적**: 일반 채팅 요청/응답의 실패 테스트 작성
 
-- [ ] **[RED-1]** DidimAdapter 생성 테스트
+- [x] **[RED-1]** DidimAdapter 생성 테스트
 
   > **1팀 보완 제안 대응**: Didim이 지원하지 않는 모든 기능 플래그를 명시적으로
   > 검증한다. `LlmProviderCapabilities`는 10개 필드 (types.ts:308-319).
@@ -116,7 +116,7 @@
   });
   ```
 
-- [ ] **[RED-2]** generateContent 정상 응답 테스트
+- [x] **[RED-2]** generateContent 정상 응답 테스트
 
   ```typescript
   // 헬퍼: userPromptId는 BaseAdapter의 필수 2번째 파라미터
@@ -191,7 +191,7 @@
   > `userPromptId: string`은 `baseAdapter.ts:89`에서 정의된 필수 파라미터. 모든
   > 테스트에서 반드시 전달해야 함.
 
-- [ ] **[RED-3]** generateContent 에러 처리 테스트
+- [x] **[RED-3]** generateContent 에러 처리 테스트
 
   ```typescript
   describe('generateContent error handling', () => {
@@ -227,7 +227,7 @@
   });
   ```
 
-- [ ] **[RED-3B]** generateContent I/O 실패 경로 테스트 (2팀 Issue #6 대응)
+- [x] **[RED-3B]** generateContent I/O 실패 경로 테스트 (2팀 Issue #6 대응)
 
   > **⚠️ 네트워크 계층 실패**: fetch 자체는 성공하지만 response 처리에서
   > 실패하는 경로들. 실제 운영 환경에서 발생 가능한 I/O 실패 패턴.
@@ -277,7 +277,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY-A]** Part A 테스트 실패 확인
+- [x] **[RED-VERIFY-A]** Part A 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- --run src/providers/didim/adapter.test.ts
   # 반드시 FAIL이어야 함
@@ -287,7 +287,7 @@
 
 ## 2.3 GREEN Phase (Part A): 비스트리밍 구현
 
-- [ ] **[TASK-001]** DidimHttpClient 인터페이스 정의
+- [x] **[TASK-001]** DidimHttpClient 인터페이스 정의
 
   ```typescript
   export interface DidimHttpClient {
@@ -295,7 +295,7 @@
   }
   ```
 
-- [ ] **[TASK-002]** DidimAdapter 클래스 스켈레톤
+- [x] **[TASK-002]** DidimAdapter 클래스 스켈레톤
   - BaseAdapter 상속
   - `providerName: 'didim'`
   - `capabilities: { supportsToolCalls: false, supportsImageInput: false, supportsStreaming: true, ... }`
@@ -305,17 +305,17 @@
       `supportsThought`, `maxContextLength`, `maxOutputTokens`
   - constructor: `(config, httpClient, apiKey, serverAddress, streamMode)`
 
-- [ ] **[TASK-003]** `generateContent()` 구현
+- [x] **[TASK-003]** `generateContent()` 구현
   - Phase 1의 converter 함수 활용
   - fetch → parseDidimResponse → convertDidimResponseToLlm
   - thread_id 자동 저장/전송
 
-- [ ] **[TASK-004]** 에러 분류 구현
+- [x] **[TASK-004]** 에러 분류 구현
   - 401 → AuthenticationError
   - 408/timeout → TimeoutError
   - 기타 → ProviderError
 
-- [ ] **[GREEN-VERIFY-A]** Part A 테스트 통과 확인
+- [x] **[GREEN-VERIFY-A]** Part A 테스트 통과 확인
   ```bash
   npm test -w @didim365/agent-cli-core -- --run src/providers/didim/adapter.test.ts
   # Part A 테스트 PASS여야 함
@@ -325,7 +325,7 @@
 
 ## 2.4 RED Phase (Part B): SSE 스트리밍 테스트
 
-- [ ] **[RED-4]** generateContentStream 기본 테스트
+- [x] **[RED-4]** generateContentStream 기본 테스트
 
   > **⚠️ 2팀 Issue #5 대응**: 이벤트 존재 여부만이 아닌 payload 내용과 순서를
   > 정확히 검증.
@@ -391,7 +391,7 @@
   });
   ```
 
-- [ ] **[RED-5]** improved 모드 스트리밍 테스트
+- [x] **[RED-5]** improved 모드 스트리밍 테스트
 
   ```typescript
   describe('generateContentStream (improved mode)', () => {
@@ -417,7 +417,7 @@
   });
   ```
 
-- [ ] **[RED-6]** 스트리밍 에러 테스트
+- [x] **[RED-6]** 스트리밍 에러 테스트
 
   > **⚠️ 2팀 Issue #5 대응**: Error 이벤트의 error payload가 비어있지 않은지,
   > 에러 메시지가 정확한지까지 검증한다.
@@ -503,30 +503,30 @@
   });
   ```
 
-- [ ] **[RED-VERIFY-B]** Part B 테스트 실패 확인
+- [x] **[RED-VERIFY-B]** Part B 테스트 실패 확인
 
 ---
 
 ## 2.5 GREEN Phase (Part B): SSE 스트리밍 구현
 
-- [ ] **[TASK-005]** SSE ReadableStream 파서 구현
+- [x] **[TASK-005]** SSE ReadableStream 파서 구현
   - `fetch + response.body.getReader()` 패턴
   - TextDecoder로 바이트 → 문자열 변환
   - `event:` / `data:` 라인 파싱
   - 빈 줄로 이벤트 디스패치
 
-- [ ] **[TASK-006]** `generateContentStream()` AsyncGenerator 구현
+- [x] **[TASK-006]** `generateContentStream()` AsyncGenerator 구현
   - SSE 파서 → `parseDidimSseEvent()` → `convertDidimSseToLlmEvents()` → yield
   - 에러 발생 시 `createErrorEvent()` yield (throw 대신)
   - thread_id 자동 저장
 
-- [ ] **[GREEN-VERIFY-B]** Part B 테스트 통과 확인
+- [x] **[GREEN-VERIFY-B]** Part B 테스트 통과 확인
 
 ---
 
 ## 2.6 RED Phase (Part C): Bootstrap + 등록 테스트
 
-- [ ] **[RED-7]** bootstrapDidimProvider 테스트
+- [x] **[RED-7]** bootstrapDidimProvider 테스트
 
   ```typescript
   // packages/core/src/providers/didim/bootstrap.test.ts
@@ -560,7 +560,7 @@
   > `new ProviderRegistry()` 불가, `getInstance()` 사용. adapter 생성은
   > `createAdapter()` 메서드 사용.
 
-- [ ] **[RED-8]** Didim 설정 전달 배선(wiring) 테스트 (2팀 Issue #1 — High)
+- [x] **[RED-8]** Didim 설정 전달 배선(wiring) 테스트 (2팀 Issue #1 — High)
 
   > **⚠️ 핵심**: 가장 치명적인 런타임 리스크는 `serverAddress`와 `streamMode`가
   > bootstrap/contentGenerator 경로를 거쳐 어댑터까지 도달하느냐이다. 이 배선이
@@ -622,13 +622,13 @@
   });
   ```
 
-- [ ] **[RED-VERIFY-C]** Part C 테스트 실패 확인
+- [x] **[RED-VERIFY-C]** Part C 테스트 실패 확인
 
 ---
 
 ## 2.7 GREEN Phase (Part C): Bootstrap + ContentGenerator 연동
 
-- [ ] **[TASK-007]** `bootstrap.ts` 구현
+- [x] **[TASK-007]** `bootstrap.ts` 구현
 
   ```typescript
   export function bootstrapDidimProvider(registry: ProviderRegistry): void {
@@ -663,13 +663,13 @@
   > - `DidimProviderConfig` (`providerConfig.ts:80`)에 `streamMode` 필드 추가
   >   검토
 
-- [ ] **[TASK-008]** `index.ts` 작성
+- [x] **[TASK-008]** `index.ts` 작성
   - export: DidimAdapter, bootstrapDidimProvider, converter 함수들
 
-- [ ] **[TASK-009]** `packages/core/src/providers/index.ts` 수정
+- [x] **[TASK-009]** `packages/core/src/providers/index.ts` 수정
   - import/export Didim namespace 추가
 
-- [ ] **[TASK-010]** `contentGenerator.ts` 수정
+- [x] **[TASK-010]** `contentGenerator.ts` 수정
   - `bootstrapDidimProvider(registry)` 호출 추가
   - **⚠️ Didim config 전달 경로 구현 (2팀 2차 Issue #1 — 핵심)**: 현재
     `contentGenerator.ts:311-314`에서 non-Gemini adapter 생성 시
@@ -726,7 +726,7 @@
     방법이든 `settings.security.auth.didimConfig.serverAddress` →
     `DidimAdapter constructor` 까지 값이 전달되는 경로를 반드시 확보해야 한다.
 
-- [ ] **[TASK-010-VERIFY]** Config 전달 경로 테스트 구현 (RED-8 테스트
+- [x] **[TASK-010-VERIFY]** Config 전달 경로 테스트 구현 (RED-8 테스트
       통과시키기)
 
   > **참조**: RED-8에서 작성한 config wiring 테스트를 GREEN에서 통과시킨다.
@@ -734,18 +734,18 @@
   > `serverAddress`/`streamMode`가 DidimAdapter 생성자까지 전달되는지 실제
   > 구현으로 검증한다.
 
-- [ ] **[GREEN-VERIFY-C]** Part C 테스트 통과 확인
+- [x] **[GREEN-VERIFY-C]** Part C 테스트 통과 확인
 
 ---
 
 ## 2.8 REFACTOR Phase: 코드 개선
 
-- [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
+- [x] **[REFACTOR-STRUCTURE]** 코드 구조 개선
   - 에러 분류 로직 → `classifyDidimError()` 분리
   - HTTP 클라이언트 기본값 처리 최적화
   - SSE 파서 → 재사용 가능한 private 메서드로 추출
 
-- [ ] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
   ```bash
   npm test -w @didim365/agent-cli-core -- --run src/providers/didim/
   ```
@@ -754,37 +754,37 @@
 
 ## 2.9 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 전체 Core 테스트 실행
+- [x] **[TEST]** 전체 Core 테스트 실행
 
   ```bash
   npm test -w @didim365/agent-cli-core -- --run
   ```
 
-- [ ] **[TYPECHECK]** 타입 검사
+- [x] **[TYPECHECK]** 타입 검사
 
   ```bash
   npm run typecheck -w @didim365/agent-cli-core
   ```
 
-- [ ] **[LINT]** 린터 검사
+- [x] **[LINT]** 린터 검사
 
   ```bash
   npm run lint -w @didim365/agent-cli-core
   ```
 
-- [ ] **[BUILD]** Core 빌드 확인 (CLI 의존성)
+- [x] **[BUILD]** Core 빌드 확인 (CLI 의존성)
 
   ```bash
   npm run build -w @didim365/agent-cli-core
   ```
 
-- [ ] **[REGRESSION]** Phase 1 회귀 테스트
+- [x] **[REGRESSION]** Phase 1 회귀 테스트
 
   ```bash
   npm test -w @didim365/agent-cli-core -- --run src/providers/didim/converter.test.ts
   ```
 
-- [ ] **[VERIFY]** 기능 검증
+- [x] **[VERIFY]** 기능 검증
   - 확인 항목 1: DidimAdapter가 ProviderRegistry에 정상 등록되는가
   - 확인 항목 2: 기존 프로바이더(Gemini, Claude, OpenAI)의 bootstrap이 영향받지
     않는가
@@ -792,10 +792,10 @@
     처리하는가
   - 확인 항목 4: thread_id가 요청 간에 올바르게 유지되는가
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `./working_history/Phase2_core_didim_adapter_{작업일자}.md`
 
-- [ ] **[COMMIT]** 변경사항 커밋 (Tidy First: 구조 → 동작 분리)
+- [x] **[COMMIT]** 변경사항 커밋 (Tidy First: 구조 → 동작 분리)
   ```bash
   # 구조적 변경
   git commit -m "feat(providers): add DidimAdapter skeleton + bootstrap registration"
@@ -865,4 +865,5 @@
 
 ---
 
-**상태**: ⬜ Phase 1 완료 후 시작
+**상태**: ✅ 완료 (2026-03-14) —
+[작업 결과서](./working_history/Phase2_core_didim_adapter_20260314.md)

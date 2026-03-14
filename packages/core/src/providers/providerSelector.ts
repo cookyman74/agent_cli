@@ -29,6 +29,10 @@ export interface ProviderSelection {
   apiKey?: string;
   /** Base URL (for OpenAI-compatible) */
   baseUrl?: string;
+  /** Didim server address (from DIDIM_SERVER_ADDRESS) */
+  serverAddress?: string;
+  /** Didim stream mode (from DIDIM_STREAM_MODE) */
+  streamMode?: string;
 }
 
 /**
@@ -47,7 +51,7 @@ const PROVIDER_ENV_VARS: Record<ProviderType, string[]> = {
   [ProviderType.Claude]: ['ANTHROPIC_API_KEY'],
   [ProviderType.OpenAI]: ['OPENAI_API_KEY'],
   [ProviderType.OpenAICompatible]: ['LLM_BASE_URL'],
-  [ProviderType.Didim]: ['DIDIM_API_KEY'],
+  [ProviderType.Didim]: ['DIDIM_API_KEY', 'DIDIM_SERVER_ADDRESS'],
 };
 
 /**
@@ -117,6 +121,12 @@ export function selectProvider(
     // Add baseUrl for OpenAI-compatible
     if (providerType === ProviderType.OpenAICompatible) {
       selection.baseUrl = process.env['LLM_BASE_URL'];
+    }
+
+    // Add Didim-specific fields
+    if (providerType === ProviderType.Didim) {
+      selection.serverAddress = process.env['DIDIM_SERVER_ADDRESS'];
+      selection.streamMode = process.env['DIDIM_STREAM_MODE'] ?? 'sse';
     }
 
     return selection;

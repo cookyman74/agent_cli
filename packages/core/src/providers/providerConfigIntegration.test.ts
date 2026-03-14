@@ -84,6 +84,7 @@ describe('providerConfigIntegration', () => {
     it('should fallback to env var when no explicit options', () => {
       vi.stubEnv('LLM_PROVIDER', 'didim');
       vi.stubEnv('DIDIM_API_KEY', 'xxx');
+      vi.stubEnv('DIDIM_SERVER_ADDRESS', 'aistudio.didim365.com');
 
       const result = getProviderFromConfig({});
 

@@ -86,3 +86,9 @@ export { OpenAi };
 // Then: OpenAiCompatible.OpenAiCompatibleAdapter, etc.
 import * as OpenAiCompatible from './openai-compatible/index.js';
 export { OpenAiCompatible };
+
+// Didim provider types (DidimAIStudio integration)
+// Use: import { Didim } from '@didim365/agent-cli-core/providers'
+// Then: Didim.DidimAdapter, Didim.bootstrapDidimProvider, etc.
+import * as Didim from './didim/index.js';
+export { Didim };

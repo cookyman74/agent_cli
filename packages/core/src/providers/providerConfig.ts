@@ -81,8 +81,12 @@ export interface DidimProviderConfig extends ProviderConfig {
   provider: ProviderType.Didim;
   /** Didim API key */
   apiKey: string;
-  /** Didim endpoint */
+  /** Didim server address (domain or URL). Replaces deprecated `endpoint`. */
+  serverAddress?: string;
+  /** @deprecated Use serverAddress instead. */
   endpoint?: string;
+  /** SSE stream mode: 'sse' (default) or 'improved'. */
+  streamMode?: 'sse' | 'improved';
 }
 
 /**

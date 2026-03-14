@@ -175,6 +175,10 @@ export function validateProviderConfig(config: ProviderConfigOptions): void {
 /**
  * Validate resolved provider configuration.
  *
+ * Note: For Didim provider, serverAddress is validated at bootstrap time
+ * (bootstrap.ts) rather than here, because ResolvedProviderConfig does not
+ * include provider-specific fields like serverAddress.
+ *
  * Use this function after getProviderFromConfig() to validate that
  * the resolved configuration has all required fields.
  *
@@ -232,11 +236,15 @@ export function validateResolvedConfig(config: ResolvedProviderConfig): void {
  * Resolve provider-specific environment variables.
  *
  * @param provider - Provider type
- * @returns Object containing resolved apiKey and baseUrl
+ * @returns Object containing resolved apiKey, baseUrl, and provider-specific fields
  */
 export function resolveProviderEnvVars(provider: ProviderType): {
   apiKey?: string;
   baseUrl?: string;
+  /** Didim server address (from DIDIM_SERVER_ADDRESS) */
+  serverAddress?: string;
+  /** Didim stream mode (from DIDIM_STREAM_MODE) */
+  streamMode?: string;
 } {
   switch (provider) {
     case ProviderType.Gemini:
@@ -263,6 +271,8 @@ export function resolveProviderEnvVars(provider: ProviderType): {
     case ProviderType.Didim:
       return {
         apiKey: process.env['DIDIM_API_KEY'],
+        serverAddress: process.env['DIDIM_SERVER_ADDRESS'],
+        streamMode: process.env['DIDIM_STREAM_MODE'],
       };
 
     default:

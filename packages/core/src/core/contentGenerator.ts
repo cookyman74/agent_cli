@@ -28,6 +28,7 @@ import type {
   LlmGenerateResponse,
   LlmTokenCount,
   GenerateOptions,
+  AdapterConfig,
 } from '../providers/types.js';
 import type { LlmEventStream } from '../providers/events.js';
 import { GoogleGenAI } from '@google/genai';
@@ -57,6 +58,7 @@ import { bootstrapGeminiProvider } from '../providers/gemini/bootstrap.js';
 import { bootstrapClaudeProvider } from '../providers/claude/bootstrap.js';
 import { bootstrapOpenAiProvider } from '../providers/openai/bootstrap.js';
 import { bootstrapOpenAiCompatibleProvider } from '../providers/openai-compatible/bootstrap.js';
+import { bootstrapDidimProvider } from '../providers/didim/bootstrap.js';
 import type { BaseAdapter } from '../providers/baseAdapter.js';
 import type { AuthType as ProviderAuthType } from '../providers/providerTypes.js';
 import { resolveEnv } from '../utils/envResolver.js';
@@ -308,11 +310,18 @@ export async function createContentGenerator(
         bootstrapClaudeProvider();
         bootstrapOpenAiProvider();
         bootstrapOpenAiCompatibleProvider();
+        bootstrapDidimProvider();
         const factory = new ProviderFactory();
-        const adapter = factory.create(selection.type, {
+        // Build adapter config — include Didim-specific fields via index signature
+        const adapterConfig: AdapterConfig = {
           apiKey: selection.apiKey,
           baseUrl: selection.baseUrl,
-        });
+        };
+        if (selection.type === ProviderType.Didim) {
+          adapterConfig['serverAddress'] = selection.serverAddress ?? '';
+          adapterConfig['streamMode'] = selection.streamMode ?? 'sse';
+        }
+        const adapter = factory.create(selection.type, adapterConfig);
 
         // Resolve provider-appropriate model and update config for status bar.
         // e.g., 'auto' → 'claude-sonnet-4-20250514' for Claude provider.

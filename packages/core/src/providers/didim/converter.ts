@@ -265,7 +265,7 @@ function parseSseMode(
     case 'message':
       return {
         type: 'delta',
-        text: typeof parsed['chunk'] === 'string' ? parsed['chunk'] : '',
+        text: extractTextField(parsed),
       };
     case 'done':
       return {

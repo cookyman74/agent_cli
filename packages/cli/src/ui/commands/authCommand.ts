@@ -53,6 +53,12 @@ const authLogoutCommand: SlashCommand = {
       'security.auth.vertexConfig',
       undefined,
     );
+    // Clear Didim config so user must re-configure on next login
+    context.services.settings.setValue(
+      SettingScope.User,
+      'security.auth.didimConfig',
+      undefined,
+    );
     // Clear provider-related runtime env vars to prevent stale routing
     delete process.env['ENABLE_MULTI_PROVIDER'];
     delete process.env['LLM_PROVIDER'];
@@ -64,6 +70,8 @@ const authLogoutCommand: SlashCommand = {
     delete process.env['LLM_MODEL'];
     delete process.env['LLM_API_KEY_HEADER'];
     delete process.env['LLM_CUSTOM_HEADERS'];
+    delete process.env['DIDIM_SERVER_ADDRESS'];
+    delete process.env['DIDIM_STREAM_MODE'];
     delete process.env['GOOGLE_CLOUD_PROJECT'];
     delete process.env['GOOGLE_CLOUD_LOCATION'];
     // Strip thoughts from history instead of clearing completely

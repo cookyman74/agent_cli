@@ -48,9 +48,10 @@ export function DidimStudioAuthDialog({
     defaultConfig?.serverAddress ?? DEFAULT_SERVER,
   );
   const [apiKey, setApiKey] = useState('');
-  const [streamMode, setStreamMode] = useState<'sse' | 'improved'>(
-    (defaultConfig?.streamMode as 'sse' | 'improved') ?? 'sse',
-  );
+  const [streamMode, setStreamMode] = useState<'sse' | 'improved'>(() => {
+    const raw = defaultConfig?.streamMode;
+    return raw === 'sse' || raw === 'improved' ? raw : 'sse';
+  });
 
   const stepIndex = STEPS.indexOf(currentStep);
   const stepLabel = `Step ${stepIndex + 1} of ${STEPS.length}`;

@@ -2320,6 +2320,122 @@ describe('Settings Loading and Merging', () => {
     });
   });
 
+  describe('didimConfig in security.auth', () => {
+    it('should have didimConfig with schema defaults when no user settings exist', () => {
+      (mockFsExistsSync as Mock).mockReturnValue(false);
+      (fs.readFileSync as Mock).mockReturnValue('{}');
+
+      const settings = loadSettings(MOCK_WORKSPACE_DIR);
+      expect(settings.merged).toBeDefined();
+      expect(settings.merged.security).toBeDefined();
+      // Schema defines streamMode default: 'sse', serverAddress default: undefined
+      const didimConfig = settings.merged.security.auth.didimConfig as {
+        serverAddress?: string;
+        streamMode?: string;
+      };
+      expect(didimConfig.streamMode).toBe('sse');
+      expect(didimConfig.serverAddress).toBeUndefined();
+    });
+
+    it('should roundtrip didimConfig through setValue and merged settings', () => {
+      (mockFsExistsSync as Mock).mockReturnValue(false);
+      (fs.readFileSync as Mock).mockReturnValue('{}');
+
+      const loaded = loadSettings(MOCK_WORKSPACE_DIR);
+
+      loaded.setValue(SettingScope.User, 'security.auth.didimConfig', {
+        serverAddress: 'aistudio.didim365.com',
+        streamMode: 'improved',
+      });
+
+      const result = loaded.merged.security.auth.didimConfig as {
+        serverAddress?: string;
+        streamMode?: string;
+      };
+      expect(result.serverAddress).toBe('aistudio.didim365.com');
+      expect(result.streamMode).toBe('improved');
+    });
+
+    it('should not break when didimConfig is omitted from user settings', () => {
+      (mockFsExistsSync as Mock).mockImplementation(
+        (p: fs.PathLike) => p === USER_SETTINGS_PATH,
+      );
+      (fs.readFileSync as Mock).mockImplementation(
+        (p: fs.PathOrFileDescriptor) => {
+          if (p === USER_SETTINGS_PATH) {
+            // Settings with auth but NO didimConfig
+            return JSON.stringify({
+              security: {
+                auth: {
+                  selectedType: 'gemini-api-key',
+                  selectedProvider: 'gemini',
+                },
+              },
+            });
+          }
+          return '{}';
+        },
+      );
+
+      const settings = loadSettings(MOCK_WORKSPACE_DIR);
+      // Should parse without error and preserve other auth settings
+      expect(settings.merged.security.auth.selectedProvider).toBe('gemini');
+      // didimConfig gets schema defaults even when not in user settings
+      const didimConfig = settings.merged.security.auth.didimConfig as {
+        serverAddress?: string;
+        streamMode?: string;
+      };
+      expect(didimConfig.serverAddress).toBeUndefined();
+      expect(didimConfig.streamMode).toBe('sse');
+    });
+
+    it('should coexist with slmConfig and vertexConfig without interference', () => {
+      (mockFsExistsSync as Mock).mockImplementation(
+        (p: fs.PathLike) => p === USER_SETTINGS_PATH,
+      );
+      (fs.readFileSync as Mock).mockImplementation(
+        (p: fs.PathOrFileDescriptor) => {
+          if (p === USER_SETTINGS_PATH) {
+            return JSON.stringify({
+              security: {
+                auth: {
+                  selectedProvider: 'didim-studio',
+                  slmConfig: {
+                    baseUrl: 'http://localhost:11434/v1',
+                    model: 'llama3',
+                  },
+                  vertexConfig: {
+                    project: 'my-project',
+                    location: 'us-central1',
+                  },
+                  didimConfig: {
+                    serverAddress: 'aistudio.didim365.com',
+                    streamMode: 'sse',
+                  },
+                },
+              },
+            });
+          }
+          return '{}';
+        },
+      );
+
+      const settings = loadSettings(MOCK_WORKSPACE_DIR);
+      const auth = settings.merged.security.auth;
+
+      // All three configs should coexist
+      expect((auth.slmConfig as { baseUrl: string }).baseUrl).toBe(
+        'http://localhost:11434/v1',
+      );
+      expect((auth.vertexConfig as { project: string }).project).toBe(
+        'my-project',
+      );
+      expect(
+        (auth.didimConfig as { serverAddress: string }).serverAddress,
+      ).toBe('aistudio.didim365.com');
+    });
+  });
+
   describe('getDefaultsFromSchema', () => {
     it('should extract defaults from a schema', () => {
       const mockSchema = {

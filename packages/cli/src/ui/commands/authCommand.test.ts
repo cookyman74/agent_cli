@@ -105,6 +105,29 @@ describe('authCommand', () => {
       expect(process.env['DIDIM_API_KEY']).toBeUndefined();
     });
 
+    it('should clear DIDIM_SERVER_ADDRESS and DIDIM_STREAM_MODE env vars on logout', async () => {
+      const logoutCommand = authCommand.subCommands?.[1];
+      process.env['DIDIM_SERVER_ADDRESS'] = 'aistudio.didim365.com';
+      process.env['DIDIM_STREAM_MODE'] = 'sse';
+
+      await logoutCommand!.action!(mockContext, '');
+
+      expect(process.env['DIDIM_SERVER_ADDRESS']).toBeUndefined();
+      expect(process.env['DIDIM_STREAM_MODE']).toBeUndefined();
+    });
+
+    it('should clear didimConfig setting on logout', async () => {
+      const logoutCommand = authCommand.subCommands?.[1];
+
+      await logoutCommand!.action!(mockContext, '');
+
+      expect(mockContext.services.settings.setValue).toHaveBeenCalledWith(
+        SettingScope.User,
+        'security.auth.didimConfig',
+        undefined,
+      );
+    });
+
     it('should strip thoughts from history', async () => {
       const logoutCommand = authCommand.subCommands?.[1];
       const mockStripThoughts = vi.fn();

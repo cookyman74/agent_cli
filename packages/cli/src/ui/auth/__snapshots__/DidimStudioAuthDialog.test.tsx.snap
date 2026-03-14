@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DidimStudioAuthDialog > snapshot > matches snapshot for initial render 1`] = `
+"╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                  │
+│ DidimAIStudio Configuration                                                          Step 1 of 3 │
+│                                                                                                  │
+│ Server Domain                                                                                    │
+│ Enter the DidimAIStudio server address.                                                          │
+│                                                                                                  │
+│ ╭──────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │                                                                                              │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                                  │
+│ Press Enter to continue, Esc to go back                                                          │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
+`;

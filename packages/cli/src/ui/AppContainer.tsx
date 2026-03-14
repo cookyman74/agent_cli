@@ -855,21 +855,6 @@ export const AppContainer = (props: AppContainerProps) => {
     }) => {
       try {
         onAuthError(null);
-        // Save Didim config to settings (security.auth.didimConfig)
-        settings.setValue(SettingScope.User, 'security.auth.didimConfig', {
-          serverAddress: didimConfig.serverAddress,
-          streamMode: didimConfig.streamMode,
-        });
-        settings.setValue(
-          SettingScope.User,
-          'security.auth.selectedProvider',
-          'didim-studio',
-        );
-        settings.setValue(
-          SettingScope.User,
-          'security.auth.selectedType',
-          AuthType.USE_GEMINI,
-        );
 
         // Clean all provider env vars to prevent cross-provider leakage
         cleanProviderEnvVars();
@@ -888,8 +873,26 @@ export const AppContainer = (props: AppContainerProps) => {
 
         await config.refreshAuth(AuthType.USE_GEMINI);
 
+        // Persist settings AFTER keychain + refreshAuth succeed (atomic save)
+        settings.setValue(SettingScope.User, 'security.auth.didimConfig', {
+          serverAddress: didimConfig.serverAddress,
+          streamMode: didimConfig.streamMode,
+        });
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.selectedProvider',
+          'didim-studio',
+        );
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.selectedType',
+          AuthType.USE_GEMINI,
+        );
+
         setAuthState(AuthState.Authenticated);
       } catch (e) {
+        // Rollback env vars on failure to prevent partial state
+        cleanProviderEnvVars();
         onAuthError(
           `Failed to configure DidimAIStudio: ${e instanceof Error ? e.message : String(e)}`,
         );

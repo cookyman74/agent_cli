@@ -190,6 +190,17 @@ export const useAuthCommand = (
               return;
             }
 
+            // For didim, validate DIDIM_SERVER_ADDRESS is set (core providerSelector requires it)
+            if (llmProvider === 'didim') {
+              if (!process.env['DIDIM_SERVER_ADDRESS']) {
+                onAuthError(
+                  `LLM_PROVIDER="didim" requires DIDIM_SERVER_ADDRESS. ` +
+                    `Set the DIDIM_SERVER_ADDRESS environment variable (e.g., aistudio.didim365.com).`,
+                );
+                return;
+              }
+            }
+
             // For openai-compatible, validate LLM_BASE_URL and LLM_MODEL are set
             if (
               llmProvider === 'openai-compatible' ||
@@ -256,6 +267,12 @@ export const useAuthCommand = (
           }
           if (process.env['DIDIM_API_KEY']) {
             // Auto-detect Didim provider from env var
+            // Core providerSelector requires both DIDIM_API_KEY and DIDIM_SERVER_ADDRESS
+            if (!process.env['DIDIM_SERVER_ADDRESS']) {
+              // Key is set but server address is missing — prompt for config
+              setAuthState(AuthState.AuthenticatingDidim);
+              return;
+            }
             process.env['ENABLE_MULTI_PROVIDER'] = 'true';
             process.env['LLM_PROVIDER'] = 'didim';
             try {
@@ -344,6 +361,11 @@ export const useAuthCommand = (
               debugLogger.log(
                 'No stored API key for provider "didim". Prompting for config.',
               );
+              // Rollback partially-set env vars to prevent stale state
+              delete process.env['ENABLE_MULTI_PROVIDER'];
+              delete process.env['LLM_PROVIDER'];
+              delete process.env['DIDIM_SERVER_ADDRESS'];
+              delete process.env['DIDIM_STREAM_MODE'];
               setAuthState(AuthState.AuthenticatingDidim);
               return;
             }

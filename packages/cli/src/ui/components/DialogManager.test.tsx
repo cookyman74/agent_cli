@@ -75,6 +75,9 @@ vi.mock('../auth/SlmConfigDialog.js', () => ({
 vi.mock('../auth/VertexConfigDialog.js', () => ({
   VertexConfigDialog: () => <Text>VertexConfigDialog</Text>,
 }));
+vi.mock('../auth/DidimStudioAuthDialog.js', () => ({
+  DidimStudioAuthDialog: () => <Text>DidimStudioAuthDialog</Text>,
+}));
 
 describe('DialogManager', () => {
   const defaultProps = {
@@ -110,6 +113,7 @@ describe('DialogManager', () => {
     isSelectingProvider: false,
     isConfiguringSlm: false,
     isConfiguringVertex: false,
+    isAuthenticatingDidim: false,
   };
 
   it('renders nothing by default', () => {
@@ -169,6 +173,7 @@ describe('DialogManager', () => {
     [{ isSelectingProvider: true }, 'ProviderSelectDialog'],
     [{ isConfiguringSlm: true }, 'SlmConfigDialog'],
     [{ isConfiguringVertex: true }, 'VertexConfigDialog'],
+    [{ isAuthenticatingDidim: true }, 'DidimStudioAuthDialog'],
     [{ isAuthenticating: true }, 'AuthInProgress'],
     [{ isAwaitingApiKeyInput: true }, 'ApiAuthDialog'],
     [{ isAuthDialogOpen: true }, 'AuthDialog'],

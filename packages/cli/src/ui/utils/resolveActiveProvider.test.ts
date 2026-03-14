@@ -172,6 +172,18 @@ describe('cleanProviderEnvVars', () => {
     expect(process.env['OPENAI_ORG_ID']).toBeUndefined();
     expect(process.env['OPENAI_PROJECT_ID']).toBeUndefined();
   });
+
+  it('removes Didim env vars (DIDIM_API_KEY, DIDIM_SERVER_ADDRESS, DIDIM_STREAM_MODE)', () => {
+    vi.stubEnv('DIDIM_API_KEY', 'didim-jwt-token');
+    vi.stubEnv('DIDIM_SERVER_ADDRESS', 'aistudio.didim365.com');
+    vi.stubEnv('DIDIM_STREAM_MODE', 'improved');
+
+    cleanProviderEnvVars();
+
+    expect(process.env['DIDIM_API_KEY']).toBeUndefined();
+    expect(process.env['DIDIM_SERVER_ADDRESS']).toBeUndefined();
+    expect(process.env['DIDIM_STREAM_MODE']).toBeUndefined();
+  });
 });
 
 describe('resolveModelForAuthSwitch', () => {

@@ -55,6 +55,8 @@ describe('useAuth', () => {
     delete process.env['LLM_API_KEY'];
     delete process.env['LLM_API_KEY_HEADER'];
     delete process.env['LLM_CUSTOM_HEADERS'];
+    delete process.env['DIDIM_SERVER_ADDRESS'];
+    delete process.env['DIDIM_STREAM_MODE'];
   });
 
   afterEach(() => {
@@ -401,8 +403,9 @@ describe('useAuth', () => {
       });
     });
 
-    it('should auto-detect Didim from DIDIM_API_KEY env var', async () => {
+    it('should auto-detect Didim from DIDIM_API_KEY + DIDIM_SERVER_ADDRESS env vars', async () => {
       process.env['DIDIM_API_KEY'] = 'didim-test-key';
+      process.env['DIDIM_SERVER_ADDRESS'] = 'aistudio.didim365.com';
       const { result } = renderHook(() =>
         useAuthCommand(createSettings(undefined), mockConfig),
       );
@@ -414,6 +417,19 @@ describe('useAuth', () => {
         );
         expect(result.current.authState).toBe(AuthState.Authenticated);
         expect(result.current.authError).toBeNull();
+      });
+    });
+
+    it('should redirect to AuthenticatingDidim when DIDIM_API_KEY is set but DIDIM_SERVER_ADDRESS is missing', async () => {
+      process.env['DIDIM_API_KEY'] = 'didim-test-key';
+      // DIDIM_SERVER_ADDRESS is NOT set
+      const { result } = renderHook(() =>
+        useAuthCommand(createSettings(undefined), mockConfig),
+      );
+
+      await waitFor(() => {
+        expect(result.current.authState).toBe(AuthState.AuthenticatingDidim);
+        expect(mockConfig.refreshAuth).not.toHaveBeenCalled();
       });
     });
 
@@ -456,6 +472,20 @@ describe('useAuth', () => {
       await waitFor(() => {
         expect(result.current.authError).toContain('DIDIM_API_KEY');
         expect(result.current.authError).toContain('missing');
+        expect(mockConfig.refreshAuth).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should show error when LLM_PROVIDER=didim + DIDIM_API_KEY set but DIDIM_SERVER_ADDRESS is missing', async () => {
+      process.env['LLM_PROVIDER'] = 'didim';
+      process.env['DIDIM_API_KEY'] = 'didim-test-key';
+      // DIDIM_SERVER_ADDRESS is NOT set
+      const { result } = renderHook(() =>
+        useAuthCommand(createSettings(undefined), mockConfig),
+      );
+
+      await waitFor(() => {
+        expect(result.current.authError).toContain('DIDIM_SERVER_ADDRESS');
         expect(mockConfig.refreshAuth).not.toHaveBeenCalled();
       });
     });
@@ -615,6 +645,146 @@ describe('useAuth', () => {
 
       await waitFor(() => {
         expect(result.current.authState).toBe(AuthState.ConfiguringVertex);
+      });
+    });
+
+    // --- Issue: Didim restart auto-authentication ---
+
+    it('should restore Didim config on restart with saved didimConfig + stored key', async () => {
+      // Simulates restart: selectedType=USE_GEMINI + selectedProvider=didim-studio + didimConfig + stored key
+      mockLoadProviderApiKey.mockResolvedValue('jwt-saved-key');
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_GEMINI,
+              selectedProvider: 'didim-studio',
+              didimConfig: {
+                serverAddress: 'aistudio.didim365.com',
+                streamMode: 'improved',
+              },
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(mockLoadProviderApiKey).toHaveBeenCalledWith('didim');
+        expect(process.env['LLM_PROVIDER']).toBe('didim');
+        expect(process.env['DIDIM_SERVER_ADDRESS']).toBe(
+          'aistudio.didim365.com',
+        );
+        expect(process.env['DIDIM_STREAM_MODE']).toBe('improved');
+        expect(process.env['DIDIM_API_KEY']).toBe('jwt-saved-key');
+        expect(process.env['ENABLE_MULTI_PROVIDER']).toBe('true');
+        expect(mockConfig.refreshAuth).toHaveBeenCalledWith(
+          AuthType.USE_GEMINI,
+        );
+        expect(result.current.authState).toBe(AuthState.Authenticated);
+      });
+    });
+
+    it('should redirect to AuthenticatingDidim when didimConfig.serverAddress is missing on restart', async () => {
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_GEMINI,
+              selectedProvider: 'didim-studio',
+              // didimConfig empty — simulates settings corruption or manual edit
+              didimConfig: {},
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(result.current.authState).toBe(AuthState.AuthenticatingDidim);
+      });
+    });
+
+    it('should redirect to AuthenticatingDidim when stored Didim key is missing on restart', async () => {
+      // didimConfig is valid but keychain has no stored key
+      mockLoadProviderApiKey.mockResolvedValue('');
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_GEMINI,
+              selectedProvider: 'didim-studio',
+              didimConfig: {
+                serverAddress: 'aistudio.didim365.com',
+                streamMode: 'sse',
+              },
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(mockLoadProviderApiKey).toHaveBeenCalledWith('didim');
+        expect(result.current.authState).toBe(AuthState.AuthenticatingDidim);
+      });
+    });
+
+    it('should rollback env vars when stored Didim key is missing on restart', async () => {
+      // didimConfig is valid but keychain has no stored key
+      mockLoadProviderApiKey.mockResolvedValue('');
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_GEMINI,
+              selectedProvider: 'didim-studio',
+              didimConfig: {
+                serverAddress: 'aistudio.didim365.com',
+                streamMode: 'improved',
+              },
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(result.current.authState).toBe(AuthState.AuthenticatingDidim);
+        // Env vars should be cleaned up (rolled back) since keychain lookup failed
+        expect(process.env['ENABLE_MULTI_PROVIDER']).toBeUndefined();
+        expect(process.env['LLM_PROVIDER']).toBeUndefined();
+        expect(process.env['DIDIM_SERVER_ADDRESS']).toBeUndefined();
+        expect(process.env['DIDIM_STREAM_MODE']).toBeUndefined();
+      });
+    });
+
+    it('should default streamMode to sse when didimConfig.streamMode is missing on restart', async () => {
+      mockLoadProviderApiKey.mockResolvedValue('jwt-key');
+      const settings = {
+        merged: {
+          security: {
+            auth: {
+              selectedType: AuthType.USE_GEMINI,
+              selectedProvider: 'didim-studio',
+              didimConfig: {
+                serverAddress: 'custom.server.com',
+                // streamMode not set — should default to 'sse'
+              },
+            },
+          },
+        },
+      } as LoadedSettings;
+
+      const { result } = renderHook(() => useAuthCommand(settings, mockConfig));
+
+      await waitFor(() => {
+        expect(process.env['DIDIM_STREAM_MODE']).toBe('sse');
+        expect(result.current.authState).toBe(AuthState.Authenticated);
       });
     });
 

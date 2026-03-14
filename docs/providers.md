@@ -9,9 +9,11 @@ This guide describes the current multi-provider behavior in Didim Agent CLI.
 ## Scope
 
 - `ENABLE_MULTI_PROVIDER=true` enables provider selection.
-- Providers covered here: `gemini`, `claude`, `openai`, `openai-compatible`.
+- Providers covered here: `gemini`, `claude`, `openai`, `openai-compatible`,
+  `didim`.
 - `openai-compatible` can be used for vLLM, LM Studio, Ollama-compatible
   gateways, and other OpenAI-compatible endpoints.
+- `didim` connects to DidimAIStudio's scenario-based gateway.
 - All built-in tools (file system, shell, web fetch, etc.) and MCP tools work
   across all providers.
 - Sub-agents work with all providers via the provider-independent `llm*`
@@ -25,6 +27,7 @@ This guide describes the current multi-provider behavior in Didim Agent CLI.
 | Claude            | `claude` or `anthropic`                    | `ANTHROPIC_API_KEY`                                             | Uses provider-independent `llm*` pipeline                  |
 | OpenAI            | `openai`                                   | `OPENAI_API_KEY`                                                | Uses provider-independent `llm*` pipeline                  |
 | OpenAI-compatible | `openai-compatible` or `openai_compatible` | `LLM_BASE_URL`                                                  | OpenAI-compatible endpoint (`/v1`) for vLLM/local gateways |
+| DidimAIStudio     | `didim`                                    | `DIDIM_API_KEY` + `DIDIM_SERVER_ADDRESS`                        | Scenario-based gateway; no individual model selection      |
 
 ## Quick Start
 
@@ -67,6 +70,34 @@ export LLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
 export LLM_API_KEY="optional-key"
 didim --model Qwen/Qwen2.5-7B-Instruct
 ```
+
+### DidimAIStudio
+
+```bash
+export ENABLE_MULTI_PROVIDER=true
+export LLM_PROVIDER=didim
+export DIDIM_API_KEY="your-jwt-token"
+export DIDIM_SERVER_ADDRESS="aistudio.didim365.com"
+export DIDIM_STREAM_MODE="sse"  # or "improved"
+didim
+```
+
+**Supported features:**
+
+| Feature         | Support             |
+| --------------- | ------------------- |
+| Chat            | ✅                  |
+| Streaming       | ✅ (SSE / improved) |
+| Tools           | ❌                  |
+| Vision          | ❌                  |
+| Model selection | ❌ (scenario-based) |
+
+**Limitations:**
+
+- Model selection is disabled; the server routes requests based on scenarios.
+- `countTokens` is not supported.
+- Thread ID (`x-thread-id`) is managed automatically for conversation
+  continuity.
 
 ## sLM Interactive Configuration
 
@@ -157,6 +188,7 @@ runtime resolves a provider-appropriate model:
 | Claude            | `claude-opus-4-6`      | claude-opus-4-6, claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001                       |
 | OpenAI            | `gpt-5.4`              | gpt-5.4, gpt-5.4-pro, gpt-5.3-codex, gpt-5.2, gpt-5-mini, gpt-4.1, gpt-4.1-mini, o3, o4-mini |
 | OpenAI-compatible | `default`              | Freeform text input (any model name)                                                         |
+| DidimAIStudio     | `didim-default`        | Scenario-based (no model selection)                                                          |
 
 Override with `LLM_MODEL` for non-Gemini providers when needed.
 

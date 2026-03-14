@@ -23,6 +23,7 @@ running shells, and web fetching, which are managed by `packages/core`.
 | Claude            | claude-opus-4-6, claude-sonnet-4-5, claude-haiku-4-5         | `ANTHROPIC_API_KEY`              |
 | OpenAI            | gpt-5.4, gpt-5.4-pro, gpt-5.3-codex, gpt-5-mini, o3, o4-mini | `OPENAI_API_KEY`                 |
 | OpenAI-compatible | Any (vLLM, Ollama, LM Studio)                                | `LLM_BASE_URL` + optional key    |
+| DidimAIStudio     | Scenario-based (no model selection)                          | `DIDIM_API_KEY` + JWT token      |
 | Vertex AI         | Gemini models via Vertex                                     | `GOOGLE_API_KEY` + Vertex config |
 
 ## Navigating the documentation

@@ -16,6 +16,7 @@ Select the authentication method that matches your situation in the table below:
 | Anthropic Claude user                                                  | [Use Claude API Key](#claude-api)                                | No                                                          |
 | OpenAI user                                                            | [Use OpenAI API Key](#openai-api)                                | No                                                          |
 | Local/self-hosted model (sLM)                                          | [OpenAI-compatible endpoint](#openai-compatible)                 | No                                                          |
+| DidimAIStudio user                                                     | [DidimAIStudio JWT](#didim-aistudio)                             | No                                                          |
 | [Headless mode](#headless)                                             | [Use Gemini API Key](#gemini-api) or<br> [Vertex AI](#vertex-ai) | No (for Gemini API Key)<br> [Yes](#set-gcp) (for Vertex AI) |
 
 ### What is my Google account type?
@@ -271,6 +272,44 @@ Available tool names:
 
 For detailed setup and troubleshooting, see the
 [Provider Guide](../providers.md).
+
+## Use DidimAIStudio <a id="didim-aistudio"></a>
+
+To use this CLI with DidimAIStudio's scenario-based gateway:
+
+### Option A: Using `/auth login` (Recommended)
+
+1. Start the CLI and run `/auth login`.
+2. Select **DidimAIStudio** from the provider list.
+3. Follow the 3-step wizard:
+   - **Step 1: Server Address** — Enter the DidimAIStudio server domain (e.g.,
+     `aistudio.didim365.com`)
+   - **Step 2: JWT Token** — Enter your JWT authentication token (input is
+     masked for security)
+   - **Step 3: Stream Mode** — Select `sse` (standard) or `improved` (enhanced
+     event format)
+4. The configuration is saved to your user settings for future sessions.
+
+### Option B: Using environment variables
+
+```bash
+export DIDIM_API_KEY="your-jwt-token"
+export DIDIM_SERVER_ADDRESS="aistudio.didim365.com"
+export DIDIM_STREAM_MODE="sse"  # or "improved"
+```
+
+To make these settings persistent, see
+[Persisting Environment Variables](#persisting-vars).
+
+Start the CLI:
+
+```bash
+didim
+```
+
+> **Note:** DidimAIStudio uses a scenario-based model routing system. Individual
+> model selection via `/model` is not available. The server automatically routes
+> requests to the appropriate model based on the configured scenario.
 
 ## Use Vertex AI <a id="vertex-ai"></a>
 

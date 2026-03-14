@@ -10,6 +10,7 @@ import { getPackageJson, debugLogger } from '@didim365/agent-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { CLI_VERSION } from '../../generated/git-commit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,11 +60,18 @@ export async function checkForUpdates(
       return null;
     }
     const packageJson = await getPackageJson(__dirname);
-    if (!packageJson || !packageJson.name || !packageJson.version) {
+    if (!packageJson || !packageJson.name) {
       return null;
     }
 
-    const { name, version: currentVersion } = packageJson;
+    // Use build-time CLI_VERSION instead of runtime package.json version.
+    // readPackageUp may find stale or wrong package.json after global install.
+    const name = packageJson.name;
+    const currentVersion =
+      (CLI_VERSION as string) !== 'UNKNOWN' ? CLI_VERSION : packageJson.version;
+    if (!currentVersion) {
+      return null;
+    }
     const isNightly = currentVersion.includes('nightly');
 
     if (isNightly) {

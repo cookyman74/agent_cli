@@ -22,6 +22,12 @@ vi.mock('latest-version', () => ({
   default: latestVersion,
 }));
 
+// Mock CLI_VERSION so tests can control the current version via getPackageJson
+vi.mock('../../generated/git-commit.js', () => ({
+  CLI_VERSION: 'UNKNOWN',
+  GIT_COMMIT_INFO: 'test',
+}));
+
 describe('checkForUpdates', () => {
   let mockSettings: LoadedSettings;
 

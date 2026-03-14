@@ -133,9 +133,15 @@ describe('resolveActiveProvider', () => {
       expect(resolveActiveProvider()).toBe('openai');
     });
 
-    it('detects DIDIM_API_KEY → didim', () => {
+    it('detects DIDIM_API_KEY + DIDIM_SERVER_ADDRESS → didim', () => {
       vi.stubEnv('DIDIM_API_KEY', 'didim-xxx');
+      vi.stubEnv('DIDIM_SERVER_ADDRESS', 'aistudio.didim365.com');
       expect(resolveActiveProvider()).toBe('didim');
+    });
+
+    it('does not detect didim with DIDIM_API_KEY alone (server address missing)', () => {
+      vi.stubEnv('DIDIM_API_KEY', 'didim-xxx');
+      expect(resolveActiveProvider()).toBe('gemini');
     });
 
     it('ANTHROPIC_API_KEY has priority over OPENAI_API_KEY', () => {

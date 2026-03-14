@@ -40,7 +40,8 @@ export function resolveActiveProvider(selectedProvider?: string): string {
   // 3. API 키 기반 감지 (providerSelector.ts의 PROVIDER_ENV_VARS와 동일 순서)
   if (process.env['ANTHROPIC_API_KEY']) return 'claude';
   if (process.env['OPENAI_API_KEY']) return 'openai';
-  if (process.env['DIDIM_API_KEY']) return 'didim';
+  if (process.env['DIDIM_API_KEY'] && process.env['DIDIM_SERVER_ADDRESS'])
+    return 'didim';
 
   // 4. Fallback
   return 'gemini';

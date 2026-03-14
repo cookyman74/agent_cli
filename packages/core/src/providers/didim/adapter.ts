@@ -227,6 +227,9 @@ export class DidimAdapter extends BaseAdapter {
         let buffer = '';
         let currentEvent = '';
         const dataLines: string[] = [];
+        // Track whether any delta (message_partial) has been emitted.
+        // If so, suppress final_message to prevent duplicate text output.
+        let hasDelta = false;
 
         try {
           while (true) {
@@ -266,9 +269,20 @@ export class DidimAdapter extends BaseAdapter {
                     storeThreadId(sseEvent.threadId);
                   }
 
-                  const llmEvents = convertDidimSseToLlmEvents(sseEvent);
-                  for (const llmEvent of llmEvents) {
-                    yield llmEvent;
+                  // Track deltas and suppress final_message when deltas
+                  // have already been emitted (prevents duplicate output
+                  // in improved mode where server sends both
+                  // message_partial deltas AND a final message event).
+                  if (sseEvent.type === 'delta') {
+                    hasDelta = true;
+                  }
+                  if (sseEvent.type === 'final_message' && hasDelta) {
+                    // Skip — content already streamed via deltas
+                  } else {
+                    const llmEvents = convertDidimSseToLlmEvents(sseEvent);
+                    for (const llmEvent of llmEvents) {
+                      yield llmEvent;
+                    }
                   }
                 }
 

@@ -23,7 +23,7 @@
  * - message_complete: ToolMessage 완료 (message 필드 or process_name)
  * - message_metadata: 실행 컨텍스트 (langgraph_node, step, model) → 비콘텐츠
  * - process:          노드 진행 상황 → 비콘텐츠
- * - message:          최종 완성 응답 → 중복 위험, Phase 2 adapter에서 필터링 판단
+ * - message:          최종 완성 응답 → adapter가 delta 이후 중복 억제
  * - complete/done:    실행 완료 (thread_id, qa_id)
  * - error:            에러
  */
@@ -61,7 +61,7 @@ export interface DidimParsedResponse {
  * Intermediate SSE event after parsing, before LlmEvent conversion.
  *
  * - delta:         토큰 스트리밍 텍스트 (message_partial, sse message)
- * - final_message: improved 모드 최종 완성 응답 — 중복 위험 있음 (Phase 2 필터링 대상)
+ * - final_message: improved 모드 최종 완성 응답 — adapter가 delta 이후 중복 억제
  * - done:          스트림 완료 (complete/done 이벤트)
  * - error:         에러
  * - metadata:      비콘텐츠 메타데이터 (message_metadata, process, message_complete 중 비텍스트)
@@ -305,8 +305,7 @@ function parseImprovedMode(
         text: extractTextField(parsed),
       };
 
-    // Final completed response — potential duplication with message_partial
-    // Phase 2 adapter should decide whether to filter this out
+    // Final completed response — adapter suppresses when deltas already emitted
     case 'message':
       return {
         type: 'final_message',
@@ -380,7 +379,7 @@ export function convertDidimResponseToLlm(
  *
  * Event mapping:
  * - delta         → TextDelta
- * - final_message → TextDelta (Phase 2 adapter may filter for duplication)
+ * - final_message → TextDelta (adapter suppresses when deltas already emitted)
  * - done          → Finished + MessageEnd (in order)
  * - error         → Error
  * - metadata      → [] (non-content, silently skipped)

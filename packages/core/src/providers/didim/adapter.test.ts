@@ -440,6 +440,53 @@ describe('DidimAdapter', () => {
       expect((textDeltas[1] as { text: string }).text).toBe('lo');
     });
 
+    it('should suppress final_message when deltas already emitted (dedup)', async () => {
+      const adapter = await createAdapter({
+        fetch: mockSseFetch([
+          'event: message_partial\ndata: {"content": "Hel"}\n\n',
+          'event: message_partial\ndata: {"content": "lo"}\n\n',
+          // Server sends final complete message — duplicate of streamed content
+          'event: message\ndata: {"content": "Hello"}\n\n',
+          'event: complete\ndata: {"thread_id": "th_dedup"}\n\n',
+        ]),
+        streamMode: 'improved',
+      });
+
+      const events = await collectEvents(
+        adapter.generateContentStream(createBasicRequest(), TEST_PROMPT_ID),
+      );
+
+      const textDeltas = events.filter(
+        (e) => e.type === LlmEventType.TextDelta,
+      );
+      // Only 2 deltas from message_partial — final_message suppressed
+      expect(textDeltas).toHaveLength(2);
+      expect((textDeltas[0] as { text: string }).text).toBe('Hel');
+      expect((textDeltas[1] as { text: string }).text).toBe('lo');
+    });
+
+    it('should emit final_message as fallback when no deltas received', async () => {
+      const adapter = await createAdapter({
+        fetch: mockSseFetch([
+          // No message_partial — only final message
+          'event: message\ndata: {"content": "Direct response"}\n\n',
+          'event: complete\ndata: {"thread_id": "th_fallback"}\n\n',
+        ]),
+        streamMode: 'improved',
+      });
+
+      const events = await collectEvents(
+        adapter.generateContentStream(createBasicRequest(), TEST_PROMPT_ID),
+      );
+
+      const textDeltas = events.filter(
+        (e) => e.type === LlmEventType.TextDelta,
+      );
+      // final_message used as fallback since no deltas were emitted
+      expect(textDeltas).toHaveLength(1);
+      expect((textDeltas[0] as { text: string }).text).toBe('Direct response');
+    });
+
     it('should skip metadata events (message_metadata, process)', async () => {
       const adapter = await createAdapter({
         fetch: mockSseFetch([
@@ -994,13 +1041,13 @@ describe('DidimAdapter', () => {
   // Tests — R2 Review: improved mode dedup final_message (#2)
   // ============================================================================
 
-  describe('improved mode final_message pass-through (R3: no aggressive dedup)', () => {
-    it('should emit all events including final_message even after delta tokens', async () => {
+  describe('improved mode final_message dedup (R4: suppress when deltas exist)', () => {
+    it('should suppress final_message when delta tokens already streamed', async () => {
       const adapter = await createAdapter({
         fetch: mockSseFetch([
           'event: message_partial\ndata: {"content": "Hello"}\n\n',
           'event: message_partial\ndata: {"content": " world"}\n\n',
-          // Server sends full/refined response as message event
+          // Server sends full/refined response as message event — suppressed
           'event: message\ndata: {"message": "Hello world (refined)"}\n\n',
           'event: complete\ndata: {"thread_id": "th_dedup"}\n\n',
         ]),
@@ -1014,16 +1061,13 @@ describe('DidimAdapter', () => {
       const textDeltas = events.filter(
         (e) => e.type === LlmEventType.TextDelta,
       );
-      // All 3 should be emitted: 2 partials + 1 final_message (server may refine)
-      expect(textDeltas).toHaveLength(3);
+      // Only 2 partials — final_message suppressed to prevent duplicate output
+      expect(textDeltas).toHaveLength(2);
       expect((textDeltas[0] as { text: string }).text).toBe('Hello');
       expect((textDeltas[1] as { text: string }).text).toBe(' world');
-      expect((textDeltas[2] as { text: string }).text).toBe(
-        'Hello world (refined)',
-      );
     });
 
-    it('should emit final_message when no delta tokens were streamed', async () => {
+    it('should emit final_message as fallback when no delta tokens were streamed', async () => {
       const adapter = await createAdapter({
         fetch: mockSseFetch([
           // No message_partial, only final message

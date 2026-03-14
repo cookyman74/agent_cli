@@ -578,7 +578,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const isSelectingProvider = authState === AuthState.SelectingProvider;
   const isConfiguringSlm = authState === AuthState.ConfiguringSlm;
   const isConfiguringVertex = authState === AuthState.ConfiguringVertex;
-  const isPreviewingDidimStudio = authState === AuthState.PreviewingDidimStudio;
+  const isAuthenticatingDidim = authState === AuthState.AuthenticatingDidim;
 
   // Session browser and resume functionality
   const isGeminiClientInitialized = config.getGeminiClient()?.isInitialized();
@@ -847,6 +847,62 @@ export const AppContainer = (props: AppContainerProps) => {
     setAuthState(AuthState.SelectingProvider);
   }, [setAuthState]);
 
+  const handleDidimConfigComplete = useCallback(
+    async (didimConfig: {
+      serverAddress: string;
+      apiKey: string;
+      streamMode: 'sse' | 'improved';
+    }) => {
+      try {
+        onAuthError(null);
+        // Save Didim config to settings (security.auth.didimConfig)
+        settings.setValue(SettingScope.User, 'security.auth.didimConfig', {
+          serverAddress: didimConfig.serverAddress,
+          streamMode: didimConfig.streamMode,
+        });
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.selectedProvider',
+          'didim-studio',
+        );
+        settings.setValue(
+          SettingScope.User,
+          'security.auth.selectedType',
+          AuthType.USE_GEMINI,
+        );
+
+        // Clean all provider env vars to prevent cross-provider leakage
+        cleanProviderEnvVars();
+
+        // Enable multi-provider routing
+        process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+
+        // Set env vars for providerSelector routing
+        process.env['LLM_PROVIDER'] = 'didim';
+        process.env['DIDIM_API_KEY'] = didimConfig.apiKey;
+        process.env['DIDIM_SERVER_ADDRESS'] = didimConfig.serverAddress;
+        process.env['DIDIM_STREAM_MODE'] = didimConfig.streamMode;
+
+        // Save API key to keychain
+        await saveProviderApiKey('didim', didimConfig.apiKey);
+
+        await config.refreshAuth(AuthType.USE_GEMINI);
+
+        setAuthState(AuthState.Authenticated);
+      } catch (e) {
+        onAuthError(
+          `Failed to configure DidimAIStudio: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    },
+    [settings, config, setAuthState, onAuthError],
+  );
+
+  const handleDidimConfigCancel = useCallback(() => {
+    // Go back to provider selection (Step 1)
+    setAuthState(AuthState.SelectingProvider);
+  }, [setAuthState]);
+
   const handleProviderSelect = useCallback(
     (providerKey: string) => {
       setSelectedProvider(providerKey);
@@ -865,8 +921,8 @@ export const AppContainer = (props: AppContainerProps) => {
         // sLM → Step 2D: sLM configuration dialog
         setAuthState(AuthState.ConfiguringSlm);
       } else if (providerKey === 'didim-studio') {
-        // DidimAIStudio → Step 2E: Coming soon preview
-        setAuthState(AuthState.PreviewingDidimStudio);
+        // DidimAIStudio → Step 2E: Didim auth dialog
+        setAuthState(AuthState.AuthenticatingDidim);
       }
     },
     [setSelectedProvider, setAuthState],
@@ -1323,7 +1379,7 @@ export const AppContainer = (props: AppContainerProps) => {
       !isAuthenticating &&
       !isAuthDialogOpen &&
       !isSelectingProvider &&
-      !isPreviewingDidimStudio &&
+      !isAuthenticatingDidim &&
       !isThemeDialogOpen &&
       !isEditorDialogOpen &&
       !showPrivacyNotice &&
@@ -1339,7 +1395,7 @@ export const AppContainer = (props: AppContainerProps) => {
     isAuthenticating,
     isAuthDialogOpen,
     isSelectingProvider,
-    isPreviewingDidimStudio,
+    isAuthenticatingDidim,
     isThemeDialogOpen,
     isEditorDialogOpen,
     showPrivacyNotice,
@@ -1782,7 +1838,7 @@ export const AppContainer = (props: AppContainerProps) => {
     isSelectingProvider ||
     isConfiguringSlm ||
     isConfiguringVertex ||
-    isPreviewingDidimStudio ||
+    isAuthenticatingDidim ||
     isAuthDialogOpen ||
     isEditorDialogOpen ||
     showPrivacyNotice ||
@@ -1867,7 +1923,7 @@ export const AppContainer = (props: AppContainerProps) => {
       isSelectingProvider,
       isConfiguringSlm,
       isConfiguringVertex,
-      isPreviewingDidimStudio,
+      isAuthenticatingDidim,
       selectedProvider,
       apiKeyDefaultValue,
       editorError,
@@ -1969,7 +2025,7 @@ export const AppContainer = (props: AppContainerProps) => {
       isSelectingProvider,
       isConfiguringSlm,
       isConfiguringVertex,
-      isPreviewingDidimStudio,
+      isAuthenticatingDidim,
       selectedProvider,
       isConfigInitialized,
       authError,
@@ -2116,6 +2172,8 @@ export const AppContainer = (props: AppContainerProps) => {
       handleSlmConfigCancel,
       handleVertexConfigComplete,
       handleVertexConfigCancel,
+      handleDidimConfigComplete,
+      handleDidimConfigCancel,
       setBannerVisible,
       setEmbeddedShellFocused,
       setSelectedProvider,
@@ -2184,6 +2242,8 @@ export const AppContainer = (props: AppContainerProps) => {
       handleSlmConfigCancel,
       handleVertexConfigComplete,
       handleVertexConfigCancel,
+      handleDidimConfigComplete,
+      handleDidimConfigCancel,
       setBannerVisible,
       setEmbeddedShellFocused,
       setSelectedProvider,

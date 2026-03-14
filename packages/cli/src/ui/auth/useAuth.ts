@@ -323,6 +323,31 @@ export const useAuthCommand = (
             if (key) {
               process.env['LLM_API_KEY'] = key;
             }
+          } else if (provider === 'didim') {
+            // Didim — load config from settings (similar to sLM pattern)
+            process.env['ENABLE_MULTI_PROVIDER'] = 'true';
+            const didimConfig = settings.merged.security.auth.didimConfig as
+              | { serverAddress?: string; streamMode?: string }
+              | undefined;
+            if (!didimConfig?.serverAddress) {
+              // No server address configured — need Didim configuration dialog
+              setAuthState(AuthState.AuthenticatingDidim);
+              return;
+            }
+            process.env['LLM_PROVIDER'] = 'didim';
+            process.env['DIDIM_SERVER_ADDRESS'] = didimConfig.serverAddress;
+            process.env['DIDIM_STREAM_MODE'] = didimConfig.streamMode ?? 'sse';
+
+            // Load API key from keychain
+            const didimKey = await reloadProviderApiKey('didim');
+            if (!didimKey) {
+              debugLogger.log(
+                'No stored API key for provider "didim". Prompting for config.',
+              );
+              setAuthState(AuthState.AuthenticatingDidim);
+              return;
+            }
+            process.env['DIDIM_API_KEY'] = didimKey;
           } else if (provider && provider !== 'gemini') {
             // Non-Gemini provider (Claude/OpenAI) saved with selectedType=USE_GEMINI
             // Clean up sLM-specific env vars to prevent cross-provider leakage
@@ -345,7 +370,6 @@ export const useAuthCommand = (
             const envVarMap: Record<string, string> = {
               claude: 'ANTHROPIC_API_KEY',
               openai: 'OPENAI_API_KEY',
-              didim: 'DIDIM_API_KEY',
             };
             const envVarName = envVarMap[provider];
             if (envVarName) {

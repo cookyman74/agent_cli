@@ -29,28 +29,28 @@
 
 | 리스크                                      | 영향      | 대응 방안                                                    | 상태 |
 | ------------------------------------------- | --------- | ------------------------------------------------------------ | ---- |
-| Auth 상태머신 전체 변경으로 기존 흐름 깨짐  | 🟠 Medium | AuthState + AppContainer + DialogManager + useAuth 전수 변경 | ⬜   |
-| Didim 설정 정규화로 사용자 설정 영구 손실   | 🔴 High   | "일시적 무시" 패턴 적용 (settings.json 덮어쓰기 금지)        | ⬜   |
-| JWT 토큰 UI 노출 (TextInput masking 미지원) | 🟡 Medium | 커스텀 MaskedTextInput 구현 또는 truncated 표시 패턴         | ⬜   |
-| 기존 settings 파싱 오류 (didimConfig 추가)  | 🟡 Medium | optional 필드 + slmConfig/vertexConfig 패턴 참고             | ⬜   |
-| providerMetadata 주석/동작 모순             | 🟢 Low    | 주석 수정 + 실제 동작에 맞게 정리                            | ⬜   |
+| Auth 상태머신 전체 변경으로 기존 흐름 깨짐  | 🟠 Medium | AuthState + AppContainer + DialogManager + useAuth 전수 변경 | ✅   |
+| Didim 설정 정규화로 사용자 설정 영구 손실   | 🔴 High   | "일시적 무시" 패턴 적용 (settings.json 덮어쓰기 금지)        | ✅   |
+| JWT 토큰 UI 노출 (TextInput masking 미지원) | 🟡 Medium | 커스텀 MaskedTextInput 구현 또는 truncated 표시 패턴         | ✅   |
+| 기존 settings 파싱 오류 (didimConfig 추가)  | 🟡 Medium | optional 필드 + slmConfig/vertexConfig 패턴 참고             | ✅   |
+| providerMetadata 주석/동작 모순             | 🟢 Low    | 주석 수정 + 실제 동작에 맞게 정리                            | ✅   |
 
 ---
 
 ## 3.1 사전 작업 (Pre-Work)
 
-- [ ] **[REVIEW]** Phase 2 작업 결과서 검토
+- [x] **[REVIEW]** Phase 2 작업 결과서 검토
   - 파일: `./working_history/Phase2_core_didim_adapter_{작업일자}.md`
   - 확인: DidimAdapter 동작 확인, contentGenerator 등록 완료
 
-- [ ] **[CONTEXT]** Phase 3 작업 목적 확인
+- [x] **[CONTEXT]** Phase 3 작업 목적 확인
   - ComingSoon → 실제 Auth 다이얼로그 전환
   - **Auth 상태머신 전체 변경** (1팀 Issue #2 대응)
   - JWT 토큰 + 서버 도메인 + 스트림 모드 입력 UI
   - Didim 전용 설정 영속화 (didimConfig 객체)
   - 설정 "일시적 무시" 패턴 구현 (영구 삭제 방지)
 
-- [ ] **[ANALYSIS-1]** Auth 상태머신 전수 분석 (1팀 Issue #2 + 2팀 Issue #2
+- [x] **[ANALYSIS-1]** Auth 상태머신 전수 분석 (1팀 Issue #2 + 2팀 Issue #2
       대응)
 
   > **⚠️ 2팀 Issue #2 대응**: `isPreviewingDidimStudio`는 9개 위치에 분산되어
@@ -83,13 +83,13 @@
   - **현재 문제**: Didim 선택 시 무조건 `PreviewingDidimStudio` → ComingSoon으로
     빠지며, 실제 인증 흐름(`AwaitingApiKeyInput` 등)으로 진입하지 않음
 
-- [ ] **[ANALYSIS-2]** providerMetadata 현재 상태 분석
+- [x] **[ANALYSIS-2]** providerMetadata 현재 상태 분석
   - 파일: `packages/cli/src/ui/auth/providerMetadata.ts`
   - 확인: `didim-studio` 엔트리의 `envVarName: ''`, `keychainEntry: ''` 빈값
   - 확인: **주석 모순** (1팀 Issue #8) — 주석은 "hidden from user
     selection"이지만 `PROVIDER_SELECT_ITEMS`에 `'didim-studio'` 포함됨
 
-- [ ] **[ANALYSIS-3]** 설정 스키마 분석 (1팀 Issue #3 대응)
+- [x] **[ANALYSIS-3]** 설정 스키마 분석 (1팀 Issue #3 대응)
   - 파일: `packages/cli/src/config/settingsSchema.ts`
   - 확인: 현재 Didim 전용 필드 **없음** — `didimStreamMode`,
     `didimServerAddress`, `systemRole`, `useThinking`, `useVisionMode` 모두
@@ -97,13 +97,13 @@
   - 참고: `slmConfig` (line 1372-1421), `vertexConfig` (line 1423-1449) 패턴 —
     **`didimConfig` 객체로 동일 패턴 적용**
 
-- [ ] **[ANALYSIS-4]** TextInput masking 가능성 분석 (1팀 Issue #5 대응)
+- [x] **[ANALYSIS-4]** TextInput masking 가능성 분석 (1팀 Issue #5 대응)
   - 파일: `packages/cli/src/ui/components/shared/TextInput.tsx:17`
   - 확인: `TextInputProps`에 `masked`/`password` 옵션 **없음**
   - 참고: 현재 모든 프로바이더(Gemini, Claude, OpenAI)도 API key 평문 입력
   - 대안 검토: 커스텀 MaskedTextInput 또는 truncated display 패턴
 
-- [ ] **[REGRESSION]** Phase 1~2 회귀 테스트 실행
+- [x] **[REGRESSION]** Phase 1~2 회귀 테스트 실행
   ```bash
   npm test -w @didim365/agent-cli-core -- --run src/providers/didim/
   ```
@@ -114,7 +114,7 @@
 
 > **목적**: Didim Auth 다이얼로그 및 상태머신 전환의 실패 테스트 작성
 
-- [ ] **[RED-1]** DidimStudioAuthDialog 렌더링 테스트
+- [x] **[RED-1]** DidimStudioAuthDialog 렌더링 테스트
 
   ```typescript
   // packages/cli/src/ui/auth/DidimStudioAuthDialog.test.tsx
@@ -164,7 +164,7 @@
   });
   ```
 
-- [ ] **[RED-2]** Auth 다이얼로그 저장 테스트
+- [x] **[RED-2]** Auth 다이얼로그 저장 테스트
 
   ```typescript
   describe('DidimStudioAuthDialog save flow', () => {
@@ -184,7 +184,7 @@
   });
   ```
 
-- [ ] **[RED-2B]** Auth 저장 계약(save contract) 테스트 (2팀 Issue #2 — High)
+- [x] **[RED-2B]** Auth 저장 계약(save contract) 테스트 (2팀 Issue #2 — High)
 
   > **⚠️ 핵심**: UI 표면 확인만으로는 부족하다. Didim 인증 완료 시 실제로
   > 수행되어야 하는 저장 계약을 직접 검증해야 한다. 기존 SLM/Vertex 인증도
@@ -269,7 +269,7 @@
   });
   ```
 
-- [ ] **[RED-3]** Auth 상태머신 전환 테스트 (1팀 Issue #2 대응)
+- [x] **[RED-3]** Auth 상태머신 전환 테스트 (1팀 Issue #2 대응)
 
   ```typescript
   describe('Auth state machine — Didim flow', () => {
@@ -289,7 +289,7 @@
   });
   ```
 
-- [ ] **[RED-VERIFY-A]** Part A 테스트 실패 확인
+- [x] **[RED-VERIFY-A]** Part A 테스트 실패 확인
   ```bash
   npm test -w @didim365/agent-cli -- --run src/ui/auth/DidimStudioAuthDialog.test.tsx
   ```
@@ -298,7 +298,7 @@
 
 ## 3.3 GREEN Phase (Part A): Auth 다이얼로그 + 상태머신 구현
 
-- [ ] **[TASK-001]** JWT 토큰 입력 마스킹 대응 (1팀 Issue #5)
+- [x] **[TASK-001]** JWT 토큰 입력 마스킹 대응 (1팀 Issue #5)
   - **방법 A**: 커스텀 `MaskedTextInput` 컴포넌트 생성
     - 기존 `TextInput` 래핑, 표시 시 `•` 문자로 대체
   - **방법 B**: 입력값 truncated 표시 (앞 4자 + `...` + 뒤 4자)
@@ -306,7 +306,7 @@
   - ⚠️ 현재 모든 프로바이더가 평문 API key 입력이므로, Didim만 별도 처리할지
     프로젝트 전체 TextInput 확장으로 갈지 판단 필요
 
-- [ ] **[TASK-002]** DidimStudioAuthDialog 컴포넌트 생성
+- [x] **[TASK-002]** DidimStudioAuthDialog 컴포넌트 생성
   - 파일: `packages/cli/src/ui/auth/DidimStudioAuthDialog.tsx`
   - 입력 필드:
     - Server Domain (TextInput) — placeholder: `aistudio.didim365.com`
@@ -315,7 +315,7 @@
   - 저장 버튼 → `onComplete(settings)` 호출
   - ESC → `onCancel()` 호출
 
-- [ ] **[TASK-003]** Auth 상태머신 변경 (1팀 Issue #2 + 2팀 Issue #2 대응 — 핵심
+- [x] **[TASK-003]** Auth 상태머신 변경 (1팀 Issue #2 + 2팀 Issue #2 대응 — 핵심
       변경)
 
   > **⚠️ 전수 변경 필수**: `isPreviewingDidimStudio`가 9곳에 분산 (ANALYSIS-1
@@ -357,7 +357,7 @@
   - mock UIActions에 `handleDidimConfigComplete: vi.fn()` 추가
   - `isPreviewingDidimStudio` → `isAuthenticatingDidim` mock 상태 변경
 
-- [ ] **[TASK-003B]** `handleDidimConfigComplete` UIActions 핸들러 추가 (2팀
+- [x] **[TASK-003B]** `handleDidimConfigComplete` UIActions 핸들러 추가 (2팀
       Issue #3 대응)
 
   > **패턴 참조**: `handleSlmConfigComplete` (AppContainer.tsx:719),
@@ -414,7 +414,7 @@
   - `handleDidimConfigComplete` 동작 테스트 추가 (handleVertexConfigComplete
     테스트 패턴 참조)
 
-- [ ] **[TASK-004]** providerMetadata 업데이트
+- [x] **[TASK-004]** providerMetadata 업데이트
   - 파일: `packages/cli/src/ui/auth/providerMetadata.ts`
   - 변경: `envVarName: 'DIDIM_API_KEY'` 설정
   - **주석 모순 수정** (1팀 Issue #8):
@@ -423,12 +423,12 @@
       dialog or DIDIM_API_KEY env var"
   - 필요 시 추가 메타데이터 업데이트
 
-- [ ] **[TASK-005]** DidimStudioComingSoonDialog 정리
+- [x] **[TASK-005]** DidimStudioComingSoonDialog 정리
   - 파일 삭제 또는 deprecation 처리
   - 사용처 전수 확인 (전역 검색: `DidimStudioComingSoon`, `ComingSoonDialog`)
   - DialogManager 등 모든 import 경로 DidimStudioAuthDialog로 교체
 
-- [ ] **[GREEN-VERIFY-A]** Part A 테스트 통과 확인
+- [x] **[GREEN-VERIFY-A]** Part A 테스트 통과 확인
   ```bash
   npm test -w @didim365/agent-cli -- --run src/ui/auth/DidimStudioAuthDialog.test.tsx
   ```
@@ -444,7 +444,7 @@
 > - 설정 정규화는 **"일시적 무시"** 패턴 적용 — settings.json을 직접 덮어쓰지
 >   않음
 
-- [ ] **[RED-4]** Didim 전용 설정 스키마 테스트
+- [x] **[RED-4]** Didim 전용 설정 스키마 테스트
 
   > **⚠️ 2팀 Issue #4 대응**: `didimConfig`의 올바른 설정 경로는
   > `security.auth.didimConfig`이다. `slmConfig` (settingsSchema.ts:1372),
@@ -491,7 +491,7 @@
   });
   ```
 
-- [ ] **[RED-5]** Didim 설정 "일시적 무시" 테스트 (2팀 Issue #3 + 2팀 Issue #7
+- [x] **[RED-5]** Didim 설정 "일시적 무시" 테스트 (2팀 Issue #3 + 2팀 Issue #7
       대응)
 
   > **⚠️ 2팀 Issue #7 대응**: 현재 `settingsSchema.ts`에 `systemRole`,
@@ -547,13 +547,13 @@
   > 직접 `settings.json`을 읽어 사용하는 코드가 있다면 래퍼 경유로 전환해야
   > 한다.
 
-- [ ] **[RED-VERIFY-B]** Part B 테스트 실패 확인
+- [x] **[RED-VERIFY-B]** Part B 테스트 실패 확인
 
 ---
 
 ## 3.5 GREEN Phase (Part B): Settings 구현
 
-- [ ] **[TASK-006]** 설정 스키마에 `didimConfig` 객체 추가 (1팀 Issue #3 + 2팀
+- [x] **[TASK-006]** 설정 스키마에 `didimConfig` 객체 추가 (1팀 Issue #3 + 2팀
       Issue #4 대응)
   - 파일: `packages/cli/src/config/settingsSchema.ts`
   - **패턴**: `slmConfig` (line 1372-1421), `vertexConfig` (line 1423-1449)와
@@ -564,7 +564,7 @@
     - `serverAddress: string` (기본값: `''`)
   - 전체 `didimConfig` 는 optional — 기존 settings 파싱에 영향 없음
 
-- [ ] **[TASK-007]** Didim 설정 "일시적 무시" 로직 구현 (2팀 Issue #3 + 2팀
+- [x] **[TASK-007]** Didim 설정 "일시적 무시" 로직 구현 (2팀 Issue #3 + 2팀
       Issue #7 대응)
   - **핵심 원칙**: settings.json을 직접 덮어쓰지 않음 → 사용자 설정 영구 손실
     방지
@@ -581,25 +581,25 @@
     접근점이 래퍼를 경유하도록 강제
   - `didimConfig.serverAddress` → `normalizeDidimDomain()` 적용 (저장 시점)
 
-- [ ] **[TASK-008]** Auth 다이얼로그 → 설정 저장 연결
+- [x] **[TASK-008]** Auth 다이얼로그 → 설정 저장 연결
   - `onComplete` 콜백에서:
     - `DIDIM_API_KEY` env 설정
     - `didimConfig.serverAddress`, `didimConfig.streamMode` settings 저장
   - 저장 경로: 기존 settings 저장 패턴과 동일하게 `didimConfig` 객체로 저장
 
-- [ ] **[GREEN-VERIFY-B]** Part B 테스트 통과 확인
+- [x] **[GREEN-VERIFY-B]** Part B 테스트 통과 확인
 
 ---
 
 ## 3.6 REFACTOR Phase: 코드 개선
 
-- [ ] **[REFACTOR-STRUCTURE]** 코드 구조 개선
+- [x] **[REFACTOR-STRUCTURE]** 코드 구조 개선
   - DidimStudioComingSoonDialog 파일 삭제 (사용처 0건 확인 후)
   - Auth 다이얼로그 컴포넌트 분리 (입력 필드별 sub-component)
   - 설정 "일시적 무시" 로직 → 재사용 가능한 유틸 함수로 추출
   - providerMetadata 주석 정리 (모순 해소)
 
-- [ ] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
+- [x] **[REFACTOR-VERIFY]** 리팩터링 후 테스트 재확인
   ```bash
   npm test -w @didim365/agent-cli -- --run src/ui/auth/
   ```
@@ -608,37 +608,37 @@
 
 ## 3.7 사후 작업 (Post-Work)
 
-- [ ] **[TEST]** 전체 CLI 테스트 실행
+- [x] **[TEST]** 전체 CLI 테스트 실행
 
   ```bash
   npm test -w @didim365/agent-cli -- --run
   ```
 
-- [ ] **[TYPECHECK]** 타입 검사
+- [x] **[TYPECHECK]** 타입 검사
 
   ```bash
   npm run typecheck -w @didim365/agent-cli
   ```
 
-- [ ] **[LINT]** 린터 검사
+- [x] **[LINT]** 린터 검사
 
   ```bash
   npm run lint -w @didim365/agent-cli
   ```
 
-- [ ] **[BUILD]** 전체 빌드 확인
+- [x] **[BUILD]** 전체 빌드 확인
 
   ```bash
   npm run build
   ```
 
-- [ ] **[REGRESSION]** Phase 1~2 회귀 테스트
+- [x] **[REGRESSION]** Phase 1~2 회귀 테스트
 
   ```bash
   npm test -w @didim365/agent-cli-core -- --run src/providers/didim/
   ```
 
-- [ ] **[VERIFY]** 기능 검증
+- [x] **[VERIFY]** 기능 검증
   - 확인 항목 1: `/auth login` → DidimAIStudio 선택 시 실제 Auth 다이얼로그 표시
     (Coming Soon 아님)
   - 확인 항목 2: JWT 토큰 + 도메인 저장 → `DIDIM_API_KEY` env 설정 +
@@ -648,10 +648,10 @@
   - 확인 항목 4: 프로바이더 전환 (Didim → Gemini) 시 원래 설정 자동 복원
   - 확인 항목 5: 재시작 후 `didimConfig` 설정 영속화 확인
 
-- [ ] **[DOC]** 작업 결과서 작성
+- [x] **[DOC]** 작업 결과서 작성
   - 파일: `./working_history/Phase3_cli_auth_and_settings_{작업일자}.md`
 
-- [ ] **[COMMIT]** 변경사항 커밋 (Tidy First)
+- [x] **[COMMIT]** 변경사항 커밋 (Tidy First)
   ```bash
   # 구조적 변경
   git commit -m "feat(cli): add DidimStudioAuthDialog — JWT + domain input UI"
@@ -732,4 +732,5 @@
 
 ---
 
-**상태**: ⬜ Phase 2 완료 후 시작
+**상태**: ✅ 완료 (2026-03-14) —
+[작업 결과서](./working_history/Phase3_cli_auth_and_settings_20260314.md)

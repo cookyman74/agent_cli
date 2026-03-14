@@ -1450,6 +1450,37 @@ const SETTINGS_SCHEMA = {
               },
             },
           },
+          didimConfig: {
+            type: 'object',
+            label: 'DidimAIStudio Configuration',
+            category: 'Security',
+            requiresRestart: true,
+            default: {},
+            description: 'DidimAIStudio server and streaming settings.',
+            showInDialog: false,
+            properties: {
+              serverAddress: {
+                type: 'string',
+                label: 'Server Address',
+                category: 'Security',
+                requiresRestart: true,
+                default: undefined as string | undefined,
+                description:
+                  'The DidimAIStudio server domain (e.g., aistudio.didim365.com).',
+                showInDialog: false,
+              },
+              streamMode: {
+                type: 'string',
+                label: 'Stream Mode',
+                category: 'Security',
+                requiresRestart: true,
+                default: 'sse' as string | undefined,
+                description:
+                  'SSE streaming mode: "sse" (standard) or "improved" (enhanced).',
+                showInDialog: false,
+              },
+            },
+          },
         },
       },
     },

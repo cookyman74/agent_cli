@@ -39,8 +39,8 @@ export enum AuthState {
   ConfiguringSlm = 'configuring_slm',
   // Step 2C: Configuring Vertex AI project settings
   ConfiguringVertex = 'configuring_vertex',
-  // Step 2E: Previewing DidimAIStudio (coming soon)
-  PreviewingDidimStudio = 'previewing_didim_studio',
+  // Step 2E: Authenticating DidimAIStudio
+  AuthenticatingDidim = 'authenticating_didim',
 }
 
 // Only defining the state enum needed by the UI

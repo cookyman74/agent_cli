@@ -159,6 +159,7 @@ const baseMockUiState = {
   isSelectingProvider: false,
   isConfiguringSlm: false,
   isConfiguringVertex: false,
+  isAuthenticatingDidim: false,
   selectedProvider: undefined,
 };
 
@@ -206,6 +207,8 @@ const mockUIActions: UIActions = {
   handleSlmConfigCancel: vi.fn(),
   handleVertexConfigComplete: vi.fn(),
   handleVertexConfigCancel: vi.fn(),
+  handleDidimConfigComplete: vi.fn(),
+  handleDidimConfigCancel: vi.fn(),
   setBannerVisible: vi.fn(),
   setEmbeddedShellFocused: vi.fn(),
   setSelectedProvider: vi.fn(),

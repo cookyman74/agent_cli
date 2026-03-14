@@ -72,16 +72,15 @@ export const PROVIDER_DISPLAY_MAP: Record<string, ProviderDisplayInfo> = {
     providerType: 'didim-studio',
     label: 'DidimAIStudio',
     description: 'Scenario',
-    envVarName: '',
+    envVarName: 'DIDIM_API_KEY',
     apiKeyUrl: 'https://aistudio.didim365.com/',
-    keychainEntry: '',
+    keychainEntry: 'didim-api-key',
   },
 };
 
 /**
  * Provider keys shown in Step 1 provider selection.
- * Didim provider is hidden from user selection (activated via DIDIM_API_KEY env var only).
- * Didim provider is hidden (activated via DIDIM_API_KEY env var only).
+ * Didim provider is shown in selection and activated via auth dialog or DIDIM_API_KEY env var.
  */
 export const PROVIDER_SELECT_ITEMS = [
   'gemini',

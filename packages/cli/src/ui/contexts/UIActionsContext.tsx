@@ -75,6 +75,12 @@ export interface UIActions {
     location: string;
   }) => Promise<void>;
   handleVertexConfigCancel: () => void;
+  handleDidimConfigComplete: (config: {
+    serverAddress: string;
+    apiKey: string;
+    streamMode: 'sse' | 'improved';
+  }) => Promise<void>;
+  handleDidimConfigCancel: () => void;
   setBannerVisible: (visible: boolean) => void;
   setEmbeddedShellFocused: (value: boolean) => void;
   setSelectedProvider: (provider: string) => void;

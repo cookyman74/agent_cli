@@ -65,7 +65,7 @@ export interface UIState {
   isSelectingProvider: boolean;
   isConfiguringSlm: boolean;
   isConfiguringVertex: boolean;
-  isPreviewingDidimStudio: boolean;
+  isAuthenticatingDidim: boolean;
   selectedProvider?: string;
   apiKeyDefaultValue?: string;
   editorError: string | null;

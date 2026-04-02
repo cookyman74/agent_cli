@@ -128,6 +128,14 @@ function isValidContent(content: Content): boolean {
   if (content.parts === undefined || content.parts.length === 0) {
     return false;
   }
+  // Content with functionCall parts is always valid — the model can issue
+  // tool calls with or without accompanying text. Dropping such content
+  // from curated history orphans the corresponding user functionResponse
+  // turn, causing Gemini API 400: "number of function response parts must
+  // equal the number of function call parts".
+  if (content.parts.some((p) => p.functionCall)) {
+    return true;
+  }
   for (const part of content.parts) {
     if (part === undefined || Object.keys(part).length === 0) {
       return false;

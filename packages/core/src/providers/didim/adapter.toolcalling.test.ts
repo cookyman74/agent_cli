@@ -916,4 +916,83 @@ describe('bootstrapDidimProvider v2 config resolution', () => {
       delete process.env['DIDIM_SERVER_ADDRESS'];
     }
   });
+
+  it('extracts scenarioMyPageId from JWT api_key_metadata.my_scenario_id', async () => {
+    const { bootstrapDidimProvider } = await import('./bootstrap.js');
+    const { ProviderRegistry } = await import('../registry.js');
+
+    const registry = ProviderRegistry.getInstance();
+    registry.unregister('didim');
+
+    // JWT payload에 api_key_metadata 포함
+    const payload = Buffer.from(
+      JSON.stringify({
+        user_id: '1',
+        api_key_metadata: {
+          my_scenario_id: 483,
+          scenario_data_id: 393,
+          scenario_creator_user_id: 1,
+          group_ids: [],
+        },
+      }),
+    ).toString('base64url');
+    const fakeJwt = `eyJhbGciOiJIUzI1NiJ9.${payload}.fake-signature`;
+
+    process.env['DIDIM_SERVER_ADDRESS'] = 'test.server.com';
+
+    try {
+      bootstrapDidimProvider(registry);
+
+      const adapter = registry.createAdapter('didim', {
+        apiKey: fakeJwt,
+        baseUrl: '',
+      });
+
+      // JWT에서 자동 추출된 scenarioMyPageId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((adapter as any).scenarioMyPageId).toBe(483);
+      // JWT에서 자동 추출된 userId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((adapter as any).userId).toBe('1');
+    } finally {
+      registry.unregister('didim');
+      delete process.env['DIDIM_SERVER_ADDRESS'];
+    }
+  });
+
+  it('prefers config scenarioMyPageId over JWT claim', async () => {
+    const { bootstrapDidimProvider } = await import('./bootstrap.js');
+    const { ProviderRegistry } = await import('../registry.js');
+
+    const registry = ProviderRegistry.getInstance();
+    registry.unregister('didim');
+
+    const payload = Buffer.from(
+      JSON.stringify({
+        user_id: '1',
+        api_key_metadata: { my_scenario_id: 483 },
+      }),
+    ).toString('base64url');
+    const fakeJwt = `eyJhbGciOiJIUzI1NiJ9.${payload}.fake-signature`;
+
+    process.env['DIDIM_SERVER_ADDRESS'] = 'test.server.com';
+
+    try {
+      bootstrapDidimProvider(registry);
+
+      const adapter = registry.createAdapter('didim', {
+        apiKey: fakeJwt,
+        baseUrl: '',
+        scenarioMyPageId: 999,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      // config(999)가 JWT(483)보다 우선
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((adapter as any).scenarioMyPageId).toBe(999);
+    } finally {
+      registry.unregister('didim');
+      delete process.env['DIDIM_SERVER_ADDRESS'];
+    }
+  });
 });

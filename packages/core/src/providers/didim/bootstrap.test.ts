@@ -207,8 +207,8 @@ describe('Didim wiring verification (serverAddress → URL, streamMode → endpo
       }
 
       expect(calls).toHaveLength(1);
-      // Should end with /sse (not /sse/improved)
-      expect(calls[0][0]).toMatch(/\/invoke\/sse$/);
+      // v2: /api/v2/agent/chat endpoint 사용
+      expect(calls[0][0]).toContain('/api/v2/agent/chat');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -259,7 +259,8 @@ describe('Didim wiring verification (serverAddress → URL, streamMode → endpo
       }
 
       expect(calls).toHaveLength(1);
-      expect(calls[0][0]).toContain('/invoke/sse/improved');
+      // v2: /api/v2/agent/chat endpoint 사용
+      expect(calls[0][0]).toContain('/api/v2/agent/chat');
     } finally {
       globalThis.fetch = originalFetch;
     }

@@ -7,18 +7,12 @@
 /**
  * DidimAdapter — extends BaseAdapter for DidimAIStudio REST/SSE API.
  *
- * Unlike Claude/OpenAI adapters that wrap SDK clients, this adapter uses
- * raw fetch for HTTP + ReadableStream-based SSE parsing, because
- * DidimAIStudio has no official SDK.
- *
- * Features:
- * - Non-streaming: POST /scenario-gateway/v1/invoke
- * - SSE streaming: POST /scenario-gateway/v1/invoke/sse (or /sse/improved)
- * - Automatic thread_id management across calls
- * - Error classification (401 → AuthenticationError, etc.)
+ * v1: POST /scenario-gateway/v1/invoke (non-streaming, SSE)
+ * v2: POST /api/v2/agent/chat (tool-calling SSE)
+ *     POST /api/v2/agent/tool-results (tool result reinjection)
  *
  * @see docs/00_project/Integration_DidimAIStudio/00_master_plan.md §1.2
- * @see packages/core/src/providers/didim/converter.ts (pure conversion functions)
+ * @see packages/core/src/providers/didim/converter.ts
  */
 
 import { BaseAdapter } from '../baseAdapter.js';
@@ -49,26 +43,29 @@ import {
   convertDidimResponseToLlm,
   parseDidimSseEvent,
   convertDidimSseToLlmEvents,
+  normalizeDidimDomain,
+  detectScheme,
 } from './converter.js';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Tool result submitted by the client for /tool-results reinjection. */
+export interface DidimToolResult {
+  callId: string;
+  name: string;
+  result: unknown;
+  isError?: boolean;
+}
 
 // ============================================================================
 // Capabilities
 // ============================================================================
 
-/**
- * Didim capabilities — scenario-based gateway with limited LLM features.
- *
- * Enabled:
- *   supportsStreaming: true — SSE streaming (sse + improved modes)
- *
- * Not supported:
- *   Everything else — DidimAIStudio is a scenario gateway, not a raw LLM API.
- *   Token counting, tool calls, image I/O, system messages, and thinking
- *   are all managed server-side within the scenario.
- */
 const DIDIM_CAPABILITIES: LlmProviderCapabilities = {
   supportsStreaming: true,
-  supportsToolCalls: false,
+  supportsToolCalls: true,
   supportsImageInput: false,
   supportsImageGeneration: false,
   supportsEmbedding: false,
@@ -79,13 +76,35 @@ const DIDIM_CAPABILITIES: LlmProviderCapabilities = {
   maxOutputTokens: 0,
 };
 
+/** Client info sent in v2 requests. version은 빌드 시 생성된 CLI_VERSION 사용. */
+let _clientVersion: string | null = null;
+async function loadClientVersion(): Promise<string> {
+  if (_clientVersion) return _clientVersion;
+  try {
+    const mod = await import('../../generated/git-commit.js');
+    _clientVersion =
+      typeof mod.CLI_VERSION === 'string' ? mod.CLI_VERSION : '0.0.0';
+  } catch {
+    _clientVersion = '0.0.0';
+  }
+  return _clientVersion;
+}
+function getClientVersion(): string {
+  // Kick off async load but return cached or fallback synchronously.
+  // The dynamic import will populate _clientVersion for subsequent calls.
+  if (_clientVersion) return _clientVersion;
+  void loadClientVersion();
+  return '0.0.0';
+}
+
+function getClientInfo(): { name: string; version: string } {
+  return { name: 'agent-cli', version: getClientVersion() };
+}
+
 // ============================================================================
 // Adapter
 // ============================================================================
 
-/**
- * DidimAdapter wraps the DidimAIStudio API behind the BaseAdapter interface.
- */
 export class DidimAdapter extends BaseAdapter {
   readonly providerName = 'didim';
   readonly capabilities = DIDIM_CAPABILITIES;
@@ -93,20 +112,30 @@ export class DidimAdapter extends BaseAdapter {
   /** Stored thread_id for conversation continuity. */
   private threadId: string | null = null;
 
+  /** Last checkpoint_id from tool_call SSE events. */
+  private lastCheckpointId: string | null = null;
+
   constructor(
     config: AdapterConfig,
     private fetchFn: typeof globalThis.fetch,
     private readonly apiKey: string,
     private readonly serverAddress: string,
     private readonly streamMode: DidimStreamMode,
+    // v2 확장 파라미터
+    readonly scenarioMyPageId: number = 0,
+    readonly userId: string = '',
+    initialThreadId?: string,
   ) {
     super(config);
+    if (initialThreadId) {
+      this.threadId = initialThreadId;
+    }
   }
 
-  /**
-   * Generate content (non-streaming).
-   * POST /scenario-gateway/v1/invoke
-   */
+  // ==========================================================================
+  // v1: Non-streaming
+  // ==========================================================================
+
   async generateContent(
     request: LlmGenerateRequest,
     _userPromptId: string,
@@ -134,7 +163,6 @@ export class DidimAdapter extends BaseAdapter {
       const rawJson = (await response.json()) as Record<string, unknown>;
       const parsed = parseDidimResponse(rawJson);
 
-      // Store thread_id for subsequent calls
       if (parsed.threadId) {
         this.threadId = parsed.threadId;
       }
@@ -145,10 +173,10 @@ export class DidimAdapter extends BaseAdapter {
     }
   }
 
-  /**
-   * Generate content as a stream of LlmEvents.
-   * POST /scenario-gateway/v1/invoke/sse (or /sse/improved)
-   */
+  // ==========================================================================
+  // v2: Streaming (tool-calling enabled)
+  // ==========================================================================
+
   generateContentStream(
     request: LlmGenerateRequest,
     _userPromptId: string,
@@ -156,56 +184,167 @@ export class DidimAdapter extends BaseAdapter {
   ): LlmEventStream {
     this.validateRequest(request);
 
+    const chatText = this.extractChatText(request);
+    const signal = options?.signal;
+
+    // Ensure thread_id exists (auto-generate if not set)
+    if (!this.threadId) {
+      this.threadId = crypto.randomUUID();
+    }
+
+    // URL 구성을 lazy하게 처리하여 에러가 generator를 통해 yield되도록 함
+    let url: string;
+    try {
+      url = this.buildV2Url('/api/v2/agent/chat');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      const providerName = this.providerName;
+      async function* errorGenerator(): AsyncGenerator<
+        LlmEvent,
+        void,
+        unknown
+      > {
+        yield createErrorEvent(
+          new ValidationError(`Didim configuration error: ${message}`, {
+            provider: providerName,
+          }),
+          undefined,
+          false,
+        );
+      }
+      return errorGenerator();
+    }
+
+    const v2Body = this.buildV2ChatBody(chatText);
+    const headers = this.buildV2Headers();
+
+    return this.createSseStream(url, headers, v2Body, signal);
+  }
+
+  /**
+   * Submit tool execution results and resume the stream.
+   * POST /api/v2/agent/tool-results
+   *
+   * @param results - Array of tool results
+   * @param _userPromptId - User prompt ID for tracing
+   * @param options - Optional signal for cancellation
+   * @returns LlmEventStream of resume events
+   */
+  submitToolResults(
+    results: DidimToolResult[],
+    _userPromptId: string,
+    options?: GenerateOptions,
+  ): LlmEventStream {
+    // 전제 상태 방어: thread_id 또는 checkpoint_id 없이 호출 시 에러
+    if (!this.threadId || !this.lastCheckpointId) {
+      const threadId = this.threadId;
+      const checkpointId = this.lastCheckpointId;
+      const providerName = this.providerName;
+      async function* errorGenerator(): AsyncGenerator<
+        LlmEvent,
+        void,
+        unknown
+      > {
+        yield createErrorEvent(
+          new ValidationError(
+            `submitToolResults requires prior tool_call event. ` +
+              `thread_id=${threadId}, checkpoint_id=${checkpointId}`,
+            { provider: providerName },
+          ),
+          undefined,
+          false,
+        );
+      }
+      return errorGenerator();
+    }
+
+    const url = this.buildV2Url('/api/v2/agent/tool-results');
+    const headers = this.buildV2Headers();
+    const body = {
+      thread_id: this.threadId,
+      checkpoint_id: this.lastCheckpointId,
+      tool_results: results.map((r) => ({
+        call_id: r.callId,
+        name: r.name,
+        result: r.result,
+        is_error: r.isError ?? false,
+      })),
+    };
+
+    return this.createSseStream(url, headers, body, options?.signal);
+  }
+
+  // ==========================================================================
+  // v2 Request Builders
+  // ==========================================================================
+
+  private buildV2ChatBody(chatText: string): Record<string, unknown> {
+    return {
+      scenario_my_page_id: this.scenarioMyPageId,
+      user_id: this.userId,
+      thread_id: this.threadId,
+      qa_id: crypto.randomUUID(),
+      messages: [{ role: 'user', content: chatText }],
+      execution_mode: 'external_tool_execution',
+      channel_type: 'cli',
+      client: getClientInfo(),
+    };
+  }
+
+  private buildV2Url(path: string): string {
+    const scheme = detectScheme(this.serverAddress);
+    const domain = normalizeDidimDomain(this.serverAddress);
+    if (!domain) {
+      throw new ValidationError('Invalid domain provided', {
+        provider: this.providerName,
+      });
+    }
+    return `${scheme}://${domain}${path}`;
+  }
+
+  private buildV2Headers(): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  // ==========================================================================
+  // SSE Stream (shared by chat + tool-results)
+  // ==========================================================================
+
+  private createSseStream(
+    url: string,
+    headers: Record<string, string>,
+    body: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): LlmEventStream {
     const fetchFn = this.fetchFn;
     const streamMode = this.streamMode;
     const classify = this.classifyHttpError.bind(this);
     const storeThreadId = (id: string | null) => {
       if (id) this.threadId = id;
     };
-
-    // Build request params inside closure to capture current state,
-    // but keep inside generator try block for error classification.
-    const serverAddress = this.serverAddress;
-    const apiKey = this.apiKey;
-    // Read threadId lazily at fetch time to avoid stale capture
-    // when generator is consumed after subsequent calls update threadId.
-    const getThreadId = () => this.threadId;
-    const chatText = this.extractChatText(request);
-    const signal = options?.signal;
-    const buildEndpoint = () =>
-      getDidimEndpoint(serverAddress, {
-        streaming: true,
-        streamMode,
-      });
+    const storeCheckpointId = (id: string) => {
+      this.lastCheckpointId = id;
+    };
 
     async function* streamGenerator(): AsyncGenerator<LlmEvent, void, unknown> {
       try {
-        // Build URL inside try so config errors become classified Error events
-        let url: string;
-        try {
-          url = buildEndpoint();
-        } catch (e) {
-          const message = e instanceof Error ? e.message : String(e);
-          yield createErrorEvent(
-            new ValidationError(`Didim configuration error: ${message}`, {
-              provider: 'didim',
-            }),
-            undefined,
-            false,
-          );
-          return;
-        }
-
-        const currentThreadId = getThreadId();
-        const headers = buildDidimHeaders(apiKey, currentThreadId);
-        const body = buildDidimRequestBody(chatText, currentThreadId);
-
         const response = await fetchFn(url, {
           method: 'POST',
           headers,
           body: JSON.stringify(body),
           signal,
         });
+
+        // 202 partial → yield nothing (빈 스트림 반환).
+        // CLI는 반드시 모든 tool 실행 결과를 배열로 모아서 한 번에 제출해야 합니다.
+        // 결과를 1개씩 쪼개서 제출하면 202 → 빈 스트림이 반복되어
+        // CLI가 대화 종료로 오인할 수 있습니다.
+        if (response.status === 202) {
+          return;
+        }
 
         if (!response.ok) {
           const error = classify(response.status, response.statusText);
@@ -227,8 +366,6 @@ export class DidimAdapter extends BaseAdapter {
         let buffer = '';
         let currentEvent = '';
         const dataLines: string[] = [];
-        // Track whether any delta (message_partial) has been emitted.
-        // If so, suppress final_message to prevent duplicate text output.
         let hasDelta = false;
 
         try {
@@ -238,24 +375,18 @@ export class DidimAdapter extends BaseAdapter {
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            // Keep incomplete last line in buffer
             buffer = lines.pop() ?? '';
 
             for (const rawLine of lines) {
-              // Strip trailing \r for CRLF compatibility (SSE spec §9.2.4)
               const line = rawLine.endsWith('\r')
                 ? rawLine.slice(0, -1)
                 : rawLine;
 
-              // SSE spec §9.2.4: field name is everything before first colon.
-              // A single space after the colon, if present, is stripped.
               if (line.startsWith('event:')) {
                 currentEvent = line.substring(6).replace(/^ /, '').trim();
               } else if (line.startsWith('data:')) {
                 dataLines.push(line.substring(5).replace(/^ /, ''));
               } else if (line === '' && currentEvent) {
-                // Empty line = event boundary
-                // SSE spec: multiple data: lines joined with newline
                 const currentData = dataLines.join('\n');
                 const sseEvent = parseDidimSseEvent(
                   currentEvent,
@@ -264,15 +395,19 @@ export class DidimAdapter extends BaseAdapter {
                 );
 
                 if (sseEvent) {
-                  // Store thread_id from done events
+                  // Store thread_id from done/finished events
                   if (sseEvent.type === 'done' && sseEvent.threadId) {
                     storeThreadId(sseEvent.threadId);
                   }
 
-                  // Track deltas and suppress final_message when deltas
-                  // have already been emitted (prevents duplicate output
-                  // in improved mode where server sends both
-                  // message_partial deltas AND a final message event).
+                  // Store checkpoint_id from tool_call events
+                  if (sseEvent.type === 'tool_call' && sseEvent.checkpointId) {
+                    storeCheckpointId(sseEvent.checkpointId);
+                    if (sseEvent.threadId) {
+                      storeThreadId(sseEvent.threadId);
+                    }
+                  }
+
                   if (sseEvent.type === 'delta') {
                     hasDelta = true;
                   }
@@ -292,13 +427,12 @@ export class DidimAdapter extends BaseAdapter {
             }
           }
 
-          // Flush remaining TextDecoder bytes (trailing multi-byte sequence)
+          // Flush remaining
           const trailing = decoder.decode();
           if (trailing) {
             buffer += trailing;
           }
 
-          // Parse any remaining lines in buffer (stream ended without final \n)
           if (buffer) {
             const remainingLines = buffer.split('\n');
             for (const rawLine of remainingLines) {
@@ -313,7 +447,6 @@ export class DidimAdapter extends BaseAdapter {
             }
           }
 
-          // Flush remaining event if stream ended without trailing blank line
           if (currentEvent && dataLines.length > 0) {
             const currentData = dataLines.join('\n');
             const sseEvent = parseDidimSseEvent(
@@ -343,12 +476,11 @@ export class DidimAdapter extends BaseAdapter {
     return streamGenerator();
   }
 
-  /**
-   * Extract all text parts from the last user message, concatenated.
-   * DidimAIStudio accepts a single `chat` string, not a message array.
-   */
+  // ==========================================================================
+  // Utilities
+  // ==========================================================================
+
   private extractChatText(request: LlmGenerateRequest): string {
-    // Find the last user message
     for (let i = request.messages.length - 1; i >= 0; i--) {
       const msg = request.messages[i];
       if (msg.role === 'user') {
@@ -364,19 +496,12 @@ export class DidimAdapter extends BaseAdapter {
     return '';
   }
 
-  /**
-   * Build endpoint URL with error classification.
-   * Wraps getDidimEndpoint to convert raw Error to ValidationError.
-   */
   private buildEndpointUrl(streaming?: boolean): string {
     try {
       return getDidimEndpoint(
         this.serverAddress,
         streaming
-          ? {
-              streaming: true,
-              streamMode: this.streamMode,
-            }
+          ? { streaming: true, streamMode: this.streamMode }
           : undefined,
       );
     } catch (e) {
@@ -387,9 +512,6 @@ export class DidimAdapter extends BaseAdapter {
     }
   }
 
-  /**
-   * Classify an HTTP status code into a typed LlmError.
-   */
   private classifyHttpError(status: number, statusText?: string): LlmError {
     const message =
       `DidimAIStudio API error: ${status} ${statusText ?? ''}`.trim();
@@ -416,10 +538,6 @@ export class DidimAdapter extends BaseAdapter {
     return new LlmError(LlmErrorType.UNKNOWN, message, opts);
   }
 
-  /**
-   * Map common config to provider-specific config.
-   * DidimAIStudio doesn't use standard LLM config params.
-   */
   protected mapToProviderConfig(
     _config: LlmGenerateConfig,
   ): Record<string, unknown> {

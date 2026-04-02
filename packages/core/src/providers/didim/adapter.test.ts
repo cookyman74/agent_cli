@@ -126,8 +126,8 @@ describe('DidimAdapter', () => {
       // Didim 지원 기능
       expect(caps.supportsStreaming).toBe(true);
 
-      // Didim 미지원 기능 — 전수 검증
-      expect(caps.supportsToolCalls).toBe(false);
+      // v2: tool calling 지원
+      expect(caps.supportsToolCalls).toBe(true);
       expect(caps.supportsImageInput).toBe(false);
       expect(caps.supportsImageGeneration).toBe(false);
       expect(caps.supportsEmbedding).toBe(false);
@@ -406,14 +406,14 @@ describe('DidimAdapter', () => {
         adapter.generateContentStream(createBasicRequest(), TEST_PROMPT_ID),
       );
 
-      // Second call: should include stored thread_id in headers
+      // Second call: should include stored thread_id in body (v2)
       await collectEvents(
         adapter.generateContentStream(createBasicRequest(), 'prompt-002'),
       );
 
       const [, secondOptions] = calls[1];
-      const headers = secondOptions.headers as Record<string, string>;
-      expect(headers['x-thread-id']).toBe('th_stream_1');
+      const body = JSON.parse(secondOptions.body as string);
+      expect(body.thread_id).toBe('th_stream_1');
     });
   });
 
@@ -808,8 +808,8 @@ describe('DidimAdapter', () => {
       );
 
       const [, secondOptions] = calls[1];
-      const headers = secondOptions.headers as Record<string, string>;
-      expect(headers['x-thread-id']).toBe('th_imp_reuse');
+      const body = JSON.parse(secondOptions.body as string);
+      expect(body.thread_id).toBe('th_imp_reuse');
     });
   });
 
@@ -1270,10 +1270,10 @@ describe('DidimAdapter', () => {
         adapter.generateContentStream(createBasicRequest(), 'prompt-002'),
       );
 
-      // Verify the stream fetch used the threadId from step 1
+      // Verify the stream fetch used the threadId from step 1 (v2: body)
       expect(fetchCalls).toHaveLength(1);
-      const streamHeaders = fetchCalls[0][1].headers as Record<string, string>;
-      expect(streamHeaders['x-thread-id']).toBe('th_from_invoke');
+      const streamBody = JSON.parse(fetchCalls[0][1].body as string);
+      expect(streamBody.thread_id).toBe('th_from_invoke');
     });
   });
 

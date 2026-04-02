@@ -10,7 +10,7 @@
  * @see docs/00_project/Integration_DidimAIStudio/00_master_plan.md
  */
 
-export { DidimAdapter } from './adapter.js';
+export { DidimAdapter, type DidimToolResult } from './adapter.js';
 export { bootstrapDidimProvider } from './bootstrap.js';
 export {
   // Types

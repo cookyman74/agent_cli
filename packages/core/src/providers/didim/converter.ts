@@ -33,6 +33,7 @@ import {
   type LlmFinishedEvent,
   type LlmMessageEndEvent,
   type LlmTextDeltaEvent,
+  type LlmToolCallRequestEvent,
   type LlmErrorEvent,
   LlmEventType,
 } from '../events.js';
@@ -69,9 +70,18 @@ export interface DidimParsedResponse {
 export type DidimSseEvent =
   | { type: 'delta'; text: string }
   | { type: 'final_message'; text: string }
-  | { type: 'done'; threadId: string | null }
-  | { type: 'error'; message: string }
-  | { type: 'metadata'; eventName: string; data: Record<string, unknown> };
+  | { type: 'done'; threadId: string | null; finishReason?: string }
+  | { type: 'error'; message: string; code?: string }
+  | { type: 'metadata'; eventName: string; data: Record<string, unknown> }
+  | {
+      type: 'tool_call';
+      callId: string;
+      name: string;
+      args: Record<string, unknown>;
+      threadId: string;
+      checkpointId: string;
+      sequence: number;
+    };
 
 /** Options for endpoint generation. */
 export interface DidimEndpointOptions {
@@ -251,10 +261,81 @@ export function parseDidimSseEvent(
     return { type: 'error', message: `Invalid JSON: ${data}` };
   }
 
+  // v2 이벤트는 모드와 무관하게 동일한 형식
+  const v2Event = parseV2Event(eventName, parsed);
+  if (v2Event !== undefined) {
+    return v2Event;
+  }
+
   if (mode === 'sse') {
     return parseSseMode(eventName, parsed);
   }
   return parseImprovedMode(eventName, parsed);
+}
+
+/**
+ * v2 전용 SSE 이벤트 파싱 (tool_call, text_delta, finished).
+ * 양 모드에서 공통으로 동작한다.
+ *
+ * @returns 파싱된 이벤트, 또는 v2 이벤트가 아니면 undefined
+ */
+function parseV2Event(
+  eventName: string,
+  parsed: Record<string, unknown>,
+): DidimSseEvent | null | undefined {
+  switch (eventName) {
+    case 'tool_call': {
+      // 필수 필드 검증: call_id, name이 없으면 error 이벤트로 격하
+      const callId =
+        typeof parsed['call_id'] === 'string' ? parsed['call_id'] : '';
+      const toolName = typeof parsed['name'] === 'string' ? parsed['name'] : '';
+      if (!callId || !toolName) {
+        return {
+          type: 'error',
+          message: `Malformed tool_call: missing call_id or name. data=${JSON.stringify(parsed)}`,
+        };
+      }
+      return {
+        type: 'tool_call',
+        callId,
+        name: toolName,
+        args:
+          typeof parsed['arguments'] === 'object' &&
+          parsed['arguments'] !== null
+            ? (parsed['arguments'] as Record<string, unknown>)
+            : {},
+        threadId:
+          typeof parsed['thread_id'] === 'string' ? parsed['thread_id'] : '',
+        checkpointId:
+          typeof parsed['checkpoint_id'] === 'string'
+            ? parsed['checkpoint_id']
+            : '',
+        sequence:
+          typeof parsed['sequence'] === 'number' ? parsed['sequence'] : 0,
+      };
+    }
+
+    case 'text_delta':
+      return {
+        type: 'delta',
+        text: typeof parsed['text'] === 'string' ? parsed['text'] : '',
+      };
+
+    case 'finished':
+      return {
+        type: 'done',
+        threadId:
+          typeof parsed['thread_id'] === 'string' ? parsed['thread_id'] : null,
+        finishReason:
+          typeof parsed['finish_reason'] === 'string'
+            ? parsed['finish_reason']
+            : undefined,
+      };
+
+    default:
+      // v2 이벤트가 아님 → 기존 모드별 파서로 fallback
+      return undefined;
+  }
 }
 
 function parseSseMode(
@@ -280,6 +361,7 @@ function parseSseMode(
           typeof parsed['message'] === 'string'
             ? parsed['message']
             : 'Unknown error',
+        code: typeof parsed['code'] === 'string' ? parsed['code'] : undefined,
       };
     default:
       return null;
@@ -330,6 +412,7 @@ function parseImprovedMode(
             : typeof parsed['error'] === 'string'
               ? parsed['error']
               : 'Unknown error',
+        code: typeof parsed['code'] === 'string' ? parsed['code'] : undefined,
       };
 
     // Non-content metadata events — recognized but not converted to text
@@ -380,8 +463,9 @@ export function convertDidimResponseToLlm(
  * Event mapping:
  * - delta         → TextDelta
  * - final_message → TextDelta (adapter suppresses when deltas already emitted)
- * - done          → Finished + MessageEnd (in order)
- * - error         → Error
+ * - tool_call     → ToolCallRequest
+ * - done          → Finished + MessageEnd (finishReason: tool_call_pending → tool_use)
+ * - error         → Error (code 보존)
  * - metadata      → [] (non-content, silently skipped)
  */
 export function convertDidimSseToLlmEvents(event: DidimSseEvent): LlmEvent[] {
@@ -395,10 +479,23 @@ export function convertDidimSseToLlmEvents(event: DidimSseEvent): LlmEvent[] {
       return [textEvent];
     }
 
+    case 'tool_call': {
+      const toolCallEvent: LlmToolCallRequestEvent = {
+        type: LlmEventType.ToolCallRequest,
+        callId: event.callId,
+        name: event.name,
+        args: event.args,
+      };
+      return [toolCallEvent];
+    }
+
     case 'done': {
+      // finishReason 매핑: tool_call_pending → tool_use, stop/미지정 → end_turn
+      const finishReason =
+        event.finishReason === 'tool_call_pending' ? 'tool_use' : 'end_turn';
       const finishedEvent: LlmFinishedEvent = {
         type: LlmEventType.Finished,
-        finishReason: 'end_turn',
+        finishReason,
       };
       const messageEndEvent: LlmMessageEndEvent = {
         type: LlmEventType.MessageEnd,
@@ -410,12 +507,12 @@ export function convertDidimSseToLlmEvents(event: DidimSseEvent): LlmEvent[] {
       const errorEvent: LlmErrorEvent = {
         type: LlmEventType.Error,
         error: event.message || 'Unknown DidimAIStudio error',
+        code: event.code,
       };
       return [errorEvent];
     }
 
     case 'metadata':
-      // Non-content events — no LlmEvents produced
       return [];
 
     default:
